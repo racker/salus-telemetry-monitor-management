@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
 import lombok.extern.slf4j.Slf4j;
@@ -96,7 +97,7 @@ public class MonitorApi {
     public Monitor create(@PathVariable String tenantId)
     //                       @Valid @RequestBody final MonitorCreate input)
             throws IllegalArgumentException {
-        return monitorManagement.saveAndPublishMonitor(new Monitor().setContent("hig1"));
+        return monitorManagement.saveAndPublishMonitor(new Monitor().setContent("con1").setMonitorId("mon1").setAgentType(AgentType.FILEBEAT).setTenantId("abc"));
     }
 
     // @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
