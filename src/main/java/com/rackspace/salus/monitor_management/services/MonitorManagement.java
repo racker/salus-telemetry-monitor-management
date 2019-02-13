@@ -1,13 +1,9 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import java.util.Set;
 
 @Slf4j
@@ -21,10 +17,10 @@ public class MonitorManagement {
 
     public void handleResourceEvent(ResourceEvent event) {
         log.debug("");
-
-        Set<String> keys = event.getOldLabels().keySet();
-        keys.removeAll(event.getResource().getLabels().keySet());//now we should have the difference of labels.
-
+        if (event.getOldLabels() != null) {
+            Set<String> keys = event.getOldLabels().keySet();
+            keys.removeAll(event.getResource().getLabels().keySet());//now we should have the difference of labels.
+        }
         /*
             We probably want to grab three different lists of labels. Deleted labels (set difference on the oldLabels),
             added labels (set difference on the new labels), and the labels that stayed the same (possibly updated?)
