@@ -1,7 +1,3 @@
-monitor-management:
-  kafka-topics:
-    RESOURCE:
-      telemetry.resources.json
 spring:
   kafka:
     producer:

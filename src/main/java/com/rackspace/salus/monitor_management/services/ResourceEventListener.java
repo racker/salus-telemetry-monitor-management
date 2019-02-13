@@ -1,8 +1,6 @@
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
-import com.rackspace.salus.telemetry.messaging.AttachEvent;
-import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
+import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,18 +9,18 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class KafkaIngress {
+public class ResourceEventListener {
 
 
-    private final MonitorManagementProperties properties;
+    private final KafkaTopicProperties properties;
     private final MonitorManagement monitorManagement;
     private final String topic;
 
     @Autowired
-    public KafkaIngress(MonitorManagementProperties properties, MonitorManagement monitorManagement) {
+    public ResourceEventListener(KafkaTopicProperties properties, MonitorManagement monitorManagement) {
         this.properties = properties;
         this.monitorManagement = monitorManagement;
-        this.topic = this.properties.getKafkaTopics().get(KafkaMessageType.RESOURCE);
+        this.topic = this.properties.getResources();
     }
 
 
@@ -51,7 +49,7 @@ public class KafkaIngress {
      */
     @KafkaListener(topics = "#{__listener.topic}")
     public void consumeResourceEvents(ResourceEvent resourceEvent) {
-        log.debug("Processing new attach event: {}", resourceEvent.toString());
+        log.debug("Processing new resource event: {}", resourceEvent.toString());
 
         monitorManagement.handleResourceEvent(resourceEvent);
     }

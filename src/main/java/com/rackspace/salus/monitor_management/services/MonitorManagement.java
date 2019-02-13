@@ -14,31 +14,29 @@ import java.util.Set;
 @Service
 public class MonitorManagement {
 
-    // if we need this it is probably supposed to be a MonitorRepository
-    private final ResourceRepository resourceRepository;
-    //private final KafkaEgress kafkaEgress;
-
-    @PersistenceContext
-    private final EntityManager entityManager;
-
-    private static final String ENVOY_NAMESPACE = "envoy.";
-
     @Autowired
-    public MonitorManagement(ResourceRepository resourceRepository, EntityManager entityManager) { //KafkaEgress kafkaEgress,
-        this.resourceRepository = resourceRepository;
-        //this.kafkaEgress = kafkaEgress;
-        this.entityManager = entityManager;
+    public MonitorManagement() {
     }
 
 
     public void handleResourceEvent(ResourceEvent event) {
         log.debug("");
+
         Set<String> keys = event.getOldLabels().keySet();
         keys.removeAll(event.getResource().getLabels().keySet());//now we should have the difference of labels.
-        // Unless we just want to start out by reading in the new list of labels and clobbering the old data that exists.
 
-        // do something with the labels. In this situation I really like creating enums and using them to create the distinct logic.
+        /*
+            We probably want to grab three different lists of labels. Deleted labels (set difference on the oldLabels),
+            added labels (set difference on the new labels), and the labels that stayed the same (possibly updated?)
 
-        // post kafka egress event
+            Unless we just want to start out by reading in the new list of labels and clobbering the old data that exists.
+
+            When we do something with them this feels a little like a state machine which is really well suited to functions
+            attached to enums. But its probably fine to just grab the different lists and pass them off to their respective SQL
+            functions
+        */
+
+
+        // post kafka egress event. This will probably be handled post CRUD event, and not in this function.
     }
 }
