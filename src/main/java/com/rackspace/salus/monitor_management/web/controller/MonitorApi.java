@@ -84,13 +84,13 @@ public class MonitorApi {
         return monitor;
     }
 
-    // @GetMapping("/tenant/{tenantId}/monitors")
-    // public Page<Monitor>  getAllForTenant(@PathVariable String tenantId,
-    //                                @RequestParam(defaultValue = "100") int size,
-    //                                @RequestParam(defaultValue = "0") int page) {
+    @GetMapping("/tenant/{tenantId}/monitors")
+    public Page<Monitor>  getAllForTenant(@PathVariable String tenantId,
+                                   @RequestParam(defaultValue = "100") int size,
+                                   @RequestParam(defaultValue = "0") int page) {
 
-    //     return monitorManagement.getMonitors(tenantId, PageRequest.of(page, size));
-    // }
+        return monitorManagement.getMonitors(tenantId, PageRequest.of(page, size));
+    }
 
     @PostMapping("/tenant/{tenantId}/monitors")
     @ResponseStatus(HttpStatus.CREATED)

@@ -108,17 +108,17 @@ public class MonitorManagement {
     //  * @param page The slice of results to be returned.
     //  * @return The monitors found for the tenant that match the page criteria.
     //  */
-    // public Page<Monitor> getMonitors(String tenantId, Pageable page) {
-    //     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    //     CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-    //     Root<Monitor> root = cr.from(Monitor.class);
-    //     cr.select(root).where(
-    //             cb.equal(root.get(Monitor_.tenantId), tenantId));
+    public Page<Monitor> getMonitors(String tenantId, Pageable page) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
+        Root<Monitor> root = cr.from(Monitor.class);
+        cr.select(root).where(
+                cb.equal(root.get(Monitor_.tenantId), tenantId));
 
-    //     List<Monitor> monitors = entityManager.createQuery(cr).getResultList();
+        List<Monitor> monitors = entityManager.createQuery(cr).getResultList();
 
-    //     return new PageImpl<>(monitors, page, monitors.size());
-    // }
+        return new PageImpl<>(monitors, page, monitors.size());
+    }
 
     // /**
     // public List<Monitor> getMonitors(String tenantId, Map<String, String> labels) {
