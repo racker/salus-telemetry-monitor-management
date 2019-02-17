@@ -72,17 +72,17 @@ public class MonitorApi {
     //     return emitter;
     // }
 
-    // @GetMapping("/tenant/{tenantId}/monitors/{monitorId}")
-    // public Monitor getByMonitorId(@PathVariable String tenantId,
-    //                                 @PathVariable String monitorId) throws NotFoundException {
+    @GetMapping("/tenant/{tenantId}/monitors/{monitorId}")
+    public Monitor getByMonitorId(@PathVariable String tenantId,
+                                    @PathVariable String monitorId) throws NotFoundException {
 
-    //     Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId);
-    //     if (monitor == null) {
-    //         throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-    //                 monitorId, tenantId));
-    //     }
-    //     return monitor;
-    // }
+        Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId);
+        if (monitor == null) {
+            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                    monitorId, tenantId));
+        }
+        return monitor;
+    }
 
     // @GetMapping("/tenant/{tenantId}/monitors")
     // public Page<Monitor>  getAllForTenant(@PathVariable String tenantId,

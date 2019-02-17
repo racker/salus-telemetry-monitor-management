@@ -75,23 +75,23 @@ public class MonitorManagement {
     //  * @param monitorId The unique value representing the monitor.
     //  * @return The monitor object.
     //  */
-    // public Monitor getMonitor(String tenantId, String monitorId) {
-    //     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    //     CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-    //     Root<Monitor> root = cr.from(Monitor.class);
-    //     cr.select(root).where(cb.and(
-    //             cb.equal(root.get(Monitor_.tenantId), tenantId),
-    //             cb.equal(root.get(Monitor_.monitorId), monitorId)));
+    public Monitor getMonitor(String tenantId, String monitorId) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
+        Root<Monitor> root = cr.from(Monitor.class);
+        cr.select(root).where(cb.and(
+                cb.equal(root.get(Monitor_.tenantId), tenantId),
+                cb.equal(root.get(Monitor_.monitorId), monitorId)));
 
-    //     Monitor result;
-    //     try {
-    //         result = entityManager.createQuery(cr).getSingleResult();
-    //     } catch (NoResultException e) {
-    //         result = null;
-    //     }
+        Monitor result;
+        try {
+            result = entityManager.createQuery(cr).getSingleResult();
+        } catch (NoResultException e) {
+            result = null;
+        }
 
-    //     return result;
-    // }
+        return result;
+    }
 
     // /**
     //  * Get a selection of monitor objects across all accounts.
