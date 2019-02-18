@@ -56,10 +56,13 @@ public class MonitorManagementTest {
     @Autowired
     MonitorManagement monitorManagement;
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     MonitorRepository monitorRepository;
 
     PodamFactory podamFactory = new PodamFactoryImpl();
+
+    Monitor currentMonitor;
 
     @Before
     public void setUp() {
@@ -70,6 +73,7 @@ public class MonitorManagementTest {
                 .setContent("content1")
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
+        currentMonitor = monitor;
     }
 
     private void createMonitors(int count) {
@@ -95,6 +99,8 @@ public class MonitorManagementTest {
 
         assertThat(r.getId(), notNullValue());
         assertThat(r.getLabels(), hasEntry("key", "value"));
+        assertThat(r.getContent(), equalTo(currentMonitor.getContent()));
+        assertThat(r.getAgentType(), equalTo(currentMonitor.getAgentType()));
     }
 
     @Test
@@ -107,6 +113,9 @@ public class MonitorManagementTest {
 
         assertThat(returned.getId(), notNullValue());
         assertThat(returned.getMonitorId(), equalTo(create.getMonitorId()));
+        assertThat(returned.getContent(), equalTo(create.getContent()));
+        assertThat(returned.getAgentType(), equalTo(AgentType.valueOf(create.getAgentType())));
+        
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
@@ -175,8 +184,7 @@ public class MonitorManagementTest {
         newLabels.put("newLabel", "newValue");
         MonitorUpdate update = new MonitorUpdate();
 
-        // lombok chaining isn't working when I compile, so doing this way for now.
-        update.setLabels(newLabels);
+        update.setLabels(newLabels).setContent("newContent");
 
         Monitor newMonitor;
         try {
@@ -191,6 +199,7 @@ public class MonitorManagementTest {
 
         assertThat(newMonitor.getLabels(), equalTo(monitor.getLabels()));
         assertThat(newMonitor.getId(), equalTo(monitor.getId()));
+        assertThat(newMonitor.getContent(), equalTo(monitor.getContent()));
     }
 
     @Test

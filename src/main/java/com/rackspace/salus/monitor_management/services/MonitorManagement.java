@@ -49,6 +49,7 @@ public class MonitorManagement {
     @PersistenceContext
     private final EntityManager entityManager;
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager) {
         this.monitorRepository = monitorRepository;
