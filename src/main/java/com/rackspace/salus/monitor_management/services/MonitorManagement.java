@@ -49,6 +49,7 @@ import java.util.Set;
 @Slf4j
 @Service
 public class MonitorManagement {
+    private final MonitorEventProducer monitorEventProducer;
 
     private final MonitorRepository monitorRepository;
 
@@ -57,9 +58,10 @@ public class MonitorManagement {
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
-    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager) {
+    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager, MonitorEventProducer monitorEventProducer) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
+	this.monitorEventProducer = monitorEventProducer;
     }
 
     /**
@@ -218,5 +220,15 @@ public class MonitorManagement {
 
 
         // post kafka egress event. This will probably be handled post CRUD event, and not in this function.
+        MonitorEvent monitorEvent = new MonitorEvent();
+        monitorEvent.setTenantId(event.getResource().getTenantId());
+        monitorEvent.setOperationType(event.getOperation());
+        // monitorEvent.setEnvoyId()
+        // monitorEvent.setAmbassadorId()
+        AgentConfig config = new AgentConfig();
+        config.setLabels(event.getResource().getLabels());
+        config.setContent("this is sample content");
+        monitorEvent.setConfig(config);
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
     }
 }
