@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
+import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -101,17 +102,17 @@ public class MonitorApi {
         return monitorManagement.createMonitor(tenantId, input);
     }
 
-    // @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
-    // public Monitor update(@PathVariable String tenantId,
-    //                        @PathVariable String monitorId,
-    //                        @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
-    //     return monitorManagement.updateMonitor(tenantId, monitorId, input);
-    // }
+    @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
+    public Monitor update(@PathVariable String tenantId,
+                           @PathVariable String monitorId,
+                           @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
+        return monitorManagement.updateMonitor(tenantId, monitorId, input);
+    }
 
-    // @DeleteMapping("/tenant/{tenantId}/monitors/{monitorId}")
-    // @ResponseStatus(HttpStatus.NO_CONTENT)
-    // public void delete(@PathVariable String tenantId,
-    //                    @PathVariable String monitorId) {
-    //     monitorManagement.removeMonitor(tenantId, monitorId);
-    // }
+    @DeleteMapping("/tenant/{tenantId}/monitors/{monitorId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String tenantId,
+                       @PathVariable String monitorId) {
+        monitorManagement.removeMonitor(tenantId, monitorId);
+    }
 }
