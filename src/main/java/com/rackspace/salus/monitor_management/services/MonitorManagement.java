@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.messaging.*;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -148,169 +149,40 @@ public class MonitorManagement {
         return monitor;
     }
 
-    // /**
-    //  * Update an existing monitor and publish an event to kafka.
-    //  * @param tenantId The tenant to create the entity for.
-    //  * @param monitorId The id of the existing monitor.
-    //  * @param updatedValues The new monitor parameters to store.
-    //  * @return The newly updated monitor.
-    //  */
-    // public Monitor updateMonitor(String tenantId, String monitorId, @Valid MonitorUpdate updatedValues) {
-    //     Monitor monitor = getMonitor(tenantId, monitorId);
-    //     if (monitor == null) {
-    //         throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-    //                 monitorId, tenantId));
-    //     }
-    //     Map<String, String> oldLabels = new HashMap<>(monitor.getLabels());
-    //     boolean presenceMonitoringStateChange = false;
-    //     if (updatedValues.getPresenceMonitoringEnabled() != null) {
-    //         presenceMonitoringStateChange = monitor.getPresenceMonitoringEnabled().booleanValue()
-    //                 != updatedValues.getPresenceMonitoringEnabled().booleanValue();
-    //     }
+    /**
+     * Update an existing monitor and publish an event to kafka.
+     * @param tenantId The tenant to create the entity for.
+     * @param monitorId The id of the existing monitor.
+     * @param updatedValues The new monitor parameters to store.
+     * @return The newly updated monitor.
+     */
+    public Monitor updateMonitor(String tenantId, String monitorId, @Valid MonitorUpdate updatedValues) {
+        Monitor monitor = getMonitor(tenantId, monitorId);
+        if (monitor == null) {
+            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                    monitorId, tenantId));
+        }
+        PropertyMapper map = PropertyMapper.get();
+        map.from(updatedValues.getLabels())
+                .whenNonNull()
+                .to(monitor::setLabels);
+        monitor.setContent(updatedValues.getContent());
+        monitorRepository.save(monitor);
+        return monitor;
+    }
 
-    //     PropertyMapper map = PropertyMapper.get();
-    //     map.from(updatedValues.getLabels())
-    //             .whenNonNull()
-    //             .to(monitor::setLabels);
-    //     map.from(updatedValues.getPresenceMonitoringEnabled())
-    //             .whenNonNull()
-    //             .to(monitor::setPresenceMonitoringEnabled);
-
-    //     saveAndPublishMonitor(monitor, oldLabels, presenceMonitoringStateChange, OperationType.UPDATE);
-
-    //     return monitor;
-    // }
-
-    // /**
-    //  * Delete a monitor and publish an event to kafka.
-    //  * @param tenantId The tenant the monitor belongs to.
-    //  * @param monitorId The id of the monitor.
-    //  */
-    // public void removeMonitor(String tenantId, String monitorId) {
-    //     Monitor monitor = getMonitor(tenantId, monitorId);
-    //     if (monitor != null) {
-    //         monitorRepository.deleteById(monitor.getId());
-    //         publishMonitorEvent(monitor, null, monitor.getPresenceMonitoringEnabled(), OperationType.DELETE);
-    //     } else {
-    //         throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-    //                 monitorId, tenantId));
-    //     }
-    // }
-
-    // /**
-    //  * Registers or updates monitors in the datastore.
-    //  * Prefixes the labels received from the envoy so they do not clash with any api specified values.
-    //  *
-    //  * @param attachEvent The event triggered from the Ambassador by any envoy attachment.
-    //  */
-    // public void handleEnvoyAttach(AttachEvent attachEvent) {
-    //     String tenantId = attachEvent.getTenantId();
-    //     String monitorId = attachEvent.getMonitorId();
-    //     Map<String, String> labels = attachEvent.getLabels();
-    //     labels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
-
-    //     Monitor existing = getMonitor(tenantId, monitorId);
-
-    //     if (existing == null) {
-    //         log.debug("No monitor found for new envoy attach");
-    //         Monitor newMonitor = new Monitor()
-    //                 .setTenantId(tenantId)
-    //                 .setMonitorId(monitorId)
-    //                 .setLabels(labels)
-    //                 .setPresenceMonitoringEnabled(true);
-    //         saveAndPublishMonitor(newMonitor, null, true, OperationType.CREATE);
-    //     } else {
-    //         log.debug("Found existing monitor related to envoy: {}", existing.toString());
-
-    //         Map<String,String> oldLabels = new HashMap<>(existing.getLabels());
-
-    //         updateEnvoyLabels(existing, labels);
-    //         saveAndPublishMonitor(existing, oldLabels, false, OperationType.UPDATE);
-    //     }
-    // }
-
-    // /**
-    //  * When provided with a list of envoy labels determine which ones need to be modified and perform an update.
-    //  * @param monitor The monitor to update.
-    //  * @param envoyLabels The list of labels received from a newly connected envoy.
-    //  */
-    // private void updateEnvoyLabels(Monitor monitor, Map<String, String> envoyLabels) {
-    //     AtomicBoolean updated = new AtomicBoolean(false);
-    //     Map<String, String> monitorLabels = monitor.getLabels();
-    //     Map<String, String> oldLabels = new HashMap<>(monitorLabels);
-
-    //     oldLabels.entrySet().stream()
-    //         .filter(entry -> entry.getKey().startsWith(ENVOY_NAMESPACE))
-    //         .forEach(entry -> {
-    //             if (envoyLabels.containsKey(entry.getKey())) {
-    //                 if (envoyLabels.get(entry.getKey()) != entry.getValue()) {
-    //                     updated.set(true);
-    //                     monitorLabels.put(entry.getKey(), entry.getValue());
-    //                 }
-    //             } else {
-    //                 updated.set(true);
-    //                 monitorLabels.remove(entry.getKey());
-    //             }
-    //         });
-    //     if (updated.get()) {
-    //         saveAndPublishMonitor(monitor, oldLabels, false, OperationType.UPDATE);
-    //     }
-    // }
-
-    // /**
-    //  * Publish a monitor event to kafka for consumption by other services.
-    //  * @param monitor The updated monitor the operation was performed on.
-    //  * @param oldLabels The monitor labels prior to any update.
-    //  * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
-    //  * @param operation The type of event that occurred. e.g. create, update, or delete.
-    //  */
-    // private void publishMonitorEvent(Monitor monitor, Map<String, String> oldLabels, boolean presenceMonitoringStateChanged, OperationType operation) {
-    //     MonitorEvent event = new MonitorEvent();
-    //     event.setMonitor(monitor);
-    //     event.setOldLabels(oldLabels);
-    //     event.setPresenceMonitorChange(presenceMonitoringStateChanged);
-    //     event.setOperation(operation);
-
-    //     kafkaEgress.sendMonitorEvent(event);
-    // }
-
-    // /**
-    //  * Receives a map of strings and adds the given namespace as a prefix to the key.
-    //  * @param map The map to modify.
-    //  * @param namespace Prefix to apply to map's keys.
-    //  * @return Original map but with the namespace prefix applied to all keys.
-    //  */
-    // private Map<String, String> applyNamespaceToKeys(Map<String, String> map, String namespace) {
-    //     Map<String, String> prefixedMap = new HashMap<>();
-    //     map.forEach((name, value) -> {
-    //         prefixedMap.put(namespace + name, value);
-    //     });
-    //     return prefixedMap;
-    // }
-
-    // /**
-    //  * This can be used to force a presence monitoring change if it is currently running but should not be.
-    //  *
-    //  * If the monitor no longer exists, we will still send an event in case presence monitoring is still active.
-    //  * This case will also ensure the monitor mgmt service removed any active monitors.
-    //  *
-    //  * @param tenantId The tenant associated to the monitor.
-    //  * @param monitorId THe id of the monitor we need to disable monitoring of.
-    //  */
-    // private void removePresenceMonitoring(String tenantId, String monitorId) {
-    //     Monitor monitor = getMonitor(tenantId, monitorId);
-    //     if (monitor == null) {
-    //         log.debug("No monitor found to remove presence monitoring");
-    //         monitor = new Monitor()
-    //                 .setTenantId(tenantId)
-    //                 .setMonitorId(monitorId)
-    //                 .setPresenceMonitoringEnabled(false);
-    //     } else {
-    //         monitor.setPresenceMonitoringEnabled(false);
-    //     }
-
-    //     saveAndPublishMonitor(monitor, monitor.getLabels(), true, OperationType.UPDATE);
-    // }
-
-    // //public Monitor migrateMonitorToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
+    /**
+     * Delete a monitor and publish an event to kafka.
+     * @param tenantId The tenant the monitor belongs to.
+     * @param monitorId The id of the monitor.
+     */
+    public void removeMonitor(String tenantId, String monitorId) {
+        Monitor monitor = getMonitor(tenantId, monitorId);
+        if (monitor != null) {
+            monitorRepository.deleteById(monitor.getId());
+        } else {
+            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                    monitorId, tenantId));
+        }
+    }
 }
