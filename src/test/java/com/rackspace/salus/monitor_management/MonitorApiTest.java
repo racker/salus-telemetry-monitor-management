@@ -35,6 +35,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,10 +71,14 @@ public class MonitorApiTest {
     MonitorManagement monitorManagement;
 
     @MockBean
-    EntityManagerFactory entityManagerFactory;
-
-    @MockBean
     MonitorRepository monitorRepository;
+
+    // This mock is a hack;
+    //  it is required because the entityManager bean needs to find all the repositories
+    //  need to find a way to filter out the unwanted repos without adding a bean for each of them
+    @MockBean
+    ResourceRepository resourceRepository;
+
 
     @Autowired
     ObjectMapper objectMapper;
