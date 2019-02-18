@@ -168,14 +168,13 @@ public class MonitorManagementTest {
         assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
     }
 
-    // @Test
-    // public void testGetMonitorsWithPresenceMonitoringAsStream() {
-    //     int totalMonitors = 100;
-    //     createMonitors(totalMonitors);
-    //     Stream s = monitorManagement.getMonitors(true);
-    //     // The one default monitor doesn't have presence monitoring enabled so can be ignored.
-    //     assertThat(s.count(), equalTo((long) totalMonitors));
-    // }
+    @Test
+    public void testGetMonitorsAsStream() {
+        int totalMonitors = 100;
+        createMonitors(totalMonitors);
+        Stream s = monitorManagement.getMonitorsAsStream();
+        assertThat(s.count(), equalTo((long) totalMonitors + 1));
+    }
 
     @Test
     public void testUpdateExistingMonitor() {

@@ -290,35 +290,35 @@ public class MonitorApiTest {
                 .andExpect(jsonPath("$.size", equalTo(pageSize)));
     }
 
-    // @Test
-    // public void testGetStreamOfMonitors() throws Exception {
-    //     int numberOfMonitors = 20;
-    //     List<Monitor> monitors = new ArrayList<>();
-    //     for (int i=0; i<numberOfMonitors; i++) {
-    //         monitors.add(podamFactory.manufacturePojo(Monitor.class));
-    //     }
+    @Test
+    public void testGetStreamOfMonitors() throws Exception {
+        int numberOfMonitors = 20;
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i=0; i<numberOfMonitors; i++) {
+            monitors.add(podamFactory.manufacturePojo(Monitor.class));
+        }
 
-    //     List<String> expectedData = monitors.stream()
-    //         .map(r -> {
-    //             try {
-    //                 return "data:" + objectMapper.writeValueAsString(r);
-    //             } catch (JsonProcessingException e) {
-    //                 assertThat(e, nullValue());
-    //                 return null;
-    //             }
-    //         }).collect(Collectors.toList());
-    //     assertThat(expectedData.size(), equalTo(monitors.size()));
+        List<String> expectedData = monitors.stream()
+            .map(r -> {
+                try {
+                    return "data:" + objectMapper.writeValueAsString(r);
+                } catch (JsonProcessingException e) {
+                    assertThat(e, nullValue());
+                    return null;
+                }
+            }).collect(Collectors.toList());
+        assertThat(expectedData.size(), equalTo(monitors.size()));
 
-    //     String url = "/api/envoys";
-    //     Stream<Monitor> monitorStream = monitors.stream();
+        String url = "/api/monitorsAsStream";
+        Stream<Monitor> monitorStream = monitors.stream();
 
-    //     when(monitorManagement.getMonitors(true))
-    //             .thenReturn(monitorStream);
+        when(monitorManagement.getMonitorsAsStream())
+                .thenReturn(monitorStream);
 
-    //     mockMvc.perform(get(url))
-    //             .andDo(print())
-    //             .andExpect(status().isOk())
-    //             .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
-    //             .andExpect(content().string(stringContainsInOrder(expectedData)));
-    // }
+        mockMvc.perform(get(url))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
+                .andExpect(content().string(stringContainsInOrder(expectedData)));
+    }
 }

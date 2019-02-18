@@ -107,21 +107,17 @@ public class MonitorManagement {
         return new PageImpl<>(monitors, page, monitors.size());
     }
 
-    // /**
-    //  * Get all monitors where the presence monitoring field matches the parameter provided.
-    //  * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
-    //  * @return Stream of monitors.
-    //  */
-    // public Stream<Monitor> getMonitors(boolean presenceMonitoringEnabled) {
-    //     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    //     CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-    //     Root<Monitor> root = cr.from(Monitor.class);
-
-    //     cr.select(root).where(
-    //             cb.equal(root.get(Monitor_.presenceMonitoringEnabled), presenceMonitoringEnabled));
-
-    //     return entityManager.createQuery(cr).getResultStream();
-    // }
+    /**
+     * Get all monitors as a stream
+     * @return Stream of monitors.
+     */
+    public Stream<Monitor> getMonitorsAsStream() {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
+        Root<Monitor> root = cr.from(Monitor.class);
+        cr.select(root);
+        return entityManager.createQuery(cr).getResultStream();
+    }
 
     
     /**
