@@ -37,6 +37,8 @@ import javax.validation.Valid;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
+import com.rackspace.salus.telemetry.errors.MonitorAlreadyExists;
 
 @Slf4j
 @Service
@@ -52,29 +54,12 @@ public class MonitorManagement {
         this.entityManager = entityManager;
     }
 
-    // /**
-    //  * Creates or updates the monitor depending on whether the ID already exists.
-    //  * Also sends a monitor event to kafka for consumption by other services.
-    //  *
-    //  * @param monitor The monitor object to create/update in the database.
-    //  * @param oldLabels The labels of the monitor prior to any modifications.
-    //  * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
-    //  * @param operation The type of event that occurred. e.g. create, update, or delete.
-    //  * @return
-    //  */
-//    public Monitor saveAndPublishMonitor(Monitor monitor, Map<String, String> oldLabels,
-//                                           boolean presenceMonitoringStateChanged, OperationType operation) {
-    public Monitor saveAndPublishMonitor(Monitor monitor) {
-        monitorRepository.save(monitor);
-        return monitor;
-    }
-
-    // /**
-    //  * Gets an individual monitor object by the public facing id.
-    //  * @param tenantId The tenant owning the monitor.
-    //  * @param monitorId The unique value representing the monitor.
-    //  * @return The monitor object.
-    //  */
+    /**
+     * Gets an individual monitor object by the public facing id.
+     * @param tenantId The tenant owning the monitor.
+     * @param monitorId The unique value representing the monitor.
+     * @return The monitor object.
+     */
     public Monitor getMonitor(String tenantId, String monitorId) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
@@ -93,21 +78,21 @@ public class MonitorManagement {
         return result;
     }
 
-    // /**
-    //  * Get a selection of monitor objects across all accounts.
-    //  * @param page The slice of results to be returned.
-    //  * @return The monitors found that match the page criteria.
-    //  */
+    /**
+     * Get a selection of monitor objects across all accounts.
+     * @param page The slice of results to be returned.
+     * @return The monitors found that match the page criteria.
+     */
     public Page<Monitor> getAllMonitors(Pageable page) {
         return monitorRepository.findAll(page);
     }
 
-    // /**
-    //  * Same as {@link #getAllMonitors(Pageable page) getAllMonitors} except restricted to a single tenant.
-    //  * @param tenantId The tenant to select monitors from.
-    //  * @param page The slice of results to be returned.
-    //  * @return The monitors found for the tenant that match the page criteria.
-    //  */
+    /**
+     * Same as {@link #getAllMonitors(Pageable page) getAllMonitors} except restricted to a single tenant.
+     * @param tenantId The tenant to select monitors from.
+     * @param page The slice of results to be returned.
+     * @return The monitors found for the tenant that match the page criteria.
+     */
     public Page<Monitor> getMonitors(String tenantId, Pageable page) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
@@ -119,11 +104,6 @@ public class MonitorManagement {
 
         return new PageImpl<>(monitors, page, monitors.size());
     }
-
-    // /**
-    // public List<Monitor> getMonitors(String tenantId, Map<String, String> labels) {
-    //     // use geoff's label search query
-    // }*/
 
     // /**
     //  * Get all monitors where the presence monitoring field matches the parameter provided.
@@ -141,53 +121,32 @@ public class MonitorManagement {
     //     return entityManager.createQuery(cr).getResultStream();
     // }
 
-    // /**
-    //  * Similar to {@link #getMonitors(boolean presenceMonitoringEnabled) getMonitors} except restricted to a
-    //  * single tenant, and returns a list.
-    //  * @param tenantId The tenant to select monitors from.
-    //  * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
-    //  * @param page The slice of results to be returned.
-    //  * @return A page or monitors matching the given criteria.
-    //  */
-    // public Page<Monitor> getMonitors(String tenantId, boolean presenceMonitoringEnabled, Pageable page) {
-    //     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    //     CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-    //     Root<Monitor> root = cr.from(Monitor.class);
+    
+    /**
+     * Create a new monitor in the database and publish an event to kafka.
+     * @param tenantId The tenant to create the entity for.
+     * @param newMonitor The monitor parameters to store.
+     * @return The newly created monitor.
+     * @throws IllegalArgumentException
+     * @throws MonitorAlreadyExists
+     */
+    public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, MonitorAlreadyExists {
+        Monitor existing = getMonitor(tenantId, newMonitor.getMonitorId());
+        if (existing != null) {
+            throw new MonitorAlreadyExists(String.format("Monitor already exists with identifier %s on tenant %s",
+                    newMonitor.getMonitorId(), tenantId));
+        }
 
-    //     cr.select(root).where(cb.and(
-    //             cb.equal(root.get(Monitor_.tenantId), tenantId),
-    //             cb.equal(root.get(Monitor_.presenceMonitoringEnabled), presenceMonitoringEnabled)));
+        Monitor monitor = new Monitor()
+                .setTenantId(tenantId)
+                .setMonitorId(newMonitor.getMonitorId())
+                .setLabels(newMonitor.getLabels())
+                .setContent(newMonitor.getContent())
+                .setAgentType(AgentType.valueOf(newMonitor.getAgentType()));
 
-    //     List<Monitor> monitors = entityManager.createQuery(cr).getResultList();
-
-    //     return new PageImpl<>(monitors, page, monitors.size());
-    // }
-
-    // /**
-    //  * Create a new monitor in the database and publish an event to kafka.
-    //  * @param tenantId The tenant to create the entity for.
-    //  * @param newMonitor The monitor parameters to store.
-    //  * @return The newly created monitor.
-    //  * @throws IllegalArgumentException
-    //  * @throws MonitorAlreadyExists
-    //  */
-    // public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, MonitorAlreadyExists {
-    //     Monitor existing = getMonitor(tenantId, newMonitor.getMonitorId());
-    //     if (existing != null) {
-    //         throw new MonitorAlreadyExists(String.format("Monitor already exists with identifier %s on tenant %s",
-    //                 newMonitor.getMonitorId(), tenantId));
-    //     }
-
-    //     Monitor monitor = new Monitor()
-    //             .setTenantId(tenantId)
-    //             .setMonitorId(newMonitor.getMonitorId())
-    //             .setLabels(newMonitor.getLabels())
-    //             .setPresenceMonitoringEnabled(newMonitor.getPresenceMonitoringEnabled());
-
-    //     monitor = saveAndPublishMonitor(monitor, null, monitor.getPresenceMonitoringEnabled(), OperationType.CREATE);
-
-    //     return monitor;
-    // }
+        monitorRepository.save(monitor);
+        return monitor;
+    }
 
     // /**
     //  * Update an existing monitor and publish an event to kafka.
