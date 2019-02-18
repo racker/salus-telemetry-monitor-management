@@ -1,6 +1,8 @@
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import com.rackspace.salus.telemetry.model.AgentConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,9 +11,11 @@ import java.util.Set;
 @Slf4j
 @Service
 public class MonitorManagement {
+    private final MonitorEventProducer monitorEventProducer;
 
     @Autowired
-    public MonitorManagement() {
+    public MonitorManagement(MonitorEventProducer monitorEventProducer) {
+        this.monitorEventProducer = monitorEventProducer;
     }
 
 
@@ -34,5 +38,15 @@ public class MonitorManagement {
 
 
         // post kafka egress event. This will probably be handled post CRUD event, and not in this function.
+        MonitorEvent monitorEvent = new MonitorEvent();
+        monitorEvent.setTenantId(event.getResource().getTenantId());
+        monitorEvent.setOperationType(event.getOperation());
+        // monitorEvent.setEnvoyId()
+        // monitorEvent.setAmbassadorId()
+        AgentConfig config = new AgentConfig();
+        config.setLabels(event.getResource().getLabels());
+        config.setContent("this is sample content");
+        monitorEvent.setConfig(config);
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
     }
 }
