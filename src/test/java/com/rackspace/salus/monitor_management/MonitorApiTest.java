@@ -73,9 +73,9 @@ public class MonitorApiTest {
     @MockBean
     MonitorRepository monitorRepository;
 
-    // This mock is a hack;
-    //  it is required because the entityManager bean needs to find all the repositories
-    //  need to find a way to filter out the unwanted repos without adding a bean for each of them
+    // This mock is a hack; it is required because the entityManager
+    //  bean needs to find a bean for all the repositories defined in the telemetery model module
+    //  We need to find a way to filter out the unwanted repos without adding a bean for each of them
     @MockBean
     ResourceRepository resourceRepository;
 
