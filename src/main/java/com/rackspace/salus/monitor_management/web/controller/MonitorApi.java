@@ -57,22 +57,22 @@ public class MonitorApi {
 
     }
 
-    // @GetMapping("/envoys")
-    // public SseEmitter getAllWithPresenceMonitoringAsStream() {
-    //     SseEmitter emitter = new SseEmitter();
-    //     Stream<Monitor> monitorsWithEnvoys = monitorManagement.getMonitors(true);
-    //     taskExecutor.execute(() -> {
-    //         monitorsWithEnvoys.forEach(r -> {
-    //             try {
-    //                 emitter.send(r);
-    //             } catch (IOException e) {
-    //                 emitter.completeWithError(e);
-    //             }
-    //         });
-    //         emitter.complete();
-    //     });
-    //     return emitter;
-    // }
+    @GetMapping("/monitorsAsStream")
+    public SseEmitter getAllAsStream() {
+        SseEmitter emitter = new SseEmitter();
+        Stream<Monitor> monitors = monitorManagement.getMonitorsAsStream();
+        taskExecutor.execute(() -> {
+            monitors.forEach(r -> {
+                try {
+                    emitter.send(r);
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
+            });
+            emitter.complete();
+        });
+        return emitter;
+    }
 
     @GetMapping("/tenant/{tenantId}/monitors/{monitorId}")
     public Monitor getByMonitorId(@PathVariable String tenantId,
