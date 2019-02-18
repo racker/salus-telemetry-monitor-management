@@ -14,21 +14,14 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model;
+package com.rackspace.salus.monitor_management.web.error;
 
 import lombok.Data;
 
-// This annotation doesn't work with podam
-//import javax.validation.constraints.NotBlank;
-import org.hibernate.validator.constraints.NotBlank;
-import java.io.Serializable;
-import java.util.Map;
-
 @Data
-public class MonitorUpdate implements Serializable {
-    Map<String,String> labels;
-
-    @NotBlank
-    String content;
-
+public class GenericError {
+    private String message;
+    public GenericError(String message) {
+        this.message = message;
+    };
 }

@@ -18,7 +18,11 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+
+// This annotation doesn't work with podam
+//import javax.validation.constraints.NotBlank;
+import org.hibernate.validator.constraints.NotBlank;
+
 import java.io.Serializable;
 import java.util.Map;
 import com.rackspace.salus.telemetry.model.AgentType;
