@@ -171,9 +171,12 @@ public class MonitorManagementTest {
     @Test
     public void testGetMonitorsAsStream() {
         int totalMonitors = 100;
-        createMonitors(totalMonitors);
+
+        // There is already one monitor created as default
+        createMonitors(totalMonitors - 1);
+
         Stream s = monitorManagement.getMonitorsAsStream();
-        assertThat(s.count(), equalTo((long) totalMonitors + 1));
+        assertThat(s.count(), equalTo((long) totalMonitors));
     }
 
     @Test

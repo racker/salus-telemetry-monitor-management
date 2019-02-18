@@ -85,7 +85,6 @@ public class MonitorManagement {
         } catch (NoResultException e) {
             result = null;
         }
-
         return result;
     }
 
@@ -130,7 +129,7 @@ public class MonitorManagement {
 
     
     /**
-     * Create a new monitor in the database and publish an event to kafka.
+     * Create a new monitor in the database.
      * @param tenantId The tenant to create the entity for.
      * @param newMonitor The monitor parameters to store.
      * @return The newly created monitor.
@@ -156,7 +155,7 @@ public class MonitorManagement {
     }
 
     /**
-     * Update an existing monitor and publish an event to kafka.
+     * Update an existing monitor.
      * @param tenantId The tenant to create the entity for.
      * @param monitorId The id of the existing monitor.
      * @param updatedValues The new monitor parameters to store.
@@ -181,7 +180,7 @@ public class MonitorManagement {
 
 
     /**
-     * Delete a monitor and publish an event to kafka.
+     * Delete a monitor.
      * @param tenantId The tenant the monitor belongs to.
      * @param monitorId The id of the monitor.
      */
