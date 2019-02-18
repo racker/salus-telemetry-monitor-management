@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -94,10 +95,10 @@ public class MonitorApi {
 
     @PostMapping("/tenant/{tenantId}/monitors")
     @ResponseStatus(HttpStatus.CREATED)
-    public Monitor create(@PathVariable String tenantId)
-    //                       @Valid @RequestBody final MonitorCreate input)
+    public Monitor create(@PathVariable String tenantId,
+                          @Valid @RequestBody final MonitorCreate input)
             throws IllegalArgumentException {
-        return monitorManagement.saveAndPublishMonitor(new Monitor().setContent("con1").setMonitorId("mon1").setAgentType(AgentType.FILEBEAT).setTenantId("abc"));
+        return monitorManagement.createMonitor(tenantId, input);
     }
 
     // @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
