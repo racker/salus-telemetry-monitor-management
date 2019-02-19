@@ -27,7 +27,7 @@ echo '{"monitorId":"mon1", "content":"content1", "agentType":"FILEBEAT"}' | http
 
 ## Update an existing monitor
 ```
-echo '{"content":"content1xxxxx", "agentType":"FILEBEAT"}' | http PUT 'localhost:8087/api/tenant/aaaaa/monitors/mon1'
+echo '{"content":"content1xxxxx"}' | http PUT 'localhost:8087/api/tenant/aaaaa/monitors/mon1'
 ```
 
 ## Get a stream of all monitors

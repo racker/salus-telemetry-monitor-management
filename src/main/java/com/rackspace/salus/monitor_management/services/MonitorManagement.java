@@ -42,19 +42,12 @@ import javax.validation.Valid;
 import java.util.List;
 import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import org.springframework.stereotype.Service;
 import java.util.Set;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.telemetry.errors.MonitorAlreadyExists;
 
 
 @Slf4j
 @Service
 public class MonitorManagement {
-
-    @Autowired
-    public MonitorManagement() {
-    }
 
     private final MonitorRepository monitorRepository;
 
@@ -183,8 +176,6 @@ public class MonitorManagement {
         return monitor;
     }
 
-    // //public Monitor migrateMonitorToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
-
 
     /**
      * Delete a monitor.
@@ -200,6 +191,7 @@ public class MonitorManagement {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     monitorId, tenantId));
         }
+    }
 
     public void handleResourceEvent(ResourceEvent event) {
         log.debug("");
