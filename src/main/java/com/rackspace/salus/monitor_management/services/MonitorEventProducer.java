@@ -23,9 +23,9 @@ public class MonitorEventProducer {
     // ok so we need to figure out what we are sending
     //unless we want to just pass into this function everything
     public void sendMonitorEvent(MonitorEvent event) {
-        final String topic = properties.getEvents();
+        final String topic = properties.getMonitors();
         if (topic == null) {
-            throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.EVENT));
+            throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.MONITOR));
         }
 
         //Resource resource = event.getResource();
