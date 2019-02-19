@@ -16,9 +16,13 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
-import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.messaging.*;
+import com.rackspace.salus.telemetry.errors.MonitorAlreadyExists;
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Monitor_;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,8 +39,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
 import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import org.springframework.stereotype.Service;
@@ -67,7 +70,8 @@ public class MonitorManagement {
 
     /**
      * Gets an individual monitor object by the public facing id.
-     * @param tenantId The tenant owning the monitor.
+     *
+     * @param tenantId  The tenant owning the monitor.
      * @param monitorId The unique value representing the monitor.
      * @return The monitor object.
      */
@@ -90,6 +94,7 @@ public class MonitorManagement {
 
     /**
      * Get a selection of monitor objects across all accounts.
+     *
      * @param page The slice of results to be returned.
      * @return The monitors found that match the page criteria.
      */
@@ -99,8 +104,9 @@ public class MonitorManagement {
 
     /**
      * Same as {@link #getAllMonitors(Pageable page) getAllMonitors} except restricted to a single tenant.
+     *
      * @param tenantId The tenant to select monitors from.
-     * @param page The slice of results to be returned.
+     * @param page     The slice of results to be returned.
      * @return The monitors found for the tenant that match the page criteria.
      */
     public Page<Monitor> getMonitors(String tenantId, Pageable page) {
@@ -117,6 +123,7 @@ public class MonitorManagement {
 
     /**
      * Get all monitors as a stream
+     *
      * @return Stream of monitors.
      */
     public Stream<Monitor> getMonitorsAsStream() {
@@ -127,14 +134,13 @@ public class MonitorManagement {
         return entityManager.createQuery(cr).getResultStream();
     }
 
-    
+
     /**
      * Create a new monitor in the database.
-     * @param tenantId The tenant to create the entity for.
+     *
+     * @param tenantId   The tenant to create the entity for.
      * @param newMonitor The monitor parameters to store.
      * @return The newly created monitor.
-     * @throws IllegalArgumentException
-     * @throws MonitorAlreadyExists
      */
     public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, MonitorAlreadyExists {
         Monitor existing = getMonitor(tenantId, newMonitor.getMonitorId());
@@ -156,8 +162,9 @@ public class MonitorManagement {
 
     /**
      * Update an existing monitor.
-     * @param tenantId The tenant to create the entity for.
-     * @param monitorId The id of the existing monitor.
+     *
+     * @param tenantId      The tenant to create the entity for.
+     * @param monitorId     The id of the existing monitor.
      * @param updatedValues The new monitor parameters to store.
      * @return The newly updated monitor.
      */
@@ -181,7 +188,8 @@ public class MonitorManagement {
 
     /**
      * Delete a monitor.
-     * @param tenantId The tenant the monitor belongs to.
+     *
+     * @param tenantId  The tenant the monitor belongs to.
      * @param monitorId The id of the monitor.
      */
     public void removeMonitor(String tenantId, String monitorId) {

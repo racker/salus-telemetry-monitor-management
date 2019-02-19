@@ -16,14 +16,10 @@
 
 package com.rackspace.salus.monitor_management;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
-import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -33,7 +29,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -48,6 +43,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({MonitorManagement.class})
@@ -60,9 +59,9 @@ public class MonitorManagementTest {
     @Autowired
     MonitorRepository monitorRepository;
 
-    PodamFactory podamFactory = new PodamFactoryImpl();
+    private PodamFactory podamFactory = new PodamFactoryImpl();
 
-    Monitor currentMonitor;
+    private Monitor currentMonitor;
 
     @Before
     public void setUp() {
