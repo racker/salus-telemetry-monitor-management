@@ -51,7 +51,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import javax.persistence.EntityManagerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +61,7 @@ import java.util.stream.Stream;
 @WebMvcTest(controllers = MonitorApi.class)
 public class MonitorApiTest {
 
-    PodamFactory podamFactory = new PodamFactoryImpl();
+    private PodamFactory podamFactory = new PodamFactoryImpl();
 
     @Autowired
     MockMvc mockMvc;
@@ -89,8 +88,8 @@ public class MonitorApiTest {
         when(monitorManagement.getMonitor(anyString(), anyString()))
                 .thenReturn(monitor);
 
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-        String monitorId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String monitorId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
@@ -105,8 +104,8 @@ public class MonitorApiTest {
         when(monitorManagement.getMonitor(anyString(), anyString()))
                 .thenReturn(null);
 
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-        String monitorId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String monitorId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
         String errorMsg = String.format("No monitor found for %s on tenant %s", monitorId, tenantId);
 
@@ -124,20 +123,19 @@ public class MonitorApiTest {
         int page = 0;
         int pageSize = 100;
         List<Monitor> monitors = new ArrayList<>();
-        for (int i=0; i<numberOfMonitors; i++) {
+        for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
         }
 
         int start = page * pageSize;
-        int end = numberOfMonitors;
-        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
+        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
                 PageRequest.of(page, pageSize),
                 numberOfMonitors);
 
         when(monitorManagement.getMonitors(anyString(), any()))
                 .thenReturn(pageOfMonitors);
 
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors", tenantId);
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
@@ -160,7 +158,7 @@ public class MonitorApiTest {
         int pageSize = 4;
         int page = 14;
         List<Monitor> monitors = new ArrayList<>();
-        for (int i=0; i<numberOfMonitors; i++) {
+        for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
         }
         int start = page * pageSize;
@@ -174,7 +172,7 @@ public class MonitorApiTest {
         when(monitorManagement.getMonitors(anyString(), any()))
                 .thenReturn(pageOfMonitors);
 
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors", tenantId);
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
@@ -199,7 +197,7 @@ public class MonitorApiTest {
         when(monitorManagement.createMonitor(anyString(), any()))
                 .thenReturn(monitor);
 
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors", tenantId);
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
 
@@ -214,7 +212,7 @@ public class MonitorApiTest {
 
     @Test
     public void testCreateMonitorWithoutIdField() throws Exception {
-        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors", tenantId);
 
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
@@ -228,7 +226,7 @@ public class MonitorApiTest {
                 .characterEncoding(StandardCharsets.UTF_8.name()))
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
-                    .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message", is(errorMsg)));
     }
 
@@ -261,13 +259,12 @@ public class MonitorApiTest {
         int page = 0;
         int pageSize = 100;
         List<Monitor> monitors = new ArrayList<>();
-        for (int i=0; i<numberOfMonitors; i++) {
+        for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
         }
 
         int start = page * pageSize;
-        int end = numberOfMonitors;
-        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
+        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
                 PageRequest.of(page, pageSize),
                 numberOfMonitors);
 
@@ -294,19 +291,19 @@ public class MonitorApiTest {
     public void testGetStreamOfMonitors() throws Exception {
         int numberOfMonitors = 20;
         List<Monitor> monitors = new ArrayList<>();
-        for (int i=0; i<numberOfMonitors; i++) {
+        for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
         }
 
         List<String> expectedData = monitors.stream()
-            .map(r -> {
-                try {
-                    return "data:" + objectMapper.writeValueAsString(r);
-                } catch (JsonProcessingException e) {
-                    assertThat(e, nullValue());
-                    return null;
-                }
-            }).collect(Collectors.toList());
+                .map(r -> {
+                    try {
+                        return "data:" + objectMapper.writeValueAsString(r);
+                    } catch (JsonProcessingException e) {
+                        assertThat(e, nullValue());
+                        return null;
+                    }
+                }).collect(Collectors.toList());
         assertThat(expectedData.size(), equalTo(monitors.size()));
 
         String url = "/api/monitorsAsStream";

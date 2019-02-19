@@ -19,7 +19,6 @@ package com.rackspace.salus.monitor_management.web.controller;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
-import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +50,7 @@ public class MonitorApi {
 
     @GetMapping("/monitors")
     public Page<Monitor> getAll(@RequestParam(defaultValue = "100") int size,
-                                 @RequestParam(defaultValue = "0") int page) {
+                                @RequestParam(defaultValue = "0") int page) {
 
         return monitorManagement.getAllMonitors(PageRequest.of(page, size));
 
@@ -76,7 +75,7 @@ public class MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitors/{monitorId}")
     public Monitor getByMonitorId(@PathVariable String tenantId,
-                                    @PathVariable String monitorId) throws NotFoundException {
+                                  @PathVariable String monitorId) throws NotFoundException {
 
         Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId);
         if (monitor == null) {
@@ -87,9 +86,9 @@ public class MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/monitors")
-    public Page<Monitor>  getAllForTenant(@PathVariable String tenantId,
-                                   @RequestParam(defaultValue = "100") int size,
-                                   @RequestParam(defaultValue = "0") int page) {
+    public Page<Monitor> getAllForTenant(@PathVariable String tenantId,
+                                         @RequestParam(defaultValue = "100") int size,
+                                         @RequestParam(defaultValue = "0") int page) {
 
         return monitorManagement.getMonitors(tenantId, PageRequest.of(page, size));
     }
@@ -104,8 +103,8 @@ public class MonitorApi {
 
     @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
     public Monitor update(@PathVariable String tenantId,
-                           @PathVariable String monitorId,
-                           @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
+                          @PathVariable String monitorId,
+                          @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
         return monitorManagement.updateMonitor(tenantId, monitorId, input);
     }
 
