@@ -18,8 +18,9 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
-import com.rackspace.salus.telemetry.errors.MonitorAlreadyExists;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.Monitor_;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -135,10 +136,10 @@ public class MonitorManagement {
      * @param newMonitor The monitor parameters to store.
      * @return The newly created monitor.
      */
-    public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, MonitorAlreadyExists {
+    public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, AlreadyExistsException {
         Monitor existing = getMonitor(tenantId, newMonitor.getMonitorId());
         if (existing != null) {
-            throw new MonitorAlreadyExists(String.format("Monitor already exists with identifier %s on tenant %s",
+            throw new AlreadyExistsException(String.format("Monitor already exists with identifier %s on tenant %s",
                     newMonitor.getMonitorId(), tenantId));
         }
 
@@ -147,7 +148,10 @@ public class MonitorManagement {
                 .setMonitorId(newMonitor.getMonitorId())
                 .setLabels(newMonitor.getLabels())
                 .setContent(newMonitor.getContent())
-                .setAgentType(AgentType.valueOf(newMonitor.getAgentType()));
+                .setAgentType(AgentType.valueOf(newMonitor.getAgentType()))
+                .setSelectorScope(ConfigSelectorScope.valueOf(newMonitor.getSelectorScope()))
+                .setTargetTenant(newMonitor.getTargetTenant());
+                
 
         monitorRepository.save(monitor);
         return monitor;
@@ -172,6 +176,8 @@ public class MonitorManagement {
                 .whenNonNull()
                 .to(monitor::setLabels);
         monitor.setContent(updatedValues.getContent());
+        monitor.setTargetTenant(updatedValues.getTargetTenant());
+        monitor.setSelectorScope(ConfigSelectorScope.valueOf(updatedValues.getSelectorScope()));
         monitorRepository.save(monitor);
         return monitor;
     }

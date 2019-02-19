@@ -79,7 +79,8 @@ public class MonitorManagementTest {
         for (int i=0; i<count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-            create.setAgentType("REMOTE");
+            create.setAgentType("TELEGRAF");
+            create.setSelectorScope("ALL_OF");
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -87,7 +88,8 @@ public class MonitorManagementTest {
     private void createMonitorsForTenant(int count, String tenantId) {
         for (int i=0; i<count; i++) {
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-            create.setAgentType("REMOTE");
+            create.setAgentType("TELEGRAF");
+            create.setSelectorScope("ALL_OF");
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -105,7 +107,8 @@ public class MonitorManagementTest {
     @Test
     public void testCreateNewMonitor() {
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setAgentType("REMOTE");
+        create.setAgentType("TELEGRAF");
+        create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
@@ -206,7 +209,8 @@ public class MonitorManagementTest {
     @Test
     public void testRemoveMonitor() {
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setAgentType("REMOTE");
+        create.setAgentType("TELEGRAF");
+        create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
 

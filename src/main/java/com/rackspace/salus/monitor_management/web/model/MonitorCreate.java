@@ -39,4 +39,9 @@ public class MonitorCreate implements Serializable {
 
     @NotBlank
     String agentType;
+
+    String targetTenant;
+
+    String selectorScope = "ALL_OF";
+
 }

@@ -22,17 +22,17 @@ Examples of a subset of the available API operations.
 
 ## Create a new monitor
 ```
-echo '{"monitorId":"mon1", "content":"content1", "agentType":"FILEBEAT"}' | http POST 'localhost:8087/api/tenant/aaaaa/monitors'
+echo '{"monitorId":"mon1", "content":"content1", "agentType":"FILEBEAT"}' | http POST 'localhost:8089/api/tenant/aaaaa/monitors'
 ```
 
 ## Update an existing monitor
 ```
-echo '{"content":"content1xxxxx"}' | http PUT 'localhost:8087/api/tenant/aaaaa/monitors/mon1'
+echo '{"content":"content1xxxxx"}' | http PUT 'localhost:8089/api/tenant/aaaaa/monitors/mon1'
 ```
 
 ## Get a stream of all monitors
 ```
-curl localhost:8087/api/monitorsAsStream
+curl localhost:8089/api/monitorsAsStream
 ```
 
 > **Notes**:
@@ -42,5 +42,5 @@ curl localhost:8087/api/monitorsAsStream
 
 ## Delete a resource
 ```
-http DELETE 'localhost:8087/api/tenant/aaaaa/monitors/mon1'
+http DELETE 'localhost:8089/api/tenant/aaaaa/monitors/mon1'
 ```

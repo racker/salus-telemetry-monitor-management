@@ -31,4 +31,7 @@ public class MonitorUpdate implements Serializable {
     @NotBlank
     String content;
 
+    String targetTenant;
+
+    String selectorScope = "ALL_OF";
 }
