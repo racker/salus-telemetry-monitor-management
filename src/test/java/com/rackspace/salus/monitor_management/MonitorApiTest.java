@@ -1,0 +1,321 @@
+/*
+ * Copyright 2019 Rackspace US, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.rackspace.salus.monitor_management;
+
+import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.web.controller.MonitorApi;
+import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
+import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+@RunWith(SpringRunner.class)
+@WebMvcTest(controllers = MonitorApi.class)
+public class MonitorApiTest {
+
+    private PodamFactory podamFactory = new PodamFactoryImpl();
+
+    @Autowired
+    MockMvc mockMvc;
+
+    @MockBean
+    MonitorManagement monitorManagement;
+
+    @MockBean
+    MonitorRepository monitorRepository;
+
+    // This mock is a hack; it is required because the entityManager
+    //  bean needs to find a bean for all the repositories defined in the telemetery model module
+    //  We need to find a way to filter out the unwanted repos without adding a bean for each of them
+    @MockBean
+    ResourceRepository resourceRepository;
+
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Test
+    public void testGetMonitor() throws Exception {
+        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        when(monitorManagement.getMonitor(anyString(), anyString()))
+                .thenReturn(monitor);
+
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String monitorId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.monitorId", is(monitor.getMonitorId())));
+    }
+
+    @Test
+    public void testNoMonitorFound() throws Exception {
+        when(monitorManagement.getMonitor(anyString(), anyString()))
+                .thenReturn(null);
+
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String monitorId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
+        String errorMsg = String.format("No monitor found for %s on tenant %s", monitorId, tenantId);
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+    @Test
+    public void testGetAllForTenant() throws Exception {
+        int numberOfMonitors = 20;
+        // Use the APIs default Pageable settings
+        int page = 0;
+        int pageSize = 100;
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            monitors.add(podamFactory.manufacturePojo(Monitor.class));
+        }
+
+        int start = page * pageSize;
+        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
+                PageRequest.of(page, pageSize),
+                numberOfMonitors);
+
+        when(monitorManagement.getMonitors(anyString(), any()))
+                .thenReturn(pageOfMonitors);
+
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors", tenantId);
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
+                .andExpect(jsonPath("$.totalPages", equalTo(1)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+    }
+
+    @Test
+    public void testGetAllForTenantPagination() throws Exception {
+        int numberOfMonitors = 99;
+        int pageSize = 4;
+        int page = 14;
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            monitors.add(podamFactory.manufacturePojo(Monitor.class));
+        }
+        int start = page * pageSize;
+        int end = start + pageSize;
+        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
+                PageRequest.of(page, pageSize),
+                numberOfMonitors);
+
+        assertThat(pageOfMonitors.getContent().size(), equalTo(pageSize));
+
+        when(monitorManagement.getMonitors(anyString(), any()))
+                .thenReturn(pageOfMonitors);
+
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors", tenantId);
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+                .param("page", Integer.toString(page))
+                .param("size", Integer.toString(pageSize)))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
+                .andExpect(jsonPath("$.totalPages", equalTo((numberOfMonitors + pageSize - 1) / pageSize)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(pageSize)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+    }
+
+    @Test
+    public void testCreateMonitor() throws Exception {
+        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        when(monitorManagement.createMonitor(anyString(), any()))
+                .thenReturn(monitor);
+
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors", tenantId);
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+
+        mockMvc.perform(post(url)
+                .content(objectMapper.writeValueAsString(create))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isCreated())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    public void testCreateMonitorWithoutIdField() throws Exception {
+        String tenantId = RandomStringUtils.randomAlphabetic(8);
+        String url = String.format("/api/tenant/%s/monitors", tenantId);
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setMonitorId(null);
+
+        String errorMsg = "\"monitorId\" may not be empty";
+
+        mockMvc.perform(post(url)
+                .content(objectMapper.writeValueAsString(create))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+
+    @Test
+    public void testUpdateMonitor() throws Exception {
+        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        when(monitorManagement.updateMonitor(anyString(), anyString(), any()))
+                .thenReturn(monitor);
+
+        String tenantId = monitor.getTenantId();
+        String monitorId = monitor.getMonitorId();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
+
+        MonitorUpdate update = podamFactory.manufacturePojo(MonitorUpdate.class);
+
+        mockMvc.perform(put(url)
+                .content(objectMapper.writeValueAsString(update))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    public void testGetAll() throws Exception {
+        int numberOfMonitors = 20;
+        // Use the APIs default Pageable settings
+        int page = 0;
+        int pageSize = 100;
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            monitors.add(podamFactory.manufacturePojo(Monitor.class));
+        }
+
+        int start = page * pageSize;
+        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
+                PageRequest.of(page, pageSize),
+                numberOfMonitors);
+
+        when(monitorManagement.getAllMonitors(any()))
+                .thenReturn(pageOfMonitors);
+
+        String url = "/api/monitors";
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
+                .andExpect(jsonPath("$.totalPages", equalTo(1)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+    }
+
+    @Test
+    public void testGetStreamOfMonitors() throws Exception {
+        int numberOfMonitors = 20;
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            monitors.add(podamFactory.manufacturePojo(Monitor.class));
+        }
+
+        List<String> expectedData = monitors.stream()
+                .map(r -> {
+                    try {
+                        return "data:" + objectMapper.writeValueAsString(r);
+                    } catch (JsonProcessingException e) {
+                        assertThat(e, nullValue());
+                        return null;
+                    }
+                }).collect(Collectors.toList());
+        assertThat(expectedData.size(), equalTo(monitors.size()));
+
+        String url = "/api/monitorsAsStream";
+        Stream<Monitor> monitorStream = monitors.stream();
+
+        when(monitorManagement.getMonitorsAsStream())
+                .thenReturn(monitorStream);
+
+        mockMvc.perform(get(url))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
+                .andExpect(content().string(stringContainsInOrder(expectedData)));
+    }
+}
