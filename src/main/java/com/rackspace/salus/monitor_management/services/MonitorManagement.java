@@ -175,9 +175,10 @@ public class MonitorManagement {
         map.from(updatedValues.getLabels())
                 .whenNonNull()
                 .to(monitor::setLabels);
-        monitor.setContent(updatedValues.getContent());
+        map.from(updatedValues.getContent())
+                .whenNonNull()
+                .to(monitor::setContent);
         monitor.setTargetTenant(updatedValues.getTargetTenant());
-        monitor.setSelectorScope(ConfigSelectorScope.valueOf(updatedValues.getSelectorScope()));
         monitorRepository.save(monitor);
         return monitor;
     }

@@ -28,10 +28,7 @@ import java.util.Map;
 public class MonitorUpdate implements Serializable {
     Map<String,String> labels;
 
-    @NotBlank
     String content;
 
     String targetTenant;
-
-    String selectorScope = "ALL_OF";
 }
