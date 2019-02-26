@@ -97,7 +97,7 @@ public class MonitorApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id", is(monitor.getId())));
+                .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
     }
 
     @Test
