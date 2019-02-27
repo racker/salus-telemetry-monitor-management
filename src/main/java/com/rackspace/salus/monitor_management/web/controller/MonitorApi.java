@@ -74,15 +74,14 @@ public class MonitorApi {
         return emitter;
     }
 
-    @GetMapping("/tenant/{tenantId}/monitors/{id}")
+    @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
     public Monitor getById(@PathVariable String tenantId,
-                                  @PathVariable String id) throws NotFoundException {
-        UUID uuid = UUID.fromString(id);
+                                  @PathVariable UUID uuid) throws NotFoundException {
 
         Monitor monitor = monitorManagement.getMonitor(tenantId, uuid);
         if (monitor == null) {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    id, tenantId));
+                    uuid, tenantId));
         }
         return monitor;
     }
@@ -103,19 +102,17 @@ public class MonitorApi {
         return monitorManagement.createMonitor(tenantId, input);
     }
 
-    @PutMapping("/tenant/{tenantId}/monitors/{id}")
+    @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
     public Monitor update(@PathVariable String tenantId,
-                          @PathVariable String id,
+                          @PathVariable UUID uuid,
                           @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
-        UUID uuid = UUID.fromString(id);
         return monitorManagement.updateMonitor(tenantId, uuid, input);
     }
 
-    @DeleteMapping("/tenant/{tenantId}/monitors/{id}")
+    @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String tenantId,
-                       @PathVariable String id) {
-        UUID uuid = UUID.fromString(id);
+                       @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
     }
 }
