@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management;
 
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -29,6 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,6 +44,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
+//add eventProducer
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
@@ -51,6 +54,9 @@ import static org.junit.Assert.assertTrue;
 @DataJpaTest
 @Import({MonitorManagement.class})
 public class MonitorManagementTest {
+
+    @MockBean
+    MonitorEventProducer monitorEventProducer;
 
     @Autowired
     MonitorManagement monitorManagement;
