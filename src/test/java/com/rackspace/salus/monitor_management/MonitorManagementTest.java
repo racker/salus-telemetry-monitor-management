@@ -44,7 +44,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
-//add eventProducer
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
