@@ -19,11 +19,10 @@ package com.rackspace.salus.monitor_management.services;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
-import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.messaging.MonitorEvent;
+import com.rackspace.salus.telemetry.messaging.OperationType;
+import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Monitor_;
-import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +48,7 @@ import java.util.Set;
 @Slf4j
 @Service
 public class MonitorManagement {
+    private final MonitorEventProducer monitorEventProducer;
 
     private final MonitorRepository monitorRepository;
 
@@ -57,9 +57,10 @@ public class MonitorManagement {
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
-    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager) {
+    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager, MonitorEventProducer monitorEventProducer) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
+	    this.monitorEventProducer = monitorEventProducer;
     }
 
     /**
@@ -154,6 +155,13 @@ public class MonitorManagement {
                 
 
         monitorRepository.save(monitor);
+
+        // Make sure to send the event to Kafka
+        MonitorEvent monitorEvent = new MonitorEvent()
+                .setFromMonitor(monitor)
+                .setOperationType(OperationType.CREATE);
+
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
         return monitor;
     }
 
@@ -180,6 +188,12 @@ public class MonitorManagement {
                 .to(monitor::setContent);
         monitor.setTargetTenant(updatedValues.getTargetTenant());
         monitorRepository.save(monitor);
+
+        // Make sure to send the event to Kafka
+        MonitorEvent monitorEvent = new MonitorEvent()
+                .setFromMonitor(monitor)
+                .setOperationType(OperationType.UPDATE);
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
         return monitor;
     }
 
@@ -194,6 +208,12 @@ public class MonitorManagement {
         Monitor monitor = getMonitor(tenantId, monitorId);
         if (monitor != null) {
             monitorRepository.deleteById(monitor.getId());
+
+            // Make sure to send the event to Kafka
+            MonitorEvent monitorEvent = new MonitorEvent()
+                    .setFromMonitor(monitor)
+                    .setOperationType(OperationType.DELETE);
+            monitorEventProducer.sendMonitorEvent(monitorEvent);
         } else {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     monitorId, tenantId));
@@ -219,5 +239,15 @@ public class MonitorManagement {
 
 
         // post kafka egress event. This will probably be handled post CRUD event, and not in this function.
+        MonitorEvent monitorEvent = new MonitorEvent();
+        monitorEvent.setTenantId(event.getResource().getTenantId());
+        monitorEvent.setOperationType(event.getOperation());
+        // monitorEvent.setEnvoyId()
+        // monitorEvent.setAmbassadorId()
+        AgentConfig config = new AgentConfig();
+        config.setLabels(event.getResource().getLabels());
+        config.setContent("this is sample content");
+        monitorEvent.setConfig(config);
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
     }
 }
