@@ -54,6 +54,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -85,29 +86,29 @@ public class MonitorApiTest {
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        when(monitorManagement.getMonitor(anyString(), anyString()))
+        when(monitorManagement.getMonitor(anyString(), any()))
                 .thenReturn(monitor);
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String monitorId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
+        UUID id = UUID.randomUUID();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.monitorId", is(monitor.getMonitorId())));
+                .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
     }
 
     @Test
     public void testNoMonitorFound() throws Exception {
-        when(monitorManagement.getMonitor(anyString(), anyString()))
+        when(monitorManagement.getMonitor(anyString(), any()))
                 .thenReturn(null);
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String monitorId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
-        String errorMsg = String.format("No monitor found for %s on tenant %s", monitorId, tenantId);
+        UUID id = UUID.randomUUID();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+        String errorMsg = String.format("No monitor found for %s on tenant %s", id, tenantId);
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
@@ -210,36 +211,17 @@ public class MonitorApiTest {
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
 
-    @Test
-    public void testCreateMonitorWithoutIdField() throws Exception {
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors", tenantId);
-
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setMonitorId(null);
-
-        String errorMsg = "\"monitorId\" may not be empty";
-
-        mockMvc.perform(post(url)
-                .content(objectMapper.writeValueAsString(create))
-                .contentType(MediaType.APPLICATION_JSON)
-                .characterEncoding(StandardCharsets.UTF_8.name()))
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message", is(errorMsg)));
-    }
 
 
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        when(monitorManagement.updateMonitor(anyString(), anyString(), any()))
+        when(monitorManagement.updateMonitor(anyString(), any(), any()))
                 .thenReturn(monitor);
 
         String tenantId = monitor.getTenantId();
-        String monitorId = monitor.getMonitorId();
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, monitorId);
+        UUID id = monitor.getId();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
         MonitorUpdate update = podamFactory.manufacturePojo(MonitorUpdate.class);
 

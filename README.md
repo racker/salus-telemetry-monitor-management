@@ -22,12 +22,14 @@ Examples of a subset of the available API operations.
 
 ## Create a new monitor
 ```
-echo '{"monitorId":"mon1", "content":"content1", "agentType":"FILEBEAT"}' | http POST 'localhost:8089/api/tenant/aaaaa/monitors'
+echo '{"monitorName":"mon1", "content":"content1", "agentType":"TELEGRAF"}' | http POST 'localhost:8089/api/tenant/aaaaa/monitors' | tee /tmp/newMonitor.txt; 
 ```
+## Save the monitor id in a env var
+export MonitorId=`jq -r .id /tmp/newMonitor.txt`
 
 ## Update an existing monitor
 ```
-echo '{"content":"content1xxxxx"}' | http PUT 'localhost:8089/api/tenant/aaaaa/monitors/mon1'
+echo '{"content":"content1xxxxx"}' | http PUT localhost:8089/api/tenant/aaaaa/monitors/$MonitorId
 ```
 
 ## Get a stream of all monitors
@@ -42,5 +44,5 @@ curl localhost:8089/api/monitorsAsStream
 
 ## Delete a resource
 ```
-http DELETE 'localhost:8089/api/tenant/aaaaa/monitors/mon1'
+http DELETE localhost:8089/api/tenant/aaaaa/monitors/$MonitorId
 ```

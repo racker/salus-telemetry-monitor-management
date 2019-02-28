@@ -28,6 +28,8 @@ import java.util.Map;
 public class MonitorUpdate implements Serializable {
     Map<String,String> labels;
 
+    String monitorName;
+
     String content;
 
     String targetTenant;

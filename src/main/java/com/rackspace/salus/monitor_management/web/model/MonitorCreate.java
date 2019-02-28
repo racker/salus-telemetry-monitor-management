@@ -29,8 +29,8 @@ import com.rackspace.salus.telemetry.model.AgentType;
 
 @Data
 public class MonitorCreate implements Serializable {
-    @NotBlank
-    String monitorId;
+
+    String monitorName;
 
     Map<String,String> labels;
 

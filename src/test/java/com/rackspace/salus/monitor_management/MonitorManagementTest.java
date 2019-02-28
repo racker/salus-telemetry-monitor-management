@@ -72,7 +72,7 @@ public class MonitorManagementTest {
     public void setUp() {
         Monitor monitor = new Monitor()
                 .setTenantId("abcde")
-                .setMonitorId("mon1")
+                .setMonitorName("mon1")
                 .setLabels(Collections.singletonMap("key", "value"))
                 .setContent("content1")
                 .setAgentType(AgentType.FILEBEAT);
@@ -101,7 +101,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testGetMonitor() {
-        Monitor r = monitorManagement.getMonitor("abcde", "mon1");
+        Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
 
         assertThat(r.getId(), notNullValue());
         assertThat(r.getLabels(), hasEntry("key", "value"));
@@ -119,16 +119,16 @@ public class MonitorManagementTest {
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
 
         assertThat(returned.getId(), notNullValue());
-        assertThat(returned.getMonitorId(), equalTo(create.getMonitorId()));
+        assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
         assertThat(returned.getContent(), equalTo(create.getContent()));
         assertThat(returned.getAgentType(), equalTo(AgentType.valueOf(create.getAgentType())));
         
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
-        Monitor retrieved = monitorManagement.getMonitor(tenantId, create.getMonitorId());
+        Monitor retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
 
-        assertThat(retrieved.getMonitorId(), equalTo(returned.getMonitorId()));
+        assertThat(retrieved.getMonitorName(), equalTo(returned.getMonitorName()));
         assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
     }
 
@@ -199,7 +199,7 @@ public class MonitorManagementTest {
         try {
             newMonitor = monitorManagement.updateMonitor(
                     monitor.getTenantId(),
-                    monitor.getMonitorId(),
+                    monitor.getId(),
                     update);
         } catch (Exception e) {
             assertThat(e, nullValue());
@@ -217,13 +217,13 @@ public class MonitorManagementTest {
         create.setAgentType("TELEGRAF");
         create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
+        Monitor newMon = monitorManagement.createMonitor(tenantId, create);
 
-        Monitor monitor = monitorManagement.getMonitor(tenantId, create.getMonitorId());
+        Monitor monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, notNullValue());
 
-        monitorManagement.removeMonitor(tenantId, create.getMonitorId());
-        monitor = monitorManagement.getMonitor(tenantId, create.getMonitorId());
+        monitorManagement.removeMonitor(tenantId, newMon.getId());
+        monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, nullValue());
     }
 }

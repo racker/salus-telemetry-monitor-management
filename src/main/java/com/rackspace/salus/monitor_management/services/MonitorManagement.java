@@ -37,9 +37,11 @@ import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import java.util.Set;
@@ -67,16 +69,16 @@ public class MonitorManagement {
      * Gets an individual monitor object by the public facing id.
      *
      * @param tenantId  The tenant owning the monitor.
-     * @param monitorId The unique value representing the monitor.
+     * @param id The unique value representing the monitor.
      * @return The monitor object.
      */
-    public Monitor getMonitor(String tenantId, String monitorId) {
+    public Monitor getMonitor(String tenantId, UUID id) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
         Root<Monitor> root = cr.from(Monitor.class);
         cr.select(root).where(cb.and(
                 cb.equal(root.get(Monitor_.tenantId), tenantId),
-                cb.equal(root.get(Monitor_.monitorId), monitorId)));
+                cb.equal(root.get(Monitor_.id), id)));
 
         Monitor result;
         try {
@@ -138,15 +140,9 @@ public class MonitorManagement {
      * @return The newly created monitor.
      */
     public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, AlreadyExistsException {
-        Monitor existing = getMonitor(tenantId, newMonitor.getMonitorId());
-        if (existing != null) {
-            throw new AlreadyExistsException(String.format("Monitor already exists with identifier %s on tenant %s",
-                    newMonitor.getMonitorId(), tenantId));
-        }
-
         Monitor monitor = new Monitor()
                 .setTenantId(tenantId)
-                .setMonitorId(newMonitor.getMonitorId())
+                .setMonitorName(newMonitor.getMonitorName())
                 .setLabels(newMonitor.getLabels())
                 .setContent(newMonitor.getContent())
                 .setAgentType(AgentType.valueOf(newMonitor.getAgentType()))
@@ -169,15 +165,15 @@ public class MonitorManagement {
      * Update an existing monitor.
      *
      * @param tenantId      The tenant to create the entity for.
-     * @param monitorId     The id of the existing monitor.
+     * @param id            The id of the existing monitor.
      * @param updatedValues The new monitor parameters to store.
      * @return The newly updated monitor.
      */
-    public Monitor updateMonitor(String tenantId, String monitorId, @Valid MonitorUpdate updatedValues) {
-        Monitor monitor = getMonitor(tenantId, monitorId);
+    public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorUpdate updatedValues) {
+        Monitor monitor = getMonitor(tenantId, id);
         if (monitor == null) {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    monitorId, tenantId));
+                    id, tenantId));
         }
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabels())
@@ -186,6 +182,9 @@ public class MonitorManagement {
         map.from(updatedValues.getContent())
                 .whenNonNull()
                 .to(monitor::setContent);
+        map.from(updatedValues.getMonitorName())
+                .whenNonNull()
+                .to(monitor::setMonitorName);
         monitor.setTargetTenant(updatedValues.getTargetTenant());
         monitorRepository.save(monitor);
 
@@ -202,10 +201,10 @@ public class MonitorManagement {
      * Delete a monitor.
      *
      * @param tenantId  The tenant the monitor belongs to.
-     * @param monitorId The id of the monitor.
+     * @param id The id of the monitor.
      */
-    public void removeMonitor(String tenantId, String monitorId) {
-        Monitor monitor = getMonitor(tenantId, monitorId);
+    public void removeMonitor(String tenantId, UUID id) {
+        Monitor monitor = getMonitor(tenantId, id);
         if (monitor != null) {
             monitorRepository.deleteById(monitor.getId());
 
@@ -216,7 +215,7 @@ public class MonitorManagement {
             monitorEventProducer.sendMonitorEvent(monitorEvent);
         } else {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    monitorId, tenantId));
+                    id, tenantId));
         }
     }
 

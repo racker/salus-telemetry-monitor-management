@@ -32,6 +32,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.validation.Valid;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -73,14 +74,14 @@ public class MonitorApi {
         return emitter;
     }
 
-    @GetMapping("/tenant/{tenantId}/monitors/{monitorId}")
-    public Monitor getByMonitorId(@PathVariable String tenantId,
-                                  @PathVariable String monitorId) throws NotFoundException {
+    @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
+    public Monitor getById(@PathVariable String tenantId,
+                                  @PathVariable UUID uuid) throws NotFoundException {
 
-        Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId);
+        Monitor monitor = monitorManagement.getMonitor(tenantId, uuid);
         if (monitor == null) {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    monitorId, tenantId));
+                    uuid, tenantId));
         }
         return monitor;
     }
@@ -101,17 +102,17 @@ public class MonitorApi {
         return monitorManagement.createMonitor(tenantId, input);
     }
 
-    @PutMapping("/tenant/{tenantId}/monitors/{monitorId}")
+    @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
     public Monitor update(@PathVariable String tenantId,
-                          @PathVariable String monitorId,
+                          @PathVariable UUID uuid,
                           @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
-        return monitorManagement.updateMonitor(tenantId, monitorId, input);
+        return monitorManagement.updateMonitor(tenantId, uuid, input);
     }
 
-    @DeleteMapping("/tenant/{tenantId}/monitors/{monitorId}")
+    @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String tenantId,
-                       @PathVariable String monitorId) {
-        monitorManagement.removeMonitor(tenantId, monitorId);
+                       @PathVariable UUID uuid) {
+        monitorManagement.removeMonitor(tenantId, uuid);
     }
 }
