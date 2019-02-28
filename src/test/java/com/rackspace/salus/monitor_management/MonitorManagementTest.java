@@ -21,6 +21,7 @@ import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -56,6 +57,9 @@ public class MonitorManagementTest {
 
     @MockBean
     MonitorEventProducer monitorEventProducer;
+
+    @MockBean
+    EnvoyResourceManagement envoyResourceManagement;
 
     @Autowired
     MonitorManagement monitorManagement;

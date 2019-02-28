@@ -40,11 +40,13 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import java.util.Set;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 
 
 @Slf4j
@@ -57,12 +59,15 @@ public class MonitorManagement {
     @PersistenceContext
     private final EntityManager entityManager;
 
+    private final EnvoyResourceManagement envoyResourceManagement;
+
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
-    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager, MonitorEventProducer monitorEventProducer) {
+    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager, EnvoyResourceManagement envoyResourceManagement, MonitorEventProducer monitorEventProducer) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
-	    this.monitorEventProducer = monitorEventProducer;
+        this.envoyResourceManagement = envoyResourceManagement;
+        this.monitorEventProducer = monitorEventProducer;
     }
 
     /**
@@ -160,7 +165,18 @@ public class MonitorManagement {
         monitorEventProducer.sendMonitorEvent(monitorEvent);
         return monitor;
     }
+    void publishMonitor(Monitor monitor, OperationType operationType) {
+        List<Resource> resources = new ArrayList<>();
+        for (Resource r: resources) {
+            String[] identifiers = r.getResourceId().split(":");
 
+            ResourceInfo resourceInfo = envoyResourceManagement
+                    .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+
+
+
+        }
+    }
     /**
      * Update an existing monitor.
      *
