@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.coreos.jetcd.op.Op;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
@@ -40,12 +41,9 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import java.util.Set;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 
 
@@ -156,25 +154,28 @@ public class MonitorManagement {
                 
 
         monitorRepository.save(monitor);
-
-        // Make sure to send the event to Kafka
-        MonitorEvent monitorEvent = new MonitorEvent()
-                .setFromMonitor(monitor)
-                .setOperationType(OperationType.CREATE);
-
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
+        publishMonitor(monitor, OperationType.CREATE, null);
         return monitor;
     }
-    void publishMonitor(Monitor monitor, OperationType operationType) {
-        List<Resource> resources = new ArrayList<>();
+
+    void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+        List<Resource> oldResources = new ArrayList<>();
+        List<Resource> newResources = new ArrayList<>();
+        Set<Resource> resources = new HashSet<>(oldResources);
+        resources.addAll(newResources);
         for (Resource r: resources) {
             String[] identifiers = r.getResourceId().split(":");
 
             ResourceInfo resourceInfo = envoyResourceManagement
                     .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
 
+        // Make sure to send the event to Kafka
+        MonitorEvent monitorEvent = new MonitorEvent()
+                .setFromMonitor(monitor)
+                .setOperationType(operationType)
+                .setEnvoyId(resourceInfo.getEnvoyId());
 
-
+        monitorEventProducer.sendMonitorEvent(monitorEvent);
         }
     }
     /**
@@ -191,6 +192,7 @@ public class MonitorManagement {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
         }
+        Map<String, String> oldLabels = monitor.getLabels();
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabels())
                 .whenNonNull()
@@ -203,12 +205,7 @@ public class MonitorManagement {
                 .to(monitor::setMonitorName);
         monitor.setTargetTenant(updatedValues.getTargetTenant());
         monitorRepository.save(monitor);
-
-        // Make sure to send the event to Kafka
-        MonitorEvent monitorEvent = new MonitorEvent()
-                .setFromMonitor(monitor)
-                .setOperationType(OperationType.UPDATE);
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
+        publishMonitor(monitor, OperationType.UPDATE, oldLabels);
         return monitor;
     }
 
@@ -223,12 +220,7 @@ public class MonitorManagement {
         Monitor monitor = getMonitor(tenantId, id);
         if (monitor != null) {
             monitorRepository.deleteById(monitor.getId());
-
-            // Make sure to send the event to Kafka
-            MonitorEvent monitorEvent = new MonitorEvent()
-                    .setFromMonitor(monitor)
-                    .setOperationType(OperationType.DELETE);
-            monitorEventProducer.sendMonitorEvent(monitorEvent);
+            publishMonitor(monitor, OperationType.DELETE, null);
         } else {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
