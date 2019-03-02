@@ -25,6 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
+import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -111,14 +112,14 @@ public class MonitorManagementTest {
     private Monitor currentMonitor;
 
     String resourceEventString =
-            "{\"operation\":\"CREATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+            "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
                     "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
                     "\"presenceMonitoringEnabled\":true," +
                     "\"tenantId\":\"abcde\"}}";
 
     String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
             "\"labels\":{\"os\":\"LINUX\"}}";
-    String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"CREATE\", " +
+    String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"UPDATE\", " +
             "\"config\":{\"content\":\"content1\"," +
             "\"labels\":{\"os\":\"LINUX\"}}}";
 
@@ -320,6 +321,8 @@ public class MonitorManagementTest {
 
     @Test
     public void testPublishMonitor() {
+        monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabels());
+        verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
         
     }
 }
