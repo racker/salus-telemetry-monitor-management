@@ -88,8 +88,27 @@ public class MonitorManagementTest {
 
     private Monitor currentMonitor;
 
+    String resourceEventString =
+            "{\"operation\":\"CREATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+                    "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
+                    "\"presenceMonitoringEnabled\":true," +
+                    "\"tenantId\":\"abcde\"}}";
+
+    String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
+            "\"labels\":{\"os\":\"LINUX\"}}";
+    String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"CREATE\", " +
+            "\"config\":{\"content\":\"content1\"," +
+            "\"labels\":{\"os\":\"LINUX\"}}}";
+
+    ResourceEvent resourceEvent;
+    ResourceInfo resourceInfo;
+    MonitorEvent monitorEvent;
+
+
+    List<Monitor> monitorList;
+    List<ResourceInfo> infoList;
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         Monitor monitor = new Monitor()
                 .setTenantId("abcde")
                 .setMonitorName("mon1")
@@ -98,6 +117,13 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
         currentMonitor = monitor;
+        resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
+        resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
+        monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
+        monitorList  = new ArrayList<>();
+        monitorList.add(currentMonitor);
+        infoList = new ArrayList<>();
+        infoList.add(resourceInfo);
     }
 
     private void createMonitors(int count) {
@@ -249,27 +275,10 @@ public class MonitorManagementTest {
 
     @Test
     public void testHandleResourceEvent() throws Exception {
-        String resourceEventString =
-                "{\"operation\":\"CREATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
-                        "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
-                        "\"presenceMonitoringEnabled\":true," +
-                        "\"tenantId\":\"abcde\"}}";
 
-        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
-                "\"labels\":{\"os\":\"LINUX\"}}";
-        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"CREATE\", " +
-                "\"config\":{\"content\":\"content1\"," +
-                "\"labels\":{\"os\":\"LINUX\"}}}";
-        List<Monitor> list  = new ArrayList<>();
-        list.add(currentMonitor);
-        ResourceEvent resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
-        ResourceInfo resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
-        MonitorEvent monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
-        List<ResourceInfo> infoList = new ArrayList<>();
-        infoList.add(resourceInfo);
         // spy is just used to mock the getMonitorsWithLabel method until that method is written
         MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
-        doReturn(list).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
+        doReturn(monitorList).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
         when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
         spyMonitorManagement.handleResourceEvent(resourceEvent);
