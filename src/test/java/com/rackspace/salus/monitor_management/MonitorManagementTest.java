@@ -28,6 +28,7 @@ import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import jdk.management.resource.ResourceId;
@@ -35,16 +36,22 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.web.client.RestTemplate;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -74,8 +81,17 @@ public class MonitorManagementTest {
     @MockBean
     RestTemplateBuilder restTemplateBuilder;
 
+    @Mock
+    RestTemplate restTemplate;
+
     @Autowired
     MonitorManagement monitorManagement;
+
+    @SpyBean
+    MonitorManagement spyMonitorManagement;
+
+    @Mock
+    ResponseEntity<List<Resource>> resp;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -107,6 +123,7 @@ public class MonitorManagementTest {
 
     List<Monitor> monitorList;
     List<ResourceInfo> infoList;
+    List<Resource> resourceList;
     @Before
     public void setUp() throws Exception {
         Monitor monitor = new Monitor()
@@ -124,6 +141,17 @@ public class MonitorManagementTest {
         monitorList.add(currentMonitor);
         infoList = new ArrayList<>();
         infoList.add(resourceInfo);
+        resourceList = new ArrayList<>();
+        resourceList.add(resourceEvent.getResource());
+        // Mock out publishMonitor so that it won't get used
+        doReturn(true).when(spyMonitorManagement).publishMonitor(any(), any(), any());
+
+        doReturn(restTemplate).when(restTemplateBuilder).build();
+        doReturn(resp).when(restTemplate).exchange(any(), (ParameterizedTypeReference<List<Resource>>) any());
+        doReturn(HttpStatus.OK).when(resp).getStatusCode();
+        doReturn(resourceList).when(resp).getBody();
+
+
     }
 
     private void createMonitors(int count) {
@@ -132,7 +160,7 @@ public class MonitorManagementTest {
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
             create.setAgentType("TELEGRAF");
             create.setSelectorScope("ALL_OF");
-            monitorManagement.createMonitor(tenantId, create);
+            spyMonitorManagement.createMonitor(tenantId, create);
         }
     }
 
@@ -141,13 +169,13 @@ public class MonitorManagementTest {
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
             create.setAgentType("TELEGRAF");
             create.setSelectorScope("ALL_OF");
-            monitorManagement.createMonitor(tenantId, create);
+            spyMonitorManagement.createMonitor(tenantId, create);
         }
     }
 
     @Test
     public void testGetMonitor() {
-        Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
+        Monitor r = spyMonitorManagement.getMonitor("abcde", currentMonitor.getId());
 
         assertThat(r.getId(), notNullValue());
         assertThat(r.getLabels(), hasEntry("os", "LINUX"));
@@ -162,7 +190,7 @@ public class MonitorManagementTest {
         create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+        Monitor returned = spyMonitorManagement.createMonitor(tenantId, create);
 
         assertThat(returned.getId(), notNullValue());
         assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
@@ -172,7 +200,7 @@ public class MonitorManagementTest {
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
-        Monitor retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+        Monitor retrieved = spyMonitorManagement.getMonitor(tenantId, returned.getId());
 
         assertThat(retrieved.getMonitorName(), equalTo(returned.getMonitorName()));
         assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
@@ -186,7 +214,7 @@ public class MonitorManagementTest {
         int pageSize = 10;
 
         Pageable page = PageRequest.of(0, pageSize);
-        Page<Monitor> result = monitorManagement.getAllMonitors(page);
+        Page<Monitor> result = spyMonitorManagement.getAllMonitors(page);
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
@@ -194,7 +222,7 @@ public class MonitorManagementTest {
         createMonitors(totalMonitors - 1);
 
         page = PageRequest.of(0, 10);
-        result = monitorManagement.getAllMonitors(page);
+        result = spyMonitorManagement.getAllMonitors(page);
 
         assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
         assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
@@ -208,14 +236,14 @@ public class MonitorManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Pageable page = PageRequest.of(0, pageSize);
-        Page<Monitor> result = monitorManagement.getAllMonitors(page);
+        Page<Monitor> result = spyMonitorManagement.getAllMonitors(page);
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
         createMonitorsForTenant(totalMonitors , tenantId);
 
         page = PageRequest.of(0, 10);
-        result = monitorManagement.getMonitors(tenantId, page);
+        result = spyMonitorManagement.getMonitors(tenantId, page);
 
         assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
         assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
@@ -228,13 +256,13 @@ public class MonitorManagementTest {
         // There is already one monitor created as default
         createMonitors(totalMonitors - 1);
 
-        Stream s = monitorManagement.getMonitorsAsStream();
+        Stream s = spyMonitorManagement.getMonitorsAsStream();
         assertThat(s.count(), equalTo((long) totalMonitors));
     }
 
     @Test
     public void testUpdateExistingMonitor() {
-        Monitor monitor = monitorManagement.getAllMonitors(PageRequest.of(0, 1)).getContent().get(0);
+        Monitor monitor = spyMonitorManagement.getAllMonitors(PageRequest.of(0, 1)).getContent().get(0);
         Map<String, String> newLabels = new HashMap<>(monitor.getLabels());
         newLabels.put("newLabel", "newValue");
         MonitorUpdate update = new MonitorUpdate();
@@ -243,7 +271,7 @@ public class MonitorManagementTest {
 
         Monitor newMonitor;
         try {
-            newMonitor = monitorManagement.updateMonitor(
+            newMonitor = spyMonitorManagement.updateMonitor(
                     monitor.getTenantId(),
                     monitor.getId(),
                     update);
@@ -263,28 +291,28 @@ public class MonitorManagementTest {
         create.setAgentType("TELEGRAF");
         create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        Monitor newMon = monitorManagement.createMonitor(tenantId, create);
+        Monitor newMon = spyMonitorManagement.createMonitor(tenantId, create);
 
-        Monitor monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
+        Monitor monitor = spyMonitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, notNullValue());
 
-        monitorManagement.removeMonitor(tenantId, newMon.getId());
-        monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
+        spyMonitorManagement.removeMonitor(tenantId, newMon.getId());
+        monitor = spyMonitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, nullValue());
     }
 
     @Test
-    public void testHandleResourceEvent() throws Exception {
-
-        // spy is just used to mock the getMonitorsWithLabel method until that method is written
-        MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
+    public void testHandleResourceEvent() {
+        // mock the getMonitorsWithLabel method until that method is written
         doReturn(monitorList).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
         when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
         spyMonitorManagement.handleResourceEvent(resourceEvent);
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
+    }
 
-
-
+    @Test
+    public void testPublishMonitor() {
+        
     }
 }

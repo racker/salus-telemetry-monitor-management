@@ -179,7 +179,7 @@ public class MonitorManagement {
         return monitor;
     }
 
-    boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+    public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
         String endpoint = "/api/tenant/tenantId/resources/labels".replace("tenantId", monitor.getTenantId());
         try {
             List<Resource> oldResources = null;
