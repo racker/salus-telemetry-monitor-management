@@ -16,12 +16,15 @@
 
 package com.rackspace.salus.monitor_management;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -29,9 +32,11 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,10 +45,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.*;
@@ -52,7 +54,7 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({MonitorManagement.class})
+@Import({MonitorManagement.class, MonitorManagementProperties.class, ObjectMapper.class})
 public class MonitorManagementTest {
 
     @MockBean
@@ -61,8 +63,14 @@ public class MonitorManagementTest {
     @MockBean
     EnvoyResourceManagement envoyResourceManagement;
 
+    @MockBean
+    RestTemplateBuilder restTemplateBuilder;
+
     @Autowired
     MonitorManagement monitorManagement;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
@@ -229,5 +237,27 @@ public class MonitorManagementTest {
         monitorManagement.removeMonitor(tenantId, newMon.getId());
         monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, nullValue());
+    }
+
+    @Test
+    public void testHandleResourceEvent() throws Exception {
+        String resourceEventString =
+                "{\"operation\":\"CREATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+                        "\"labels\":{\"os\":\"LINUX\",\"arch\":\"X86_64\"},\"id\":1," +
+                        "\"presenceMonitoringEnabled\":true," +
+                        "\"tenantId\":\"123456\"}}";
+
+        Map<String, String> labels1 = new HashMap<>();
+        labels1.put("os", "LINUX");
+        labels1.put("arch", "X86_64");
+        Monitor m1 = new Monitor().setContent("con1").setMonitorName("mon1").setLabels(labels1).setTenantId("ten1");
+        List<Monitor> list  = new ArrayList<Monitor>();
+        list.add(m1);
+        ResourceEvent resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
+        // spy is just used to mock the getMonitorsWithLabel method until that method is written
+        MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
+        Mockito.doReturn(list).when(spyMonitorManagement).getMonitorsWithLabels("123456", labels1);
+        spyMonitorManagement.handleResourceEvent(resourceEvent);
+
     }
 }

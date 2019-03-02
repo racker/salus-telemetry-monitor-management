@@ -296,7 +296,9 @@ public class MonitorManagement {
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
             oldMonitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getOldLabels());
         }
-        monitors.addAll(oldMonitors);
+        if (oldMonitors != null) {
+            monitors.addAll(oldMonitors);
+        }
         Map<UUID, Monitor> monitorMap = new HashMap<>();
         // Eliminate duplicate monitors
         for (Monitor m: monitors) {
