@@ -1,3 +1,6 @@
+monitor-management:
+  resourceManagerUrl:
+    http://localhost:8085
 spring:
   kafka:
     producer:

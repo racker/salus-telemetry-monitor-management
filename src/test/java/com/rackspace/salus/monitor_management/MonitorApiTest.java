@@ -97,11 +97,7 @@ public class MonitorApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-<<<<<<< 39b580d7b7c33b39ec7ae777ae68aea73ac4a44f
                 .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
-=======
-                .andExpect(jsonPath("$.id", is(monitor.getId())));
->>>>>>> replaced monitorId with id, made id a uuid, and added optional monitorName
     }
 
     @Test
