@@ -24,10 +24,13 @@ import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import jdk.management.resource.ResourceId;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,11 +49,16 @@ import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
@@ -85,7 +93,7 @@ public class MonitorManagementTest {
         Monitor monitor = new Monitor()
                 .setTenantId("abcde")
                 .setMonitorName("mon1")
-                .setLabels(Collections.singletonMap("key", "value"))
+                .setLabels(Collections.singletonMap("os", "LINUX"))
                 .setContent("content1")
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
@@ -116,7 +124,7 @@ public class MonitorManagementTest {
         Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
 
         assertThat(r.getId(), notNullValue());
-        assertThat(r.getLabels(), hasEntry("key", "value"));
+        assertThat(r.getLabels(), hasEntry("os", "LINUX"));
         assertThat(r.getContent(), equalTo(currentMonitor.getContent()));
         assertThat(r.getAgentType(), equalTo(currentMonitor.getAgentType()));
     }
@@ -243,21 +251,31 @@ public class MonitorManagementTest {
     public void testHandleResourceEvent() throws Exception {
         String resourceEventString =
                 "{\"operation\":\"CREATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
-                        "\"labels\":{\"os\":\"LINUX\",\"arch\":\"X86_64\"},\"id\":1," +
+                        "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
                         "\"presenceMonitoringEnabled\":true," +
-                        "\"tenantId\":\"123456\"}}";
+                        "\"tenantId\":\"abcde\"}}";
 
-        Map<String, String> labels1 = new HashMap<>();
-        labels1.put("os", "LINUX");
-        labels1.put("arch", "X86_64");
-        Monitor m1 = new Monitor().setContent("con1").setMonitorName("mon1").setLabels(labels1).setTenantId("ten1");
-        List<Monitor> list  = new ArrayList<Monitor>();
-        list.add(m1);
+        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}";
+        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"CREATE\", " +
+                "\"config\":{\"content\":\"content1\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}}";
+        List<Monitor> list  = new ArrayList<>();
+        list.add(currentMonitor);
         ResourceEvent resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
+        ResourceInfo resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
+        MonitorEvent monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
+        List<ResourceInfo> infoList = new ArrayList<>();
+        infoList.add(resourceInfo);
         // spy is just used to mock the getMonitorsWithLabel method until that method is written
         MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
-        Mockito.doReturn(list).when(spyMonitorManagement).getMonitorsWithLabels("123456", labels1);
+        doReturn(list).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
+        when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(infoList));
         spyMonitorManagement.handleResourceEvent(resourceEvent);
+        verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
+
+
 
     }
 }
