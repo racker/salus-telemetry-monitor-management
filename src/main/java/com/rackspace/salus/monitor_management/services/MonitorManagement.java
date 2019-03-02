@@ -207,7 +207,9 @@ public class MonitorManagement {
                 oldResources = resp.getBody();
 
             }
-            resources.addAll(oldResources);
+            if (oldResources != null) {
+                resources.addAll(oldResources);
+            }
             Map<String, Resource> resourceMap = new HashMap<>();
             // Eliminate duplicate resources
             for (Resource r: resources) {
