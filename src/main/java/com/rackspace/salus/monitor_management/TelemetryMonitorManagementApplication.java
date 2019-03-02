@@ -28,10 +28,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
 @EntityScan("com.rackspace.salus.telemetry.model")
 @EnableEtcd
-public class SalusTelemetryMonitorManagementApplication {
+public class TelemetryMonitorManagementApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(SalusTelemetryMonitorManagementApplication.class, args);
+        SpringApplication.run(TelemetryMonitorManagementApplication.class, args);
     }
 
 }
