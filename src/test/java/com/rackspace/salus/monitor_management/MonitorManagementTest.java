@@ -19,8 +19,8 @@ package com.rackspace.salus.monitor_management;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
-import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
@@ -32,13 +32,11 @@ import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import jdk.management.resource.ResourceId;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -64,8 +62,8 @@ import java.util.stream.Stream;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 
@@ -86,7 +84,7 @@ public class MonitorManagementTest {
     @Mock
     RestTemplate restTemplate;
 
-    MonitorManagement monitorManagement;
+    private MonitorManagement monitorManagement;
 
     @SpyBean
     MonitorManagement spyMonitorManagement;
@@ -97,7 +95,6 @@ public class MonitorManagementTest {
     @Autowired
     ObjectMapper objectMapper;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     MonitorRepository monitorRepository;
 
@@ -111,26 +108,12 @@ public class MonitorManagementTest {
 
     private Monitor currentMonitor;
 
-    String resourceEventString =
-            "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
-                    "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
-                    "\"presenceMonitoringEnabled\":true," +
-                    "\"tenantId\":\"abcde\"}}";
-
-    String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
-            "\"labels\":{\"os\":\"LINUX\"}}";
-    String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"UPDATE\", " +
-            "\"config\":{\"content\":\"content1\"," +
-            "\"labels\":{\"os\":\"LINUX\"}}}";
-
-    ResourceEvent resourceEvent;
-    ResourceInfo resourceInfo;
-    MonitorEvent monitorEvent;
+    private ResourceEvent resourceEvent;
+    private MonitorEvent monitorEvent;
 
 
-    List<Monitor> monitorList;
-    List<ResourceInfo> infoList;
-    List<Resource> resourceList;
+    private List<Monitor> monitorList;
+
     @Before
     public void setUp() throws Exception {
         Monitor monitor = new Monitor()
@@ -141,14 +124,23 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
         currentMonitor = monitor;
+        String resourceEventString = "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+                "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
+                "\"presenceMonitoringEnabled\":true," +
+                "\"tenantId\":\"abcde\"}}";
         resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
-        resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
+        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}";
+        ResourceInfo resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
+        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"UPDATE\", " +
+                "\"config\":{\"content\":\"content1\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}}";
         monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
         monitorList  = new ArrayList<>();
         monitorList.add(currentMonitor);
-        infoList = new ArrayList<>();
+        List<ResourceInfo> infoList = new ArrayList<>();
         infoList.add(resourceInfo);
-        resourceList = new ArrayList<>();
+        List<Resource> resourceList = new ArrayList<>();
         resourceList.add(resourceEvent.getResource());
 
         doReturn(restTemplate).when(restTemplateBuilder).build();

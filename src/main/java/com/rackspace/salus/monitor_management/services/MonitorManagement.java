@@ -210,7 +210,7 @@ public class MonitorManagement {
         List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
         List<Resource> oldResources = new ArrayList<>();
         if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-            oldResources = getResources(monitor.getTenantId(), oldLabels);
+            oldResources = getResourcesWithLabels(monitor.getTenantId(), oldLabels);
         }
         resources.addAll(oldResources);
         Map<String, Resource> resourceMap = new HashMap<>();
