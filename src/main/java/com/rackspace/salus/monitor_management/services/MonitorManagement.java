@@ -55,6 +55,8 @@ import java.util.stream.Stream;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
 import java.net.URI;
 
 
@@ -180,28 +182,36 @@ public class MonitorManagement {
     }
 
     public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
-        String endpoint = "/api/tenant/tenantId/resources/labels".replace("tenantId", monitor.getTenantId());
+        String endpoint = monitorManagementProperties.getResourceManagerUrl() +
+                "/api/tenant/tenantId/resourcesLabels".replace("tenantId", monitor.getTenantId());
         try {
             List<Resource> oldResources = null;
-            URI uri = new URI(monitorManagementProperties.getResourceManagerUrl() + endpoint);
-
-
-            RequestEntity<Map<String, String>> requestEntity = RequestEntity.post(uri).body(monitor.getLabels());
+            UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
+            for (Map.Entry<String, String> e : monitor.getLabels().entrySet()) {
+                uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
+            }
+            String uriString = uriComponentsBuilder.toUriString();
+            RequestEntity<Void> requestEntity = RequestEntity.get(new URI(uriString)).build();
             ResponseEntity<List<Resource>> resp = restTemplate.exchange(requestEntity,
                     new ParameterizedTypeReference<List<Resource>>() {
                     });
             if (resp.getStatusCode() != HttpStatus.OK) {
-                log.error("get failed on: " + uri, resp.getStatusCode());
+                log.error("get failed on: " + uriString, resp.getStatusCode());
                 return false;
             }
             List<Resource> resources = resp.getBody();
             if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-                requestEntity = RequestEntity.post(uri).body(oldLabels);
+                uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
+                for (Map.Entry<String, String> e : monitor.getLabels().entrySet()) {
+                    uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
+                }
+                uriString = uriComponentsBuilder.toUriString();
+                requestEntity = RequestEntity.get(new URI(uriString)).build();
                 ResponseEntity<List<Resource>> oldResp = restTemplate.exchange(requestEntity,
                         new ParameterizedTypeReference<List<Resource>>() {
                         });
                 if (oldResp.getStatusCode() != HttpStatus.OK) {
-                    log.error("get failed on: " + uri, oldResp.getStatusCode());
+                    log.error("get failed on: " + uriString, oldResp.getStatusCode());
                     return false;
                 }
                 oldResources = resp.getBody();
@@ -212,7 +222,7 @@ public class MonitorManagement {
             }
             Map<String, Resource> resourceMap = new HashMap<>();
             // Eliminate duplicate resources
-            for (Resource r: resources) {
+            for (Resource r : resources) {
                 resourceMap.put(r.getResourceId(), r);
             }
             for (String id : resourceMap.keySet()) {
@@ -229,10 +239,9 @@ public class MonitorManagement {
                         .setEnvoyId(resourceInfo.getEnvoyId());
 
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
-
             }
         } catch (URISyntaxException e) {
-            log.error("URI syntax exception on: " + endpoint);
+            log.error("syntax error creating URI: ", endpoint);
             return false;
         }
         return true;
