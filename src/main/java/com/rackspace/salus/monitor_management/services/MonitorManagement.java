@@ -183,7 +183,7 @@ public class MonitorManagement {
 
     public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
         String endpoint = monitorManagementProperties.getResourceManagerUrl() +
-                "/api/tenant/tenantId/resourcesLabels".replace("tenantId", monitor.getTenantId());
+                "/api/tenant/tenantId/resourceLabels".replace("tenantId", monitor.getTenantId());
         try {
             List<Resource> oldResources = null;
             UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
