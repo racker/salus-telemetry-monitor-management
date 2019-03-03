@@ -181,13 +181,13 @@ public class MonitorManagement {
         return monitor;
     }
 
-    public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+    private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
+        List<Resource> emptyList = new ArrayList<>();
         String endpoint = monitorManagementProperties.getResourceManagerUrl() +
-                "/api/tenant/tenantId/resourceLabels".replace("tenantId", monitor.getTenantId());
+                "/api/tenant/tenantId/resourceLabels".replace("tenantId", tenantId);
         try {
-            List<Resource> oldResources = null;
             UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
-            for (Map.Entry<String, String> e : monitor.getLabels().entrySet()) {
+            for (Map.Entry<String, String> e : labels.entrySet()) {
                 uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
             }
             String uriString = uriComponentsBuilder.toUriString();
@@ -197,54 +197,44 @@ public class MonitorManagement {
                     });
             if (resp.getStatusCode() != HttpStatus.OK) {
                 log.error("get failed on: " + uriString, resp.getStatusCode());
-                return false;
+                return emptyList;
             }
-            List<Resource> resources = resp.getBody();
-            if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-                uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
-                for (Map.Entry<String, String> e : monitor.getLabels().entrySet()) {
-                    uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
-                }
-                uriString = uriComponentsBuilder.toUriString();
-                requestEntity = RequestEntity.get(new URI(uriString)).build();
-                ResponseEntity<List<Resource>> oldResp = restTemplate.exchange(requestEntity,
-                        new ParameterizedTypeReference<List<Resource>>() {
-                        });
-                if (oldResp.getStatusCode() != HttpStatus.OK) {
-                    log.error("get failed on: " + uriString, oldResp.getStatusCode());
-                    return false;
-                }
-                oldResources = resp.getBody();
-
-            }
-            if (oldResources != null) {
-                resources.addAll(oldResources);
-            }
-            Map<String, Resource> resourceMap = new HashMap<>();
-            // Eliminate duplicate resources
-            for (Resource r : resources) {
-                resourceMap.put(r.getResourceId(), r);
-            }
-            for (String id : resourceMap.keySet()) {
-                Resource r = resourceMap.get(id);
-                String[] identifiers = r.getResourceId().split(":");
-
-                ResourceInfo resourceInfo = envoyResourceManagement
-                        .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
-                if (resourceInfo != null) {
-                    MonitorEvent monitorEvent = new MonitorEvent()
-                        .setFromMonitor(monitor)
-                        .setOperationType(operationType)
-                        .setEnvoyId(resourceInfo.getEnvoyId());
-                    monitorEventProducer.sendMonitorEvent(monitorEvent);
-                }
-            }
+            return resp.getBody();
         } catch (URISyntaxException e) {
             log.error("syntax error creating URI: ", endpoint);
-            return false;
+            return emptyList;
+       }
+    }
+
+    public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+        List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
+        List<Resource> oldResources = new ArrayList<>();
+        if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
+            oldResources = getResources(monitor.getTenantId(), oldLabels);
+        }
+        resources.addAll(oldResources);
+        Map<String, Resource> resourceMap = new HashMap<>();
+        // Eliminate duplicate resources
+        for (Resource r : resources) {
+            resourceMap.put(r.getResourceId(), r);
+        }
+        for (String id : resourceMap.keySet()) {
+            Resource r = resourceMap.get(id);
+            String[] identifiers = r.getResourceId().split(":");
+
+            ResourceInfo resourceInfo = envoyResourceManagement
+                    .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+            if (resourceInfo != null) {
+                MonitorEvent monitorEvent = new MonitorEvent()
+                    .setFromMonitor(monitor)
+                    .setOperationType(operationType)
+                    .setEnvoyId(resourceInfo.getEnvoyId());
+                monitorEventProducer.sendMonitorEvent(monitorEvent);
+            }
         }
         return true;
     }
+
     /**
      * Update an existing monitor.
      *
@@ -310,6 +300,9 @@ public class MonitorManagement {
 
         List<Monitor> oldMonitors = null;
         List<Monitor> monitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getResource().getLabels());
+        if (monitors == null) {
+            monitors = new ArrayList<>();
+        }
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
             oldMonitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getOldLabels());
         }
