@@ -231,14 +231,13 @@ public class MonitorManagement {
 
                 ResourceInfo resourceInfo = envoyResourceManagement
                         .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
-
-                // Make sure to send the event to Kafka
-                MonitorEvent monitorEvent = new MonitorEvent()
+                if (resourceInfo != null) {
+                    MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
                         .setOperationType(operationType)
                         .setEnvoyId(resourceInfo.getEnvoyId());
-
-                monitorEventProducer.sendMonitorEvent(monitorEvent);
+                    monitorEventProducer.sendMonitorEvent(monitorEvent);
+                }
             }
         } catch (URISyntaxException e) {
             log.error("syntax error creating URI: ", endpoint);
@@ -302,6 +301,13 @@ public class MonitorManagement {
 
     public void handleResourceEvent(ResourceEvent event) {
         Resource r = event.getResource();
+        String[] identifiers = r.getResourceId().split(":");
+        ResourceInfo resourceInfo = envoyResourceManagement
+            .getOne(r.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+        if (resourceInfo == null) {
+            return;
+        }
+
         List<Monitor> oldMonitors = null;
         List<Monitor> monitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getResource().getLabels());
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
@@ -317,10 +323,6 @@ public class MonitorManagement {
         }
         for (UUID id : monitorMap.keySet()) {
             Monitor m = monitorMap.get(id);
-            String[] identifiers = r.getResourceId().split(":");
-
-            ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(r.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
 
             // Make sure to send the event to Kafka
             MonitorEvent monitorEvent = new MonitorEvent()
