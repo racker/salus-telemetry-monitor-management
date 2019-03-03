@@ -83,27 +83,19 @@ public class MonitorManagementTest {
 
     @Mock
     RestTemplate restTemplate;
-
-    private MonitorManagement monitorManagement;
-
     @SpyBean
     MonitorManagement spyMonitorManagement;
-
     @Mock
     ResponseEntity<List<Resource>> resp;
-
     @Autowired
     ObjectMapper objectMapper;
-
     @Autowired
     MonitorRepository monitorRepository;
-
     @Autowired
     EntityManager entityManager;
-
     @Autowired
     MonitorManagementProperties monitorManagementProperties;
-    
+    private MonitorManagement monitorManagement;
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
     private Monitor currentMonitor;
@@ -136,7 +128,7 @@ public class MonitorManagementTest {
                 "\"config\":{\"content\":\"content1\"," +
                 "\"labels\":{\"os\":\"LINUX\"}}}";
         monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
-        monitorList  = new ArrayList<>();
+        monitorList = new ArrayList<>();
         monitorList.add(currentMonitor);
         List<ResourceInfo> infoList = new ArrayList<>();
         infoList.add(resourceInfo);
@@ -150,14 +142,14 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
 
-        monitorManagement = new MonitorManagement(monitorRepository,entityManager, envoyResourceManagement,
+        monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
                 monitorEventProducer, restTemplateBuilder, monitorManagementProperties);
 
 
     }
 
     private void createMonitors(int count) {
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
             create.setAgentType("TELEGRAF");
@@ -167,7 +159,7 @@ public class MonitorManagementTest {
     }
 
     private void createMonitorsForTenant(int count, String tenantId) {
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
             create.setAgentType("TELEGRAF");
             create.setSelectorScope("ALL_OF");
@@ -198,7 +190,7 @@ public class MonitorManagementTest {
         assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
         assertThat(returned.getContent(), equalTo(create.getContent()));
         assertThat(returned.getAgentType(), equalTo(AgentType.valueOf(create.getAgentType())));
-        
+
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
@@ -242,7 +234,7 @@ public class MonitorManagementTest {
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
-        createMonitorsForTenant(totalMonitors , tenantId);
+        createMonitorsForTenant(totalMonitors, tenantId);
 
         page = PageRequest.of(0, 10);
         result = monitorManagement.getMonitors(tenantId, page);
@@ -315,6 +307,6 @@ public class MonitorManagementTest {
     public void testPublishMonitor() {
         monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabels());
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
-        
+
     }
 }

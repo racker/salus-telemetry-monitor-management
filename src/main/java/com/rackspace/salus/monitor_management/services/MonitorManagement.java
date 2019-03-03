@@ -16,17 +16,16 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import com.coreos.jetcd.op.Op;
 import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import jdk.management.resource.ResourceId;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -35,29 +34,24 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Stream;
-import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
-
-import java.net.URI;
 
 
 @Slf4j
@@ -76,7 +70,6 @@ public class MonitorManagement {
 
     private final EnvoyResourceManagement envoyResourceManagement;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
                              EnvoyResourceManagement envoyResourceManagement,
@@ -94,8 +87,8 @@ public class MonitorManagement {
     /**
      * Gets an individual monitor object by the public facing id.
      *
-     * @param tenantId  The tenant owning the monitor.
-     * @param id The unique value representing the monitor.
+     * @param tenantId The tenant owning the monitor.
+     * @param id       The unique value representing the monitor.
      * @return The monitor object.
      */
     public Monitor getMonitor(String tenantId, UUID id) {
@@ -174,13 +167,20 @@ public class MonitorManagement {
                 .setAgentType(AgentType.valueOf(newMonitor.getAgentType()))
                 .setSelectorScope(ConfigSelectorScope.valueOf(newMonitor.getSelectorScope()))
                 .setTargetTenant(newMonitor.getTargetTenant());
-                
+
 
         monitorRepository.save(monitor);
         publishMonitor(monitor, OperationType.CREATE, null);
         return monitor;
     }
 
+    /**
+     * Get a list of resources for the tenant that match the given labels
+     *
+     * @param tenantId tenant whose resources are to be found
+     * @param labels labels to be matched
+     * @return The list found
+     */
     private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
         List<Resource> emptyList = new ArrayList<>();
         String endpoint = monitorManagementProperties.getResourceManagerUrl() +
@@ -203,10 +203,18 @@ public class MonitorManagement {
         } catch (URISyntaxException e) {
             log.error("syntax error creating URI: ", endpoint);
             return emptyList;
-       }
+        }
     }
 
-    public boolean publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+    /**
+     * Send a kafka event announcing the monitor operation.  Finds the envoys that match labels in the
+     * current monitor as well as the ones that match the old labels, and sends and event to each envoy.
+     *
+     * @param monitor       the monitor to create the event for.
+     * @param operationType the crud operation that occurred on the monitor
+     * @param oldLabels     the old labels that were on the monitor before if this is an update operation
+     */
+    public void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
         List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
         List<Resource> oldResources = new ArrayList<>();
         if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
@@ -226,13 +234,12 @@ public class MonitorManagement {
                     .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
             if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
-                    .setFromMonitor(monitor)
-                    .setOperationType(operationType)
-                    .setEnvoyId(resourceInfo.getEnvoyId());
+                        .setFromMonitor(monitor)
+                        .setOperationType(operationType)
+                        .setEnvoyId(resourceInfo.getEnvoyId());
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
             }
         }
-        return true;
     }
 
     /**
@@ -270,8 +277,8 @@ public class MonitorManagement {
     /**
      * Delete a monitor.
      *
-     * @param tenantId  The tenant the monitor belongs to.
-     * @param id The id of the monitor.
+     * @param tenantId The tenant the monitor belongs to.
+     * @param id       The id of the monitor.
      */
     public void removeMonitor(String tenantId, UUID id) {
         Monitor monitor = getMonitor(tenantId, id);
@@ -284,16 +291,24 @@ public class MonitorManagement {
         }
     }
 
+    @SuppressWarnings("unused")
     public List<Monitor> getMonitorsWithLabels(String tenantId, Map<String, String> labels) {
         // Adam's code
         return null;
     }
 
+    /**
+     * Find all monitors associated with a changed resource, and notify the corresponding envoy of the changes.
+     * Monitors are found that correspond to both the new labels as well as any old ones so that
+     * all the corresponding monitors can be updated for a resource.
+     *
+     * @param event the new resource event.
+     */
     public void handleResourceEvent(ResourceEvent event) {
         Resource r = event.getResource();
         String[] identifiers = r.getResourceId().split(":");
         ResourceInfo resourceInfo = envoyResourceManagement
-            .getOne(r.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+                .getOne(r.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
         if (resourceInfo == null) {
             return;
         }
@@ -311,7 +326,7 @@ public class MonitorManagement {
         }
         Map<UUID, Monitor> monitorMap = new HashMap<>();
         // Eliminate duplicate monitors
-        for (Monitor m: monitors) {
+        for (Monitor m : monitors) {
             monitorMap.put(m.getId(), m);
         }
         for (UUID id : monitorMap.keySet()) {
