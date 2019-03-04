@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.Http;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
@@ -38,11 +37,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
@@ -87,8 +85,6 @@ public class MonitorManagementTest {
     @Mock
     RestTemplate restTemplate;
 
-    //@Spy
-    MonitorManagement spyMonitorManagement;
     @Mock
     ResponseEntity<List<Resource>> resp;
     @Autowired
@@ -295,7 +291,9 @@ public class MonitorManagementTest {
     @Test
     public void testHandleResourceEvent() {
         // mock the getMonitorsWithLabel method until that method is written
+        MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
         doReturn(monitorList).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
+
         spyMonitorManagement.handleResourceEvent(resourceEvent);
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
     }
