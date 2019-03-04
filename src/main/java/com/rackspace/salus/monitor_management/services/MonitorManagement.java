@@ -174,7 +174,7 @@ public class MonitorManagement {
      * Get a list of resources for the tenant that match the given labels
      *
      * @param tenantId tenant whose resources are to be found
-     * @param labels labels to be matched
+     * @param labels   labels to be matched
      * @return The list found
      */
     private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
@@ -186,7 +186,8 @@ public class MonitorManagement {
         }
         String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
         ResponseEntity<List<Resource>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
-                new ParameterizedTypeReference<List<Resource>>(){});
+                new ParameterizedTypeReference<List<Resource>>() {
+                });
         if (resp.getStatusCode() != HttpStatus.OK) {
             log.error("get failed on: " + uriString, resp.getStatusCode());
             return emptyList;
