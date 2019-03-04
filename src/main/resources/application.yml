@@ -1,8 +1,5 @@
 etcd:
   url: http://localhost:2479
-services:
-  resourceManagementUrl:
-    http://localhost:8085
 spring:
   kafka:
     producer:
