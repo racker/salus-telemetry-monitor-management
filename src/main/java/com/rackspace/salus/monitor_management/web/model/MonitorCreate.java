@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import lombok.Data;
 
 
@@ -27,6 +28,8 @@ import java.io.Serializable;
 import java.util.Map;
 import com.rackspace.salus.telemetry.model.AgentType;
 
+import javax.validation.constraints.NotNull;
+
 @Data
 public class MonitorCreate implements Serializable {
 
@@ -37,11 +40,11 @@ public class MonitorCreate implements Serializable {
     @NotBlank
     String content;
 
-    @NotBlank
-    String agentType;
+    @NotNull
+    AgentType agentType;
 
     String targetTenant;
 
-    String selectorScope = "ALL_OF";
+    ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
 
 }

@@ -164,8 +164,8 @@ public class MonitorManagement {
                 .setMonitorName(newMonitor.getMonitorName())
                 .setLabels(newMonitor.getLabels())
                 .setContent(newMonitor.getContent())
-                .setAgentType(AgentType.valueOf(newMonitor.getAgentType()))
-                .setSelectorScope(ConfigSelectorScope.valueOf(newMonitor.getSelectorScope()))
+                .setAgentType(newMonitor.getAgentType())
+                .setSelectorScope(newMonitor.getSelectorScope())
                 .setTargetTenant(newMonitor.getTargetTenant());
 
 
