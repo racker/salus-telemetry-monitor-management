@@ -61,8 +61,6 @@ public class MonitorManagement {
 
     private final RestTemplate restTemplate;
 
-    private final ServicesProperties servicesProperties;
-
     @PersistenceContext
     private final EntityManager entityManager;
 
@@ -79,7 +77,7 @@ public class MonitorManagement {
         this.envoyResourceManagement = envoyResourceManagement;
         this.monitorEventProducer = monitorEventProducer;
         this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
-        this.servicesProperties = servicesProperties;
+
     }
 
     /**
@@ -218,10 +216,8 @@ public class MonitorManagement {
         }
         for (String id : resourceMap.keySet()) {
             Resource r = resourceMap.get(id);
-            String[] identifiers = r.getResourceId().split(":");
-
             ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+                    .getOne(monitor.getTenantId(), r.getResourceId()).join().get(0);
             if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
@@ -296,9 +292,8 @@ public class MonitorManagement {
      */
     public void handleResourceEvent(ResourceEvent event) {
         Resource r = event.getResource();
-        String[] identifiers = r.getResourceId().split(":");
         ResourceInfo resourceInfo = envoyResourceManagement
-                .getOne(r.getTenantId(), identifiers[0], identifiers[1]).join().get(0);
+                .getOne(r.getTenantId(), r.getResourceId()).join().get(0);
         if (resourceInfo == null) {
             return;
         }

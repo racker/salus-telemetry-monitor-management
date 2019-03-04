@@ -140,7 +140,7 @@ public class MonitorManagementTest {
         doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
         doReturn(HttpStatus.OK).when(resp).getStatusCode();
         doReturn(resourceList).when(resp).getBody();
-        when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
+        when(envoyResourceManagement.getOne(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
 
         monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
