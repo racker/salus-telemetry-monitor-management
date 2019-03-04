@@ -20,9 +20,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("monitor-management")
+@ConfigurationProperties("services")
 @Component
 @Data
-public class MonitorManagementProperties {
-    String resourceManagerUrl;
+public class ServicesProperties {
+    String resourceManagementUrl;
 }

@@ -17,8 +17,9 @@
 package com.rackspace.salus.monitor_management;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.Http;
 import com.google.common.collect.Maps;
-import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
+import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
@@ -47,6 +48,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -69,7 +71,7 @@ import static org.mockito.Mockito.*;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({MonitorManagement.class, MonitorManagementProperties.class, ObjectMapper.class})
+@Import({MonitorManagement.class, ServicesProperties.class, ObjectMapper.class})
 public class MonitorManagementTest {
 
     @MockBean
@@ -94,7 +96,7 @@ public class MonitorManagementTest {
     @Autowired
     EntityManager entityManager;
     @Autowired
-    MonitorManagementProperties monitorManagementProperties;
+    ServicesProperties servicesProperties;
     private MonitorManagement monitorManagement;
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -136,14 +138,14 @@ public class MonitorManagementTest {
         resourceList.add(resourceEvent.getResource());
 
         doReturn(restTemplate).when(restTemplateBuilder).build();
-        doReturn(resp).when(restTemplate).exchange(any(), (ParameterizedTypeReference<List<Resource>>) any());
+        doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
         doReturn(HttpStatus.OK).when(resp).getStatusCode();
         doReturn(resourceList).when(resp).getBody();
         when(envoyResourceManagement.getOne(anyString(), anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
 
         monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
-                monitorEventProducer, restTemplateBuilder, monitorManagementProperties);
+                monitorEventProducer, restTemplateBuilder, servicesProperties);
 
 
     }

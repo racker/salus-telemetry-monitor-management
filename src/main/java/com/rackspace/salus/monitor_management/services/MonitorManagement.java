@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.config.MonitorManagementProperties;
+import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
@@ -34,6 +34,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -63,7 +64,7 @@ public class MonitorManagement {
 
     private final RestTemplate restTemplate;
 
-    private final MonitorManagementProperties monitorManagementProperties;
+    private final ServicesProperties servicesProperties;
 
     @PersistenceContext
     private final EntityManager entityManager;
@@ -75,13 +76,13 @@ public class MonitorManagement {
                              EnvoyResourceManagement envoyResourceManagement,
                              MonitorEventProducer monitorEventProducer,
                              RestTemplateBuilder restTemplateBuilder,
-                             MonitorManagementProperties monitorManagementProperties) {
+                             ServicesProperties servicesProperties) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
         this.envoyResourceManagement = envoyResourceManagement;
         this.monitorEventProducer = monitorEventProducer;
         this.restTemplate = restTemplateBuilder.build();
-        this.monitorManagementProperties = monitorManagementProperties;
+        this.servicesProperties = servicesProperties;
     }
 
     /**
@@ -183,27 +184,19 @@ public class MonitorManagement {
      */
     private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
         List<Resource> emptyList = new ArrayList<>();
-        String endpoint = monitorManagementProperties.getResourceManagerUrl() +
-                "/api/tenant/tenantId/resourceLabels".replace("tenantId", tenantId);
-        try {
-            UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
-            for (Map.Entry<String, String> e : labels.entrySet()) {
-                uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
-            }
-            String uriString = uriComponentsBuilder.toUriString();
-            RequestEntity<Void> requestEntity = RequestEntity.get(new URI(uriString)).build();
-            ResponseEntity<List<Resource>> resp = restTemplate.exchange(requestEntity,
-                    new ParameterizedTypeReference<List<Resource>>() {
-                    });
-            if (resp.getStatusCode() != HttpStatus.OK) {
-                log.error("get failed on: " + uriString, resp.getStatusCode());
-                return emptyList;
-            }
-            return resp.getBody();
-        } catch (URISyntaxException e) {
-            log.error("syntax error creating URI: ", endpoint);
+        String endpoint = servicesProperties.getResourceManagementUrl() + "/api/tenant/{tenantId}/resourceLabels";
+        UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
+        for (Map.Entry<String, String> e : labels.entrySet()) {
+            uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
+        }
+        String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
+        ResponseEntity<List<Resource>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
+                new ParameterizedTypeReference<List<Resource>>(){});
+        if (resp.getStatusCode() != HttpStatus.OK) {
+            log.error("get failed on: " + uriString, resp.getStatusCode());
             return emptyList;
         }
+        return resp.getBody();
     }
 
     /**
