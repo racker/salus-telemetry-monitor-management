@@ -41,6 +41,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBeans;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
@@ -93,7 +94,7 @@ public class MonitorManagementTest {
     MonitorRepository monitorRepository;
     @Autowired
     EntityManager entityManager;
-    @Autowired
+    @MockBean
     ServicesProperties servicesProperties;
     private MonitorManagement monitorManagement;
     private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -140,6 +141,7 @@ public class MonitorManagementTest {
         doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
         doReturn(HttpStatus.OK).when(resp).getStatusCode();
         doReturn(resourceList).when(resp).getBody();
+        doReturn("dummyUrl").when(servicesProperties).getResourceManagementUrl();
         when(envoyResourceManagement.getOne(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
 
