@@ -36,7 +36,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -49,8 +48,6 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -81,7 +78,7 @@ public class MonitorManagement {
         this.entityManager = entityManager;
         this.envoyResourceManagement = envoyResourceManagement;
         this.monitorEventProducer = monitorEventProducer;
-        this.restTemplate = restTemplateBuilder.build();
+        this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
         this.servicesProperties = servicesProperties;
     }
 
@@ -184,7 +181,7 @@ public class MonitorManagement {
      */
     private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
         List<Resource> emptyList = new ArrayList<>();
-        String endpoint = servicesProperties.getResourceManagementUrl() + "/api/tenant/{tenantId}/resourceLabels";
+        String endpoint = "/api/tenant/{tenantId}/resourceLabels";
         UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
         for (Map.Entry<String, String> e : labels.entrySet()) {
             uriComponentsBuilder.queryParam(e.getKey(), e.getValue());

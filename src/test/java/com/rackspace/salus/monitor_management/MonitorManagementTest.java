@@ -38,6 +38,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -71,7 +72,7 @@ import static org.mockito.Mockito.*;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({MonitorManagement.class, ServicesProperties.class, ObjectMapper.class})
+@Import({ServicesProperties.class, ObjectMapper.class})
 public class MonitorManagementTest {
 
     @MockBean
@@ -80,12 +81,13 @@ public class MonitorManagementTest {
     @MockBean
     EnvoyResourceManagement envoyResourceManagement;
 
-    @MockBean
+    @Mock
     RestTemplateBuilder restTemplateBuilder;
 
     @Mock
     RestTemplate restTemplate;
-    @SpyBean
+
+    //@Spy
     MonitorManagement spyMonitorManagement;
     @Mock
     ResponseEntity<List<Resource>> resp;
@@ -137,6 +139,7 @@ public class MonitorManagementTest {
         List<Resource> resourceList = new ArrayList<>();
         resourceList.add(resourceEvent.getResource());
 
+        doReturn(restTemplateBuilder).when(restTemplateBuilder).rootUri(anyString());
         doReturn(restTemplate).when(restTemplateBuilder).build();
         doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
         doReturn(HttpStatus.OK).when(resp).getStatusCode();
