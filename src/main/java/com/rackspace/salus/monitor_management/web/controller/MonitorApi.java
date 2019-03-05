@@ -77,7 +77,6 @@ public class MonitorApi {
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
     public Monitor getById(@PathVariable String tenantId,
                                   @PathVariable UUID uuid) throws NotFoundException {
-
         Monitor monitor = monitorManagement.getMonitor(tenantId, uuid);
         if (monitor == null) {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",

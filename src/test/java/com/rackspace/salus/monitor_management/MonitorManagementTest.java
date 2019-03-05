@@ -16,85 +16,152 @@
 
 package com.rackspace.salus.monitor_management;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.messaging.MonitorEvent;
+import com.rackspace.salus.telemetry.messaging.OperationType;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBeans;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.web.client.RestTemplate;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import javax.persistence.EntityManager;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({MonitorManagement.class})
+@Import({ServicesProperties.class, ObjectMapper.class})
 public class MonitorManagementTest {
 
     @MockBean
     MonitorEventProducer monitorEventProducer;
 
-    @Autowired
-    MonitorManagement monitorManagement;
+    @MockBean
+    EnvoyResourceManagement envoyResourceManagement;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Mock
+    RestTemplateBuilder restTemplateBuilder;
+
+    @Mock
+    RestTemplate restTemplate;
+
+    @Mock
+    ResponseEntity<List<Resource>> resp;
+    @Autowired
+    ObjectMapper objectMapper;
     @Autowired
     MonitorRepository monitorRepository;
-
+    @Autowired
+    EntityManager entityManager;
+    @MockBean
+    ServicesProperties servicesProperties;
+    private MonitorManagement monitorManagement;
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
     private Monitor currentMonitor;
 
+    private ResourceEvent resourceEvent;
+    private MonitorEvent monitorEvent;
+
+
+    private List<Monitor> monitorList;
+
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         Monitor monitor = new Monitor()
                 .setTenantId("abcde")
                 .setMonitorName("mon1")
-                .setLabels(Collections.singletonMap("key", "value"))
+                .setLabels(Collections.singletonMap("os", "LINUX"))
                 .setContent("content1")
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
         currentMonitor = monitor;
+        String resourceEventString = "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+                "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
+                "\"presenceMonitoringEnabled\":true," +
+                "\"tenantId\":\"abcde\"}}";
+        resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
+        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}";
+        ResourceInfo resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
+        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"UPDATE\", " +
+                "\"config\":{\"content\":\"content1\"," +
+                "\"labels\":{\"os\":\"LINUX\"}}}";
+        monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
+        monitorList = new ArrayList<>();
+        monitorList.add(currentMonitor);
+        List<ResourceInfo> infoList = new ArrayList<>();
+        infoList.add(resourceInfo);
+        List<Resource> resourceList = new ArrayList<>();
+        resourceList.add(resourceEvent.getResource());
+
+        doReturn(restTemplateBuilder).when(restTemplateBuilder).rootUri(anyString());
+        doReturn(restTemplate).when(restTemplateBuilder).build();
+        doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
+        doReturn(HttpStatus.OK).when(resp).getStatusCode();
+        doReturn(resourceList).when(resp).getBody();
+        doReturn("dummyUrl").when(servicesProperties).getResourceManagementUrl();
+        when(envoyResourceManagement.getOne(anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(infoList));
+
+        monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
+                monitorEventProducer, restTemplateBuilder, servicesProperties);
+
+
     }
 
     private void createMonitors(int count) {
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-            create.setAgentType("TELEGRAF");
-            create.setSelectorScope("ALL_OF");
             monitorManagement.createMonitor(tenantId, create);
         }
     }
 
     private void createMonitorsForTenant(int count, String tenantId) {
-        for (int i=0; i<count; i++) {
+        for (int i = 0; i < count; i++) {
             MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-            create.setAgentType("TELEGRAF");
-            create.setSelectorScope("ALL_OF");
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -104,7 +171,7 @@ public class MonitorManagementTest {
         Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
 
         assertThat(r.getId(), notNullValue());
-        assertThat(r.getLabels(), hasEntry("key", "value"));
+        assertThat(r.getLabels(), hasEntry("os", "LINUX"));
         assertThat(r.getContent(), equalTo(currentMonitor.getContent()));
         assertThat(r.getAgentType(), equalTo(currentMonitor.getAgentType()));
     }
@@ -112,8 +179,6 @@ public class MonitorManagementTest {
     @Test
     public void testCreateNewMonitor() {
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setAgentType("TELEGRAF");
-        create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
@@ -121,8 +186,8 @@ public class MonitorManagementTest {
         assertThat(returned.getId(), notNullValue());
         assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
         assertThat(returned.getContent(), equalTo(create.getContent()));
-        assertThat(returned.getAgentType(), equalTo(AgentType.valueOf(create.getAgentType())));
-        
+        assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
@@ -166,7 +231,7 @@ public class MonitorManagementTest {
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
-        createMonitorsForTenant(totalMonitors , tenantId);
+        createMonitorsForTenant(totalMonitors, tenantId);
 
         page = PageRequest.of(0, 10);
         result = monitorManagement.getMonitors(tenantId, page);
@@ -214,8 +279,6 @@ public class MonitorManagementTest {
     @Test
     public void testRemoveMonitor() {
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setAgentType("TELEGRAF");
-        create.setSelectorScope("ALL_OF");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Monitor newMon = monitorManagement.createMonitor(tenantId, create);
 
@@ -225,5 +288,22 @@ public class MonitorManagementTest {
         monitorManagement.removeMonitor(tenantId, newMon.getId());
         monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
         assertThat(monitor, nullValue());
+    }
+
+    @Test
+    public void testHandleResourceEvent() {
+        // mock the getMonitorsWithLabel method until that method is written
+        MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
+        doReturn(monitorList).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
+
+        spyMonitorManagement.handleResourceEvent(resourceEvent);
+        verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
+    }
+
+    @Test
+    public void testPublishMonitor() {
+        monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabels());
+        verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
+
     }
 }

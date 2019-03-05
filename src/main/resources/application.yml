@@ -1,3 +1,5 @@
+etcd:
+  url: http://localhost:2479
 spring:
   kafka:
     producer:

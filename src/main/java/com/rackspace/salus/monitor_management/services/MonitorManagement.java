@@ -16,35 +16,40 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
-import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import java.util.Set;
 
 
 @Slf4j
@@ -54,22 +59,32 @@ public class MonitorManagement {
 
     private final MonitorRepository monitorRepository;
 
+    private final RestTemplate restTemplate;
+
     @PersistenceContext
     private final EntityManager entityManager;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    private final EnvoyResourceManagement envoyResourceManagement;
+
     @Autowired
-    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager, MonitorEventProducer monitorEventProducer) {
+    public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
+                             EnvoyResourceManagement envoyResourceManagement,
+                             MonitorEventProducer monitorEventProducer,
+                             RestTemplateBuilder restTemplateBuilder,
+                             ServicesProperties servicesProperties) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
-	    this.monitorEventProducer = monitorEventProducer;
+        this.envoyResourceManagement = envoyResourceManagement;
+        this.monitorEventProducer = monitorEventProducer;
+        this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
+
     }
 
     /**
      * Gets an individual monitor object by the public facing id.
      *
-     * @param tenantId  The tenant owning the monitor.
-     * @param id The unique value representing the monitor.
+     * @param tenantId The tenant owning the monitor.
+     * @param id       The unique value representing the monitor.
      * @return The monitor object.
      */
     public Monitor getMonitor(String tenantId, UUID id) {
@@ -145,20 +160,73 @@ public class MonitorManagement {
                 .setMonitorName(newMonitor.getMonitorName())
                 .setLabels(newMonitor.getLabels())
                 .setContent(newMonitor.getContent())
-                .setAgentType(AgentType.valueOf(newMonitor.getAgentType()))
-                .setSelectorScope(ConfigSelectorScope.valueOf(newMonitor.getSelectorScope()))
+                .setAgentType(newMonitor.getAgentType())
+                .setSelectorScope(newMonitor.getSelectorScope())
                 .setTargetTenant(newMonitor.getTargetTenant());
-                
+
 
         monitorRepository.save(monitor);
-
-        // Make sure to send the event to Kafka
-        MonitorEvent monitorEvent = new MonitorEvent()
-                .setFromMonitor(monitor)
-                .setOperationType(OperationType.CREATE);
-
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
+        publishMonitor(monitor, OperationType.CREATE, null);
         return monitor;
+    }
+
+    /**
+     * Get a list of resources for the tenant that match the given labels
+     *
+     * @param tenantId tenant whose resources are to be found
+     * @param labels   labels to be matched
+     * @return The list found
+     */
+    private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
+        List<Resource> emptyList = new ArrayList<>();
+        String endpoint = "/api/tenant/{tenantId}/resourceLabels";
+        UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
+        for (Map.Entry<String, String> e : labels.entrySet()) {
+            uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
+        }
+        String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
+        ResponseEntity<List<Resource>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
+                new ParameterizedTypeReference<List<Resource>>() {
+                });
+        if (resp.getStatusCode() != HttpStatus.OK) {
+            log.error("get failed on: " + uriString, resp.getStatusCode());
+            return emptyList;
+        }
+        return resp.getBody();
+    }
+
+    /**
+     * Send a kafka event announcing the monitor operation.  Finds the envoys that match labels in the
+     * current monitor as well as the ones that match the old labels, and sends and event to each envoy.
+     *
+     * @param monitor       the monitor to create the event for.
+     * @param operationType the crud operation that occurred on the monitor
+     * @param oldLabels     the old labels that were on the monitor before if this is an update operation
+     */
+    public void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
+        List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
+        List<Resource> oldResources = new ArrayList<>();
+        if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
+            oldResources = getResourcesWithLabels(monitor.getTenantId(), oldLabels);
+        }
+        resources.addAll(oldResources);
+        Map<String, Resource> resourceMap = new HashMap<>();
+        // Eliminate duplicate resources
+        for (Resource r : resources) {
+            resourceMap.put(r.getResourceId(), r);
+        }
+        for (String id : resourceMap.keySet()) {
+            Resource r = resourceMap.get(id);
+            ResourceInfo resourceInfo = envoyResourceManagement
+                    .getOne(monitor.getTenantId(), r.getResourceId()).join().get(0);
+            if (resourceInfo != null) {
+                MonitorEvent monitorEvent = new MonitorEvent()
+                        .setFromMonitor(monitor)
+                        .setOperationType(operationType)
+                        .setEnvoyId(resourceInfo.getEnvoyId());
+                monitorEventProducer.sendMonitorEvent(monitorEvent);
+            }
+        }
     }
 
     /**
@@ -175,6 +243,7 @@ public class MonitorManagement {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
         }
+        Map<String, String> oldLabels = monitor.getLabels();
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabels())
                 .whenNonNull()
@@ -187,12 +256,7 @@ public class MonitorManagement {
                 .to(monitor::setMonitorName);
         monitor.setTargetTenant(updatedValues.getTargetTenant());
         monitorRepository.save(monitor);
-
-        // Make sure to send the event to Kafka
-        MonitorEvent monitorEvent = new MonitorEvent()
-                .setFromMonitor(monitor)
-                .setOperationType(OperationType.UPDATE);
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
+        publishMonitor(monitor, OperationType.UPDATE, oldLabels);
         return monitor;
     }
 
@@ -200,53 +264,67 @@ public class MonitorManagement {
     /**
      * Delete a monitor.
      *
-     * @param tenantId  The tenant the monitor belongs to.
-     * @param id The id of the monitor.
+     * @param tenantId The tenant the monitor belongs to.
+     * @param id       The id of the monitor.
      */
     public void removeMonitor(String tenantId, UUID id) {
         Monitor monitor = getMonitor(tenantId, id);
         if (monitor != null) {
             monitorRepository.deleteById(monitor.getId());
-
-            // Make sure to send the event to Kafka
-            MonitorEvent monitorEvent = new MonitorEvent()
-                    .setFromMonitor(monitor)
-                    .setOperationType(OperationType.DELETE);
-            monitorEventProducer.sendMonitorEvent(monitorEvent);
+            publishMonitor(monitor, OperationType.DELETE, null);
         } else {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
         }
     }
 
+    @SuppressWarnings("unused")
+    public List<Monitor> getMonitorsWithLabels(String tenantId, Map<String, String> labels) {
+        // Adam's code
+        return null;
+    }
+
+    /**
+     * Find all monitors associated with a changed resource, and notify the corresponding envoy of the changes.
+     * Monitors are found that correspond to both the new labels as well as any old ones so that
+     * all the corresponding monitors can be updated for a resource.
+     *
+     * @param event the new resource event.
+     */
     public void handleResourceEvent(ResourceEvent event) {
-        log.debug("");
-        if (event.getOldLabels() != null) {
-            Set<String> keys = event.getOldLabels().keySet();
-            keys.removeAll(event.getResource().getLabels().keySet());//now we should have the difference of labels.
+        Resource r = event.getResource();
+        ResourceInfo resourceInfo = envoyResourceManagement
+                .getOne(r.getTenantId(), r.getResourceId()).join().get(0);
+        if (resourceInfo == null) {
+            return;
         }
-        /*
-            We probably want to grab three different lists of labels. Deleted labels (set difference on the oldLabels),
-            added labels (set difference on the new labels), and the labels that stayed the same (possibly updated?)
 
-            Unless we just want to start out by reading in the new list of labels and clobbering the old data that exists.
+        List<Monitor> oldMonitors = null;
+        List<Monitor> monitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getResource().getLabels());
+        if (monitors == null) {
+            monitors = new ArrayList<>();
+        }
+        if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
+            oldMonitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getOldLabels());
+        }
+        if (oldMonitors != null) {
+            monitors.addAll(oldMonitors);
+        }
+        Map<UUID, Monitor> monitorMap = new HashMap<>();
+        // Eliminate duplicate monitors
+        for (Monitor m : monitors) {
+            monitorMap.put(m.getId(), m);
+        }
+        for (UUID id : monitorMap.keySet()) {
+            Monitor m = monitorMap.get(id);
 
-            When we do something with them this feels a little like a state machine which is really well suited to functions
-            attached to enums. But its probably fine to just grab the different lists and pass them off to their respective SQL
-            functions
-        */
+            // Make sure to send the event to Kafka
+            MonitorEvent monitorEvent = new MonitorEvent()
+                    .setFromMonitor(m)
+                    .setOperationType(event.getOperation())
+                    .setEnvoyId(resourceInfo.getEnvoyId());
 
-
-        // post kafka egress event. This will probably be handled post CRUD event, and not in this function.
-        MonitorEvent monitorEvent = new MonitorEvent();
-        monitorEvent.setTenantId(event.getResource().getTenantId());
-        monitorEvent.setOperationType(event.getOperation());
-        // monitorEvent.setEnvoyId()
-        // monitorEvent.setAmbassadorId()
-        AgentConfig config = new AgentConfig();
-        config.setLabels(event.getResource().getLabels());
-        config.setContent("this is sample content");
-        monitorEvent.setConfig(config);
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
+            monitorEventProducer.sendMonitorEvent(monitorEvent);
+        }
     }
 }
