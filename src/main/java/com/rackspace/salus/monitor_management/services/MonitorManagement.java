@@ -346,7 +346,7 @@ public class MonitorManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Monitor's that match the labels
      */
-    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, MATCH_OPTIONS option) {
+    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, MatchOptions option) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
@@ -417,7 +417,7 @@ public class MonitorManagement {
         return monitors;
     }
 
-    public static enum MATCH_OPTIONS {
+    public static enum MatchOptions {
         MATCH_SOME, MATCH_ALL;
     }
 }
