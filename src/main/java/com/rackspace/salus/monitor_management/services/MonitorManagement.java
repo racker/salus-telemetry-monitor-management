@@ -340,7 +340,7 @@ public class MonitorManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Monitor's that match the labels
      */
-    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId) {
+    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, MATCH_OPTIONS option) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
@@ -364,7 +364,14 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id HAVING COUNT(id) = :i) ORDER BY monitors.id");
+
+        builder.append(" GROUP BY id");
+        //HAVING COUNT(id) = :i)
+        switch(option) {
+            case MATCH_ALL:
+                builder.append("HAVING COUNT(id) = :i");
+        }
+        builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
@@ -373,9 +380,8 @@ public class MonitorManagement {
 
             long prevId = 0;
             Monitor prevMonitor = null;
-            boolean iterate = true;
 
-            while(iterate){
+            do{
                 if(resultSet.getLong("id") == prevId) {
                     prevMonitor.getLabels().put(
                             resultSet.getString("labels_key"),
@@ -399,10 +405,13 @@ public class MonitorManagement {
                     monitors.add(m);
 
                 }
-                iterate = resultSet.next();
-            }
+            } while(resultSet.next());
         });
 
         return monitors;
+    }
+
+    public static enum MATCH_OPTIONS {
+        MATCH_SOME, MATCH_ALL;
     }
 }
