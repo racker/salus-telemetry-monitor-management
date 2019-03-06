@@ -41,7 +41,6 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.MockBeans;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
@@ -133,14 +132,14 @@ public class MonitorManagementTest {
         monitorList.add(currentMonitor);
         List<ResourceInfo> infoList = new ArrayList<>();
         infoList.add(resourceInfo);
-        List<Resource> resourceList = new ArrayList<>();
-        resourceList.add(resourceEvent.getResource());
+        List<String> resourceIdList = new ArrayList<>();
+        resourceIdList.add(resourceEvent.getResource().getResourceId());
 
         doReturn(restTemplateBuilder).when(restTemplateBuilder).rootUri(anyString());
         doReturn(restTemplate).when(restTemplateBuilder).build();
         doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
         doReturn(HttpStatus.OK).when(resp).getStatusCode();
-        doReturn(resourceList).when(resp).getBody();
+        doReturn(resourceIdList).when(resp).getBody();
         doReturn("dummyUrl").when(servicesProperties).getResourceManagementUrl();
         when(envoyResourceManagement.getOne(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(infoList));
