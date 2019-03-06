@@ -56,6 +56,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -74,6 +77,9 @@ public class MonitorManagement {
     private final EntityManager entityManager;
 
     private final EnvoyResourceManagement envoyResourceManagement;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Autowired
     public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
@@ -332,5 +338,77 @@ public class MonitorManagement {
 
             monitorEventProducer.sendMonitorEvent(monitorEvent);
         }
+    }
+
+    /**
+     * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
+     * @param labels the labels that we need to match to
+     * @param tenantId The tenant associated to the resource
+     * @return the list of Monitor's that match the labels
+     */
+    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId) {
+        /*
+        SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
+        AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
+        HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
+        */
+
+
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
+        StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
+        builder.append("(SELECT id from monitor_labels WHERE id IN ( SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+
+        int i = 0;
+        labels.size();
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
+            i++;
+        }
+        builder.append(" GROUP BY id HAVING COUNT(id) = :i) ORDER BY monitors.id");
+        paramSource.addValue("i", i);
+
+        NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
+        List<Monitor> monitors = new ArrayList<>();
+        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+
+            long prevId = 0;
+            Monitor prevMonitor = null;
+            boolean iterate = true;
+
+            while(iterate){
+                if(resultSet.getLong("id") == prevId) {
+                    prevMonitor.getLabels().put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                }else {
+                    Map<String, String> theseLabels = new HashMap<String, String>();
+                    theseLabels.put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                    Monitor m = new Monitor()
+                            .setId(UUID.fromString(resultSet.getString("id")))
+                            .setTenantId(resultSet.getString("tenant_id"))
+                            .setContent(resultSet.getString("content"))
+                            //.setMonitorName(resultSet.getString("monitor_name"))
+                            //.setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getInt("selector_scope")))
+                            //.setAgentType(AgentType.valueOf(resultSet.getInt("agent_type")))
+                            .setTargetTenant(resultSet.getString("target_tenant"))
+                            .setLabels(theseLabels);
+                    prevId = resultSet.getLong("id");
+                    prevMonitor = m;
+                    monitors.add(m);
+
+                }
+                iterate = resultSet.next();
+            }
+        });
+
+        return monitors;
     }
 }
