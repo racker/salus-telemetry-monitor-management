@@ -24,8 +24,27 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.*;
+import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Monitor_;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.PersistenceContext;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -43,16 +62,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-import javax.validation.Valid;
-import java.util.*;
-import java.util.stream.Stream;
 
 
 @Slf4j
@@ -177,22 +186,22 @@ public class MonitorManagement {
     }
 
     /**
-     * Get a list of resources for the tenant that match the given labels
+     * Get a list of resource IDs for the tenant that match the given labels
      *
      * @param tenantId tenant whose resources are to be found
      * @param labels   labels to be matched
      * @return The list found
      */
-    private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
-        List<Resource> emptyList = new ArrayList<>();
-        String endpoint = "/api/tenant/{tenantId}/resourceLabels";
+    private List<String> getResourcesWithEnvoyLabels(String tenantId, Map<String, String> labels) {
+        List<String> emptyList = new ArrayList<>();
+        String endpoint = "/api/tenant/{tenantId}/resourceIds/withEnvoyLabels";
         UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
         for (Map.Entry<String, String> e : labels.entrySet()) {
             uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
         }
         String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
-        ResponseEntity<List<Resource>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
-                new ParameterizedTypeReference<List<Resource>>() {
+        ResponseEntity<List<String>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
+                new ParameterizedTypeReference<List<String>>() {
                 });
         if (resp.getStatusCode() != HttpStatus.OK) {
             log.error("get failed on: " + uriString, resp.getStatusCode());
@@ -210,21 +219,18 @@ public class MonitorManagement {
      * @param oldLabels     the old labels that were on the monitor before if this is an update operation
      */
     public void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
-        List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
-        List<Resource> oldResources = new ArrayList<>();
+        List<String> resources = getResourcesWithEnvoyLabels(monitor.getTenantId(), monitor.getLabels());
+        List<String> oldResources = new ArrayList<>();
         if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-            oldResources = getResourcesWithLabels(monitor.getTenantId(), oldLabels);
+            oldResources = getResourcesWithEnvoyLabels(monitor.getTenantId(), oldLabels);
         }
         resources.addAll(oldResources);
-        Map<String, Resource> resourceMap = new HashMap<>();
-        // Eliminate duplicate resources
-        for (Resource r : resources) {
-            resourceMap.put(r.getResourceId(), r);
-        }
-        for (String id : resourceMap.keySet()) {
-            Resource r = resourceMap.get(id);
+
+        final Set<String> deduped = new HashSet<>(resources);
+
+        for (String resourceId : deduped) {
             ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), r.getResourceId()).join().get(0);
+                    .getOne(monitor.getTenantId(), resourceId).join().get(0);
             if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
