@@ -290,12 +290,6 @@ public class MonitorManagement {
         }
     }
 
-    @SuppressWarnings("unused")
-    public List<Monitor> getMonitorsWithLabels(String tenantId, Map<String, String> labels) {
-        // Adam's code
-        return null;
-    }
-
     /**
      * Find all monitors associated with a changed resource, and notify the corresponding envoy of the changes.
      * Monitors are found that correspond to both the new labels as well as any old ones so that
@@ -312,12 +306,12 @@ public class MonitorManagement {
         }
 
         List<Monitor> oldMonitors = null;
-        List<Monitor> monitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getResource().getLabels());
+        List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId(), MatchOptions.MATCH_ALL);
         if (monitors == null) {
             monitors = new ArrayList<>();
         }
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
-            oldMonitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getOldLabels());
+            oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId(), MatchOptions.MATCH_ALL);
         }
         if (oldMonitors != null) {
             monitors.addAll(oldMonitors);
@@ -354,6 +348,11 @@ public class MonitorManagement {
         */
 
 
+        /*
+        two scenarios for testing are envoy comes first or monitor comes first
+
+         */
+
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
@@ -376,6 +375,8 @@ public class MonitorManagement {
         switch(option) {
             case MATCH_ALL:
                 builder.append("HAVING COUNT(id) = :i");
+                // AND COUNT(id) >= (SELECT TOTAL(*) FROM monitor_labels WHERE id = m.id)
+                // we need to add something like this to the query to make it work properly
         }
         builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);
