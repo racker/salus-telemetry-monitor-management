@@ -370,7 +370,7 @@ public class MonitorManagement {
             i++;
         }
 
-        builder.append(" GROUP BY id");
+        builder.append(" GROUP BY id ");
         //HAVING COUNT(id) = :i)
         switch(option) {
             case MATCH_ALL:
