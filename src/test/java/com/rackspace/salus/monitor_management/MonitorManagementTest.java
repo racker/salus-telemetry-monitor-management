@@ -60,7 +60,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
+import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -294,7 +296,7 @@ public class MonitorManagementTest {
     public void testHandleResourceEvent() {
         // mock the getMonitorsWithLabel method until that method is written
         MonitorManagement spyMonitorManagement = Mockito.spy(monitorManagement);
-        doReturn(monitorList).when(spyMonitorManagement).getMonitorsWithLabels(any(), any());
+        doReturn(monitorList).when(spyMonitorManagement).getMonitorsFromLabels(any(), any(), any());
 
         spyMonitorManagement.handleResourceEvent(resourceEvent);
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
@@ -305,5 +307,106 @@ public class MonitorManagementTest {
         monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabels());
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
 
+    }
+
+    @Test
+    public void testSpecificCreate() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        monitorManagement.createMonitor(tenantId, create);
+        //entityManager.flush();
+        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
+        assertEquals(1, resources.size());
+        assertNotNull(resources);
+    }
+
+    @Test
+    public void testResourcesWithSameLabelsAndDifferentTenants() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("key", "value");
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        monitorManagement.createMonitor(tenantId, create);
+        monitorManagement.createMonitor(tenantId2, create);
+
+        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        //assertEquals(create.get(), resources.get(0).getResourceId());
+    }
+
+    @Test
+    public void testMatchResourceWithMultipleLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        monitorManagement.createMonitor(tenantId, create);
+        entityManager.flush();
+
+        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        //assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testMatchResourceWithSupersetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        monitorManagement.createMonitor(tenantId, create);
+        //entityManager.flush();
+
+        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        //assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(resourceLabels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testMatchResourceWithSubsetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+        labels.put("architecture", "x86");
+        labels.put("region", "DFW");
+
+
+        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        monitorManagement.createMonitor(tenantId, create);
+        entityManager.flush();
+
+        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        //assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
     }
 }
