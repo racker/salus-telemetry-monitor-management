@@ -129,6 +129,7 @@ public class MonitorManagementTest {
                 "\"config\":{\"content\":\"content1\"," +
                 "\"labels\":{\"os\":\"LINUX\"}}}";
         monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
+        monitorEvent.setMonitorId(currentMonitor.getId().toString());
         monitorList = new ArrayList<>();
         monitorList.add(currentMonitor);
         List<ResourceInfo> infoList = new ArrayList<>();
