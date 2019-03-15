@@ -387,9 +387,9 @@ public class MonitorManagementTest {
 
     @Test
     public void testMatchResourceWithSubsetOfLabels() {
-        final Map<String, String> resourceLabels = new HashMap<>();
-        resourceLabels.put("os", "DARWIN");
-        resourceLabels.put("env", "test");
+        final Map<String, String> monitorLabels = new HashMap<>();
+        monitorLabels.put("os", "DARWIN");
+        monitorLabels.put("env", "test");
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
         labels.put("env", "test");
@@ -398,7 +398,7 @@ public class MonitorManagementTest {
 
 
         MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
-        create.setLabels(resourceLabels);
+        create.setLabels(monitorLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -407,6 +407,6 @@ public class MonitorManagementTest {
         assertEquals(1, resources.size()); //make sure we only returned the one value
         assertEquals(tenantId, resources.get(0).getTenantId());
         //assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(labels, resources.get(0).getLabels());
+        assertEquals(monitorLabels, resources.get(0).getLabels());
     }
 }

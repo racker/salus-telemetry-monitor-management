@@ -357,6 +357,7 @@ public class MonitorManagement {
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
         builder.append("(SELECT id from monitor_labels WHERE id IN ( SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+        builder.append(" (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_labels WHERE ");
 
         int i = 0;
         labels.size();
@@ -369,8 +370,8 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-
-        builder.append(" GROUP BY id ");
+        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i)");
+        //builder.append(" GROUP BY id ");
         //HAVING COUNT(id) = :i)
         switch(option) {
             case MATCH_ALL:
