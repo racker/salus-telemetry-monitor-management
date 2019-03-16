@@ -370,15 +370,8 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i)");
-        //builder.append(" GROUP BY id ");
-        //HAVING COUNT(id) = :i)
-        switch(option) {
-            case MATCH_ALL:
-                builder.append("HAVING COUNT(id) = :i");
-                // AND COUNT(id) >= (SELECT TOTAL(*) FROM monitor_labels WHERE id = m.id)
-                // we need to add something like this to the query to make it work properly
-        }
+        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i) GROUP BY search_labels.id)");
+
         builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);
 
