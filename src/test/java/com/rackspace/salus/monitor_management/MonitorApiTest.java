@@ -41,6 +41,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -60,6 +61,7 @@ import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApi.class)
+@AutoConfigureDataJpa
 public class MonitorApiTest {
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -69,16 +71,6 @@ public class MonitorApiTest {
 
     @MockBean
     MonitorManagement monitorManagement;
-
-    @MockBean
-    MonitorRepository monitorRepository;
-
-    // This mock is a hack; it is required because the entityManager
-    //  bean needs to find a bean for all the repositories defined in the telemetery model module
-    //  We need to find a way to filter out the unwanted repos without adding a bean for each of them
-    @MockBean
-    ResourceRepository resourceRepository;
-
 
     @Autowired
     ObjectMapper objectMapper;
