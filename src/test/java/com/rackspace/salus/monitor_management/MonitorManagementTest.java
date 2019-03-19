@@ -39,6 +39,8 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -95,6 +97,8 @@ public class MonitorManagementTest {
     MonitorRepository monitorRepository;
     @Autowired
     EntityManager entityManager;
+    @Autowired
+    JdbcTemplate jdbcTemplate;
     @MockBean
     ServicesProperties servicesProperties;
     private MonitorManagement monitorManagement;
@@ -148,7 +152,7 @@ public class MonitorManagementTest {
                 .thenReturn(CompletableFuture.completedFuture(infoList));
 
         monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
-                monitorEventProducer, restTemplateBuilder, servicesProperties);
+                monitorEventProducer, restTemplateBuilder, servicesProperties, jdbcTemplate);
 
 
     }
@@ -318,7 +322,7 @@ public class MonitorManagementTest {
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
-        //entityManager.flush();
+        entityManager.flush();
         List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
         assertEquals(1, resources.size());
         assertNotNull(resources);
@@ -335,6 +339,7 @@ public class MonitorManagementTest {
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         monitorManagement.createMonitor(tenantId2, create);
+        entityManager.flush();
 
         List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
         assertEquals(1, resources.size()); //make sure we only returned the one value
@@ -376,7 +381,7 @@ public class MonitorManagementTest {
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
-        //entityManager.flush();
+        entityManager.flush();
 
         List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, MonitorManagement.MatchOptions.MATCH_ALL);
         assertEquals(1, resources.size()); //make sure we only returned the one value

@@ -30,6 +30,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -78,7 +79,6 @@ public class MonitorManagement {
 
     private final EnvoyResourceManagement envoyResourceManagement;
 
-    @Autowired
     JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -86,13 +86,14 @@ public class MonitorManagement {
                              EnvoyResourceManagement envoyResourceManagement,
                              MonitorEventProducer monitorEventProducer,
                              RestTemplateBuilder restTemplateBuilder,
-                             ServicesProperties servicesProperties) {
+                             ServicesProperties servicesProperties,
+                             JdbcTemplate jdbcTemplate) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
         this.envoyResourceManagement = envoyResourceManagement;
         this.monitorEventProducer = monitorEventProducer;
         this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
-
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -354,11 +355,10 @@ public class MonitorManagement {
          */
 
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
-        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
+        paramSource.addValue("tenantId", tenantId);
         StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
-        builder.append("(SELECT id from monitor_labels WHERE id IN ( SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
-        builder.append(" (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_labels WHERE ");
-
+        builder.append("(SELECT id from monitor_labels WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+        builder.append("monitors.id IN (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_labels WHERE ");
         int i = 0;
         labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
@@ -370,7 +370,7 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i) GROUP BY search_labels.id)");
+        builder.append(" GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i) GROUP BY search_labels.id)");
 
         builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);
@@ -378,12 +378,11 @@ public class MonitorManagement {
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
         List<Monitor> monitors = new ArrayList<>();
         namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
-
-            long prevId = 0;
+            String prevId = "";
             Monitor prevMonitor = null;
 
             do{
-                if(resultSet.getLong("id") == prevId) {
+                if(resultSet.getString("id").compareTo(prevId) == 0) {
                     prevMonitor.getLabels().put(
                             resultSet.getString("labels_key"),
                             resultSet.getString("labels"));
@@ -401,7 +400,7 @@ public class MonitorManagement {
                             //.setAgentType(AgentType.valueOf(resultSet.getInt("agent_type")))
                             .setTargetTenant(resultSet.getString("target_tenant"))
                             .setLabels(theseLabels);
-                    prevId = resultSet.getLong("id");
+                    prevId = resultSet.getString("id");
                     prevMonitor = m;
                     monitors.add(m);
 
