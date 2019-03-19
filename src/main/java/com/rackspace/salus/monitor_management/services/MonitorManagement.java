@@ -307,12 +307,12 @@ public class MonitorManagement {
         }
 
         List<Monitor> oldMonitors = null;
-        List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId(), MatchOptions.MATCH_ALL);
+        List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId());
         if (monitors == null) {
             monitors = new ArrayList<>();
         }
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
-            oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId(), MatchOptions.MATCH_ALL);
+            oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId());
         }
         if (oldMonitors != null) {
             monitors.addAll(oldMonitors);
@@ -341,7 +341,7 @@ public class MonitorManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Monitor's that match the labels
      */
-    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, MatchOptions option) {
+    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException{
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
@@ -353,6 +353,10 @@ public class MonitorManagement {
         two scenarios for testing are envoy comes first or monitor comes first
 
          */
+
+        if(labels.size() == 0) {
+            throw new IllegalArgumentException("Labels must be provided for search");
+        }
 
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);
@@ -409,9 +413,5 @@ public class MonitorManagement {
         });
 
         return monitors;
-    }
-
-    public static enum MatchOptions {
-        MATCH_SOME, MATCH_ALL;
     }
 }
