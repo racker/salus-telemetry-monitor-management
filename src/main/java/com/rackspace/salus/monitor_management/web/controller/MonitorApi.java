@@ -119,7 +119,7 @@ public class MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/monitorLabels")
-    public List<Monitor> getResourcesWithLabels(@PathVariable String tenantId,
+    public List<Monitor> getMonitorsWithLabels(@PathVariable String tenantId,
                                                  @RequestBody Map<String, String> labels) {
         return monitorManagement.getMonitorsFromLabels(labels, tenantId);
 
