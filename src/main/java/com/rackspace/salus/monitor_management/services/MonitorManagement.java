@@ -24,11 +24,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Monitor_;
-import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
-import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 
 import java.util.ArrayList;
@@ -379,7 +375,7 @@ public class MonitorManagement {
                             resultSet.getString("labels_key"),
                             resultSet.getString("labels"));
                 }else {
-                    Map<String, String> theseLabels = new HashMap<String, String>();
+                    Map<String, String> theseLabels = new HashMap<>();
                     theseLabels.put(
                             resultSet.getString("labels_key"),
                             resultSet.getString("labels"));
@@ -387,9 +383,9 @@ public class MonitorManagement {
                             .setId(UUID.fromString(resultSet.getString("id")))
                             .setTenantId(resultSet.getString("tenant_id"))
                             .setContent(resultSet.getString("content"))
-                            //.setMonitorName(resultSet.getString("monitor_name"))
-                            //.setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getInt("selector_scope")))
-                            //.setAgentType(AgentType.valueOf(resultSet.getInt("agent_type")))
+                            .setMonitorName(resultSet.getString("monitor_name"))
+                            .setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getString("selector_scope")))
+                            .setAgentType(AgentType.valueOf(resultSet.getString("agent_type")))
                             .setTargetTenant(resultSet.getString("target_tenant"))
                             .setLabels(theseLabels);
                     prevId = resultSet.getString("id");
