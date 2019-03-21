@@ -26,6 +26,22 @@ import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.PersistenceContext;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -37,19 +53,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-import javax.validation.Valid;
-import java.util.*;
-import java.util.stream.Stream;
 
 
 @Slf4j
@@ -66,18 +75,21 @@ public class MonitorManagement {
 
     private final EnvoyResourceManagement envoyResourceManagement;
 
+    JdbcTemplate jdbcTemplate;
+
     @Autowired
     public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
                              EnvoyResourceManagement envoyResourceManagement,
                              MonitorEventProducer monitorEventProducer,
                              RestTemplateBuilder restTemplateBuilder,
-                             ServicesProperties servicesProperties) {
+                             ServicesProperties servicesProperties,
+                             JdbcTemplate jdbcTemplate) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
         this.envoyResourceManagement = envoyResourceManagement;
         this.monitorEventProducer = monitorEventProducer;
         this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
-
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -171,22 +183,22 @@ public class MonitorManagement {
     }
 
     /**
-     * Get a list of resources for the tenant that match the given labels
+     * Get a list of resource IDs for the tenant that match the given labels
      *
      * @param tenantId tenant whose resources are to be found
      * @param labels   labels to be matched
      * @return The list found
      */
-    private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
-        List<Resource> emptyList = new ArrayList<>();
-        String endpoint = "/api/tenant/{tenantId}/resourceLabels";
+    private List<String> getResourcesWithEnvoyLabels(String tenantId, Map<String, String> labels) {
+        List<String> emptyList = new ArrayList<>();
+        String endpoint = "/api/tenant/{tenantId}/resourceIds/withEnvoyLabels";
         UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
         for (Map.Entry<String, String> e : labels.entrySet()) {
             uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
         }
         String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
-        ResponseEntity<List<Resource>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
-                new ParameterizedTypeReference<List<Resource>>() {
+        ResponseEntity<List<String>> resp = restTemplate.exchange(uriString, HttpMethod.GET, null,
+                new ParameterizedTypeReference<List<String>>() {
                 });
         if (resp.getStatusCode() != HttpStatus.OK) {
             log.error("get failed on: " + uriString, resp.getStatusCode());
@@ -204,21 +216,18 @@ public class MonitorManagement {
      * @param oldLabels     the old labels that were on the monitor before if this is an update operation
      */
     public void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
-        List<Resource> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
-        List<Resource> oldResources = new ArrayList<>();
+        List<String> resources = getResourcesWithEnvoyLabels(monitor.getTenantId(), monitor.getLabels());
+        List<String> oldResources = new ArrayList<>();
         if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-            oldResources = getResourcesWithLabels(monitor.getTenantId(), oldLabels);
+            oldResources = getResourcesWithEnvoyLabels(monitor.getTenantId(), oldLabels);
         }
         resources.addAll(oldResources);
-        Map<String, Resource> resourceMap = new HashMap<>();
-        // Eliminate duplicate resources
-        for (Resource r : resources) {
-            resourceMap.put(r.getResourceId(), r);
-        }
-        for (String id : resourceMap.keySet()) {
-            Resource r = resourceMap.get(id);
+
+        final Set<String> deduped = new HashSet<>(resources);
+
+        for (String resourceId : deduped) {
             ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), r.getResourceId()).join().get(0);
+                    .getOne(monitor.getTenantId(), resourceId).join().get(0);
             if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
@@ -278,12 +287,6 @@ public class MonitorManagement {
         }
     }
 
-    @SuppressWarnings("unused")
-    public List<Monitor> getMonitorsWithLabels(String tenantId, Map<String, String> labels) {
-        // Adam's code
-        return null;
-    }
-
     /**
      * Find all monitors associated with a changed resource, and notify the corresponding envoy of the changes.
      * Monitors are found that correspond to both the new labels as well as any old ones so that
@@ -300,12 +303,12 @@ public class MonitorManagement {
         }
 
         List<Monitor> oldMonitors = null;
-        List<Monitor> monitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getResource().getLabels());
+        List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId());
         if (monitors == null) {
             monitors = new ArrayList<>();
         }
         if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
-            oldMonitors = getMonitorsWithLabels(event.getResource().getTenantId(), event.getOldLabels());
+            oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId());
         }
         if (oldMonitors != null) {
             monitors.addAll(oldMonitors);
@@ -326,5 +329,73 @@ public class MonitorManagement {
 
             monitorEventProducer.sendMonitorEvent(monitorEvent);
         }
+    }
+
+    /**
+     * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
+     * @param labels the labels that we need to match to
+     * @param tenantId The tenant associated to the resource
+     * @return the list of Monitor's that match the labels
+     */
+    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException {
+        if(labels.size() == 0) {
+            throw new IllegalArgumentException("Labels must be provided for search");
+        }
+
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);
+        StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
+        builder.append("(SELECT id from monitor_labels WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+        builder.append("monitors.id IN (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_labels WHERE ");
+        int i = 0;
+        labels.size();
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
+            i++;
+        }
+        builder.append(" GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND search_labels.count >= total_labels.count GROUP BY search_labels.id)");
+
+        builder.append(") ORDER BY monitors.id");
+        paramSource.addValue("i", i);
+
+        NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
+        List<Monitor> monitors = new ArrayList<>();
+        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+            String prevId = "";
+            Monitor prevMonitor = null;
+
+            do{
+                if(resultSet.getString("id").compareTo(prevId) == 0) {
+                    prevMonitor.getLabels().put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                }else {
+                    Map<String, String> theseLabels = new HashMap<>();
+                    theseLabels.put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                    Monitor m = new Monitor()
+                            .setId(UUID.fromString(resultSet.getString("id")))
+                            .setTenantId(resultSet.getString("tenant_id"))
+                            .setContent(resultSet.getString("content"))
+                            .setMonitorName(resultSet.getString("monitor_name"))
+                            .setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getString("selector_scope")))
+                            .setAgentType(AgentType.valueOf(resultSet.getString("agent_type")))
+                            .setTargetTenant(resultSet.getString("target_tenant"))
+                            .setLabels(theseLabels);
+                    prevId = resultSet.getString("id");
+                    prevMonitor = m;
+                    monitors.add(m);
+
+                }
+            } while(resultSet.next());
+        });
+
+        return monitors;
     }
 }

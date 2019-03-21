@@ -21,6 +21,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
@@ -32,6 +33,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.validation.Valid;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -113,5 +116,12 @@ public class MonitorApi {
     public void delete(@PathVariable String tenantId,
                        @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
+    }
+
+    @GetMapping("/tenant/{tenantId}/monitorLabels")
+    public List<Monitor> getMonitorsWithLabels(@PathVariable String tenantId,
+                                                 @RequestBody Map<String, String> labels) {
+        return monitorManagement.getMonitorsFromLabels(labels, tenantId);
+
     }
 }
