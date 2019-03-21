@@ -362,7 +362,7 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i) GROUP BY search_labels.id)");
+        builder.append(" GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND search_labels.count >= total_labels.count GROUP BY search_labels.id)");
 
         builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);
