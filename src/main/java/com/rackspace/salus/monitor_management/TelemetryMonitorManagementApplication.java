@@ -32,6 +32,7 @@ public class TelemetryMonitorManagementApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(TelemetryMonitorManagementApplication.class, args);
+
     }
 
 }

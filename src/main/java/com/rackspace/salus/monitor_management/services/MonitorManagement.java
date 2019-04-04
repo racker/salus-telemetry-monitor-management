@@ -78,6 +78,9 @@ public class MonitorManagement {
     JdbcTemplate jdbcTemplate;
 
     @Autowired
+    BoundMonitorManagement bmm;
+
+    @Autowired
     public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
                              EnvoyResourceManagement envoyResourceManagement,
                              MonitorEventProducer monitorEventProducer,
@@ -179,6 +182,7 @@ public class MonitorManagement {
 
         monitorRepository.save(monitor);
         publishMonitor(monitor, OperationType.CREATE, null);
+        bmm.createMonitor();
         return monitor;
     }
 
@@ -231,7 +235,7 @@ public class MonitorManagement {
             if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
-                        .setOperationType(operationType)
+          //              .setOperationType(operationType)
                         .setEnvoyId(resourceInfo.getEnvoyId());
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
             }
@@ -295,40 +299,40 @@ public class MonitorManagement {
      * @param event the new resource event.
      */
     public void handleResourceEvent(ResourceEvent event) {
-        Resource r = event.getResource();
-        ResourceInfo resourceInfo = envoyResourceManagement
-                .getOne(r.getTenantId(), r.getResourceId()).join().get(0);
-        if (resourceInfo == null) {
-            return;
-        }
+        // Resource r = event.getResource();
+        // ResourceInfo resourceInfo = envoyResourceManagement
+        //         .getOne(r.getTenantId(), r.getResourceId()).join().get(0);
+        // if (resourceInfo == null) {
+        //     return;
+        // }
 
-        List<Monitor> oldMonitors = null;
-        List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId());
-        if (monitors == null) {
-            monitors = new ArrayList<>();
-        }
-        if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
-            oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId());
-        }
-        if (oldMonitors != null) {
-            monitors.addAll(oldMonitors);
-        }
-        Map<UUID, Monitor> monitorMap = new HashMap<>();
-        // Eliminate duplicate monitors
-        for (Monitor m : monitors) {
-            monitorMap.put(m.getId(), m);
-        }
-        for (UUID id : monitorMap.keySet()) {
-            Monitor m = monitorMap.get(id);
+        // List<Monitor> oldMonitors = null;
+        // List<Monitor> monitors = getMonitorsFromLabels(event.getResource().getLabels(), event.getResource().getTenantId());
+        // if (monitors == null) {
+        //     monitors = new ArrayList<>();
+        // }
+        // if (event.getOldLabels() != null && !event.getOldLabels().equals(event.getResource().getLabels())) {
+        //     oldMonitors = getMonitorsFromLabels(event.getOldLabels(), event.getResource().getTenantId());
+        // }
+        // if (oldMonitors != null) {
+        //     monitors.addAll(oldMonitors);
+        // }
+        // Map<UUID, Monitor> monitorMap = new HashMap<>();
+        // // Eliminate duplicate monitors
+        // for (Monitor m : monitors) {
+        //     monitorMap.put(m.getId(), m);
+        // }
+        // for (UUID id : monitorMap.keySet()) {
+        //     Monitor m = monitorMap.get(id);
 
-            // Make sure to send the event to Kafka
-            MonitorEvent monitorEvent = new MonitorEvent()
-                    .setFromMonitor(m)
-                    .setOperationType(event.getOperation())
-                    .setEnvoyId(resourceInfo.getEnvoyId());
+        //     // Make sure to send the event to Kafka
+        //     MonitorEvent monitorEvent = new MonitorEvent()
+        //             .setFromMonitor(m)
+        //             .setOperationType(event.getOperation())
+        //             .setEnvoyId(resourceInfo.getEnvoyId());
 
-            monitorEventProducer.sendMonitorEvent(monitorEvent);
-        }
+        //     monitorEventProducer.sendMonitorEvent(monitorEvent);
+        // }
     }
 
     /**

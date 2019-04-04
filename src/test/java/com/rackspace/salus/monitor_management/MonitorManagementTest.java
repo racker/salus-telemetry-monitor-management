@@ -140,7 +140,7 @@ public class MonitorManagementTest {
         List<ResourceInfo> infoList = new ArrayList<>();
         infoList.add(resourceInfo);
         List<String> resourceIdList = new ArrayList<>();
-        resourceIdList.add(resourceEvent.getResource().getResourceId());
+        resourceIdList.add(resourceEvent.getResourceId());
 
         doReturn(restTemplateBuilder).when(restTemplateBuilder).rootUri(anyString());
         doReturn(restTemplate).when(restTemplateBuilder).build();
