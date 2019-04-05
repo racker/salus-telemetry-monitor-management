@@ -47,4 +47,5 @@ public class MonitorCreate implements Serializable {
 
     ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
 
+    String[] zones;
 }

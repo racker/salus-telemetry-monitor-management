@@ -33,4 +33,6 @@ public class MonitorUpdate implements Serializable {
     String content;
 
     String targetTenant;
+
+    String [] zones;
 }

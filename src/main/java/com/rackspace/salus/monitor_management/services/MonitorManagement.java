@@ -174,7 +174,8 @@ public class MonitorManagement {
                 .setContent(newMonitor.getContent())
                 .setAgentType(newMonitor.getAgentType())
                 .setSelectorScope(newMonitor.getSelectorScope())
-                .setTargetTenant(newMonitor.getTargetTenant());
+                .setTargetTenant(newMonitor.getTargetTenant())
+                .setZones(newMonitor.getZones());
 
 
         monitorRepository.save(monitor);
@@ -263,7 +264,12 @@ public class MonitorManagement {
         map.from(updatedValues.getMonitorName())
                 .whenNonNull()
                 .to(monitor::setMonitorName);
-        monitor.setTargetTenant(updatedValues.getTargetTenant());
+        map.from(updatedValues.getTargetTenant())
+                .whenNonNull()
+                .to(monitor::setTargetTenant);
+        map.from(updatedValues.getZones())
+                .whenNonNull()
+                .to(monitor::setZones);
         monitorRepository.save(monitor);
         publishMonitor(monitor, OperationType.UPDATE, oldLabels);
         return monitor;
