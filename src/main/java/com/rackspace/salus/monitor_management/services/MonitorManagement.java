@@ -227,13 +227,13 @@ public class MonitorManagement {
         final Set<String> deduped = new HashSet<>(resources);
 
         for (String resourceId : deduped) {
-            ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), resourceId).join().get(0);
-            if (resourceInfo != null) {
+            List<ResourceInfo> list = envoyResourceManagement
+                    .getOne(monitor.getTenantId(), resourceId).join();
+            if (list.size() > 0) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
                         .setOperationType(operationType)
-                        .setEnvoyId(resourceInfo.getEnvoyId());
+                        .setEnvoyId(list.get(0).getEnvoyId());
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
             }
         }
