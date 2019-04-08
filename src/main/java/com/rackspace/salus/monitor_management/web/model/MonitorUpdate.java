@@ -22,6 +22,7 @@ import lombok.Data;
 //import javax.validation.constraints.NotBlank;
 import org.hibernate.validator.constraints.NotBlank;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -34,5 +35,5 @@ public class MonitorUpdate implements Serializable {
 
     String targetTenant;
 
-    String [] zones;
+    List<String> zones;
 }
