@@ -1,7 +1,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
+import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -20,17 +20,15 @@ public class MonitorEventProducer {
         this.properties= properties;
     }
 
-    // ok so we need to figure out what we are sending
-    //unless we want to just pass into this function everything
     public void sendMonitorEvent(MonitorEvent event) {
         final String topic = properties.getMonitors();
-        if (topic == null) {
-            throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.MONITOR));
-        }
 
-        //Resource resource = event.getResource();
-        //String key = String.format("%s:%s", resource.getTenantId(), resource.getResourceId());
-        String key = String.format("%s", event.getAmbassadorId());
-        kafkaTemplate.send(topic, key, event);
+        kafkaTemplate.send(topic, event.getEnvoyId(), event);
+    }
+
+    public void sendMonitorEvent(MonitorBoundEvent event) {
+        final String topic = properties.getMonitors();
+
+        kafkaTemplate.send(topic, event.getEnvoyId(), event);
     }
 }
