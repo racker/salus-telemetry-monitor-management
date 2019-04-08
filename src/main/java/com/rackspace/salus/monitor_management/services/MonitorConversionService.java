@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.telemetry.api.services;
+package com.rackspace.salus.monitor_management.services;;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.telemetry.api.model.ApplicableAgentType;
-import com.rackspace.salus.telemetry.model.DetailedMonitorInput;
-import com.rackspace.salus.telemetry.api.model.DetailedMonitorOutput;
-import com.rackspace.salus.telemetry.model.LocalMonitorDetails;
-import com.rackspace.salus.telemetry.api.model.LocalPlugin;
-import com.rackspace.salus.telemetry.model.MonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;

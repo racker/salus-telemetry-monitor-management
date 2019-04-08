@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-//import com.rackspace.salus.telemetry.api.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
@@ -44,6 +43,7 @@ import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -51,6 +51,7 @@ import org.springframework.util.FileCopyUtils;
 
 @RunWith(SpringRunner.class)
 @JsonTest
+@Configuration
 @Import({MonitorConversionService.class})
 public class MonitorConversionServiceTest {
 
