@@ -51,9 +51,13 @@ import org.springframework.util.FileCopyUtils;
 
 @RunWith(SpringRunner.class)
 @JsonTest
-@Configuration
 @Import({MonitorConversionService.class})
 public class MonitorConversionServiceTest {
+
+  @Configuration
+  public static class TestConfig {
+
+  }
 
   @Autowired
   MonitorConversionService conversionService;
