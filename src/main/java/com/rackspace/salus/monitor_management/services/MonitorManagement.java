@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
+import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
@@ -24,9 +25,13 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.Monitor_;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -227,13 +232,13 @@ public class MonitorManagement {
         final Set<String> deduped = new HashSet<>(resources);
 
         for (String resourceId : deduped) {
-            List<ResourceInfo> list = envoyResourceManagement
+            ResourceInfo resourceInfo = envoyResourceManagement
                     .getOne(monitor.getTenantId(), resourceId).join();
-            if (list.size() > 0) {
+            if (resourceInfo != null) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
                         .setOperationType(operationType)
-                        .setEnvoyId(list.get(0).getEnvoyId());
+                        .setEnvoyId(resourceInfo.getEnvoyId());
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
             }
         }
@@ -303,7 +308,7 @@ public class MonitorManagement {
     public void handleResourceEvent(ResourceEvent event) {
         Resource r = event.getResource();
         ResourceInfo resourceInfo = envoyResourceManagement
-                .getOne(r.getTenantId(), r.getResourceId()).join().get(0);
+                .getOne(r.getTenantId(), r.getResourceId()).join();
         if (resourceInfo == null) {
             return;
         }
