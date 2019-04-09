@@ -18,12 +18,7 @@ package com.rackspace.salus.monitor_management.services;;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
-import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.*;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -88,8 +83,8 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
-  public Monitor convertFromInput(DetailedMonitorInput create) {
-    final Monitor monitor = new Monitor()
+  public MonitorCreate convertFromInput(DetailedMonitorInput create) {
+    final MonitorCreate monitor = new MonitorCreate()
         .setMonitorName(create.getName())
         .setLabels(create.getLabels());
 
