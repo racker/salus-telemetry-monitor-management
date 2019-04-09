@@ -16,39 +16,51 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.web.client.MonitorApi;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
-import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Stream;
+import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import javax.validation.Valid;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Stream;
 
 @Slf4j
 @RestController
 @RequestMapping("/api")
-public class MonitorApi {
+public class MonitorApiController implements MonitorApi {
 
     private MonitorManagement monitorManagement;
+    private final BoundMonitorRepository boundMonitorRepository;
     private TaskExecutor taskExecutor;
 
     @Autowired
-    public MonitorApi(MonitorManagement monitorManagement, TaskExecutor taskExecutor) {
+    public MonitorApiController(MonitorManagement monitorManagement, BoundMonitorRepository boundMonitorRepository, TaskExecutor taskExecutor) {
         this.monitorManagement = monitorManagement;
+        this.boundMonitorRepository = boundMonitorRepository;
         this.taskExecutor = taskExecutor;
     }
 
@@ -75,6 +87,12 @@ public class MonitorApi {
             emitter.complete();
         });
         return emitter;
+    }
+
+    @Override
+    @GetMapping("/boundMonitors/{envoyId}")
+    public List<BoundMonitor> getBoundMonitors(@PathVariable String envoyId) {
+        return boundMonitorRepository.findByEnvoyId(envoyId);
     }
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")

@@ -22,6 +22,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
+import javax.persistence.Index;
 import javax.persistence.Lob;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
@@ -35,7 +36,10 @@ import org.hibernate.validator.constraints.NotBlank;
 
 @Entity
 @IdClass(BoundMonitor.PrimaryKey.class)
-@Table(name = "bound_monitors")
+@Table(name = "bound_monitors",
+indexes = {
+    @Index(name = "by_envoy_id", columnList = "envoyId")
+})
 @Data
 public class BoundMonitor implements Serializable {
 

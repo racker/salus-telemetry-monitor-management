@@ -62,7 +62,7 @@ import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(controllers = MonitorApi.class)
+@WebMvcTest(controllers = MonitorApiController.class)
 @AutoConfigureDataJpa
 public class MonitorApiTest {
 

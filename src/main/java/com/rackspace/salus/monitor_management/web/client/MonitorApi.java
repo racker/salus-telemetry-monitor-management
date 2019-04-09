@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.repositories;
+package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import java.util.List;
-import org.springframework.data.repository.CrudRepository;
 
-public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, BoundMonitor.PrimaryKey> {
+public interface MonitorApi {
 
-  List<BoundMonitor> findByEnvoyId(String envoyId);
+  List<BoundMonitor> getBoundMonitors(String envoyId);
 }
