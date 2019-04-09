@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management;
+package com.rackspace.salus.monitor_management.services;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
@@ -28,32 +29,37 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.ExpectedCount.manyTimes;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
-import com.rackspace.salus.monitor_management.services.MonitorEventProducer;
-import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
@@ -61,31 +67,46 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureMockRestServiceServer;
+import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.test.web.client.MockRestServiceServer;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({ServicesProperties.class, ObjectMapper.class})
+@AutoConfigureWebClient
+@AutoConfigureMockRestServiceServer
+@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class})
 public class MonitorManagementTest {
+
+    @TestConfiguration
+    public static class Config {
+        @Bean
+        public ZonesProperties zonesProperties() {
+            return new ZonesProperties();
+        }
+
+        @Bean
+        public ServicesProperties servicesProperties() {
+            return new ServicesProperties()
+                .setResourceManagementUrl("");
+        }
+    }
 
     @MockBean
     MonitorEventProducer monitorEventProducer;
@@ -93,14 +114,11 @@ public class MonitorManagementTest {
     @MockBean
     EnvoyResourceManagement envoyResourceManagement;
 
-    @Mock
-    RestTemplateBuilder restTemplateBuilder;
+    @MockBean
+    ZoneStorage zoneStorage;
 
-    @Mock
-    RestTemplate restTemplate;
-
-    @Mock
-    ResponseEntity<List<Resource>> resp;
+    @Autowired
+    private MockRestServiceServer mockRestServer;
     @Autowired
     ObjectMapper objectMapper;
     @Autowired
@@ -109,9 +127,10 @@ public class MonitorManagementTest {
     EntityManager entityManager;
     @Autowired
     JdbcTemplate jdbcTemplate;
-    @MockBean
-    ServicesProperties servicesProperties;
+
+    @Autowired
     private MonitorManagement monitorManagement;
+
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
     private Monitor currentMonitor;
@@ -147,24 +166,18 @@ public class MonitorManagementTest {
         monitorEvent.setMonitorId(currentMonitor.getId().toString());
         monitorList = new ArrayList<>();
         monitorList.add(currentMonitor);
-        List<ResourceInfo> infoList = new ArrayList<>();
-        infoList.add(resourceInfo);
-        List<String> resourceIdList = new ArrayList<>();
-        resourceIdList.add(resourceEvent.getResource().getResourceId());
+        List<Resource> resourceList = new ArrayList<>();
+        resourceList.add(new Resource().setResourceId(
+            resourceEvent.getResource().getResourceId()
+        ));
 
-        doReturn(restTemplateBuilder).when(restTemplateBuilder).rootUri(anyString());
-        doReturn(restTemplate).when(restTemplateBuilder).build();
-        doReturn(resp).when(restTemplate).exchange(anyString(), eq(HttpMethod.GET), eq(null), (ParameterizedTypeReference<List<Resource>>) any());
-        doReturn(HttpStatus.OK).when(resp).getStatusCode();
-        doReturn(resourceIdList).when(resp).getBody();
-        doReturn("dummyUrl").when(servicesProperties).getResourceManagementUrl();
+        mockRestServer.expect(manyTimes(), requestTo(containsString("/resourceLabels")))
+            .andRespond(withSuccess(
+                objectMapper.writeValueAsString(resourceList), MediaType.APPLICATION_JSON
+            ));
+
         when(envoyResourceManagement.getOne(anyString(), anyString()))
-                .thenReturn(CompletableFuture.completedFuture(infoList));
-
-        monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
-                monitorEventProducer, restTemplateBuilder, servicesProperties, jdbcTemplate);
-
-
+                .thenReturn(CompletableFuture.completedFuture(resourceInfo));
     }
 
     private void createMonitors(int count) {
@@ -524,4 +537,21 @@ public class MonitorManagementTest {
         List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId);
         assertEquals(0, resources.size());
     }
+
+
+    @Test
+    public void testDistributeNewMonitor_agent() {
+
+    }
+
+    @Test
+    public void testDistributeNewMonitor_remote() {
+        Monitor monitor = new Monitor()
+            .setId(UUID.randomUUID())
+            .setAgentType(AgentType.TELEGRAF)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Arrays.asList("zone1", "zone2"));
+        monitorManagement.distributeNewMonitor(monitor);
+    }
+
 }
