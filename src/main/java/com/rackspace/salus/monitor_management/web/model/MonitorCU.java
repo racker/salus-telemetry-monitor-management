@@ -45,10 +45,8 @@ public class MonitorCU implements Serializable {
 
     Map<String,String> labels;
 
-    @NotBlank
     String content;
 
-    @NotNull
     AgentType agentType;
 
     String targetTenant;
