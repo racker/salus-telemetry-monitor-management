@@ -20,11 +20,8 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
@@ -107,10 +104,8 @@ public class MonitorApi {
     @ResponseStatus(HttpStatus.CREATED)
     public DetailedMonitorOutput create(@PathVariable String tenantId,
                                         @Valid @RequestBody final DetailedMonitorInput input)
-                          //@Valid @RequestBody final MonitorCreate input)
             throws IllegalArgumentException {
 
-        //
         return monitorConversionService.convertToOutput(
                 monitorManagement.createMonitor(
                         tenantId,
@@ -120,10 +115,13 @@ public class MonitorApi {
     @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
-                          @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
+                          @Valid @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
 
-        // the API was turning DetailedMonitorInput into a Monitor which this then read as a MonitorUpdate
-        return monitorConversionService.convertToOutput(monitorManagement.updateMonitor(tenantId, uuid, input));
+        return monitorConversionService.convertToOutput(
+                monitorManagement.updateMonitor(
+                        tenantId,
+                        uuid,
+                        monitorConversionService.convertFromInput(input)));
     }
 
     @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")

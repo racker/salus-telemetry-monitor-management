@@ -19,10 +19,7 @@ package com.rackspace.salus.monitor_management;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.*;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
@@ -98,7 +95,7 @@ public class MonitorConversionServiceTest {
     assertThat(cpuPlugin.isTotalcpu()).isFalse();
   }
 
-  /*@Test
+  @Test
   public void convertFromInput() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
@@ -113,7 +110,7 @@ public class MonitorConversionServiceTest {
         .setName("name-a")
         .setLabels(labels)
         .setDetails(details);
-    final Monitor result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabels()).isEqualTo(labels);
@@ -122,7 +119,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.ALL_OF);
     final String content = readContent("/MonitorConversionServiceTest_cpu.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
-  }*/
+  }
 
   @Test
   public void convertToOutput_disk() throws IOException {
@@ -150,7 +147,7 @@ public class MonitorConversionServiceTest {
     assertThat(specificPlugin.getIgnoreFs()).contains("/dev");
   }
 
-  /*@Test
+  @Test
   public void convertFromInput_disk() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
@@ -166,11 +163,11 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabels(Collections.singletonMap("os","linux"))
         .setDetails(details);
-    final Monitor result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
     JSONAssert.assertEquals(content, result.getContent(), true);
-  }*/
+  }
 
   @Test
   public void convertToOutput_diskio() throws IOException {
@@ -201,7 +198,7 @@ public class MonitorConversionServiceTest {
 
   }
 
-  /*@Test
+  @Test
   public void convertFromInput_diskio() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
@@ -220,11 +217,11 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabels(Collections.singletonMap("os","linux"))
         .setDetails(details);
-    final Monitor result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
     JSONAssert.assertEquals(content, result.getContent(), true);
-  }*/
+  }
 
   @Test
   public void convertToOutput_mem() throws IOException {
@@ -249,7 +246,7 @@ public class MonitorConversionServiceTest {
     // no config to validate
   }
 
- /*@Test
+ @Test
   public void convertFromInput_mem() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
@@ -264,11 +261,11 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabels(Collections.singletonMap("os","linux"))
         .setDetails(details);
-    final Monitor result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
     JSONAssert.assertEquals(content, result.getContent(), true);
-  }*/
+  }
 
   private static String readContent(String resource) throws IOException {
     try (InputStream in = new ClassPathResource(resource).getInputStream()) {

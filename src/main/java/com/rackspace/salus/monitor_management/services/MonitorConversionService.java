@@ -83,8 +83,8 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
-  public MonitorCreate convertFromInput(DetailedMonitorInput create) {
-    final MonitorCreate monitor = new MonitorCreate()
+  public MonitorCU convertFromInput(DetailedMonitorInput create) {
+    final MonitorCU monitor = new MonitorCU()
         .setMonitorName(create.getName())
         .setLabels(create.getLabels());
 

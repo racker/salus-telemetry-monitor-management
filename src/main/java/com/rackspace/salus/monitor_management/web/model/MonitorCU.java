@@ -16,21 +16,43 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import lombok.Data;
+
 
 // This annotation doesn't work with podam
 //import javax.validation.constraints.NotBlank;
 import org.hibernate.validator.constraints.NotBlank;
+
 import java.io.Serializable;
 import java.util.Map;
+import com.rackspace.salus.telemetry.model.AgentType;
 
+import javax.validation.constraints.NotNull;
+
+
+/**
+ * The CU in MonitorCU stand for Create and Update from the standard CRUD acronym.
+ * We are not necessarily happy with this name so we are up for suggestions.
+ *
+ * This Object is meant for handling Creation and Update events for Monitors.
+ * Update events shouldn't be allowed to update the AgentType or the ConfigSelectorScope.
+ */
 @Data
-public class MonitorUpdate implements Serializable {
-    Map<String,String> labels;
+public class MonitorCU implements Serializable {
 
     String monitorName;
 
+    Map<String,String> labels;
+
+    @NotBlank
     String content;
 
+    @NotNull
+    AgentType agentType;
+
     String targetTenant;
+
+    ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
+
 }
