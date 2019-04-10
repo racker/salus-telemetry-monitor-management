@@ -61,7 +61,8 @@ public class MonitorApi {
     public Page<DetailedMonitorOutput> getAll(@RequestParam(defaultValue = "100") int size,
                                 @RequestParam(defaultValue = "0") int page) {
 
-        return monitorManagement.getAllMonitors(PageRequest.of(page, size)).map(output -> monitorConversionService.convertToOutput(output));
+        return monitorManagement.getAllMonitors(PageRequest.of(page, size))
+                .map(monitorConversionService::convertToOutput);
 
     }
 
@@ -98,7 +99,8 @@ public class MonitorApi {
                                          @RequestParam(defaultValue = "100") int size,
                                          @RequestParam(defaultValue = "0") int page) {
 
-        return monitorManagement.getMonitors(tenantId, PageRequest.of(page, size)).map(output -> monitorConversionService.convertToOutput(output));
+        return monitorManagement.getMonitors(tenantId, PageRequest.of(page, size))
+                .map(monitorConversionService::convertToOutput);
     }
 
     @PostMapping("/tenant/{tenantId}/monitors")
@@ -119,6 +121,7 @@ public class MonitorApi {
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
                           @Valid @RequestBody final MonitorUpdate input) throws IllegalArgumentException {
+
         // the API was turning DetailedMonitorInput into a Monitor which this then read as a MonitorUpdate
         return monitorConversionService.convertToOutput(monitorManagement.updateMonitor(tenantId, uuid, input));
     }
