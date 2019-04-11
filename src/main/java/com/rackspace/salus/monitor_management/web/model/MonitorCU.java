@@ -25,6 +25,7 @@ import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import com.rackspace.salus.telemetry.model.AgentType;
 
@@ -53,4 +54,5 @@ public class MonitorCU implements Serializable {
 
     ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
 
+    List<String> zones;
 }

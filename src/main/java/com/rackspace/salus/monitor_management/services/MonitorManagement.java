@@ -173,7 +173,8 @@ public class MonitorManagement {
                 .setContent(newMonitor.getContent())
                 .setAgentType(newMonitor.getAgentType())
                 .setSelectorScope(newMonitor.getSelectorScope())
-                .setTargetTenant(newMonitor.getTargetTenant());
+                .setTargetTenant(newMonitor.getTargetTenant())
+                .setZones(newMonitor.getZones());
 
 
         monitorRepository.save(monitor);
@@ -225,13 +226,13 @@ public class MonitorManagement {
         final Set<String> deduped = new HashSet<>(resources);
 
         for (String resourceId : deduped) {
-            ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), resourceId).join().get(0);
-            if (resourceInfo != null) {
+            List<ResourceInfo> list = envoyResourceManagement
+                    .getOne(monitor.getTenantId(), resourceId).join();
+            if (list.size() > 0) {
                 MonitorEvent monitorEvent = new MonitorEvent()
                         .setFromMonitor(monitor)
                         .setOperationType(operationType)
-                        .setEnvoyId(resourceInfo.getEnvoyId());
+                        .setEnvoyId(list.get(0).getEnvoyId());
                 monitorEventProducer.sendMonitorEvent(monitorEvent);
             }
         }
@@ -262,7 +263,12 @@ public class MonitorManagement {
         map.from(updatedValues.getMonitorName())
                 .whenNonNull()
                 .to(monitor::setMonitorName);
-        monitor.setTargetTenant(updatedValues.getTargetTenant());
+        map.from(updatedValues.getTargetTenant())
+                .whenNonNull()
+                .to(monitor::setTargetTenant);
+        map.from(updatedValues.getZones())
+                .whenNonNull()
+                .to(monitor::setZones);
         monitorRepository.save(monitor);
         publishMonitor(monitor, OperationType.UPDATE, oldLabels);
         return monitor;
