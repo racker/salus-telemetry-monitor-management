@@ -31,8 +31,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.controller.MonitorApi;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
 import com.rackspace.salus.telemetry.model.Monitor;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
@@ -213,7 +213,7 @@ public class MonitorApiTest {
         UUID id = monitor.getId();
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-        MonitorUpdate update = podamFactory.manufacturePojo(MonitorUpdate.class);
+        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
 
         mockMvc.perform(put(url)
                 .content(objectMapper.writeValueAsString(update))
