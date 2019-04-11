@@ -183,14 +183,14 @@ public class MonitorManagementTest {
     private void createMonitors(int count) {
         for (int i = 0; i < count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
-            MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
             monitorManagement.createMonitor(tenantId, create);
         }
     }
 
     private void createMonitorsForTenant(int count, String tenantId) {
         for (int i = 0; i < count; i++) {
-            MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -207,7 +207,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testCreateNewMonitor() {
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
@@ -285,7 +285,7 @@ public class MonitorManagementTest {
         Monitor monitor = monitorManagement.getAllMonitors(PageRequest.of(0, 1)).getContent().get(0);
         Map<String, String> newLabels = new HashMap<>(monitor.getLabels());
         newLabels.put("newLabel", "newValue");
-        MonitorUpdate update = new MonitorUpdate();
+        MonitorCU update = new MonitorCU();
 
         update.setLabels(newLabels).setContent("newContent");
 
@@ -307,7 +307,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testRemoveMonitor() {
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Monitor newMon = monitorManagement.createMonitor(tenantId, create);
 
@@ -341,7 +341,7 @@ public class MonitorManagementTest {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -358,7 +358,7 @@ public class MonitorManagementTest {
         final Map<String, String> queryLabels = new HashMap<>();
         queryLabels.put("os", "linux");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -371,7 +371,7 @@ public class MonitorManagementTest {
     public void testEmptyLabelsException() {
         final Map<String, String> labels = new HashMap<>();
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -384,7 +384,7 @@ public class MonitorManagementTest {
         final Map<String, String> labels = new HashMap<>();
         labels.put("key", "value");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
@@ -409,7 +409,7 @@ public class MonitorManagementTest {
         labels.put("os", "DARWIN");
         labels.put("env", "test");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -436,7 +436,7 @@ public class MonitorManagementTest {
         queryLabels.put("os", "linux");
         queryLabels.put("env", "test");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -457,7 +457,7 @@ public class MonitorManagementTest {
         labels.put("os", "DARWIN");
         labels.put("env", "test");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(monitorLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -478,7 +478,7 @@ public class MonitorManagementTest {
         labels.put("os", "Windows");
         labels.put("env", "test");
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(monitorLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -500,7 +500,7 @@ public class MonitorManagementTest {
         labels.put("region", "DFW");
 
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(monitorLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -528,7 +528,7 @@ public class MonitorManagementTest {
         labels.put("region", "DFW");
 
 
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabels(monitorLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);

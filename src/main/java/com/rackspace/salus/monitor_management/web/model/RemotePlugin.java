@@ -16,24 +16,16 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 
-// This annotation doesn't work with podam
-//import javax.validation.constraints.NotBlank;
-import org.hibernate.validator.constraints.NotBlank;
-import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
+@JsonTypeInfo(use = Id.NAME, property = "type")
+@JsonSubTypes({
+    @Type(name = "ping", value = Ping.class)
+})
+public abstract class RemotePlugin {
 
-@Data
-public class MonitorUpdate implements Serializable {
-    Map<String,String> labels;
-
-    String monitorName;
-
-    String content;
-
-    String targetTenant;
-
-    List<String> zones;
 }

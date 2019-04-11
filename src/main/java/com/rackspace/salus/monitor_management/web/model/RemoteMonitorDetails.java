@@ -16,37 +16,25 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import lombok.Data;
-
-
-// This annotation doesn't work with podam
-//import javax.validation.constraints.NotBlank;
-import org.hibernate.validator.constraints.NotBlank;
-
-import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
-import com.rackspace.salus.telemetry.model.AgentType;
-
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
 @Data
-public class MonitorCreate implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+public class RemoteMonitorDetails extends MonitorDetails {
+  @NotEmpty
+  String targetResourceId;
 
-    String monitorName;
+  /**
+   * If not specified, a set of default zones will be used for remote monitoring.
+   */
+  List<String> monitoringZones;
 
-    Map<String,String> labels;
-
-    @NotBlank
-    String content;
-
-    @NotNull
-    AgentType agentType;
-
-    String targetTenant;
-
-    ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
-
-    List<String> zones;
+  @NotNull @Valid
+  RemotePlugin plugin;
 }
