@@ -17,8 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
@@ -166,7 +165,7 @@ public class MonitorManagement {
      * @param newMonitor The monitor parameters to store.
      * @return The newly created monitor.
      */
-    public Monitor createMonitor(String tenantId, @Valid MonitorCreate newMonitor) throws IllegalArgumentException, AlreadyExistsException {
+    public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
         Monitor monitor = new Monitor()
                 .setTenantId(tenantId)
                 .setMonitorName(newMonitor.getMonitorName())
@@ -247,7 +246,7 @@ public class MonitorManagement {
      * @param updatedValues The new monitor parameters to store.
      * @return The newly updated monitor.
      */
-    public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorUpdate updatedValues) {
+    public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
         Monitor monitor = getMonitor(tenantId, id);
         if (monitor == null) {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",

@@ -29,13 +29,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.controller.MonitorApi;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,6 +45,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -59,9 +63,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * The benefits from these tests are strictly making sure that our routes are working correctly
+ *
+ * The business logic is being tested in MonitorManagementTest and MonitorConversionServiceTest with proper edge case testing
+ */
+
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApi.class)
 @AutoConfigureDataJpa
+@Import({MonitorConversionService.class})
 public class MonitorApiTest {
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -75,9 +86,13 @@ public class MonitorApiTest {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    MonitorConversionService monitorConversionService;
+
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
                 .thenReturn(monitor);
 
@@ -111,13 +126,14 @@ public class MonitorApiTest {
 
     @Test
     public void testGetAllForTenant() throws Exception {
-        int numberOfMonitors = 20;
+        int numberOfMonitors = 1;
         // Use the APIs default Pageable settings
         int page = 0;
         int pageSize = 100;
         List<Monitor> monitors = new ArrayList<>();
         for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
+            monitors.get(i).setContent("{\"type\":\"mem\"}");
         }
 
         int start = page * pageSize;
@@ -135,7 +151,7 @@ public class MonitorApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalPages", equalTo(1)))
                 .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
@@ -153,6 +169,7 @@ public class MonitorApiTest {
         List<Monitor> monitors = new ArrayList<>();
         for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
+            monitors.get(i).setContent("{\"type\":\"mem\"}");
         }
         int start = page * pageSize;
         int end = start + pageSize;
@@ -174,7 +191,7 @@ public class MonitorApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
                 .andExpect(jsonPath("$.totalPages", equalTo((numberOfMonitors + pageSize - 1) / pageSize)))
                 .andExpect(jsonPath("$.numberOfElements", equalTo(pageSize)))
@@ -187,12 +204,14 @@ public class MonitorApiTest {
     @Test
     public void testCreateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.createMonitor(anyString(), any()))
                 .thenReturn(monitor);
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
         String url = String.format("/api/tenant/%s/monitors", tenantId);
-        MonitorCreate create = podamFactory.manufacturePojo(MonitorCreate.class);
+        DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
         mockMvc.perform(post(url)
                 .content(objectMapper.writeValueAsString(create))
@@ -208,6 +227,7 @@ public class MonitorApiTest {
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.updateMonitor(anyString(), any(), any()))
                 .thenReturn(monitor);
 
@@ -215,7 +235,8 @@ public class MonitorApiTest {
         UUID id = monitor.getId();
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-        MonitorUpdate update = podamFactory.manufacturePojo(MonitorUpdate.class);
+        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
         mockMvc.perform(put(url)
                 .content(objectMapper.writeValueAsString(update))
@@ -235,6 +256,7 @@ public class MonitorApiTest {
         List<Monitor> monitors = new ArrayList<>();
         for (int i = 0; i < numberOfMonitors; i++) {
             monitors.add(podamFactory.manufacturePojo(Monitor.class));
+            monitors.get(i).setContent("{\"type\":\"mem\"}");
         }
 
         int start = page * pageSize;
@@ -251,7 +273,7 @@ public class MonitorApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors)))
+                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalPages", equalTo(1)))
                 .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
