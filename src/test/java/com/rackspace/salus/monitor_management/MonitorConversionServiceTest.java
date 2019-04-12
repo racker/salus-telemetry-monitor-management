@@ -19,11 +19,18 @@ package com.rackspace.salus.monitor_management;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
-import com.rackspace.salus.monitor_management.web.model.*;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -60,10 +67,10 @@ public class MonitorConversionServiceTest {
   MonitorConversionService conversionService;
 
   @Test
-  public void convertToOutput() throws IOException {
+  public void convertToOutput_local() throws IOException {
     Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
-    labels.put("test", "convertToOutput");
+    labels.put("test", "convertToOutput_local");
 
     final String content = readContent("/MonitorConversionServiceTest_cpu.json");
 
@@ -96,10 +103,10 @@ public class MonitorConversionServiceTest {
   }
 
   @Test
-  public void convertFromInput() throws JSONException, IOException {
+  public void convertFromInput_local() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
-    labels.put("test", "convertFromInput_cpu");
+    labels.put("test", "convertFromInput_local");
 
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Cpu plugin = new Cpu();
@@ -264,6 +271,69 @@ public class MonitorConversionServiceTest {
     final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertToOutput_ping() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_remote");
+
+    final String content = readContent("/MonitorConversionServiceTest_ping.json");
+
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("z-1"))
+        .setLabels(labels)
+        .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
+    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
+    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(Ping.class);
+
+    final Ping pingPlugin = (Ping) plugin;
+    assertThat(pingPlugin.getUrls()).contains("localhost");
+  }
+
+  @Test
+  public void convertFromInput_ping() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_ping");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final Ping plugin = new Ping();
+    plugin.setUrls(Collections.singletonList("localhost"));
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabels(labels)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    final String content = readContent("/MonitorConversionServiceTest_ping.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 

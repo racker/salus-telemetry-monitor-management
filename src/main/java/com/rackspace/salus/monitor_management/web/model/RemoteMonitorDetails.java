@@ -18,18 +18,13 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import java.util.List;
 import javax.validation.Valid;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class RemoteMonitorDetails extends MonitorDetails {
-  @NotEmpty
-  String targetResourceId;
-
   /**
    * If not specified, a set of default zones will be used for remote monitoring.
    */

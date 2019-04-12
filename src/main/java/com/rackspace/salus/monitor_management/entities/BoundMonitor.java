@@ -16,10 +16,13 @@
 
 package com.rackspace.salus.monitor_management.entities;
 
+import com.rackspace.salus.telemetry.model.AgentType;
 import java.io.Serializable;
 import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import javax.persistence.Index;
@@ -28,7 +31,6 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import org.hibernate.annotations.Type;
-import org.hibernate.validator.constraints.NotBlank;
 
 // Using the old validation exceptions for podam support
 // Will move to the newer ones once they're supported.
@@ -46,10 +48,15 @@ public class BoundMonitor implements Serializable {
   @Data
   public static class PrimaryKey implements Serializable {
 
+    // NOTE the ordering of the following is important since potentially null values need to be
+    // last in the primary key
+
     UUID monitorId;
-    String tenantId;
     String resourceId;
+    // agent monitors will have null zone and zoneTenantId
     String zone;
+    // public zones will have null zoneTenantId
+    String zoneTenantId;
   }
 
   @Id
@@ -59,21 +66,24 @@ public class BoundMonitor implements Serializable {
   UUID monitorId;
 
   @Id
-  @NotBlank
   @Column(length = 100)
-  String tenantId;
+  String zoneTenantId;
+
+  @Id
+  @Column(length = 100)
+  String zone;
 
   @Id
   @NotNull
   @Column(length = 100)
   String resourceId;
 
+  @Enumerated(EnumType.STRING)
+  @NotNull
+  AgentType agentType;
+
   @Lob
   String renderedContent;
-
-  @Id
-  @Column(length = 100)
-  String zone;
 
   @Column(length = 100)
   String envoyId;

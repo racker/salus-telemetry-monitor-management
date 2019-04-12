@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.manyTimes;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -39,11 +40,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
+import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
@@ -58,6 +62,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -94,6 +99,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class})
 public class MonitorManagementTest {
 
+    public static final String DEFAULT_ENVOY_ID = "env1";
+    public static final String DEFAULT_RESOURCE_ID = "os:LINUX";
+
     @TestConfiguration
     public static class Config {
         @Bean
@@ -116,6 +124,9 @@ public class MonitorManagementTest {
 
     @MockBean
     ZoneStorage zoneStorage;
+
+    @MockBean
+    BoundMonitorRepository boundMonitorRepository;
 
     @Autowired
     private MockRestServiceServer mockRestServer;
@@ -151,15 +162,18 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
         currentMonitor = monitor;
-        String resourceEventString = "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\"os:LINUX\"," +
+        String resourceEventString = "{\"operation\":\"UPDATE\", \"resource\":{\"resourceId\":\""
+            + DEFAULT_RESOURCE_ID + "\"," +
                 "\"labels\":{\"os\":\"LINUX\"},\"id\":1," +
                 "\"presenceMonitoringEnabled\":true," +
                 "\"tenantId\":\"abcde\"}}";
         resourceEvent = objectMapper.readValue(resourceEventString, ResourceEvent.class);
-        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"resourceId\":\"os:LINUX\"," +
+        String resourceInfoString = "{\"tenantId\":\"abcde\", \"envoyId\":\"" + DEFAULT_ENVOY_ID
+            + "\", \"resourceId\":\"" + DEFAULT_RESOURCE_ID + "\"," +
                 "\"labels\":{\"os\":\"LINUX\"}}";
         ResourceInfo resourceInfo = objectMapper.readValue(resourceInfoString, ResourceInfo.class);
-        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"env1\", \"operationType\":\"UPDATE\", " +
+        String monitorEventString = "{\"tenantId\":\"abcde\", \"envoyId\":\"" + DEFAULT_ENVOY_ID
+            + "\", \"operationType\":\"UPDATE\", " +
                 "\"config\":{\"content\":\"content1\"," +
                 "\"labels\":{\"os\":\"LINUX\"}}}";
         monitorEvent = objectMapper.readValue(monitorEventString, MonitorEvent.class);
@@ -167,9 +181,10 @@ public class MonitorManagementTest {
         monitorList = new ArrayList<>();
         monitorList.add(currentMonitor);
         List<Resource> resourceList = new ArrayList<>();
-        resourceList.add(new Resource().setResourceId(
-            resourceEvent.getResource().getResourceId()
-        ));
+        resourceList.add(new Resource()
+            .setResourceId(resourceEvent.getResource().getResourceId())
+            .setLabels(resourceEvent.getResource().getLabels())
+        );
 
         mockRestServer.expect(manyTimes(), requestTo(containsString("/resourceLabels")))
             .andRespond(withSuccess(
@@ -249,7 +264,7 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testGetAllForTenant() {
+    public void testGetAllForTenant_paged() {
         Random random = new Random();
         int totalMonitors = random.nextInt(150 - 50) + 50;
         int pageSize = 10;
@@ -538,20 +553,147 @@ public class MonitorManagementTest {
         assertEquals(0, resources.size());
     }
 
-
     @Test
     public void testDistributeNewMonitor_agent() {
+        Monitor monitor = new Monitor()
+            .setId(UUID.randomUUID())
+            .setTenantId("t-1")
+            .setAgentType(AgentType.TELEGRAF)
+            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}");
 
+        monitorManagement.distributeNewMonitor(monitor);
+
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setOperationType(OperationType.CREATE)
+            .setEnvoyId(DEFAULT_ENVOY_ID));
+
+        verify(boundMonitorRepository).saveAll(
+            Collections.singletonList(
+                new BoundMonitor()
+                    .setResourceId(DEFAULT_RESOURCE_ID)
+                    .setMonitorId(monitor.getId())
+                    .setEnvoyId(DEFAULT_ENVOY_ID)
+                    .setAgentType(AgentType.TELEGRAF)
+                    .setRenderedContent("{}")
+                    .setZone("")
+                    .setZoneTenantId("")
+            )
+        );
+
+        verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
     }
 
     @Test
     public void testDistributeNewMonitor_remote() {
+        final ResolvedZone zone1 = new ResolvedZone()
+            .setTenantId("t-1")
+            .setId("zone1");
+        final ResolvedZone zone2 = new ResolvedZone()
+            .setTenantId("t-1")
+            .setId("zone2");
+
+        when(zoneStorage.findLeastLoadedEnvoy(zone1))
+            .thenReturn(CompletableFuture.completedFuture(
+                Optional.of("zone1-e-1")
+            ));
+        when(zoneStorage.findLeastLoadedEnvoy(zone2))
+            .thenReturn(CompletableFuture.completedFuture(
+                Optional.of("zone2-e-2")
+            ));
+        when(zoneStorage.incrementBoundCount(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(1));
+
         Monitor monitor = new Monitor()
             .setId(UUID.randomUUID())
+            .setTenantId("t-1")
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Arrays.asList("zone1", "zone2"));
+            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setZones(Arrays.asList("zone1", "zone2"))
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}");
+
         monitorManagement.distributeNewMonitor(monitor);
+
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setOperationType(OperationType.CREATE)
+            .setEnvoyId("zone1-e-1"));
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setOperationType(OperationType.CREATE)
+            .setEnvoyId("zone2-e-2"));
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setResourceId(DEFAULT_RESOURCE_ID)
+                .setMonitorId(monitor.getId())
+                .setEnvoyId("zone1-e-1")
+                .setAgentType(AgentType.TELEGRAF)
+                .setRenderedContent("{}")
+                .setZone("zone1")
+                .setZoneTenantId("t-1"),
+            new BoundMonitor()
+                .setResourceId(DEFAULT_RESOURCE_ID)
+                .setMonitorId(monitor.getId())
+                .setEnvoyId("zone2-e-2")
+                .setAgentType(AgentType.TELEGRAF)
+                .setRenderedContent("{}")
+                .setZone("zone2")
+                .setZoneTenantId("t-1")
+        ));
+
+        verify(zoneStorage).findLeastLoadedEnvoy(zone1);
+        verify(zoneStorage).findLeastLoadedEnvoy(zone2);
+
+        verify(zoneStorage).incrementBoundCount(zone1, "zone1-e-1");
+        verify(zoneStorage).incrementBoundCount(zone2, "zone2-e-2");
+
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testDistributeNewMonitor_remote_emptyZone() {
+        final ResolvedZone zone1 = new ResolvedZone()
+            .setTenantId("t-1")
+            .setId("zone1");
+
+        when(zoneStorage.findLeastLoadedEnvoy(zone1))
+            .thenReturn(CompletableFuture.completedFuture(
+                Optional.empty()
+            ));
+        when(zoneStorage.incrementBoundCount(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(1));
+
+        Monitor monitor = new Monitor()
+            .setId(UUID.randomUUID())
+            .setTenantId("t-1")
+            .setAgentType(AgentType.TELEGRAF)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setLabels(Collections.singletonMap("os", "LINUX"))
+            // NOTE only one zone used in this test
+            .setZones(Collections.singletonList("zone1"))
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}");
+
+        monitorManagement.distributeNewMonitor(monitor);
+
+        verify(zoneStorage).findLeastLoadedEnvoy(zone1);
+
+        // Verify the envoy ID was NOT be set for this
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
+            new BoundMonitor()
+                .setResourceId(DEFAULT_RESOURCE_ID)
+                .setMonitorId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setRenderedContent("{}")
+                .setZone("zone1")
+                .setZoneTenantId("t-1")
+        ));
+
+        // ...and no MonitorBoundEvent was sent
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }
 
 }

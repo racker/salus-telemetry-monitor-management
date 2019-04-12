@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -26,6 +28,7 @@ import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
+@JsonInclude(Include.NON_NULL)
 public class Ping extends RemotePlugin {
   @NotEmpty
   List<String> urls;

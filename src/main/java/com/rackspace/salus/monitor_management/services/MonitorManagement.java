@@ -21,8 +21,7 @@ import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
-import com.rackspace.salus.monitor_management.web.model.MonitorCreate;
-import com.rackspace.salus.monitor_management.web.model.MonitorUpdate;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -190,15 +189,16 @@ public class MonitorManagement {
      * @return The newly created monitor.
      */
     public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
-        Monitor monitor = new Monitor()
+      log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
+
+      Monitor monitor = new Monitor()
                 .setTenantId(tenantId)
                 .setMonitorName(newMonitor.getMonitorName())
                 .setLabels(newMonitor.getLabels())
                 .setContent(newMonitor.getContent())
                 .setAgentType(newMonitor.getAgentType())
                 .setSelectorScope(newMonitor.getSelectorScope())
-                .setTargetTenant(newMonitor.getTargetTenant());
-
+                .setZones(newMonitor.getZones());
 
         monitorRepository.save(monitor);
         distributeNewMonitor(monitor);
@@ -208,6 +208,8 @@ public class MonitorManagement {
     void distributeNewMonitor(Monitor monitor) {
         final List<String> resourceIds = getResourcesWithLabels(
             monitor.getTenantId(), monitor.getLabels());
+
+        log.debug("Distributing new monitor={} to resources={}", monitor, resourceIds);
 
         final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
@@ -239,9 +241,15 @@ public class MonitorManagement {
 
         }
 
-        boundMonitorRepository.saveAll(boundMonitors);
+        if (!boundMonitors.isEmpty()) {
+            log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
+            boundMonitorRepository.saveAll(boundMonitors);
 
-        sendMonitorBoundEvents(OperationType.CREATE, boundMonitors);
+            sendMonitorBoundEvents(OperationType.CREATE, boundMonitors);
+        }
+        else {
+            log.debug("No monitors were bound from monitor={}", monitor);
+        }
     }
 
     private void sendMonitorBoundEvents(OperationType operationType,
@@ -261,11 +269,14 @@ public class MonitorManagement {
 
     private BoundMonitor bindAgentMonitor(Monitor monitor, String resourceId, String envoyId) {
         return new BoundMonitor()
-            .setTenantId(null)
+            .setZoneTenantId(null)
             .setMonitorId(monitor.getId())
             .setResourceId(resourceId)
             .setEnvoyId(envoyId)
-            .setRenderedContent(renderMonitorContent(monitor));
+            .setAgentType(monitor.getAgentType())
+            .setRenderedContent(renderMonitorContent(monitor))
+            .setZone("")
+            .setZoneTenantId("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, String resourceId, String zone) {
@@ -273,12 +284,28 @@ public class MonitorManagement {
 
         final Optional<String> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
 
+        final String envoyId;
+        if (result.isPresent()) {
+            envoyId = result.get();
+            zoneStorage.incrementBoundCount(resolvedZone, envoyId)
+            .join();
+        }
+        else {
+            envoyId = null;
+        }
+
         return new BoundMonitor()
-            .setTenantId(resolvedZone.getTenantId())
+            .setZoneTenantId(emptyStringWhenNull(resolvedZone.getTenantId()))
+            .setZone(zone)
             .setMonitorId(monitor.getId())
             .setResourceId(resourceId)
-            .setEnvoyId(result.orElse(null))
+            .setEnvoyId(envoyId)
+            .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor));
+    }
+
+    private static String emptyStringWhenNull(String value) {
+        return value != null ? value : "";
     }
 
     private String renderMonitorContent(Monitor monitor) {
