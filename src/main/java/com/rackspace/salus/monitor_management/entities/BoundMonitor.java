@@ -55,8 +55,6 @@ public class BoundMonitor implements Serializable {
     String resourceId;
     // agent monitors will have null zone and zoneTenantId
     String zone;
-    // public zones will have null zoneTenantId
-    String zoneTenantId;
   }
 
   @Id
@@ -64,10 +62,6 @@ public class BoundMonitor implements Serializable {
   @Type(type = "uuid-char")
   @Column(length = 100)
   UUID monitorId;
-
-  @Id
-  @Column(length = 100)
-  String zoneTenantId;
 
   @Id
   @Column(length = 100)

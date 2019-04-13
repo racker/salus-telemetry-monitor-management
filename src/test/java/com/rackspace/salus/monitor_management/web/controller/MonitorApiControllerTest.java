@@ -40,6 +40,8 @@ import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -93,6 +95,8 @@ public class MonitorApiControllerTest {
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
                 .thenReturn(monitor);
@@ -131,11 +135,7 @@ public class MonitorApiControllerTest {
         // Use the APIs default Pageable settings
         int page = 0;
         int pageSize = 100;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
@@ -162,16 +162,24 @@ public class MonitorApiControllerTest {
                 .andExpect(jsonPath("$.size", equalTo(pageSize)));
     }
 
+    private List<Monitor> createMonitors(int numberOfMonitors) {
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+            monitors.add(monitor);
+            monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            monitor.setAgentType(AgentType.TELEGRAF);
+            monitor.setContent("{\"type\":\"mem\"}");
+        }
+        return monitors;
+    }
+
     @Test
     public void testGetAllForTenantPagination() throws Exception {
         int numberOfMonitors = 99;
         int pageSize = 4;
         int page = 14;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        final List<Monitor> monitors = createMonitors(numberOfMonitors);
         int start = page * pageSize;
         int end = start + pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
@@ -205,6 +213,8 @@ public class MonitorApiControllerTest {
     @Test
     public void testCreateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.createMonitor(anyString(), any()))
                 .thenReturn(monitor);
@@ -228,6 +238,8 @@ public class MonitorApiControllerTest {
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.updateMonitor(anyString(), any(), any()))
                 .thenReturn(monitor);
@@ -254,11 +266,7 @@ public class MonitorApiControllerTest {
         // Use the APIs default Pageable settings
         int page = 0;
         int pageSize = 100;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        final List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),

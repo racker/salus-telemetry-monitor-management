@@ -34,8 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-;
-
 /**
  * This service enables the public API to interface with the backend REST services for monitor management.
  */

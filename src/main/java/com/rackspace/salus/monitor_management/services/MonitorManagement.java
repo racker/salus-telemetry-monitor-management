@@ -269,14 +269,12 @@ public class MonitorManagement {
 
     private BoundMonitor bindAgentMonitor(Monitor monitor, String resourceId, String envoyId) {
         return new BoundMonitor()
-            .setZoneTenantId(null)
             .setMonitorId(monitor.getId())
             .setResourceId(resourceId)
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor))
-            .setZone("")
-            .setZoneTenantId("");
+            .setZone("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, String resourceId, String zone) {
@@ -295,17 +293,12 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(emptyStringWhenNull(resolvedZone.getTenantId()))
             .setZone(zone)
             .setMonitorId(monitor.getId())
             .setResourceId(resourceId)
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor));
-    }
-
-    private static String emptyStringWhenNull(String value) {
-        return value != null ? value : "";
     }
 
     private String renderMonitorContent(Monitor monitor) {
@@ -423,7 +416,6 @@ public class MonitorManagement {
         map.from(updatedValues.getMonitorName())
                 .whenNonNull()
                 .to(monitor::setMonitorName);
-        monitor.setTargetTenant(updatedValues.getTargetTenant());
         monitorRepository.save(monitor);
         publishMonitor(monitor, OperationType.UPDATE, oldLabels);
         return monitor;

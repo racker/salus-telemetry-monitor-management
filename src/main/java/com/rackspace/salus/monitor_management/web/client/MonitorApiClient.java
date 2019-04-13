@@ -22,6 +22,32 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * This client component provides a small subset of Monitor Management REST operations that
+ * can be called internally by other microservices in Salus.
+ *
+ * <p>
+ *   It is required that the {@link RestTemplate} provided to this instance has been
+ *   configured with the appropriate root URI for locating the monitor management service.
+ *   The following is an example of a configuration bean that does that:
+ * </p>
+ *
+ * <pre>
+ {@literal @}Configuration
+  public class RestClientsConfig {
+
+   {@literal @}Bean
+    public MonitorApi monitorApi(RestTemplateBuilder restTemplateBuilder) {
+      return new MonitorApiClient(
+        restTemplateBuilder
+        .rootUri("http://localhost:8089")
+        .build()
+      );
+    }
+  }
+  * </pre>
+ *
+ */
 public class MonitorApiClient implements MonitorApi {
 
   private static final ParameterizedTypeReference<List<BoundMonitor>> LIST_OF_BOUND_MONITOR = new ParameterizedTypeReference<List<BoundMonitor>>() {
