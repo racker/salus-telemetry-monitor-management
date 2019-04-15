@@ -80,6 +80,7 @@ public class MonitorManagement {
     private final BoundMonitorRepository boundMonitorRepository;
     private final ZoneStorage zoneStorage;
     private final MonitorEventProducer monitorEventProducer;
+    private final MonitorContentRenderer monitorContentRenderer;
     private final ZonesProperties zonesProperties;
 
     private final MonitorRepository monitorRepository;
@@ -99,6 +100,7 @@ public class MonitorManagement {
                              BoundMonitorRepository boundMonitorRepository,
                              ZoneStorage zoneStorage,
                              MonitorEventProducer monitorEventProducer,
+                             MonitorContentRenderer monitorContentRenderer,
                              RestTemplateBuilder restTemplateBuilder,
                              ServicesProperties servicesProperties,
                              ZonesProperties zonesProperties,
@@ -109,6 +111,7 @@ public class MonitorManagement {
         this.boundMonitorRepository = boundMonitorRepository;
         this.zoneStorage = zoneStorage;
         this.monitorEventProducer = monitorEventProducer;
+        this.monitorContentRenderer = monitorContentRenderer;
         this.zonesProperties = zonesProperties;
         this.restTemplate = restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl()).build();
         this.jdbcTemplate = jdbcTemplate;
