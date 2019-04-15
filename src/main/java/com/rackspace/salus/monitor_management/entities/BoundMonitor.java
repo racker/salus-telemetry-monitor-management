@@ -67,6 +67,14 @@ public class BoundMonitor implements Serializable {
   @Column(length = 100)
   String zone;
 
+  /**
+   * For remote monitors, this field must be non-empty to indicate to the assigned Envoy that
+   * the measurements are being collected on behalf of the target tenant rather than the tenant
+   * of the Envoy.
+   */
+  @NotNull
+  String targetTenant;
+
   @Id
   @NotNull
   @Column(length = 100)

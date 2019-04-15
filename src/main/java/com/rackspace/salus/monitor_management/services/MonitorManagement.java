@@ -274,6 +274,7 @@ public class MonitorManagement {
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor))
+            .setTargetTenant("")
             .setZone("");
     }
 
@@ -298,6 +299,7 @@ public class MonitorManagement {
             .setResourceId(resourceId)
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
+            .setTargetTenant(monitor.getTenantId())
             .setRenderedContent(renderMonitorContent(monitor));
     }
 
@@ -533,7 +535,6 @@ public class MonitorManagement {
                             .setMonitorName(resultSet.getString("monitor_name"))
                             .setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getString("selector_scope")))
                             .setAgentType(AgentType.valueOf(resultSet.getString("agent_type")))
-                            .setTargetTenant(resultSet.getString("target_tenant"))
                             .setLabels(theseLabels);
                     prevId = resultSet.getString("id");
                     prevMonitor = m;

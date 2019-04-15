@@ -591,6 +591,7 @@ public class MonitorManagementTest {
                     .setAgentType(AgentType.TELEGRAF)
                     .setRenderedContent("{}")
                     .setZone("")
+                    .setTargetTenant("")
             )
         );
 
@@ -642,6 +643,7 @@ public class MonitorManagementTest {
                 .setMonitorId(monitor.getId())
                 .setEnvoyId("zone1-e-1")
                 .setAgentType(AgentType.TELEGRAF)
+                .setTargetTenant("t-1")
                 .setRenderedContent("{}")
                 .setZone("zone1"),
             new BoundMonitor()
@@ -649,6 +651,7 @@ public class MonitorManagementTest {
                 .setMonitorId(monitor.getId())
                 .setEnvoyId("zone2-e-2")
                 .setAgentType(AgentType.TELEGRAF)
+                .setTargetTenant("t-1")
                 .setRenderedContent("{}")
                 .setZone("zone2")
         ));
@@ -696,6 +699,7 @@ public class MonitorManagementTest {
                 .setResourceId(DEFAULT_RESOURCE_ID)
                 .setMonitorId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setTargetTenant("t-1")
                 .setRenderedContent("{}")
                 .setZone("zone1")
         ));
