@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.samskivert.mustache.Escapers;
 import com.samskivert.mustache.Mustache;
@@ -23,6 +24,7 @@ import com.samskivert.mustache.Mustache.Compiler;
 import com.samskivert.mustache.Template;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,8 +34,9 @@ public class MonitorContentRenderer {
 
   private final Compiler mustacheCompiler;
 
-  public MonitorContentRenderer() {
-    mustacheCompiler = Mustache.compiler().withEscaper(Escapers.NONE);
+  @Autowired
+  public MonitorContentRenderer(MonitorContentProperties properties) {
+    mustacheCompiler = Mustache.compiler().withEscaper(Escapers.NONE).withDelims(properties.getPlaceholderDelimiters());
   }
 
   public String render(String rawContent, Resource resource) {

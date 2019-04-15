@@ -40,6 +40,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
@@ -98,7 +99,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @DataJpaTest
 @AutoConfigureWebClient
 @AutoConfigureMockRestServiceServer
-@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class, MonitorContentRenderer.class})
+@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
+    MonitorContentRenderer.class,
+    MonitorContentProperties.class})
 public class MonitorManagementTest {
 
     public static final String DEFAULT_ENVOY_ID = "env1";
@@ -645,7 +648,7 @@ public class MonitorManagementTest {
             .setLabels(Collections.singletonMap("os", "LINUX"))
             .setZones(Arrays.asList("zone1", "zone2"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("{\"type\": \"ping\", \"urls\": [\"{{resource.metadata.public_ip}}\"]}");
+            .setContent("{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}");
 
         monitorManagement.distributeNewMonitor(monitor);
 

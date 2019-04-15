@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.telemetry.model.Resource;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,10 +38,11 @@ public class MonitorContentRendererTest {
         .setLabels(labels)
         .setMetadata(metadata);
 
-    final MonitorContentRenderer renderer = new MonitorContentRenderer();
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
 
     assertThat(renderer.render(
-        "{\"type\": \"ping\", \"urls\": [\"{{resource.metadata.public_ip}}\"]}",
+        "{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}",
         resource
     ), equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
   }
