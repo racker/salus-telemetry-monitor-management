@@ -70,7 +70,7 @@ public class MonitorConversionService {
         throw new IllegalStateException("Failed to deserialize LocalPlugin");
       }
 
-      verifyPluginAgentType(monitor, localPlugin);
+      assertPluginAgentType(monitor, localPlugin);
 
       monitorDetails.setPlugin(localPlugin);
     } else if (selectorScope == ConfigSelectorScope.REMOTE) {
@@ -88,7 +88,7 @@ public class MonitorConversionService {
         throw new IllegalStateException("Failed to deserialize RemotePlugin");
       }
 
-      verifyPluginAgentType(monitor, remotePlugin);
+      assertPluginAgentType(monitor, remotePlugin);
 
       monitorDetails.setPlugin(remotePlugin);
     }
@@ -143,7 +143,7 @@ public class MonitorConversionService {
     }
   }
 
-  private void verifyPluginAgentType(Monitor monitor, Object plugin) {
+  private void assertPluginAgentType(Monitor monitor, Object plugin) {
     final ApplicableAgentType applicableAgentType = plugin.getClass()
         .getAnnotation(ApplicableAgentType.class);
     if (applicableAgentType == null) {
