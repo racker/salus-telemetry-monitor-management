@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -36,6 +37,7 @@ import static org.springframework.test.web.client.ExpectedCount.manyTimes;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
@@ -96,7 +98,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @DataJpaTest
 @AutoConfigureWebClient
 @AutoConfigureMockRestServiceServer
-@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class})
+@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class, MonitorContentRenderer.class})
 public class MonitorManagementTest {
 
     public static final String DEFAULT_ENVOY_ID = "env1";
@@ -599,7 +601,7 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testDistributeNewMonitor_remote() {
+    public void testDistributeNewMonitor_remote() throws JsonProcessingException {
         final ResolvedZone zone1 = new ResolvedZone()
             .setTenantId("t-1")
             .setId("zone1");
@@ -618,6 +620,23 @@ public class MonitorManagementTest {
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
 
+        final List<Resource> tenantResources = new ArrayList<>();
+        tenantResources.add(
+            new Resource().setResourceId("r-1")
+                .setLabels(Collections.singletonMap("os", "LINUX"))
+                .setMetadata(Collections.singletonMap("public_ip", "151.1.1.1"))
+        );
+        tenantResources.add(
+            new Resource().setResourceId("r-2")
+                .setLabels(Collections.singletonMap("os", "LINUX"))
+                .setMetadata(Collections.singletonMap("public_ip", "151.2.2.2"))
+        );
+        mockRestServer.reset();
+        mockRestServer.expect(requestTo(containsString("/resourceLabels")))
+            .andRespond(withSuccess(
+                objectMapper.writeValueAsString(tenantResources), MediaType.APPLICATION_JSON
+            ));
+
         Monitor monitor = new Monitor()
             .setId(UUID.randomUUID())
             .setTenantId("t-1")
@@ -626,7 +645,7 @@ public class MonitorManagementTest {
             .setLabels(Collections.singletonMap("os", "LINUX"))
             .setZones(Arrays.asList("zone1", "zone2"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("{}");
+            .setContent("{\"type\": \"ping\", \"urls\": [\"{{resource.metadata.public_ip}}\"]}");
 
         monitorManagement.distributeNewMonitor(monitor);
 
@@ -639,28 +658,44 @@ public class MonitorManagementTest {
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
-                .setResourceId(DEFAULT_RESOURCE_ID)
+                .setResourceId("r-1")
                 .setMonitorId(monitor.getId())
                 .setEnvoyId("zone1-e-1")
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
-                .setRenderedContent("{}")
+                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
                 .setZone("zone1"),
             new BoundMonitor()
-                .setResourceId(DEFAULT_RESOURCE_ID)
+                .setResourceId("r-1")
                 .setMonitorId(monitor.getId())
                 .setEnvoyId("zone2-e-2")
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
-                .setRenderedContent("{}")
+                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
+                .setZone("zone2"),
+            new BoundMonitor()
+                .setResourceId("r-2")
+                .setMonitorId(monitor.getId())
+                .setEnvoyId("zone1-e-1")
+                .setAgentType(AgentType.TELEGRAF)
+                .setTargetTenant("t-1")
+                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
+                .setZone("zone1"),
+            new BoundMonitor()
+                .setResourceId("r-2")
+                .setMonitorId(monitor.getId())
+                .setEnvoyId("zone2-e-2")
+                .setAgentType(AgentType.TELEGRAF)
+                .setTargetTenant("t-1")
+                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
                 .setZone("zone2")
         ));
 
-        verify(zoneStorage).findLeastLoadedEnvoy(zone1);
-        verify(zoneStorage).findLeastLoadedEnvoy(zone2);
+        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
+        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone2);
 
-        verify(zoneStorage).incrementBoundCount(zone1, "zone1-e-1");
-        verify(zoneStorage).incrementBoundCount(zone2, "zone2-e-2");
+        verify(zoneStorage, times(2)).incrementBoundCount(zone1, "zone1-e-1");
+        verify(zoneStorage, times(2)).incrementBoundCount(zone2, "zone2-e-2");
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }

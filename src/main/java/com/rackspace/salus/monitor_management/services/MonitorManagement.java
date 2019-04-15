@@ -38,6 +38,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -209,23 +210,23 @@ public class MonitorManagement {
     }
 
     void distributeNewMonitor(Monitor monitor) {
-        final List<String> resourceIds = getResourcesWithLabels(
+        final List<Resource> resources = getResourcesWithLabels(
             monitor.getTenantId(), monitor.getLabels());
 
-        log.debug("Distributing new monitor={} to resources={}", monitor, resourceIds);
+        log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
         final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
         if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
             // AGENT MONITOR
 
-            for (String resourceId : resourceIds) {
+            for (Resource resource : resources) {
                 final ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), resourceId)
+                    .getOne(monitor.getTenantId(), resource.getResourceId())
                     .join();
 
                 boundMonitors.add(
-                    bindAgentMonitor(monitor, resourceId, resourceInfo.getEnvoyId())
+                    bindAgentMonitor(monitor, resource, resourceInfo.getEnvoyId())
                 );
             }
 
@@ -234,10 +235,10 @@ public class MonitorManagement {
 
             final List<String> zones = determineMonitoringZones(monitor);
 
-            for (String resourceId : resourceIds) {
+            for (Resource resource : resources) {
                 for (String zone : zones) {
                     boundMonitors.add(
-                        bindRemoteMonitor(monitor, resourceId, zone)
+                        bindRemoteMonitor(monitor, resource, zone)
                     );
                 }
             }
@@ -270,18 +271,18 @@ public class MonitorManagement {
 
     }
 
-    private BoundMonitor bindAgentMonitor(Monitor monitor, String resourceId, String envoyId) {
+    private BoundMonitor bindAgentMonitor(Monitor monitor, Resource resource, String envoyId) {
         return new BoundMonitor()
             .setMonitorId(monitor.getId())
-            .setResourceId(resourceId)
+            .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
-            .setRenderedContent(renderMonitorContent(monitor))
+            .setRenderedContent(renderMonitorContent(monitor, resource))
             .setTargetTenant("")
             .setZone("");
     }
 
-    private BoundMonitor bindRemoteMonitor(Monitor monitor, String resourceId, String zone) {
+    private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
         final ResolvedZone resolvedZone = resolveZone(monitor.getTenantId(), zone);
 
         final Optional<String> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
@@ -299,16 +300,16 @@ public class MonitorManagement {
         return new BoundMonitor()
             .setZone(zone)
             .setMonitorId(monitor.getId())
-            .setResourceId(resourceId)
+            .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setTargetTenant(monitor.getTenantId())
-            .setRenderedContent(renderMonitorContent(monitor));
+            .setRenderedContent(renderMonitorContent(monitor, resource));
     }
 
-    private String renderMonitorContent(Monitor monitor) {
-        // TODO given the Resource, replace variable placeholders in content
-        return monitor.getContent();
+    private String renderMonitorContent(Monitor monitor,
+                                        Resource resource) {
+        return monitorContentRenderer.render(monitor.getContent(), resource);
     }
 
     private ResolvedZone resolveZone(String tenantId, String zone) {
@@ -339,8 +340,7 @@ public class MonitorManagement {
      * @param labels   labels to be matched
      * @return The list found
      */
-    private List<String> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
-        List<String> emptyList = new ArrayList<>();
+    private List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
         String endpoint = "/api/tenant/{tenantId}/resourceLabels";
         UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
         for (Map.Entry<String, String> e : labels.entrySet()) {
@@ -352,11 +352,9 @@ public class MonitorManagement {
                 });
         if (resp.getStatusCode() != HttpStatus.OK || resp.getBody() == null) {
             log.error("get failed on: " + uriString, resp.getStatusCode());
-            return emptyList;
+            return Collections.emptyList();
         }
-        return resp.getBody().stream()
-            .map(Resource::getResourceId)
-            .collect(Collectors.toList());
+        return resp.getBody();
     }
 
     /**
@@ -368,10 +366,10 @@ public class MonitorManagement {
      * @param oldLabels     the old labels that were on the monitor before if this is an update operation
      */
     void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
-        List<String> resources = getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels());
+        List<String> resources = extractResourceIds(getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels()));
         List<String> oldResources = new ArrayList<>();
         if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
-            oldResources = getResourcesWithLabels(monitor.getTenantId(), oldLabels);
+            oldResources = extractResourceIds(getResourcesWithLabels(monitor.getTenantId(), oldLabels));
         }
         resources.addAll(oldResources);
 
@@ -384,6 +382,12 @@ public class MonitorManagement {
                 sendMonitorEvent(monitor, operationType, resourceInfo.getEnvoyId());
             }
         }
+    }
+
+    private List<String> extractResourceIds(List<Resource> resources) {
+        return resources.stream()
+            .map(Resource::getResourceId)
+            .collect(Collectors.toList());
     }
 
     private void sendMonitorEvent(Monitor monitor,
