@@ -21,6 +21,7 @@ import com.rackspace.salus.telemetry.model.Resource;
 import com.samskivert.mustache.Escapers;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Mustache.Compiler;
+import com.samskivert.mustache.MustacheException;
 import com.samskivert.mustache.Template;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +46,10 @@ public class MonitorContentRenderer {
     final Map<String, Object> context = new HashMap<>();
     context.put(CTX_RESOURCE, resource);
 
-    return template.execute(context);
+    try {
+      return template.execute(context);
+    } catch (MustacheException e) {
+      throw new IllegalArgumentException("Unable to render monitor content template", e);
+    }
   }
 }
