@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.client;
 
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import java.util.List;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -50,7 +50,7 @@ import org.springframework.web.client.RestTemplate;
  */
 public class MonitorApiClient implements MonitorApi {
 
-  private static final ParameterizedTypeReference<List<BoundMonitor>> LIST_OF_BOUND_MONITOR = new ParameterizedTypeReference<List<BoundMonitor>>() {
+  private static final ParameterizedTypeReference<List<BoundMonitorDTO>> LIST_OF_BOUND_MONITOR = new ParameterizedTypeReference<List<BoundMonitorDTO>>() {
   };
   private final RestTemplate restTemplate;
 
@@ -59,7 +59,7 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public List<BoundMonitor> getBoundMonitors(String envoyId) {
+  public List<BoundMonitorDTO> getBoundMonitors(String envoyId) {
     return restTemplate.exchange(
         "/api/boundMonitors/{envoyId}",
         HttpMethod.GET,
