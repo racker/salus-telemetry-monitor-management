@@ -16,20 +16,15 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import lombok.Data;
-
-
-// This annotation doesn't work with podam
-//import javax.validation.constraints.NotBlank;
-import org.hibernate.validator.constraints.NotBlank;
-
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
-import com.rackspace.salus.telemetry.model.AgentType;
+import lombok.Data;
 
-import javax.validation.constraints.NotNull;
+// This annotation doesn't work with podam
+//import javax.validation.constraints.NotBlank;
 
 
 /**
@@ -49,8 +44,6 @@ public class MonitorCU implements Serializable {
     String content;
 
     AgentType agentType;
-
-    String targetTenant;
 
     ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
 

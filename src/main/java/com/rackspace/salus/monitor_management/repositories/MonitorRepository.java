@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model;
+package com.rackspace.salus.monitor_management.repositories;
 
-import java.util.List;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import com.rackspace.salus.telemetry.model.Monitor;
+import java.util.UUID;
+import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.stereotype.Repository;
 
-@Data
-@EqualsAndHashCode(callSuper = false)
-public class RemoteMonitorDetails extends MonitorDetails {
-  /**
-   * If not specified, a set of default zones will be used for remote monitoring.
-   */
-  List<String> monitoringZones;
-
-  @NotNull @Valid
-  RemotePlugin plugin;
+@Repository
+public interface MonitorRepository extends PagingAndSortingRepository<Monitor, UUID> {
 }

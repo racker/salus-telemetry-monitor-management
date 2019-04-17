@@ -14,38 +14,48 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management;
+package com.rackspace.salus.monitor_management.web.controller;
 
-import static org.junit.Assert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
 import static org.hamcrest.CoreMatchers.is;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.stringContainsInOrder;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
-import com.rackspace.salus.monitor_management.web.controller.MonitorApi;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -56,13 +66,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 /**
  * The benefits from these tests are strictly making sure that our routes are working correctly
  *
@@ -70,10 +73,10 @@ import java.util.stream.Stream;
  */
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(controllers = MonitorApi.class)
+@WebMvcTest(controllers = MonitorApiController.class)
 @AutoConfigureDataJpa
 @Import({MonitorConversionService.class})
-public class MonitorApiTest {
+public class MonitorApiControllerTest {
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -92,6 +95,8 @@ public class MonitorApiTest {
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
                 .thenReturn(monitor);
@@ -130,11 +135,7 @@ public class MonitorApiTest {
         // Use the APIs default Pageable settings
         int page = 0;
         int pageSize = 100;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
@@ -161,16 +162,24 @@ public class MonitorApiTest {
                 .andExpect(jsonPath("$.size", equalTo(pageSize)));
     }
 
+    private List<Monitor> createMonitors(int numberOfMonitors) {
+        List<Monitor> monitors = new ArrayList<>();
+        for (int i = 0; i < numberOfMonitors; i++) {
+            final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+            monitors.add(monitor);
+            monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            monitor.setAgentType(AgentType.TELEGRAF);
+            monitor.setContent("{\"type\":\"mem\"}");
+        }
+        return monitors;
+    }
+
     @Test
     public void testGetAllForTenantPagination() throws Exception {
         int numberOfMonitors = 99;
         int pageSize = 4;
         int page = 14;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        final List<Monitor> monitors = createMonitors(numberOfMonitors);
         int start = page * pageSize;
         int end = start + pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
@@ -204,6 +213,8 @@ public class MonitorApiTest {
     @Test
     public void testCreateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.createMonitor(anyString(), any()))
                 .thenReturn(monitor);
@@ -227,6 +238,8 @@ public class MonitorApiTest {
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.updateMonitor(anyString(), any(), any()))
                 .thenReturn(monitor);
@@ -253,11 +266,7 @@ public class MonitorApiTest {
         // Use the APIs default Pageable settings
         int page = 0;
         int pageSize = 100;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-            monitors.get(i).setContent("{\"type\":\"mem\"}");
-        }
+        final List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;
         Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),

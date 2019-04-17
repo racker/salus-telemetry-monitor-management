@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model;
+package com.rackspace.salus.monitor_management.repositories;
 
+import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import java.util.List;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import org.springframework.data.repository.CrudRepository;
 
-@Data
-@EqualsAndHashCode(callSuper = false)
-public class RemoteMonitorDetails extends MonitorDetails {
-  /**
-   * If not specified, a set of default zones will be used for remote monitoring.
-   */
-  List<String> monitoringZones;
+public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, BoundMonitor.PrimaryKey> {
 
-  @NotNull @Valid
-  RemotePlugin plugin;
+  List<BoundMonitor> findByEnvoyId(String envoyId);
 }

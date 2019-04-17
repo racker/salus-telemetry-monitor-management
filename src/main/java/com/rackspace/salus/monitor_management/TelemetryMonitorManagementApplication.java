@@ -21,12 +21,13 @@ import com.rackspace.salus.telemetry.etcd.EnableEtcd;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
 @EnableSalusKafkaMessaging
-@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
-@EntityScan("com.rackspace.salus.telemetry.model")
+@EntityScan({
+    "com.rackspace.salus.telemetry.model",
+    "com.rackspace.salus.monitor_management.entities"
+})
 @EnableEtcd
 public class TelemetryMonitorManagementApplication {
 

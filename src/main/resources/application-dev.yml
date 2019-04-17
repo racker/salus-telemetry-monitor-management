@@ -21,4 +21,3 @@ spring:
 logging:
   level:
     com.rackspace.salus: debug
-    org.hibernate.type: trace

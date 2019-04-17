@@ -46,3 +46,25 @@ curl localhost:8089/api/monitorsAsStream
 ```
 http DELETE localhost:8089/api/tenant/aaaaa/monitors/$MonitorId
 ```
+
+# REST client usage of Monitor Management
+
+Services that need to interact with Monitor Management's REST API can include the client dependency
+
+```xml
+  <dependency>
+      <groupId>com.rackspace.salus</groupId>
+      <artifactId>salus-telemetry-monitor-management</artifactId>
+      <version>${model-management.version}</version>
+      <classifier>client</classifier>
+      <exclusions>
+          <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+          </exclusion>
+      </exclusions>
+  </dependency>
+```
+
+A limited set of operations are implemented as a component in the 
+`com.rackspace.salus.monitor_management.web.client.MonitorManagementClient`
