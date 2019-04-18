@@ -39,7 +39,7 @@ public class MonitorCU implements Serializable {
 
     String monitorName;
 
-    Map<String,String> labels;
+    Map<String,String> labelSelector;
 
     String content;
 

@@ -81,7 +81,7 @@ public class MonitorConversionServiceTest {
         .setMonitorName("name-a")
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.ALL_OF)
-        .setLabels(labels)
+        .setLabelSelector(labels)
         .setContent(content);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -120,7 +120,7 @@ public class MonitorConversionServiceTest {
     final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
-    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.ALL_OF);
@@ -138,7 +138,7 @@ public class MonitorConversionServiceTest {
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.ALL_OF)
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -186,7 +186,7 @@ public class MonitorConversionServiceTest {
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.ALL_OF)
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -240,7 +240,7 @@ public class MonitorConversionServiceTest {
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.ALL_OF)
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -290,7 +290,7 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Collections.singletonList("z-1"))
-        .setLabels(labels)
+        .setLabelSelector(labels)
         .setContent(content);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -329,7 +329,7 @@ public class MonitorConversionServiceTest {
     final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
-    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);

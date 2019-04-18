@@ -30,7 +30,6 @@ import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.Monitor_;
@@ -198,7 +197,7 @@ public class MonitorManagement {
       Monitor monitor = new Monitor()
                 .setTenantId(tenantId)
                 .setMonitorName(newMonitor.getMonitorName())
-                .setLabels(newMonitor.getLabels())
+                .setLabelSelector(newMonitor.getLabelSelector())
                 .setContent(newMonitor.getContent())
                 .setAgentType(newMonitor.getAgentType())
                 .setSelectorScope(newMonitor.getSelectorScope())
@@ -211,7 +210,7 @@ public class MonitorManagement {
 
     void distributeNewMonitor(Monitor monitor) {
         final List<Resource> resources = getResourcesWithLabels(
-            monitor.getTenantId(), monitor.getLabels());
+            monitor.getTenantId(), monitor.getLabelSelector());
 
         log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
@@ -366,9 +365,9 @@ public class MonitorManagement {
      * @param oldLabels     the old labels that were on the monitor before if this is an update operation
      */
     void publishMonitor(Monitor monitor, OperationType operationType, Map<String, String> oldLabels) {
-        List<String> resources = extractResourceIds(getResourcesWithLabels(monitor.getTenantId(), monitor.getLabels()));
+        List<String> resources = extractResourceIds(getResourcesWithLabels(monitor.getTenantId(), monitor.getLabelSelector()));
         List<String> oldResources = new ArrayList<>();
-        if (oldLabels != null && !oldLabels.equals(monitor.getLabels())) {
+        if (oldLabels != null && !oldLabels.equals(monitor.getLabelSelector())) {
             oldResources = extractResourceIds(getResourcesWithLabels(monitor.getTenantId(), oldLabels));
         }
         resources.addAll(oldResources);
@@ -414,11 +413,11 @@ public class MonitorManagement {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
         }
-        Map<String, String> oldLabels = monitor.getLabels();
+        Map<String, String> oldLabels = monitor.getLabelSelector();
         PropertyMapper map = PropertyMapper.get();
-        map.from(updatedValues.getLabels())
+        map.from(updatedValues.getLabelSelector())
                 .whenNonNull()
-                .to(monitor::setLabels);
+                .to(monitor::setLabelSelector);
         map.from(updatedValues.getContent())
                 .whenNonNull()
                 .to(monitor::setContent);
@@ -500,16 +499,16 @@ public class MonitorManagement {
 
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);
-        StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_labels AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
-        builder.append("(SELECT id from monitor_labels WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
-        builder.append("monitors.id IN (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_labels WHERE ");
+        StringBuilder builder = new StringBuilder("SELECT * FROM monitors JOIN monitor_label_selectors AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
+        builder.append("(SELECT id from monitor_label_selectors WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+        builder.append("monitors.id IN (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_label_selectors GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_label_selectors WHERE ");
         int i = 0;
         labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
             if(i > 0) {
                 builder.append(" OR ");
             }
-            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            builder.append("(label_selector = :label"+ i +" AND label_selector_key = :labelKey" + i + ")");
             paramSource.addValue("label"+i, entry.getValue());
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
@@ -520,37 +519,15 @@ public class MonitorManagement {
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-        List<Monitor> monitors = new ArrayList<>();
-        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
-            String prevId = "";
-            Monitor prevMonitor = null;
+        final List<UUID> monitorIds = namedParameterTemplate.query(builder.toString(), paramSource,
+            (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
+        );
 
-            do{
-                if(resultSet.getString("id").compareTo(prevId) == 0) {
-                    prevMonitor.getLabels().put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                }else {
-                    Map<String, String> theseLabels = new HashMap<>();
-                    theseLabels.put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                    Monitor m = new Monitor()
-                            .setId(UUID.fromString(resultSet.getString("id")))
-                            .setTenantId(resultSet.getString("tenant_id"))
-                            .setContent(resultSet.getString("content"))
-                            .setMonitorName(resultSet.getString("monitor_name"))
-                            .setSelectorScope(ConfigSelectorScope.valueOf(resultSet.getString("selector_scope")))
-                            .setAgentType(AgentType.valueOf(resultSet.getString("agent_type")))
-                            .setLabels(theseLabels);
-                    prevId = resultSet.getString("id");
-                    prevMonitor = m;
-                    monitors.add(m);
-
-                }
-            } while(resultSet.next());
-        });
-
+        final List<Monitor> monitors = new ArrayList<>();
+        // use JPA to retrieve and resolve the Monitor objects and then convert Iterable result to list
+        for (Monitor monitor : monitorRepository.findAllById(monitorIds)) {
+            monitors.add(monitor);
+        }
         return monitors;
     }
 }

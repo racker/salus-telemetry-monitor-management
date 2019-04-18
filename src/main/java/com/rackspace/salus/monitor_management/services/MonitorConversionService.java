@@ -52,7 +52,7 @@ public class MonitorConversionService {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId(monitor.getId().toString())
         .setName(monitor.getMonitorName())
-        .setLabelSelector(monitor.getLabels());
+        .setLabelSelector(monitor.getLabelSelector());
 
     final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
 
@@ -99,7 +99,7 @@ public class MonitorConversionService {
   public MonitorCU convertFromInput(DetailedMonitorInput input) {
     final MonitorCU monitor = new MonitorCU()
         .setMonitorName(input.getName())
-        .setLabels(input.getLabelSelector());
+        .setLabelSelector(input.getLabelSelector());
 
     final MonitorDetails details = input.getDetails();
 
