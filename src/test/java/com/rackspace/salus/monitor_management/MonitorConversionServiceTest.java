@@ -89,7 +89,7 @@ public class MonitorConversionServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitorId.toString());
     assertThat(result.getName()).isEqualTo("name-a");
-    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
     final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
@@ -115,7 +115,7 @@ public class MonitorConversionServiceTest {
 
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setName("name-a")
-        .setLabels(labels)
+        .setLabelSelector(labels)
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 
@@ -168,7 +168,7 @@ public class MonitorConversionServiceTest {
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 
@@ -222,7 +222,7 @@ public class MonitorConversionServiceTest {
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 
@@ -266,7 +266,7 @@ public class MonitorConversionServiceTest {
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
-        .setLabels(Collections.singletonMap("os","linux"))
+        .setLabelSelector(Collections.singletonMap("os","linux"))
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 
@@ -298,7 +298,7 @@ public class MonitorConversionServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitorId.toString());
     assertThat(result.getName()).isEqualTo("name-a");
-    assertThat(result.getLabels()).isEqualTo(labels);
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
 
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
@@ -324,7 +324,7 @@ public class MonitorConversionServiceTest {
 
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setName("name-a")
-        .setLabels(labels)
+        .setLabelSelector(labels)
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 

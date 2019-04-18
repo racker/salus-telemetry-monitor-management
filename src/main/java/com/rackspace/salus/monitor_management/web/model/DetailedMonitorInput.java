@@ -20,15 +20,18 @@ import java.util.Map;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-
 import lombok.Data;
 
 @Data
 public class DetailedMonitorInput {
   String name;
 
+  /**
+   * This key-value mapping of labels specifies what resources will be monitored by this monitor.
+   * For a resource to be selected, it must contain at least all of the labels given here.
+   */
   @NotEmpty
-  Map<String,String> labels;
+  Map<String,String> labelSelector;
 
   @NotNull @Valid
   MonitorDetails details;

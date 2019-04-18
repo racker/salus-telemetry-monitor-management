@@ -25,6 +25,6 @@ import lombok.Data;
 public class DetailedMonitorOutput {
     String id;
     String name;
-    Map<String,String> labels;
+    Map<String,String> labelSelector;
     MonitorDetails details;
 }
