@@ -23,7 +23,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -67,14 +67,14 @@ public class MonitorApiClientTest {
     final UUID id2 = UUID.fromString("16caf730-48e8-47ba-0002-aa9babba8953");
     final UUID id3 = UUID.fromString("16caf730-48e8-47ba-0003-aa9babba8953");
 
-    final List<BoundMonitor> givenBoundMonitors = Arrays.asList(
-        new BoundMonitor()
+    final List<BoundMonitorDTO> givenBoundMonitors = Arrays.asList(
+        new BoundMonitorDTO()
             .setMonitorId(id1)
             .setRenderedContent("{\"instance\":1, \"state\":1}"),
-        new BoundMonitor()
+        new BoundMonitorDTO()
             .setMonitorId(id2)
             .setRenderedContent("{\"instance\":2, \"state\":1}"),
-        new BoundMonitor()
+        new BoundMonitorDTO()
             .setMonitorId(id3)
             .setRenderedContent("{\"instance\":3, \"state\":1}")
     );
@@ -82,7 +82,7 @@ public class MonitorApiClientTest {
     mockServer.expect(requestTo("/api/boundMonitors/e-1"))
         .andRespond(withSuccess(objectMapper.writeValueAsString(givenBoundMonitors), MediaType.APPLICATION_JSON));
 
-    final List<BoundMonitor> boundMonitors = monitorApiClient.getBoundMonitors("e-1");
+    final List<BoundMonitorDTO> boundMonitors = monitorApiClient.getBoundMonitors("e-1");
     assertThat(boundMonitors, equalTo(givenBoundMonitors));
   }
 }

@@ -16,11 +16,12 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.client.MonitorApi;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -58,14 +60,17 @@ public class MonitorApiController implements MonitorApi {
     private final BoundMonitorRepository boundMonitorRepository;
     private TaskExecutor taskExecutor;
     private MonitorConversionService monitorConversionService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public MonitorApiController(MonitorManagement monitorManagement, BoundMonitorRepository boundMonitorRepository,
-                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService) {
+                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService,
+                                ObjectMapper objectMapper) {
         this.monitorManagement = monitorManagement;
         this.boundMonitorRepository = boundMonitorRepository;
         this.taskExecutor = taskExecutor;
         this.monitorConversionService = monitorConversionService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/monitors")
@@ -96,8 +101,11 @@ public class MonitorApiController implements MonitorApi {
 
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
-    public List<BoundMonitor> getBoundMonitors(@PathVariable String envoyId) {
-        return boundMonitorRepository.findByEnvoyId(envoyId);
+    public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
+        return boundMonitorRepository.findByEnvoyId(envoyId).stream()
+            .map(boundMonitor ->
+                objectMapper.convertValue(boundMonitor, BoundMonitorDTO.class))
+            .collect(Collectors.toList());
     }
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
