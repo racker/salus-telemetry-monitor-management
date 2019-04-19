@@ -162,7 +162,7 @@ public class MonitorManagementTest {
         Monitor monitor = new Monitor()
                 .setTenantId("abcde")
                 .setMonitorName("mon1")
-                .setLabels(Collections.singletonMap("os", "LINUX"))
+                .setLabelSelector(Collections.singletonMap("os", "LINUX"))
                 .setContent("content1")
                 .setAgentType(AgentType.FILEBEAT);
         monitorRepository.save(monitor);
@@ -223,7 +223,7 @@ public class MonitorManagementTest {
         Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
 
         assertThat(r.getId(), notNullValue());
-        assertThat(r.getLabels(), hasEntry("os", "LINUX"));
+        assertThat(r.getLabelSelector(), hasEntry("os", "LINUX"));
         assertThat(r.getContent(), equalTo(currentMonitor.getContent()));
         assertThat(r.getAgentType(), equalTo(currentMonitor.getAgentType()));
     }
@@ -241,13 +241,13 @@ public class MonitorManagementTest {
         assertThat(returned.getContent(), equalTo(create.getContent()));
         assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
 
-        assertThat(returned.getLabels().size(), greaterThan(0));
-        assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
+        assertThat(returned.getLabelSelector().size(), greaterThan(0));
+        assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
 
         Monitor retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
 
         assertThat(retrieved.getMonitorName(), equalTo(returned.getMonitorName()));
-        assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
+        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.getLabelSelector()).areEqual());
     }
 
 
@@ -307,11 +307,11 @@ public class MonitorManagementTest {
     @Test
     public void testUpdateExistingMonitor() {
         Monitor monitor = monitorManagement.getAllMonitors(PageRequest.of(0, 1)).getContent().get(0);
-        Map<String, String> newLabels = new HashMap<>(monitor.getLabels());
+        Map<String, String> newLabels = new HashMap<>(monitor.getLabelSelector());
         newLabels.put("newLabel", "newValue");
         MonitorCU update = new MonitorCU();
 
-        update.setLabels(newLabels).setContent("newContent");
+        update.setLabelSelector(newLabels).setContent("newContent");
 
         Monitor newMonitor;
         try {
@@ -324,7 +324,7 @@ public class MonitorManagementTest {
             return;
         }
 
-        assertThat(newMonitor.getLabels(), equalTo(monitor.getLabels()));
+        assertThat(newMonitor.getLabelSelector(), equalTo(monitor.getLabelSelector()));
         assertThat(newMonitor.getId(), equalTo(monitor.getId()));
         assertThat(newMonitor.getContent(), equalTo(monitor.getContent()));
     }
@@ -356,7 +356,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testPublishMonitor() {
-        monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabels());
+        monitorManagement.publishMonitor(currentMonitor, OperationType.UPDATE, currentMonitor.getLabelSelector());
         verify(monitorEventProducer).sendMonitorEvent(monitorEvent);
 
     }
@@ -367,7 +367,7 @@ public class MonitorManagementTest {
         labels.put("os", "DARWIN");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -385,7 +385,7 @@ public class MonitorManagementTest {
         queryLabels.put("os", "linux");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -399,7 +399,7 @@ public class MonitorManagementTest {
         final Map<String, String> labels = new HashMap<>();
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -413,7 +413,7 @@ public class MonitorManagementTest {
         labels.put("key", "value");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
@@ -428,7 +428,7 @@ public class MonitorManagementTest {
         assertEquals(create.getContent(), monitors.get(0).getContent());
         assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
         assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabels(), monitors.get(0).getLabels());
+        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
     }
 
     @Test
@@ -438,7 +438,7 @@ public class MonitorManagementTest {
         labels.put("env", "test");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -451,7 +451,7 @@ public class MonitorManagementTest {
         assertEquals(create.getContent(), monitors.get(0).getContent());
         assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
         assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabels(), monitors.get(0).getLabels());
+        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
     }
 
     @Test
@@ -465,7 +465,7 @@ public class MonitorManagementTest {
         queryLabels.put("env", "test");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(labels);
+        create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -487,7 +487,7 @@ public class MonitorManagementTest {
         labels.put("env", "test");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(monitorLabels);
+        create.setLabelSelector(monitorLabels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -509,7 +509,7 @@ public class MonitorManagementTest {
         labels.put("env", "test");
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(monitorLabels);
+        create.setLabelSelector(monitorLabels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -532,7 +532,7 @@ public class MonitorManagementTest {
 
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(monitorLabels);
+        create.setLabelSelector(monitorLabels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -545,7 +545,7 @@ public class MonitorManagementTest {
         assertEquals(create.getContent(), monitors.get(0).getContent());
         assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
         assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabels(), monitors.get(0).getLabels());
+        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
     }
 
     public void testMisMatchResourceWithSubsetOfLabels() {
@@ -560,7 +560,7 @@ public class MonitorManagementTest {
 
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabels(monitorLabels);
+        create.setLabelSelector(monitorLabels);
         create.setSelectorScope(ConfigSelectorScope.ALL_OF);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -577,7 +577,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.ALL_OF)
-            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
 
@@ -645,7 +645,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
             .setZones(Arrays.asList("zone1", "zone2"))
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}");
@@ -721,7 +721,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
             // NOTE only one zone used in this test
             .setZones(Collections.singletonList("zone1"))
             .setAgentType(AgentType.TELEGRAF)
