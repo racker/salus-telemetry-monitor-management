@@ -70,6 +70,7 @@ public class BoundMonitor implements Serializable {
   /**
    * Contains the tenant that owns the private zone or an empty string for public zones.
    */
+  @NotNull
   @Column(length = 100)
   String zoneTenantId;
 
@@ -78,6 +79,7 @@ public class BoundMonitor implements Serializable {
    * For local monitors, this field is an empty string.
    */
   @Id
+  @NotNull
   @Column(length = 100)
   String zoneId;
 

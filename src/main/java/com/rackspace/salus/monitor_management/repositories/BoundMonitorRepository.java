@@ -25,6 +25,9 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
 
   List<BoundMonitor> findByEnvoyId(String envoyId);
 
-  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zone = :zone and envoyId is null")
-  List<BoundMonitor> findOnesWithoutEnvoy(String zoneTenantId, String zone);
+  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId is null")
+  List<BoundMonitor> findOnesWithoutEnvoy(String zoneTenantId, String zoneId);
+
+  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId = :envoyId")
+  List<BoundMonitor> findOnesWithEnvoy(String zoneTenantId, String zoneId, String envoyId);
 }

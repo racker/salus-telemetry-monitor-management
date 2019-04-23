@@ -597,6 +597,8 @@ public class MonitorManagementTest {
                     .setAgentType(AgentType.TELEGRAF)
                     .setRenderedContent("{}")
                     .setTargetTenant("")
+                    .setZoneTenantId("")
+                    .setZoneId("")
             )
         );
 
@@ -673,6 +675,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
+                .setZoneTenantId("")
                 .setZoneId("public/west"),
             new BoundMonitor()
                 .setResourceId("r-2")
@@ -690,6 +693,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
+                .setZoneTenantId("")
                 .setZoneId("public/west")
         ));
 
@@ -738,6 +742,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{}")
+                .setZoneTenantId("t-1")
                 .setZoneId("zone1")
         ));
 
@@ -799,6 +804,98 @@ public class MonitorManagementTest {
                 .setResourceId("r-2")
                 .setEnvoyId("e-1")
         ));
+
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testHandleZoneResourceChanged_privateZone() {
+        List<BoundMonitor> boundMonitors = Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-2"),
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-3")
+        );
+
+        when(boundMonitorRepository.findOnesWithEnvoy(any(), any(), any()))
+            .thenReturn(boundMonitors);
+
+        monitorManagement.handleZoneResourceChanged("t-1", "z-1", "e-1", "e-2");
+
+        verify(boundMonitorRepository).findOnesWithEnvoy("t-1", "z-1", "e-1");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-2"),
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-3")
+        ));
+
+        verify(zoneStorage).incrementBoundCount(
+            new ResolvedZone().setTenantId("t-1").setId("z-1"),
+            "e-2",
+            3
+        );
+
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setEnvoyId("e-2"));
+
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testHandleZoneResourceChanged_publicZone() {
+        List<BoundMonitor> boundMonitors = Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-2"),
+            new BoundMonitor()
+                .setEnvoyId("e-1")
+                .setResourceId("r-3")
+        );
+
+        when(boundMonitorRepository.findOnesWithEnvoy(any(), any(), any()))
+            .thenReturn(boundMonitors);
+
+        // The main thing being tested is that a null zone tenant ID
+        monitorManagement.handleZoneResourceChanged(null, "public/1", "e-1", "e-2");
+
+        // ...gets normalized into an empty string for the query
+        verify(boundMonitorRepository).findOnesWithEnvoy("", "public/1", "e-1");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-2"),
+            new BoundMonitor()
+                .setEnvoyId("e-2")
+                .setResourceId("r-3")
+        ));
+
+        verify(zoneStorage).incrementBoundCount(
+            new ResolvedZone().setId("public/1"),
+            "e-2",
+            3
+        );
+
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setEnvoyId("e-2"));
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }

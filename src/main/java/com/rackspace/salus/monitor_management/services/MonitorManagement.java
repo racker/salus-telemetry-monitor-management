@@ -255,6 +255,13 @@ public class MonitorManagement {
         }
     }
 
+    private void sendMonitorBoundEvent(String envoyId) {
+        monitorEventProducer.sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId(envoyId)
+        );
+    }
+
     private void sendMonitorBoundEvents(List<BoundMonitor> boundMonitors) {
         // Convert and reduce the given bound monitors into one distinct event per envoy ID
         final List<MonitorBoundEvent> events = boundMonitors.stream()
@@ -282,7 +289,9 @@ public class MonitorManagement {
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor, resource))
-            .setTargetTenant("");
+            .setTargetTenant("")
+            .setZoneTenantId("")
+            .setZoneId("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
@@ -301,7 +310,7 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(resolvedZone.getTenantId())
+            .setZoneTenantId(emptyStringForNull(resolvedZone.getTenantId()))
             .setZoneId(zone)
             .setMonitorId(monitor.getId())
             .setResourceId(resource.getResourceId())
@@ -309,6 +318,10 @@ public class MonitorManagement {
             .setAgentType(monitor.getAgentType())
             .setTargetTenant(monitor.getTenantId())
             .setRenderedContent(renderMonitorContent(monitor, resource));
+    }
+
+    private static String emptyStringForNull(String input) {
+        return input == null ? "" : input;
     }
 
     public void handleNewResourceInZone(String zoneTenantId, String zoneId) {
@@ -337,6 +350,37 @@ public class MonitorManagement {
             boundMonitorRepository.saveAll(assigned);
 
             sendMonitorBoundEvents(assigned);
+        }
+    }
+
+    public void handleZoneResourceChanged(String tenantId, String zoneId, String fromEnvoyId,
+                                          String toEnvoyId) {
+
+        final List<BoundMonitor> boundToPrev = boundMonitorRepository.findOnesWithEnvoy(
+            emptyStringForNull(tenantId),
+            zoneId,
+            fromEnvoyId
+        );
+
+        if (!boundToPrev.isEmpty()) {
+            log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
+            for (BoundMonitor boundMonitor : boundToPrev) {
+                boundMonitor.setEnvoyId(toEnvoyId);
+            }
+
+            boundMonitorRepository.saveAll(boundToPrev);
+
+            zoneStorage.incrementBoundCount(
+                new ResolvedZone().setTenantId(tenantId)
+                .setId(zoneId),
+                toEnvoyId,
+                boundToPrev.size()
+            );
+
+            sendMonitorBoundEvent(toEnvoyId);
+        }
+        else {
+            log.debug("No bound monitors were previously assigned to envoy={}", fromEnvoyId);
         }
     }
 

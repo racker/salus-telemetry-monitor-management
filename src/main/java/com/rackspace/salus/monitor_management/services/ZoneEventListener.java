@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
+import com.rackspace.salus.telemetry.messaging.ZoneEnvoyOfResourceChangedEvent;
 import com.rackspace.salus.telemetry.messaging.ZoneEvent;
 import com.rackspace.salus.telemetry.messaging.ZoneNewResourceEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class ZoneEventListener {
 
   @KafkaListener(topics = "#{__listener.topic}")
   public void handleEvent(ZoneEvent zoneEvent) {
+    log.debug("Handling zone event={}", zoneEvent);
 
     if (zoneEvent instanceof ZoneNewResourceEvent) {
       final ZoneNewResourceEvent event = (ZoneNewResourceEvent) zoneEvent;
@@ -50,9 +52,16 @@ public class ZoneEventListener {
           event.getTenantId(),
           event.getZoneId()
       );
-    }
-    else {
-      //TODO implement conditions are new event types are added
+    } else if (zoneEvent instanceof ZoneEnvoyOfResourceChangedEvent) {
+      final ZoneEnvoyOfResourceChangedEvent event = (ZoneEnvoyOfResourceChangedEvent) zoneEvent;
+
+      monitorManagement.handleZoneResourceChanged(
+          event.getTenantId(),
+          event.getZoneId(),
+          event.getFromEnvoyId(),
+          event.getToEnvoyId()
+      );
+    } else {
       log.warn("Discarding unknown ZoneEvent={}", zoneEvent);
     }
   }
