@@ -32,16 +32,6 @@ public class ResourceEventListener {
         return this.topic;
     }
 
-
-    /*
-    So basically what I need to do is this:
-    identify what events will be coming in.
-    Create functions for each of those events. They might all be under the same topic so I will need to filter somehow.
-     */
-
-
-
-
     /**
      * This receives a resource event from Kafka and passes it to the monitor manager to do whatever is needed.
      * @param resourceEvent The ResourceEvent read from Kafka.

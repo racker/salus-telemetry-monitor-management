@@ -248,21 +248,26 @@ public class MonitorManagement {
             log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
             boundMonitorRepository.saveAll(boundMonitors);
 
-            sendMonitorBoundEvents(OperationType.CREATE, boundMonitors);
+            sendMonitorBoundEvents(boundMonitors);
         }
         else {
             log.debug("No monitors were bound from monitor={}", monitor);
         }
     }
 
-    private void sendMonitorBoundEvents(OperationType operationType,
-                                        List<BoundMonitor> boundMonitors) {
-        final Set<MonitorBoundEvent> events = boundMonitors.stream()
+    private void sendMonitorBoundEvents(List<BoundMonitor> boundMonitors) {
+        // Convert and reduce the given bound monitors into one distinct event per envoy ID
+        final List<MonitorBoundEvent> events = boundMonitors.stream()
+            // ...only assigned ones
             .filter(boundMonitor -> boundMonitor.getEnvoyId() != null)
-            .map(boundMonitor -> new MonitorBoundEvent()
-            .setEnvoyId(boundMonitor.getEnvoyId())
-            .setOperationType(operationType))
-            .collect(Collectors.toSet());
+            // ...extract envoy ID
+            .map(BoundMonitor::getEnvoyId)
+            // ...remove dupes
+            .distinct()
+            // ...create events
+            .map(envoyId -> new MonitorBoundEvent()
+                .setEnvoyId(envoyId))
+            .collect(Collectors.toList());
 
         for (MonitorBoundEvent event : events) {
             monitorEventProducer.sendMonitorEvent(event);
@@ -277,8 +282,7 @@ public class MonitorManagement {
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor, resource))
-            .setTargetTenant("")
-            .setZone("");
+            .setTargetTenant("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
@@ -297,13 +301,43 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZone(zone)
+            .setZoneTenantId(resolvedZone.getTenantId())
+            .setZoneId(zone)
             .setMonitorId(monitor.getId())
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setAgentType(monitor.getAgentType())
             .setTargetTenant(monitor.getTenantId())
             .setRenderedContent(renderMonitorContent(monitor, resource));
+    }
+
+    public void handleNewResourceInZone(String zoneTenantId, String zoneId) {
+        log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
+            zoneId, zoneTenantId);
+
+        final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
+
+        final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
+            .findOnesWithoutEnvoy(zoneTenantId, zoneId);
+
+        final List<BoundMonitor> assigned = new ArrayList<>(onesWithoutEnvoy.size());
+
+        for (BoundMonitor boundMonitor : onesWithoutEnvoy) {
+
+            final Optional<String> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+            if (result.isPresent()) {
+                boundMonitor.setEnvoyId(result.get());
+                assigned.add(boundMonitor);
+            }
+        }
+
+        if (!assigned.isEmpty()) {
+            log.debug("Assigned existing bound monitors to envoys: {}", assigned);
+
+            boundMonitorRepository.saveAll(assigned);
+
+            sendMonitorBoundEvents(assigned);
+        }
     }
 
     private String renderMonitorContent(Monitor monitor,

@@ -63,9 +63,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -584,7 +586,6 @@ public class MonitorManagementTest {
         monitorManagement.distributeNewMonitor(monitor);
 
         verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setOperationType(OperationType.CREATE)
             .setEnvoyId(DEFAULT_ENVOY_ID));
 
         verify(boundMonitorRepository).saveAll(
@@ -595,7 +596,6 @@ public class MonitorManagementTest {
                     .setEnvoyId(DEFAULT_ENVOY_ID)
                     .setAgentType(AgentType.TELEGRAF)
                     .setRenderedContent("{}")
-                    .setZone("")
                     .setTargetTenant("")
             )
         );
@@ -608,17 +608,16 @@ public class MonitorManagementTest {
         final ResolvedZone zone1 = new ResolvedZone()
             .setTenantId("t-1")
             .setId("zone1");
-        final ResolvedZone zone2 = new ResolvedZone()
-            .setTenantId("t-1")
-            .setId("zone2");
+        final ResolvedZone zoneWest = new ResolvedZone()
+            .setId("public/west");
 
         when(zoneStorage.findLeastLoadedEnvoy(zone1))
             .thenReturn(CompletableFuture.completedFuture(
                 Optional.of("zone1-e-1")
             ));
-        when(zoneStorage.findLeastLoadedEnvoy(zone2))
+        when(zoneStorage.findLeastLoadedEnvoy(zoneWest))
             .thenReturn(CompletableFuture.completedFuture(
-                Optional.of("zone2-e-2")
+                Optional.of("zoneWest-e-2")
             ));
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
@@ -646,18 +645,16 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setLabelSelector(Collections.singletonMap("os", "LINUX"))
-            .setZones(Arrays.asList("zone1", "zone2"))
+            .setZones(Arrays.asList("zone1", "public/west"))
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}");
 
         monitorManagement.distributeNewMonitor(monitor);
 
         verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setOperationType(OperationType.CREATE)
             .setEnvoyId("zone1-e-1"));
         verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setOperationType(OperationType.CREATE)
-            .setEnvoyId("zone2-e-2"));
+            .setEnvoyId("zoneWest-e-2"));
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -667,15 +664,16 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZone("zone1"),
+                .setZoneTenantId("t-1")
+                .setZoneId("zone1"),
             new BoundMonitor()
                 .setResourceId("r-1")
                 .setMonitorId(monitor.getId())
-                .setEnvoyId("zone2-e-2")
+                .setEnvoyId("zoneWest-e-2")
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZone("zone2"),
+                .setZoneId("public/west"),
             new BoundMonitor()
                 .setResourceId("r-2")
                 .setMonitorId(monitor.getId())
@@ -683,22 +681,23 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZone("zone1"),
+                .setZoneTenantId("t-1")
+                .setZoneId("zone1"),
             new BoundMonitor()
                 .setResourceId("r-2")
                 .setMonitorId(monitor.getId())
-                .setEnvoyId("zone2-e-2")
+                .setEnvoyId("zoneWest-e-2")
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZone("zone2")
+                .setZoneId("public/west")
         ));
 
         verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
-        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone2);
+        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zoneWest);
 
         verify(zoneStorage, times(2)).incrementBoundCount(zone1, "zone1-e-1");
-        verify(zoneStorage, times(2)).incrementBoundCount(zone2, "zone2-e-2");
+        verify(zoneStorage, times(2)).incrementBoundCount(zoneWest, "zoneWest-e-2");
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }
@@ -739,11 +738,68 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setTargetTenant("t-1")
                 .setRenderedContent("{}")
-                .setZone("zone1")
+                .setZoneId("zone1")
         ));
 
         // ...and no MonitorBoundEvent was sent
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }
 
+    @Test
+    public void testHandleNewResourceInZone() {
+        // simulate that three in zone are needing envoys
+        List<BoundMonitor> unassignedOnes = Arrays.asList(
+            new BoundMonitor()
+                .setResourceId("r-1"),
+            new BoundMonitor()
+                .setResourceId("r-2"),
+            new BoundMonitor()
+                .setResourceId("r-3")
+        );
+
+        // but only one envoy is available
+        Queue<String> availableEnvoys = new LinkedList<>();
+        availableEnvoys.add("e-1");
+        // ...same envoy again to verify de-duping
+        availableEnvoys.add("e-1");
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .then(invocationOnMock -> {
+                final Optional<String> result;
+                if (availableEnvoys.isEmpty()) {
+                    result = Optional.empty();
+                } else {
+                    result = Optional.of(availableEnvoys.remove());
+                }
+                return CompletableFuture.completedFuture(result);
+            });
+
+        when(boundMonitorRepository.findOnesWithoutEnvoy(any(), any()))
+            .thenReturn(unassignedOnes);
+
+        monitorManagement.handleNewResourceInZone("t-1", "z-1");
+
+        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+            new ResolvedZone()
+                .setTenantId("t-1")
+                .setId("z-1")
+        );
+
+        // two assignments to same envoy, but verify only one event
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setEnvoyId("e-1"));
+
+        verify(boundMonitorRepository).findOnesWithoutEnvoy("t-1", "z-1");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setResourceId("r-1")
+                .setEnvoyId("e-1"),
+            new BoundMonitor()
+                .setResourceId("r-2")
+                .setEnvoyId("e-1")
+        ));
+
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
 }
