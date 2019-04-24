@@ -284,12 +284,10 @@ public class MonitorManagement {
 
     private BoundMonitor bindAgentMonitor(Monitor monitor, Resource resource, String envoyId) {
         return new BoundMonitor()
-            .setMonitorId(monitor.getId())
+            .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
-            .setAgentType(monitor.getAgentType())
             .setRenderedContent(renderMonitorContent(monitor, resource))
-            .setTargetTenant("")
             .setZoneTenantId("")
             .setZoneId("");
     }
@@ -312,11 +310,9 @@ public class MonitorManagement {
         return new BoundMonitor()
             .setZoneTenantId(emptyStringForNull(resolvedZone.getTenantId()))
             .setZoneId(zone)
-            .setMonitorId(monitor.getId())
+            .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
-            .setAgentType(monitor.getAgentType())
-            .setTargetTenant(monitor.getTenantId())
             .setRenderedContent(renderMonitorContent(monitor, resource));
     }
 
@@ -324,7 +320,7 @@ public class MonitorManagement {
         return input == null ? "" : input;
     }
 
-    public void handleNewResourceInZone(String zoneTenantId, String zoneId) {
+    public void handleNewEnvoyInZone(String zoneTenantId, String zoneId) {
         log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
             zoneId, zoneTenantId);
 
@@ -353,8 +349,8 @@ public class MonitorManagement {
         }
     }
 
-    public void handleZoneResourceChanged(String tenantId, String zoneId, String fromEnvoyId,
-                                          String toEnvoyId) {
+    public void handleEnvoyResourceChangedInZone(String tenantId, String zoneId, String fromEnvoyId,
+                                                 String toEnvoyId) {
 
         final List<BoundMonitor> boundToPrev = boundMonitorRepository.findOnesWithEnvoy(
             emptyStringForNull(tenantId),

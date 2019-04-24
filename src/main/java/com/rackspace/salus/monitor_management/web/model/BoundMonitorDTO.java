@@ -25,7 +25,7 @@ public class BoundMonitorDTO {
   UUID monitorId;
   String zoneTenantId;
   String zoneId;
-  String targetTenant;
+  String resourceTenant;
   String resourceId;
   AgentType agentType;
   String renderedContent;

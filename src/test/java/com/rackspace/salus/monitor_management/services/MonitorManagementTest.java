@@ -592,11 +592,9 @@ public class MonitorManagementTest {
             Collections.singletonList(
                 new BoundMonitor()
                     .setResourceId(DEFAULT_RESOURCE_ID)
-                    .setMonitorId(monitor.getId())
+                    .setMonitor(monitor)
                     .setEnvoyId(DEFAULT_ENVOY_ID)
-                    .setAgentType(AgentType.TELEGRAF)
                     .setRenderedContent("{}")
-                    .setTargetTenant("")
                     .setZoneTenantId("")
                     .setZoneId("")
             )
@@ -661,37 +659,29 @@ public class MonitorManagementTest {
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
                 .setResourceId("r-1")
-                .setMonitorId(monitor.getId())
+                .setMonitor(monitor)
                 .setEnvoyId("zone1-e-1")
-                .setAgentType(AgentType.TELEGRAF)
-                .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
                 .setZoneTenantId("t-1")
                 .setZoneId("zone1"),
             new BoundMonitor()
                 .setResourceId("r-1")
-                .setMonitorId(monitor.getId())
+                .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
-                .setAgentType(AgentType.TELEGRAF)
-                .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
                 .setZoneTenantId("")
                 .setZoneId("public/west"),
             new BoundMonitor()
                 .setResourceId("r-2")
-                .setMonitorId(monitor.getId())
+                .setMonitor(monitor)
                 .setEnvoyId("zone1-e-1")
-                .setAgentType(AgentType.TELEGRAF)
-                .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
                 .setZoneTenantId("t-1")
                 .setZoneId("zone1"),
             new BoundMonitor()
                 .setResourceId("r-2")
-                .setMonitorId(monitor.getId())
+                .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
-                .setAgentType(AgentType.TELEGRAF)
-                .setTargetTenant("t-1")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
                 .setZoneTenantId("")
                 .setZoneId("public/west")
@@ -738,9 +728,7 @@ public class MonitorManagementTest {
         verify(boundMonitorRepository).saveAll(Collections.singletonList(
             new BoundMonitor()
                 .setResourceId(DEFAULT_RESOURCE_ID)
-                .setMonitorId(monitor.getId())
-                .setAgentType(AgentType.TELEGRAF)
-                .setTargetTenant("t-1")
+                .setMonitor(monitor)
                 .setRenderedContent("{}")
                 .setZoneTenantId("t-1")
                 .setZoneId("zone1")
@@ -782,7 +770,7 @@ public class MonitorManagementTest {
         when(boundMonitorRepository.findOnesWithoutEnvoy(any(), any()))
             .thenReturn(unassignedOnes);
 
-        monitorManagement.handleNewResourceInZone("t-1", "z-1");
+        monitorManagement.handleNewEnvoyInZone("t-1", "z-1");
 
         verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
             new ResolvedZone()
@@ -825,7 +813,7 @@ public class MonitorManagementTest {
         when(boundMonitorRepository.findOnesWithEnvoy(any(), any(), any()))
             .thenReturn(boundMonitors);
 
-        monitorManagement.handleZoneResourceChanged("t-1", "z-1", "e-1", "e-2");
+        monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "e-1", "e-2");
 
         verify(boundMonitorRepository).findOnesWithEnvoy("t-1", "z-1", "e-1");
 
@@ -871,7 +859,7 @@ public class MonitorManagementTest {
             .thenReturn(boundMonitors);
 
         // The main thing being tested is that a null zone tenant ID
-        monitorManagement.handleZoneResourceChanged(null, "public/1", "e-1", "e-2");
+        monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "e-1", "e-2");
 
         // ...gets normalized into an empty string for the query
         verify(boundMonitorRepository).findOnesWithEnvoy("", "public/1", "e-1");

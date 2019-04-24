@@ -18,12 +18,13 @@ package com.rackspace.salus.monitor_management.repositories;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.Monitor;
 import java.util.List;
-import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,12 +46,12 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testFindOnesWithoutEnvoy() {
-    final UUID m1 = UUID.randomUUID();
+    final Monitor monitor = createMonitor();
 
-    save(m1, "t-1", "z-1", "r-1", null, "t-1");
-    save(m1, "t-1", "z-1", "r-2", "e-1", "t-2");
-    save(m1, "", "public/1", "r-3", null, "t-3");
-    save(m1, "", "public/1", "r-4", "e-2", "t-4");
+    save(monitor, "t-1", "z-1", "r-1", null);
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(monitor, "", "public/1", "r-3", null);
+    save(monitor, "", "public/1", "r-4", "e-2");
 
     final List<BoundMonitor> t1z1 = repository.findOnesWithoutEnvoy("t-1", "z-1");
     assertThat(t1z1, hasSize(1));
@@ -61,16 +62,24 @@ public class BoundMonitorRepositoryTest {
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-3"));
   }
 
+  private Monitor createMonitor() {
+    return entityManager.persist(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}")
+        .setTenantId("monitor-t-1")
+    );
+  }
+
   @Test
   public void testFindOnesWithEnvoy() {
-    final UUID m1 = UUID.randomUUID();
+    final Monitor monitor = createMonitor();
 
-    save(m1, "t-1", "z-1", "r-1", null, "t-1");
-    save(m1, "t-1", "z-1", "r-2", "e-1", "t-1");
-    save(m1, "t-1", "z-1", "r-3", "e-1", "t-1");
-    save(m1, "", "public/1", "r-4", null, "t-4");
-    save(m1, "", "public/1", "r-5", "e-1", "t-4");
-    save(m1, "", "public/2", "r-6", "e-1", "t-4");
+    save(monitor, "t-1", "z-1", "r-1", null);
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(monitor, "t-1", "z-1", "r-3", "e-1");
+    save(monitor, "", "public/1", "r-4", null);
+    save(monitor, "", "public/1", "r-5", "e-1");
+    save(monitor, "", "public/2", "r-6", "e-1");
 
     final List<BoundMonitor> t1z1 = repository.findOnesWithEnvoy("t-1", "z-1", "e-1");
     assertThat(t1z1, hasSize(2));
@@ -82,16 +91,17 @@ public class BoundMonitorRepositoryTest {
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-5"));
   }
 
-  private void save(UUID monitorId, String tenant, String zone, String resource, String envoyId,
-                    String targetTenantId) {
+  private void save(Monitor monitor, String tenant, String zone, String resource, String envoyId) {
+    final Monitor retrievedMonitor = entityManager.find(Monitor.class, monitor.getId());
+    assertThat(retrievedMonitor, notNullValue());
+
     entityManager.persist(new BoundMonitor()
-        .setMonitorId(monitorId)
+        .setMonitor(monitor)
         .setZoneTenantId(tenant)
         .setZoneId(zone)
         .setResourceId(resource)
         .setEnvoyId(envoyId)
-        .setTargetTenant(targetTenantId)
-        .setAgentType(AgentType.TELEGRAF)
     );
+    entityManager.flush();
   }
 }

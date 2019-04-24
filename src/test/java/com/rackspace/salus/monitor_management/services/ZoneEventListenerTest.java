@@ -48,7 +48,7 @@ public class ZoneEventListenerTest {
         .setZoneId("z-1")
     );
 
-    verify(monitorManagement).handleNewResourceInZone("t-1", "z-1");
+    verify(monitorManagement).handleNewEnvoyInZone("t-1", "z-1");
   }
 
   @Test
@@ -61,7 +61,7 @@ public class ZoneEventListenerTest {
             .setZoneId("z-1")
     );
 
-    verify(monitorManagement).handleZoneResourceChanged(
+    verify(monitorManagement).handleEnvoyResourceChangedInZone(
         "t-1", "z-1", "e-1", "e-2");
   }
 }
