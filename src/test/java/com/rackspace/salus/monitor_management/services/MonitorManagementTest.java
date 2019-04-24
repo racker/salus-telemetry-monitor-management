@@ -17,10 +17,12 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertNotNull;
@@ -98,7 +100,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
-@DataJpaTest
+@DataJpaTest(showSql = false)
 @AutoConfigureWebClient
 @AutoConfigureMockRestServiceServer
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
@@ -886,5 +888,43 @@ public class MonitorManagementTest {
             .setEnvoyId("e-2"));
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testFindMonitorsBoundToResource() {
+
+        final List<Monitor> monitors = new ArrayList<>();
+        for (int tenantIndex = 0; tenantIndex < 2; tenantIndex++) {
+            for (int monitorIndex = 0; monitorIndex < 5; monitorIndex++) {
+                final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+                monitor.setTenantId(String.format("t-%d", tenantIndex));
+                final Monitor savedMonitor = monitorRepository.save(monitor);
+                monitors.add(savedMonitor);
+
+                for (int boundIndex = 0; boundIndex < 3; boundIndex++) {
+                    entityManager.persist(
+                        new BoundMonitor()
+                            .setMonitor(savedMonitor)
+                            .setZoneTenantId(monitor.getTenantId())
+                            .setZoneId(String.format("z-%d", boundIndex))
+                            .setResourceId("r-1")
+                            .setRenderedContent(monitor.getContent())
+                    );
+                }
+            }
+        }
+
+        final List<UUID> monitorIds = monitorManagement
+            .findMonitorsBoundToResource("t-0", "r-1");
+
+        assertThat(monitorIds, hasSize(5));
+
+        assertThat(monitorIds, containsInAnyOrder(
+            monitors.get(0).getId(),
+            monitors.get(1).getId(),
+            monitors.get(2).getId(),
+            monitors.get(3).getId(),
+            monitors.get(4).getId()
+        ));
     }
 }

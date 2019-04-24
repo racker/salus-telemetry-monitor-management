@@ -316,6 +316,16 @@ public class MonitorManagement {
             .setRenderedContent(renderMonitorContent(monitor, resource));
     }
 
+    List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId) {
+      return entityManager
+          .createQuery("select distinct b.monitor.id from BoundMonitor b"
+              + " where b.resourceId = :resourceId"
+              + " and b.monitor.tenantId = :tenantId", UUID.class)
+          .setParameter("tenantId", tenantId)
+          .setParameter("resourceId", resourceId)
+          .getResultList();
+    }
+
     private static String emptyStringForNull(String input) {
         return input == null ? "" : input;
     }
