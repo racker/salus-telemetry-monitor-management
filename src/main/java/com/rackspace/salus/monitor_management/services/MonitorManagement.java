@@ -578,7 +578,7 @@ public class MonitorManagement {
 
         for (Monitor monitor : monitors) {
             final List<BoundMonitor> existing = boundMonitorRepository
-                .findByMonitor_IdAndResourceId(monitor.getId(), resourceInfo.getResourceId());
+                .findByMonitor_IdAndResourceId(monitor.getId(), resource.getResourceId());
 
             if (existing.isEmpty()) {
                 // need to create new bindings
@@ -586,7 +586,8 @@ public class MonitorManagement {
                 if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
                     // agent/local monitor
                     boundMonitors.add(
-                        bindAgentMonitor(monitor, resource, resourceInfo.getEnvoyId())
+                        bindAgentMonitor(monitor, resource,
+                            resourceInfo != null ? resourceInfo.getEnvoyId() : null)
                     );
                 } else {
                     // remote monitor

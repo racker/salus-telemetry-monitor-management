@@ -1076,6 +1076,77 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testUpsertBindingToResource_noEnvoyResource() {
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        final UUID m1 = UUID.fromString("00000000-0000-0000-0001-000000000000");
+
+        List<Monitor> monitors = Arrays.asList(
+            new Monitor()
+                .setId(m0)
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.ALL_OF)
+                .setContent("new local domain=<<resource.labels.env>>"),
+            new Monitor()
+                .setId(m1)
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setContent("new remote domain=<<resource.labels.env>>")
+                .setZones(Collections.singletonList("z-1"))
+        );
+
+        final Resource resource = new Resource()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setLabels(Collections.singletonMap("env", "prod"));
+
+        // simulate no envoys attached
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+
+        // ...and therefore none registered in the zone
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        // EXERCISE
+
+        final List<BoundMonitor> results =
+            monitorManagement.upsertBindingToResource(monitors, resource);
+
+        // VERIFY
+
+        assertThat(results, hasSize(2));
+        assertThat(results, containsInAnyOrder(
+            new BoundMonitor()
+                .setMonitor(monitors.get(0))
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("new local domain=prod")
+                .setZoneTenantId("")
+                .setZoneId(""),
+            new BoundMonitor()
+                .setMonitor(monitors.get(1))
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("new remote domain=prod")
+                .setZoneTenantId("t-1")
+                .setZoneId("z-1")
+        ));
+
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+        final ResolvedZone z1 = new ResolvedZone().setTenantId("t-1").setId("z-1");
+        verify(zoneStorage).findLeastLoadedEnvoy(z1);
+
+        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m0, "r-1");
+        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m1, "r-1");
+        verify(boundMonitorRepository).saveAll(results);
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage
+        );
+    }
+
+    @Test
     public void testhandleResourceEvent_newResource() {
         final Resource resource = new Resource()
             .setLabels(Collections.singletonMap("env", "prod"))
