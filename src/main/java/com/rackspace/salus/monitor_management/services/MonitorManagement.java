@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
@@ -248,6 +249,7 @@ public class MonitorManagement {
     }
 
     private void sendMonitorBoundEvent(String envoyId) {
+        log.debug("Publishing MonitorBoundEvent for envoy={}", envoyId);
         monitorEventProducer.sendMonitorEvent(
             new MonitorBoundEvent()
                 .setEnvoyId(envoyId)
@@ -322,14 +324,16 @@ public class MonitorManagement {
         return input == null ? "" : input;
     }
 
-    public void handleNewEnvoyInZone(String zoneTenantId, String zoneId) {
+    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
         log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
             zoneId, zoneTenantId);
 
         final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
 
         final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
-            .findOnesWithoutEnvoy(zoneTenantId, zoneId);
+            .findOnesWithoutEnvoy(emptyStringForNull(zoneTenantId),  zoneId);
+
+        log.debug("Found bound monitors without envoy: {}", onesWithoutEnvoy);
 
         final List<BoundMonitor> assigned = new ArrayList<>(onesWithoutEnvoy.size());
 
@@ -538,8 +542,6 @@ public class MonitorManagement {
             // ...and monitorIdsToUnbind remains ALL of the currently bound
         }
 
-
-
         List<BoundMonitor> unbound = unbindByMonitorId(monitorIdsToUnbind);
 
         final List<Monitor> monitorsToUpsert = selectedMonitors.stream()
@@ -617,6 +619,8 @@ public class MonitorManagement {
             }
         }
 
+        log.debug("Saving boundMonitors={} due to binding of monitors={} to resource={}",
+            boundMonitors, monitors, resource);
         boundMonitorRepository.saveAll(boundMonitors);
 
         return boundMonitors;
@@ -634,6 +638,8 @@ public class MonitorManagement {
             .setParameter("monitorIds", monitorIdsToUnbind)
             .getResultList();
 
+        log.debug("Unbinding {} from monitorIds={}",
+            boundMonitors, monitorIdsToUnbind);
         boundMonitorRepository.deleteAll(boundMonitors);
 
         return boundMonitors;

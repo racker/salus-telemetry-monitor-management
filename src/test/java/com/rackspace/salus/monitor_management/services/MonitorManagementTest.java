@@ -709,7 +709,7 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testHandleNewResourceInZone() {
+    public void testHandleNewEnvoyInZone_privateZone() {
         // simulate that three in zone are needing envoys
         List<BoundMonitor> unassignedOnes = Arrays.asList(
             new BoundMonitor()
@@ -761,6 +761,81 @@ public class MonitorManagementTest {
             new BoundMonitor()
                 .setResourceId("r-2")
                 .setEnvoyId("e-1")
+        ));
+
+        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testHandleNewEnvoyInZone_publicZone() {
+        // simulate that three in zone are needing envoys
+        List<BoundMonitor> unassignedOnes = Arrays.asList(
+            new BoundMonitor()
+                .setResourceId("r-1")
+                .setZoneTenantId("")
+                .setZoneId("public/west"),
+            new BoundMonitor()
+                .setResourceId("r-2")
+                .setZoneTenantId("")
+                .setZoneId("public/west"),
+            new BoundMonitor()
+                .setResourceId("r-3")
+                .setZoneTenantId("")
+                .setZoneId("public/west")
+        );
+
+        // but only one envoy is available
+        Queue<String> availableEnvoys = new LinkedList<>();
+        availableEnvoys.add("e-1");
+        // ...same envoy again to verify de-duping
+        availableEnvoys.add("e-1");
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .then(invocationOnMock -> {
+                final Optional<String> result;
+                if (availableEnvoys.isEmpty()) {
+                    result = Optional.empty();
+                } else {
+                    result = Optional.of(availableEnvoys.remove());
+                }
+                return CompletableFuture.completedFuture(result);
+            });
+
+        when(boundMonitorRepository.findOnesWithoutEnvoy(any(), any()))
+            .thenReturn(unassignedOnes);
+
+        // EXECUTE
+
+        // Main difference from testHandleNewEnvoyInZone_privateZone is that the
+        // tenantId is null from the event
+
+        monitorManagement.handleNewEnvoyInZone(null, "public/west");
+
+        // VERIFY
+
+        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+            new ResolvedZone()
+                .setId("public/west")
+        );
+
+        // two assignments to same envoy, but verify only one event
+        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+            .setEnvoyId("e-1"));
+
+        // verify query argument normalized to non-null
+        verify(boundMonitorRepository).findOnesWithoutEnvoy("", "public/west");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setZoneTenantId("")
+                .setZoneId("public/west"),
+            new BoundMonitor()
+                .setResourceId("r-2")
+                .setEnvoyId("e-1")
+                .setZoneTenantId("")
+                .setZoneId("public/west")
         ));
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
