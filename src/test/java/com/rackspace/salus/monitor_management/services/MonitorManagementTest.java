@@ -616,7 +616,7 @@ public class MonitorManagementTest {
             .setLabelSelector(Collections.singletonMap("os", "LINUX"))
             .setZones(Arrays.asList("zone1", "public/west"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}");
+            .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
 
         monitorManagement.distributeNewMonitor(monitor);
 
@@ -734,7 +734,7 @@ public class MonitorManagementTest {
                 return CompletableFuture.completedFuture(result);
             });
 
-        when(boundMonitorRepository.findOnesWithoutEnvoy(any(), any()))
+        when(boundMonitorRepository.findAllWithoutEnvoy(any(), any()))
             .thenReturn(unassignedOnes);
 
         monitorManagement.handleNewEnvoyInZone("t-1", "z-1");
@@ -747,7 +747,7 @@ public class MonitorManagementTest {
         verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
             .setEnvoyId("e-1"));
 
-        verify(boundMonitorRepository).findOnesWithoutEnvoy("t-1", "z-1");
+        verify(boundMonitorRepository).findAllWithoutEnvoy("t-1", "z-1");
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -796,7 +796,7 @@ public class MonitorManagementTest {
                 return CompletableFuture.completedFuture(result);
             });
 
-        when(boundMonitorRepository.findOnesWithoutEnvoy(any(), any()))
+        when(boundMonitorRepository.findAllWithoutEnvoy(any(), any()))
             .thenReturn(unassignedOnes);
 
         // EXECUTE
@@ -817,7 +817,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1"));
 
         // verify query argument normalized to non-null
-        verify(boundMonitorRepository).findOnesWithoutEnvoy("", "public/west");
+        verify(boundMonitorRepository).findAllWithoutEnvoy("", "public/west");
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -849,12 +849,12 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         );
 
-        when(boundMonitorRepository.findOnesWithEnvoy(any(), any(), any()))
+        when(boundMonitorRepository.findAllWithEnvoy(any(), any(), any()))
             .thenReturn(boundMonitors);
 
         monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "e-1", "e-2");
 
-        verify(boundMonitorRepository).findOnesWithEnvoy("t-1", "z-1", "e-1");
+        verify(boundMonitorRepository).findAllWithEnvoy("t-1", "z-1", "e-1");
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -894,14 +894,14 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         );
 
-        when(boundMonitorRepository.findOnesWithEnvoy(any(), any(), any()))
+        when(boundMonitorRepository.findAllWithEnvoy(any(), any(), any()))
             .thenReturn(boundMonitors);
 
         // The main thing being tested is that a null zone tenant ID
         monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "e-1", "e-2");
 
         // ...gets normalized into an empty string for the query
-        verify(boundMonitorRepository).findOnesWithEnvoy("", "public/1", "e-1");
+        verify(boundMonitorRepository).findAllWithEnvoy("", "public/1", "e-1");
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -1009,7 +1009,7 @@ public class MonitorManagementTest {
         final UUID m2 = UUID.fromString("00000000-0000-0000-0002-000000000000");
         final UUID m3 = UUID.fromString("00000000-0000-0000-0003-000000000000");
 
-        // The following monitors hits the various scenarios we need to support when a
+        // The following monitors hits the various scenarios we need to support when a resource changes
         List<Monitor> monitors = Arrays.asList(
             // new local monitor
             // --> 1 x BoundMonitor
@@ -1017,14 +1017,14 @@ public class MonitorManagementTest {
             .setId(m0)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.ALL_OF)
-            .setContent("new local domain=<<resource.labels.env>>"),
+            .setContent("new local domain=${resource.labels.env}"),
             // new remote monitor
             // --> 2 x BoundMonitor
             new Monitor()
             .setId(m1)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setContent("new remote domain=<<resource.labels.env>>")
+            .setContent("new remote domain=${resource.labels.env}")
             .setZones(Arrays.asList("z-1", "z-2")),
             // existing monitor needing re-render
             // --> 1 x BoundMonitor
@@ -1032,7 +1032,7 @@ public class MonitorManagementTest {
             .setId(m2)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.ALL_OF)
-            .setContent("existing local domain=<<resource.labels.env>>"),
+            .setContent("existing local domain=${resource.labels.env}"),
             // existing monitor no re-render
             new Monitor()
             .setId(m3)
@@ -1061,11 +1061,11 @@ public class MonitorManagementTest {
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
 
-        when(boundMonitorRepository.findByMonitor_IdAndResourceId(m0, "r-1"))
+        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m0, "r-1"))
             .thenReturn(Collections.emptyList());
-        when(boundMonitorRepository.findByMonitor_IdAndResourceId(m1, "r-1"))
+        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m1, "r-1"))
             .thenReturn(Collections.emptyList());
-        when(boundMonitorRepository.findByMonitor_IdAndResourceId(m2, "r-1"))
+        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m2, "r-1"))
             .thenReturn(Collections.singletonList(
                 new BoundMonitor()
                     .setResourceId("r-1")
@@ -1075,7 +1075,7 @@ public class MonitorManagementTest {
                     .setZoneTenantId("")
                     .setZoneId("")
             ));
-        when(boundMonitorRepository.findByMonitor_IdAndResourceId(m3, "r-1"))
+        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m3, "r-1"))
             .thenReturn(Collections.singletonList(
                 new BoundMonitor()
                     .setResourceId("r-1")
@@ -1123,6 +1123,8 @@ public class MonitorManagementTest {
                 .setRenderedContent("existing local domain=prod")
                 .setZoneTenantId("")
                 .setZoneId("")
+            // NOTE binding of m3 did not need to be re-bound since its "static content" was
+            // unaffected by the change in resource labels.
         ));
 
         verify(envoyResourceManagement).getOne("t-1", "r-1");
@@ -1134,10 +1136,10 @@ public class MonitorManagementTest {
         verify(zoneStorage).incrementBoundCount(z1, "e-2");
         verify(zoneStorage).incrementBoundCount(z2, "e-2");
 
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m0, "r-1");
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m1, "r-1");
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m2, "r-1");
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m3, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m2, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m3, "r-1");
         verify(boundMonitorRepository).saveAll(results);
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
@@ -1154,12 +1156,12 @@ public class MonitorManagementTest {
                 .setId(m0)
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.ALL_OF)
-                .setContent("new local domain=<<resource.labels.env>>"),
+                .setContent("new local domain=${resource.labels.env}"),
             new Monitor()
                 .setId(m1)
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setContent("new remote domain=<<resource.labels.env>>")
+                .setContent("new remote domain=${resource.labels.env}")
                 .setZones(Collections.singletonList("z-1"))
         );
 
@@ -1206,8 +1208,8 @@ public class MonitorManagementTest {
         final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
         verify(zoneStorage).findLeastLoadedEnvoy(z1);
 
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m0, "r-1");
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m1, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
         verify(boundMonitorRepository).saveAll(results);
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
@@ -1236,7 +1238,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=<<resource.labels.env>>");
+            .setContent("domain=${resource.labels.env}");
         entityManager.persist(monitor);
         // ...but no BoundMonitor
 
@@ -1265,7 +1267,7 @@ public class MonitorManagementTest {
             .setZoneId("")
         ));
 
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent()
@@ -1297,7 +1299,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=<<resource.labels.env>>");
+            .setContent("domain=${resource.labels.env}");
         entityManager.persist(monitor);
 
         final BoundMonitor boundMonitor = new BoundMonitor()
@@ -1334,7 +1336,7 @@ public class MonitorManagementTest {
                 .setZoneId("")
         ));
 
-        verify(boundMonitorRepository).findByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent()
@@ -1355,7 +1357,7 @@ public class MonitorManagementTest {
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=<<resource.labels.env>>");
+            .setContent("domain=${resource.labels.env}");
         entityManager.persist(monitor);
 
         final BoundMonitor boundMonitor = new BoundMonitor()

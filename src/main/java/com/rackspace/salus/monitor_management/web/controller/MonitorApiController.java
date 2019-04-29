@@ -103,7 +103,7 @@ public class MonitorApiController implements MonitorApi {
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
     public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
-        return boundMonitorRepository.findByEnvoyId(envoyId).stream()
+        return boundMonitorRepository.findAllByEnvoyId(envoyId).stream()
             .map(BoundMonitor::toDTO)
             .collect(Collectors.toList());
     }

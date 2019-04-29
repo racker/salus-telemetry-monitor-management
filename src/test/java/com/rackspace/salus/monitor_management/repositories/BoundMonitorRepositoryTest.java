@@ -53,11 +53,11 @@ public class BoundMonitorRepositoryTest {
     save(monitor, "", "public/1", "r-3", null);
     save(monitor, "", "public/1", "r-4", "e-2");
 
-    final List<BoundMonitor> t1z1 = repository.findOnesWithoutEnvoy("t-1", "z-1");
+    final List<BoundMonitor> t1z1 = repository.findAllWithoutEnvoy("t-1", "z-1");
     assertThat(t1z1, hasSize(1));
     assertThat(t1z1.get(0).getResourceId(), equalTo("r-1"));
 
-    final List<BoundMonitor> publicResults = repository.findOnesWithoutEnvoy("", "public/1");
+    final List<BoundMonitor> publicResults = repository.findAllWithoutEnvoy("", "public/1");
     assertThat(publicResults, hasSize(1));
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-3"));
   }
@@ -81,12 +81,12 @@ public class BoundMonitorRepositoryTest {
     save(monitor, "", "public/1", "r-5", "e-1");
     save(monitor, "", "public/2", "r-6", "e-1");
 
-    final List<BoundMonitor> t1z1 = repository.findOnesWithEnvoy("t-1", "z-1", "e-1");
+    final List<BoundMonitor> t1z1 = repository.findAllWithEnvoy("t-1", "z-1", "e-1");
     assertThat(t1z1, hasSize(2));
     assertThat(t1z1.get(0).getResourceId(), equalTo("r-2"));
     assertThat(t1z1.get(1).getResourceId(), equalTo("r-3"));
 
-    final List<BoundMonitor> publicResults = repository.findOnesWithEnvoy("", "public/1", "e-1");
+    final List<BoundMonitor> publicResults = repository.findAllWithEnvoy("", "public/1", "e-1");
     assertThat(publicResults, hasSize(1));
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-5"));
   }

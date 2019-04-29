@@ -334,7 +334,7 @@ public class MonitorManagement {
         final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
 
         final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
-            .findOnesWithoutEnvoy(emptyStringForNull(zoneTenantId),  zoneId);
+            .findAllWithoutEnvoy(emptyStringForNull(zoneTenantId),  zoneId);
 
         log.debug("Found bound monitors without envoy: {}", onesWithoutEnvoy);
 
@@ -361,7 +361,7 @@ public class MonitorManagement {
     public void handleEnvoyResourceChangedInZone(String tenantId, String zoneId, String fromEnvoyId,
                                                  String toEnvoyId) {
 
-        final List<BoundMonitor> boundToPrev = boundMonitorRepository.findOnesWithEnvoy(
+        final List<BoundMonitor> boundToPrev = boundMonitorRepository.findAllWithEnvoy(
             emptyStringForNull(tenantId),
             zoneId,
             fromEnvoyId
@@ -541,14 +541,9 @@ public class MonitorManagement {
 
         List<BoundMonitor> unbound = unbindByMonitorId(monitorIdsToUnbind);
 
-        final List<Monitor> monitorsToUpsert = selectedMonitors.stream()
-            .filter(monitor -> !monitorIdsToUnbind.contains(monitor.getId()))
-            .collect(Collectors.toList());
-
         final List<BoundMonitor> bound;
-        if (!monitorsToUpsert.isEmpty()) {
-            //noinspection ConstantConditions since monitorsToUpsert and selectedMonitors would be empty
-            bound = upsertBindingToResource(monitorsToUpsert, resource);
+        if (!selectedMonitors.isEmpty()) {
+            bound = upsertBindingToResource(selectedMonitors, resource);
         }
         else {
             bound = Collections.emptyList();
@@ -577,7 +572,7 @@ public class MonitorManagement {
 
         for (Monitor monitor : monitors) {
             final List<BoundMonitor> existing = boundMonitorRepository
-                .findByMonitor_IdAndResourceId(monitor.getId(), resource.getResourceId());
+                .findAllByMonitor_IdAndResourceId(monitor.getId(), resource.getResourceId());
 
             if (existing.isEmpty()) {
                 // need to create new bindings

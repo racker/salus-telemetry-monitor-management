@@ -29,5 +29,5 @@ public class MonitorContentProperties {
    * Allows configuration of the delimiters used by jmustache for monitor content template
    * rendering. The default avoids conflicting with "{{ }}" used by Insomnia for its templating.
    */
-  String placeholderDelimiters = "<< >>";
+  String placeholderDelimiters = "${ }";
 }
