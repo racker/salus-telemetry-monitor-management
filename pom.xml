@@ -200,6 +200,28 @@
           </dependency>
         </dependencies>
       </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.2.1</version>
+
+        <executions>
+          <execution>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <classpathScope>test</classpathScope>
+          <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
+          <arguments>
+            <argument>${project.build.directory}/generated/swagger</argument>
+          </arguments>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
