@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -577,11 +579,8 @@ public class MonitorManagementTest {
 
     @Test
     public void testDistributeNewMonitor_remote() throws JsonProcessingException {
-        final ResolvedZone zone1 = new ResolvedZone()
-            .setTenantId("t-1")
-            .setId("zone1");
-        final ResolvedZone zoneWest = new ResolvedZone()
-            .setId("public/west");
+        final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
+        final ResolvedZone zoneWest = createPublicZone("public/west");
 
         when(zoneStorage.findLeastLoadedEnvoy(zone1))
             .thenReturn(CompletableFuture.completedFuture(
@@ -668,9 +667,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testDistributeNewMonitor_remote_emptyZone() {
-        final ResolvedZone zone1 = new ResolvedZone()
-            .setTenantId("t-1")
-            .setId("zone1");
+        final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
 
         when(zoneStorage.findLeastLoadedEnvoy(zone1))
             .thenReturn(CompletableFuture.completedFuture(
@@ -743,9 +740,7 @@ public class MonitorManagementTest {
         monitorManagement.handleNewEnvoyInZone("t-1", "z-1");
 
         verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
-            new ResolvedZone()
-                .setTenantId("t-1")
-                .setId("z-1")
+            createPrivateZone("t-1", "z-1")
         );
 
         // two assignments to same envoy, but verify only one event
@@ -814,8 +809,7 @@ public class MonitorManagementTest {
         // VERIFY
 
         verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
-            new ResolvedZone()
-                .setId("public/west")
+            createPublicZone("public/west")
         );
 
         // two assignments to same envoy, but verify only one event
@@ -875,7 +869,7 @@ public class MonitorManagementTest {
         ));
 
         verify(zoneStorage).incrementBoundCount(
-            new ResolvedZone().setTenantId("t-1").setId("z-1"),
+            createPrivateZone("t-1", "z-1"),
             "e-2",
             3
         );
@@ -922,7 +916,7 @@ public class MonitorManagementTest {
         ));
 
         verify(zoneStorage).incrementBoundCount(
-            new ResolvedZone().setId("public/1"),
+            createPublicZone("public/1"),
             "e-2",
             3
         );
@@ -1133,8 +1127,8 @@ public class MonitorManagementTest {
 
         verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-        final ResolvedZone z1 = new ResolvedZone().setTenantId("t-1").setId("z-1");
-        final ResolvedZone z2 = new ResolvedZone().setTenantId("t-1").setId("z-2");
+        final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
+        final ResolvedZone z2 = createPrivateZone("t-1", "z-2");
         verify(zoneStorage).findLeastLoadedEnvoy(z1);
         verify(zoneStorage).findLeastLoadedEnvoy(z2);
         verify(zoneStorage).incrementBoundCount(z1, "e-2");
@@ -1209,7 +1203,7 @@ public class MonitorManagementTest {
 
         verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-        final ResolvedZone z1 = new ResolvedZone().setTenantId("t-1").setId("z-1");
+        final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
         verify(zoneStorage).findLeastLoadedEnvoy(z1);
 
         verify(boundMonitorRepository).findByMonitor_IdAndResourceId(m0, "r-1");

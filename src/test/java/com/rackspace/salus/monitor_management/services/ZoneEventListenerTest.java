@@ -19,8 +19,8 @@ package com.rackspace.salus.monitor_management.services;
 import static org.mockito.Mockito.verify;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.ZoneEnvoyOfResourceChangedEvent;
-import com.rackspace.salus.telemetry.messaging.ZoneNewResourceEvent;
+import com.rackspace.salus.telemetry.messaging.NewResourceZoneEvent;
+import com.rackspace.salus.telemetry.messaging.ReattachedResourceZoneEvent;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,7 +43,7 @@ public class ZoneEventListenerTest {
   @Test
   public void testZoneNewResourceEvent() {
     zoneEventListener.handleEvent(
-        new ZoneNewResourceEvent()
+        new NewResourceZoneEvent()
         .setTenantId("t-1")
         .setZoneId("z-1")
     );
@@ -54,7 +54,7 @@ public class ZoneEventListenerTest {
   @Test
   public void testZoneEnvoyOfResourceChangedEvent() {
     zoneEventListener.handleEvent(
-        new ZoneEnvoyOfResourceChangedEvent()
+        new ReattachedResourceZoneEvent()
             .setFromEnvoyId("e-1")
             .setToEnvoyId("e-2")
             .setTenantId("t-1")

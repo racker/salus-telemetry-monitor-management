@@ -16,6 +16,9 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
@@ -373,8 +376,7 @@ public class MonitorManagement {
             boundMonitorRepository.saveAll(boundToPrev);
 
             zoneStorage.incrementBoundCount(
-                new ResolvedZone().setTenantId(tenantId)
-                .setId(zoneId),
+                createPrivateZone(tenantId, zoneId),
                 toEnvoyId,
                 boundToPrev.size()
             );
@@ -393,15 +395,10 @@ public class MonitorManagement {
 
     private ResolvedZone resolveZone(String tenantId, String zone) {
         if (zone.startsWith(zonesProperties.getPublicZonePrefix())) {
-            return new ResolvedZone()
-                .setPublicZone(true)
-                .setId(zone);
+            return createPublicZone(zone);
         }
         else {
-            return new ResolvedZone()
-                .setPublicZone(false)
-                .setTenantId(tenantId)
-                .setId(zone);
+            return createPrivateZone(tenantId, zone);
         }
     }
 

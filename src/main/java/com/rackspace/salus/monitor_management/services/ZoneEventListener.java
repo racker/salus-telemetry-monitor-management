@@ -17,14 +17,18 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.ZoneEnvoyOfResourceChangedEvent;
+import com.rackspace.salus.telemetry.messaging.NewResourceZoneEvent;
+import com.rackspace.salus.telemetry.messaging.ReattachedResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.ZoneEvent;
-import com.rackspace.salus.telemetry.messaging.ZoneNewResourceEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+/**
+ * This services consumes zone events from Kafka and interacts with the internal services of
+ * monitor management to adapt to the changes conveyed by those events.
+ */
 @Service
 @Slf4j
 public class ZoneEventListener {
@@ -46,14 +50,14 @@ public class ZoneEventListener {
   public void handleEvent(ZoneEvent zoneEvent) {
     log.debug("Handling zone event={}", zoneEvent);
 
-    if (zoneEvent instanceof ZoneNewResourceEvent) {
-      final ZoneNewResourceEvent event = (ZoneNewResourceEvent) zoneEvent;
+    if (zoneEvent instanceof NewResourceZoneEvent) {
+      final NewResourceZoneEvent event = (NewResourceZoneEvent) zoneEvent;
       monitorManagement.handleNewEnvoyInZone(
           event.getTenantId(),
           event.getZoneId()
       );
-    } else if (zoneEvent instanceof ZoneEnvoyOfResourceChangedEvent) {
-      final ZoneEnvoyOfResourceChangedEvent event = (ZoneEnvoyOfResourceChangedEvent) zoneEvent;
+    } else if (zoneEvent instanceof ReattachedResourceZoneEvent) {
+      final ReattachedResourceZoneEvent event = (ReattachedResourceZoneEvent) zoneEvent;
 
       monitorManagement.handleEnvoyResourceChangedInZone(
           event.getTenantId(),
