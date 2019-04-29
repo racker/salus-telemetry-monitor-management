@@ -59,9 +59,9 @@ import io.swagger.annotations.*;
 @Api(description = "Monitor operations", authorizations = {
         @Authorization(value = "repose_auth",
                 scopes = {
-                        @AuthorizationScope(scope = "write:resource", description = "modify Monitors in your account"),
-                        @AuthorizationScope(scope = "read:resource", description = "read your Monitors"),
-                        @AuthorizationScope(scope = "delete:resource", description = "delete your Monitors")
+                        @AuthorizationScope(scope = "write:monitor", description = "modify Monitors in your account"),
+                        @AuthorizationScope(scope = "read:monitor", description = "read your Monitors"),
+                        @AuthorizationScope(scope = "delete:monitor", description = "delete your Monitors")
                 })
 })
 public class MonitorApiController implements MonitorApi {
@@ -144,6 +144,7 @@ public class MonitorApiController implements MonitorApi {
     @PostMapping("/tenant/{tenantId}/monitors")
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Creates new Monitor for Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Monitor")})
     public DetailedMonitorOutput create(@PathVariable String tenantId,
                                         @Valid @RequestBody final DetailedMonitorInput input)
             throws IllegalArgumentException {
@@ -170,6 +171,7 @@ public class MonitorApiController implements MonitorApi {
     @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes specific Monitor for Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
     public void delete(@PathVariable String tenantId,
                        @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
