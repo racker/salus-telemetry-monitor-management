@@ -175,7 +175,7 @@
                 <scheme>http</scheme>
               </schemes>
               <info>
-                <title>Salus Resource Management</title>
+                <title>Salus Monitor Management</title>
                 <version>0.1.0</version>
               </info>
               <outputPath>${project.build.directory}/generated/swagger/document.html</outputPath>
