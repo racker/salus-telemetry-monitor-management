@@ -69,7 +69,7 @@
     <dependency>
       <groupId>com.rackspace.salus</groupId>
       <artifactId>salus-telemetry-protocol</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.1</version>
     </dependency>
     <dependency>
       <groupId>com.rackspace.salus</groupId>
@@ -85,6 +85,18 @@
         <groupId>com.rackspace.salus</groupId>
         <artifactId>salus-telemetry-etcd-adapter</artifactId>
         <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.rackspace.salus</groupId>
+      <artifactId>salus-telemetry-resource-management</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+      <classifier>client</classifier>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -102,9 +103,8 @@ public class MonitorApiController implements MonitorApi {
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
     public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
-        return boundMonitorRepository.findByEnvoyId(envoyId).stream()
-            .map(boundMonitor ->
-                objectMapper.convertValue(boundMonitor, BoundMonitorDTO.class))
+        return boundMonitorRepository.findAllByEnvoyId(envoyId).stream()
+            .map(BoundMonitor::toDTO)
             .collect(Collectors.toList());
     }
 

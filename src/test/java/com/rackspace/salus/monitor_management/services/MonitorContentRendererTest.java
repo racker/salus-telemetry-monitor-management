@@ -42,7 +42,7 @@ public class MonitorContentRendererTest {
     final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
 
     assertThat(renderer.render(
-        "{\"type\": \"ping\", \"urls\": [\"<<resource.metadata.public_ip>>\"]}",
+        "{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}",
         resource
     ), equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
   }

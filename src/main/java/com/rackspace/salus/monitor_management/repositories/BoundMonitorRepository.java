@@ -18,9 +18,19 @@ package com.rackspace.salus.monitor_management.repositories;
 
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import java.util.List;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, BoundMonitor.PrimaryKey> {
 
-  List<BoundMonitor> findByEnvoyId(String envoyId);
+  List<BoundMonitor> findAllByEnvoyId(String envoyId);
+
+  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId is null")
+  List<BoundMonitor> findAllWithoutEnvoy(String zoneTenantId, String zoneId);
+
+  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId = :envoyId")
+  List<BoundMonitor> findAllWithEnvoy(String zoneTenantId, String zoneId, String envoyId);
+
+  List<BoundMonitor> findAllByMonitor_IdAndResourceId(UUID monitorId, String resourceId);
 }

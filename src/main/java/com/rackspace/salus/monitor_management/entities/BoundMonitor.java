@@ -16,31 +16,51 @@
 
 package com.rackspace.salus.monitor_management.entities;
 
-import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.Serializable;
 import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import javax.persistence.Index;
 import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
-import org.hibernate.annotations.Type;
 
 // Using the old validation exceptions for podam support
 // Will move to the newer ones once they're supported.
 //import javax.validation.constraints.NotBlank;
 
+/**
+ * This entity tracks the three-way binding of
+ * <ul>
+ *   <li>monitor</li>
+ *   <li>resource</li>
+ *   <li>zone (empty string for local/agent monitors)</li>
+ * </ul>
+ *
+ * <p>
+ * As part of the binding, the agent configuration content of the monitor is stored in its
+ * rendered form with all context placeholders replaced with their per-binding values.
+ * </p>
+ *
+ * <p>
+ *   This entity has a corresponding DTO at
+ *   {@link com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO}
+ *   where the fields of that class must be maintained to align with the fields of this entity.
+ * </p>
+ */
 @Entity
 @IdClass(BoundMonitor.PrimaryKey.class)
 @Table(name = "bound_monitors",
 indexes = {
-    @Index(name = "by_envoy_id", columnList = "envoyId")
+    @Index(name = "by_envoy_id", columnList = "envoyId"),
+    @Index(name = "by_zone_envoy", columnList = "zoneTenantId,zoneId,envoyId"),
+    @Index(name = "by_resource", columnList = "resourceId")
 })
 @Data
 public class BoundMonitor implements Serializable {
@@ -48,45 +68,63 @@ public class BoundMonitor implements Serializable {
   @Data
   public static class PrimaryKey implements Serializable {
 
-    // NOTE the ordering of the following is important since potentially null values need to be
-    // last in the primary key
-
-    UUID monitorId;
+    /**
+     * The Java and Hibernate type of <code>monitor</code> needs to match the primary key
+     * of {@link Monitor}
+     */
+    @org.hibernate.annotations.Type(type="uuid-char")
+    UUID monitor;
     String resourceId;
-    // agent monitors will have null zone and zoneTenantId
-    String zone;
+    String zoneId;
+
+    // zoneTenantId and resourceTenant do not need to be part of the primary key
+    // since the Monitor, via monitorId, already scopes this binding to a tenant
   }
 
   @Id
-  @NotNull
-  @Type(type = "uuid-char")
-  @Column(length = 100)
-  UUID monitorId;
-
-  @Id
-  @Column(length = 100)
-  String zone;
+  @ManyToOne
+  Monitor monitor;
 
   /**
-   * For remote monitors, this field must be non-empty to indicate to the assigned Envoy that
-   * the measurements are being collected on behalf of the target tenant rather than the tenant
-   * of the Envoy.
+   * Contains the tenant that owns the private zone or an empty string for public zones.
    */
   @NotNull
-  String targetTenant;
+  @Column(length = 100)
+  String zoneTenantId;
 
+  /**
+   * For remote monitors, contains the binding of a specific monitoring zone.
+   * For local monitors, this field is an empty string.
+   */
+  @Id
+  @NotNull
+  @Column(length = 100)
+  String zoneId;
+
+  /**
+   * Contains the binding of the {@link Monitor} (via <code>monitorId</code>) to a specific
+   * resource to be monitored.
+   */
   @Id
   @NotNull
   @Column(length = 100)
   String resourceId;
-
-  @Enumerated(EnumType.STRING)
-  @NotNull
-  AgentType agentType;
 
   @Lob
   String renderedContent;
 
   @Column(length = 100)
   String envoyId;
+
+  public BoundMonitorDTO toDTO() {
+    return new BoundMonitorDTO()
+        .setMonitorId(monitor.getId())
+        .setZoneTenantId(zoneTenantId)
+        .setZoneId(zoneId)
+        .setResourceTenant(monitor.getTenantId())
+        .setResourceId(resourceId)
+        .setAgentType(monitor.getAgentType())
+        .setRenderedContent(renderedContent)
+        .setEnvoyId(envoyId);
+  }
 }

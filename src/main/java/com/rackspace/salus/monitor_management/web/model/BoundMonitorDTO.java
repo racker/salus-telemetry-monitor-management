@@ -23,8 +23,9 @@ import lombok.Data;
 @Data
 public class BoundMonitorDTO {
   UUID monitorId;
-  String zone;
-  String targetTenant;
+  String zoneTenantId;
+  String zoneId;
+  String resourceTenant;
   String resourceId;
   AgentType agentType;
   String renderedContent;

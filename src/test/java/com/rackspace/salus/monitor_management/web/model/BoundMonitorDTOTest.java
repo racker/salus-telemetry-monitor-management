@@ -17,31 +17,48 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.isEmptyString;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import java.lang.reflect.Field;
 import org.junit.Test;
+import org.springframework.util.ReflectionUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 public class BoundMonitorDTOTest {
   final PodamFactory podamFactory = new PodamFactoryImpl();
 
-  /**
-   * Tests that we can do a round-trip conversion using {@link ObjectMapper#convertValue(Object, Class)}
-   */
   @Test
   public void testFieldsCovered() {
-    final ObjectMapper objectMapper = new ObjectMapper();
-
     final BoundMonitor boundMonitor = podamFactory.manufacturePojo(BoundMonitor.class);
 
-    final BoundMonitorDTO dto = objectMapper
-        .convertValue(boundMonitor, BoundMonitorDTO.class);
+    final BoundMonitorDTO dto = boundMonitor.toDTO();
 
-    final BoundMonitor result = objectMapper.convertValue(dto, BoundMonitor.class);
+    // First verification approach is to check that all fields are populated with something.
+    // This approach makes sure that the verification further down doesn't miss a new field.
 
-    assertThat(result, equalTo(boundMonitor));
+    for (Field field : BoundMonitorDTO.class.getDeclaredFields()) {
+      field.setAccessible(true);
+      final Object value = ReflectionUtils.getField(field, dto);
+      assertThat(value, notNullValue());
+      if (value instanceof String) {
+        assertThat(((String) value), not(isEmptyString()));
+      }
+    }
+
+    // and next verification is to check populated with correct values
+
+    assertThat(dto.getMonitorId(), equalTo(boundMonitor.getMonitor().getId()));
+    assertThat(dto.getZoneTenantId(), equalTo(boundMonitor.getZoneTenantId()));
+    assertThat(dto.getZoneId(), equalTo(boundMonitor.getZoneId()));
+    assertThat(dto.getResourceTenant(), equalTo(boundMonitor.getMonitor().getTenantId()));
+    assertThat(dto.getResourceId(), equalTo(boundMonitor.getResourceId()));
+    assertThat(dto.getAgentType(), equalTo(boundMonitor.getMonitor().getAgentType()));
+    assertThat(dto.getRenderedContent(), equalTo(boundMonitor.getRenderedContent()));
+    assertThat(dto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));
   }
 }
