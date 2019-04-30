@@ -159,8 +159,8 @@
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
-                <scheme> https </scheme>
-                <scheme> http </scheme>
+                <scheme>https</scheme>
+                <scheme>http</scheme>
               </schemes>
               <info>
                 <title>Salus Resource Management</title>
@@ -193,7 +193,6 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>1.2.1</version>
-
         <executions>
           <execution>
             <phase>test-compile</phase>
