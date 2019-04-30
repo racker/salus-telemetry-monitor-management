@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApiClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +35,8 @@ public class RestClientsConfig {
   }
 
   @Bean
-  public ResourceApi resourceApi(RestTemplateBuilder restTemplateBuilder) {
-    return new ResourceApiClient(
+  public ResourceApi resourceApi(RestTemplateBuilder restTemplateBuilder, ObjectMapper objectMapper) {
+    return new ResourceApiClient(objectMapper,
         restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl())
         .build()
     );
