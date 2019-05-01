@@ -27,6 +27,7 @@ import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,6 +119,15 @@ public class MonitorApiController implements MonitorApi {
                     uuid, tenantId));
         }
         return monitorConversionService.convertToOutput(monitor);
+    }
+
+    @GetMapping("/tenant/{tenantId}/boundMonitors")
+    public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
+                                                           Pageable pageable) {
+        return PagedContent.fromPage(
+            boundMonitorRepository.findAllByMonitor_TenantId(tenantId, pageable)
+            .map(BoundMonitor::toDTO)
+        );
     }
 
     @GetMapping("/tenant/{tenantId}/monitors")
