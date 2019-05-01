@@ -31,6 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
@@ -38,6 +40,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @AutoConfigureJson
 public class BoundMonitorRepositoryTest {
 
+  public static final String MONITOR_TENANT = "monitor-t-1";
   @Autowired
   private TestEntityManager entityManager;
 
@@ -46,7 +49,7 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testFindOnesWithoutEnvoy() {
-    final Monitor monitor = createMonitor();
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
 
     save(monitor, "t-1", "z-1", "r-1", null);
     save(monitor, "t-1", "z-1", "r-2", "e-1");
@@ -62,17 +65,17 @@ public class BoundMonitorRepositoryTest {
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-3"));
   }
 
-  private Monitor createMonitor() {
+  private Monitor createMonitor(String monitorTenant) {
     return entityManager.persist(new Monitor()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("{}")
-        .setTenantId("monitor-t-1")
+        .setTenantId(monitorTenant)
     );
   }
 
   @Test
   public void testFindOnesWithEnvoy() {
-    final Monitor monitor = createMonitor();
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
 
     save(monitor, "t-1", "z-1", "r-1", null);
     save(monitor, "t-1", "z-1", "r-2", "e-1");
@@ -103,5 +106,27 @@ public class BoundMonitorRepositoryTest {
         .setEnvoyId(envoyId)
     );
     entityManager.flush();
+  }
+
+  @Test
+  public void testFindAllByMonitor_TenantId() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor otherMonitor = createMonitor("t-some-other");
+
+    save(monitor, "t-1", "z-1", "r-1", null);
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(otherMonitor, "", "public/1", "r-2", null);
+    save(monitor, "t-1", "z-1", "r-3", "e-1");
+    save(monitor, "", "public/1", "r-4", null);
+    save(monitor, "", "public/1", "r-5", "e-1");
+    save(monitor, "", "public/2", "r-6", "e-1");
+
+    final Page<BoundMonitor> results = repository
+        .findAllByMonitor_TenantId(MONITOR_TENANT, PageRequest.of(1, 2));
+
+    assertThat(results.getContent(), hasSize(2));
+    assertThat(results.getContent().get(0).getResourceId(), equalTo("r-3"));
+    assertThat(results.getContent().get(1).getResourceId(), equalTo("r-4"));
+    assertThat(results.getTotalElements(), equalTo(6L));
   }
 }
