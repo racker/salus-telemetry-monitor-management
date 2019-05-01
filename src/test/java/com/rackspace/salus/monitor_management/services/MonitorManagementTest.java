@@ -638,7 +638,7 @@ public class MonitorManagementTest {
                 .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZoneTenantId("")
+                .setZoneTenantId(ResolvedZone.PUBLIC)
                 .setZoneId("public/west"),
             new BoundMonitor()
                 .setResourceId("r-2")
@@ -652,7 +652,7 @@ public class MonitorManagementTest {
                 .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZoneTenantId("")
+                .setZoneTenantId(ResolvedZone.PUBLIC)
                 .setZoneId("public/west")
         ));
 

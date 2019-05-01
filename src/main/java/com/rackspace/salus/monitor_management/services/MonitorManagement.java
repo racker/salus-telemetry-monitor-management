@@ -305,12 +305,22 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(emptyStringForNull(resolvedZone.getTenantId()))
+            .setZoneTenantId(normalizeZoneTenant(resolvedZone.getTenantId()))
             .setZoneId(zone)
             .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource));
+    }
+
+    /**
+     * Ensures the zone tenant ID is a non-null value by normalizing to {@value ResolvedZone#PUBLIC}
+     * if the given tenant is null.
+     * @param tenantId the resolve zone tenant ID
+     * @return the normalized tenant value to use with {@link BoundMonitor#setZoneTenantId(String)}
+     */
+    private static String normalizeZoneTenant(@Nullable String tenantId) {
+        return tenantId != null ? tenantId : ResolvedZone.PUBLIC;
     }
 
     List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId) {
