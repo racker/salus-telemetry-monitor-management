@@ -82,25 +82,47 @@
         <th>description</th>
         <th>example</th>
     </tr>
-    {{#each this.properties}}
-        <tr>
-            <td>{{@key}}</td>
-            <td>
-                {{#ifeq type "array"}}
-                {{#items.$ref}}
-                    {{type}}[<a href="{{items.$ref}}">{{basename items.$ref}}</a>]
-                {{/items.$ref}}
-                {{^items.$ref}}{{type}}[{{items.type}}]{{/items.$ref}}
-                {{else}}
-                    {{#$ref}}<a href="{{$ref}}">{{basename $ref}}</a>{{/$ref}}
-                    {{^$ref}}{{type}}{{#format}} ({{format}}){{/format}}{{/$ref}}
-                {{/ifeq}}
-            </td>
-            <td>{{#required}}required{{/required}}{{^required}}optional{{/required}}</td>
-            <td>{{#description}}{{{description}}}{{/description}}{{^description}}-{{/description}}</td>
-            <td>{{example}}</td>
-        </tr>
-    {{/each}}
+    {{#if this.1.properties}}
+        {{#each this.1.properties}}
+            <tr>
+                <td>{{@key}}</td>
+                <td>
+                    {{#ifeq type "array"}}
+                    {{#items.$ref}}
+                        {{type}}[<a href="{{items.$ref}}">{{basename items.$ref}}</a>]
+                    {{/items.$ref}}
+                    {{^items.$ref}}{{type}}[{{items.type}}]{{/items.$ref}}
+                    {{else}}
+                        {{#$ref}}<a href="{{$ref}}">{{basename $ref}}</a>{{/$ref}}
+                        {{^$ref}}{{type}}{{#format}} ({{format}}){{/format}}{{/$ref}}
+                    {{/ifeq}}
+                </td>
+                <td>{{#required}}required{{/required}}{{^required}}optional{{/required}}</td>
+                <td>{{#description}}{{{description}}}{{/description}}{{^description}}-{{/description}}</td>
+                <td>{{example}}</td>
+            </tr>
+        {{/each}}
+    {{else}}
+        {{#each this.properties}}
+            <tr>
+                <td>{{@key}}</td>
+                <td>
+                    {{#ifeq type "array"}}
+                    {{#items.$ref}}
+                        {{type}}[<a href="{{items.$ref}}">{{basename items.$ref}}</a>]
+                    {{/items.$ref}}
+                    {{^items.$ref}}{{type}}[{{items.type}}]{{/items.$ref}}
+                    {{else}}
+                        {{#$ref}}<a href="{{$ref}}">{{basename $ref}}</a>{{/$ref}}
+                        {{^$ref}}{{type}}{{#format}} ({{format}}){{/format}}{{/$ref}}
+                    {{/ifeq}}
+                </td>
+                <td>{{#required}}required{{/required}}{{^required}}optional{{/required}}</td>
+                <td>{{#description}}{{{description}}}{{/description}}{{^description}}-{{/description}}</td>
+                <td>{{example}}</td>
+            </tr>
+        {{/each}}
+    {{/if}}
 </table>
 {{/each}}
 
