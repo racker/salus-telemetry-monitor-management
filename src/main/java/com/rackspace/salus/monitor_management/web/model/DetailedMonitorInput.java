@@ -26,7 +26,6 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 @Data
-@ApiModel(discriminator="details", subTypes={LocalMonitorDetails.class, RemoteMonitorDetails.class})
 public class DetailedMonitorInput {
   String name;
 
