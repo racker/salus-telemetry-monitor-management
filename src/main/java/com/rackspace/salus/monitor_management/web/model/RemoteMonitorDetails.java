@@ -19,6 +19,8 @@ package com.rackspace.salus.monitor_management.web.model;
 import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -31,5 +33,6 @@ public class RemoteMonitorDetails extends MonitorDetails {
   List<String> monitoringZones;
 
   @NotNull @Valid
+  @ApiModelProperty(example="{\"type\":ping, ...} <- further parameters are found in the objects themselves")
   RemotePlugin plugin;
 }

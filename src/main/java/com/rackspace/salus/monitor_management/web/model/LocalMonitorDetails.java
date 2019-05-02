@@ -20,6 +20,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -27,5 +28,6 @@ import lombok.EqualsAndHashCode;
 @Data @EqualsAndHashCode(callSuper = false)
 public class LocalMonitorDetails extends MonitorDetails {
   @NotNull @Valid
+  @ApiModelProperty(example="{\"type\":cpu|disk|diskio|mem, ...} <- further parameters are found in the objects themselves")
   LocalPlugin plugin;
 }
