@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 
+import com.google.common.collect.Streams;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
@@ -35,7 +36,6 @@ import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Monitor_;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
@@ -53,17 +53,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -120,21 +115,8 @@ public class MonitorManagement {
      * @param id       The unique value representing the monitor.
      * @return The monitor object.
      */
-    public Monitor getMonitor(String tenantId, UUID id) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-        Root<Monitor> root = cr.from(Monitor.class);
-        cr.select(root).where(cb.and(
-                cb.equal(root.get(Monitor_.tenantId), tenantId),
-                cb.equal(root.get(Monitor_.id), id)));
-
-        Monitor result;
-        try {
-            result = entityManager.createQuery(cr).getSingleResult();
-        } catch (NoResultException e) {
-            result = null;
-        }
-        return result;
+    public Optional<Monitor> getMonitor(String tenantId, UUID id) {
+        return monitorRepository.findById(id).filter(m -> m.getTenantId().equals(tenantId));
     }
 
     /**
@@ -155,15 +137,7 @@ public class MonitorManagement {
      * @return The monitors found for the tenant that match the page criteria.
      */
     public Page<Monitor> getMonitors(String tenantId, Pageable page) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-        Root<Monitor> root = cr.from(Monitor.class);
-        cr.select(root).where(
-                cb.equal(root.get(Monitor_.tenantId), tenantId));
-
-        List<Monitor> monitors = entityManager.createQuery(cr).getResultList();
-
-        return new PageImpl<>(monitors, page, monitors.size());
+        return monitorRepository.findByTenantId(tenantId, page);
     }
 
     /**
@@ -172,13 +146,8 @@ public class MonitorManagement {
      * @return Stream of monitors.
      */
     public Stream<Monitor> getMonitorsAsStream() {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Monitor> cr = cb.createQuery(Monitor.class);
-        Root<Monitor> root = cr.from(Monitor.class);
-        cr.select(root);
-        return entityManager.createQuery(cr).getResultStream();
+        return Streams.stream(monitorRepository.findAll());
     }
-
 
     /**
      * Create a new monitor in the database.
@@ -462,11 +431,10 @@ public class MonitorManagement {
      * @return The newly updated monitor.
      */
     public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
-        Monitor monitor = getMonitor(tenantId, id);
-        if (monitor == null) {
-            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    id, tenantId));
-        }
+        Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
+                new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                        id, tenantId)));
+
         Map<String, String> oldLabels = monitor.getLabelSelector();
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabelSelector())
@@ -491,14 +459,11 @@ public class MonitorManagement {
      * @param id       The id of the monitor.
      */
     public void removeMonitor(String tenantId, UUID id) {
-        Monitor monitor = getMonitor(tenantId, id);
-        if (monitor != null) {
-            monitorRepository.deleteById(monitor.getId());
-            publishMonitor(monitor, OperationType.DELETE, null);
-        } else {
-            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    id, tenantId));
-        }
+        Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
+                new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                        id, tenantId)));
+        monitorRepository.deleteById(monitor.getId());
+        publishMonitor(monitor, OperationType.DELETE, null);
     }
 
     /**

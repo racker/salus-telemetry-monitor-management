@@ -17,10 +17,18 @@
 package com.rackspace.salus.monitor_management.repositories;
 
 import com.rackspace.salus.telemetry.model.Monitor;
+
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MonitorRepository extends PagingAndSortingRepository<Monitor, UUID> {
+
+    Page<Monitor> findByTenantId(String tenantId, Pageable pageable);
 }

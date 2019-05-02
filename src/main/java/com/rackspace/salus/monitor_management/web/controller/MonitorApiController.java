@@ -113,11 +113,9 @@ public class MonitorApiController implements MonitorApi {
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
     public DetailedMonitorOutput getById(@PathVariable String tenantId,
                                          @PathVariable UUID uuid) throws NotFoundException {
-        Monitor monitor = monitorManagement.getMonitor(tenantId, uuid);
-        if (monitor == null) {
-            throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                    uuid, tenantId));
-        }
+        Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
+                () -> new NotFoundException(String.format("No monitor found for %s on tenant %s",
+                        uuid, tenantId)));
         return monitorConversionService.convertToOutput(monitor);
     }
 
