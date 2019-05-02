@@ -19,6 +19,9 @@ package com.rackspace.salus.monitor_management.web.model;
 
 
 import java.util.Map;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 @Data
@@ -26,5 +29,6 @@ public class DetailedMonitorOutput {
     String id;
     String name;
     Map<String,String> labelSelector;
+    @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;
 }

@@ -53,10 +53,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import io.swagger.annotations.*;
 
 @Slf4j
 @RestController
 @RequestMapping("/api")
+@Api(description = "Monitor operations", authorizations = {
+        @Authorization(value = "repose_auth",
+                scopes = {
+                        @AuthorizationScope(scope = "write:monitor", description = "modify Monitors in your account"),
+                        @AuthorizationScope(scope = "read:monitor", description = "read your Monitors"),
+                        @AuthorizationScope(scope = "delete:monitor", description = "delete your Monitors")
+                })
+})
 public class MonitorApiController implements MonitorApi {
 
     private MonitorManagement monitorManagement;
@@ -77,6 +86,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @GetMapping("/monitors")
+    @ApiOperation(value = "Gets all Monitors irrespective of Tenant")
     public Page<DetailedMonitorOutput> getAll(@RequestParam(defaultValue = "100") int size,
                                 @RequestParam(defaultValue = "0") int page) {
 
@@ -104,6 +114,7 @@ public class MonitorApiController implements MonitorApi {
 
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
+    @ApiOperation(value = "Gets all BoundMonitors attached to a particular Envoy")
     public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
         return boundMonitorRepository.findAllByEnvoyId(envoyId).stream()
             .map(BoundMonitor::toDTO)
@@ -111,6 +122,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
+    @ApiOperation(value = "Gets specific Monitor for Tenant")
     public DetailedMonitorOutput getById(@PathVariable String tenantId,
                                          @PathVariable UUID uuid) throws NotFoundException {
         Monitor monitor = monitorManagement.getMonitor(tenantId, uuid);
@@ -131,6 +143,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/monitors")
+    @ApiOperation(value = "Gets all Monitors for Tenant")
     public Page<DetailedMonitorOutput> getAllForTenant(@PathVariable String tenantId,
                                          @RequestParam(defaultValue = "100") int size,
                                          @RequestParam(defaultValue = "0") int page) {
@@ -141,6 +154,8 @@ public class MonitorApiController implements MonitorApi {
 
     @PostMapping("/tenant/{tenantId}/monitors")
     @ResponseStatus(HttpStatus.CREATED)
+    @ApiOperation(value = "Creates new Monitor for Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Monitor")})
     public DetailedMonitorOutput create(@PathVariable String tenantId,
                                         @Valid @RequestBody final DetailedMonitorInput input)
             throws IllegalArgumentException {
@@ -152,6 +167,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
+    @ApiOperation(value = "Updates specific Monitor for Tenant")
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
                           @Valid @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
@@ -165,12 +181,15 @@ public class MonitorApiController implements MonitorApi {
 
     @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiOperation(value = "Deletes specific Monitor for Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
     public void delete(@PathVariable String tenantId,
                        @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
     }
 
     @GetMapping("/tenant/{tenantId}/monitorLabels")
+    @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
     public List<Monitor> getMonitorsWithLabels(@PathVariable String tenantId,
                                                  @RequestBody Map<String, String> labels) {
         return monitorManagement.getMonitorsFromLabels(labels, tenantId);
