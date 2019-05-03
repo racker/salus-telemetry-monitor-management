@@ -95,7 +95,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
@@ -167,7 +167,7 @@ public class MonitorApiControllerTest {
         for (int i = 0; i < numberOfMonitors; i++) {
             final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
             monitors.add(monitor);
-            monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
             monitor.setAgentType(AgentType.TELEGRAF);
             monitor.setContent("{\"type\":\"mem\"}");
         }
@@ -213,7 +213,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testCreateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.createMonitor(anyString(), any()))
@@ -238,7 +238,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.updateMonitor(anyString(), any(), any()))

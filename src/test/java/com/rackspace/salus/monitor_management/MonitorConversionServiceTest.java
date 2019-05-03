@@ -80,7 +80,7 @@ public class MonitorConversionServiceTest {
         .setId(monitorId)
         .setMonitorName("name-a")
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(labels)
         .setContent(content);
 
@@ -123,7 +123,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
-    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.ALL_OF);
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
     final String content = readContent("/MonitorConversionServiceTest_cpu.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
@@ -137,7 +137,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
@@ -185,7 +185,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
@@ -239,7 +239,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 

@@ -221,7 +221,7 @@ public class MonitorManagement {
 
         final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
-        if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
+        if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
             // AGENT MONITOR
 
             for (Resource resource : resources) {
@@ -743,7 +743,7 @@ public class MonitorManagement {
             if (existing.isEmpty()) {
                 // need to create new bindings
 
-                if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
+                if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
                     // agent/local monitor
                     boundMonitors.add(
                         bindAgentMonitor(monitor, resource,

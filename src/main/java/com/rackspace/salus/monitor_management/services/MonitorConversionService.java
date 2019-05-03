@@ -56,7 +56,7 @@ public class MonitorConversionService {
 
     final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
 
-    if (selectorScope == ConfigSelectorScope.ALL_OF) {
+    if (selectorScope == ConfigSelectorScope.LOCAL) {
       final LocalMonitorDetails monitorDetails = new LocalMonitorDetails();
       detailedMonitorOutput.setDetails(monitorDetails);
 
@@ -104,7 +104,7 @@ public class MonitorConversionService {
     final MonitorDetails details = input.getDetails();
 
     if (details instanceof LocalMonitorDetails) {
-      monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+      monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateAgentConfigContent(input, monitor, plugin);

@@ -199,7 +199,7 @@ public class MonitorManagementTest {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
             // limit to local/agent monitors only
-            create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            create.setSelectorScope(ConfigSelectorScope.LOCAL);
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -207,7 +207,7 @@ public class MonitorManagementTest {
     private void createMonitorsForTenant(int count, String tenantId) {
         for (int i = 0; i < count; i++) {
             MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-            create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            create.setSelectorScope(ConfigSelectorScope.LOCAL);
             monitorManagement.createMonitor(tenantId, create);
         }
     }
@@ -225,7 +225,7 @@ public class MonitorManagementTest {
     @Test
     public void testCreateNewMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
@@ -306,7 +306,7 @@ public class MonitorManagementTest {
     @Test
     public void testRemoveMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Monitor newMon = monitorManagement.createMonitor(tenantId, create);
 
@@ -325,7 +325,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -343,7 +343,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -357,7 +357,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -371,7 +371,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
@@ -396,7 +396,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -423,7 +423,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -445,7 +445,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -467,7 +467,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -490,7 +490,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -518,7 +518,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
@@ -556,7 +556,7 @@ public class MonitorManagementTest {
             .setId(UUID.randomUUID())
             .setTenantId("t-1")
             .setAgentType(AgentType.TELEGRAF)
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setLabelSelector(Collections.singletonMap("os", "LINUX"))
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
@@ -1051,7 +1051,7 @@ public class MonitorManagementTest {
             new Monitor()
             .setId(m0)
             .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setContent("new local domain=${resource.labels.env}"),
             // new remote monitor
             // --> 2 x BoundMonitor
@@ -1066,7 +1066,7 @@ public class MonitorManagementTest {
             new Monitor()
             .setId(m2)
             .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setContent("existing local domain=${resource.labels.env}"),
             // existing monitor no re-render
             new Monitor()
@@ -1190,7 +1190,7 @@ public class MonitorManagementTest {
             new Monitor()
                 .setId(m0)
                 .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.ALL_OF)
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setContent("new local domain=${resource.labels.env}"),
             new Monitor()
                 .setId(m1)
@@ -1269,7 +1269,7 @@ public class MonitorManagementTest {
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
         final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
@@ -1330,7 +1330,7 @@ public class MonitorManagementTest {
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
         final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
@@ -1388,7 +1388,7 @@ public class MonitorManagementTest {
             .thenReturn(null);
 
         final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setTenantId("t-1")
             .setLabelSelector(Collections.singletonMap("env", "prod"))
             .setAgentType(AgentType.TELEGRAF)
