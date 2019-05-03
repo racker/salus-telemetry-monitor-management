@@ -632,15 +632,16 @@ public class MonitorManagement {
             .map(Resource::getResourceId)
             .collect(Collectors.toSet());
 
-        final List<String> resourceIdsToUnbind = boundResourceIds.stream()
-            .filter(s -> !selectedResourceIds.contains(s))
-            .collect(Collectors.toList());
+        final List<String> resourceIdsToUnbind = new ArrayList<>(boundResourceIds);
+        resourceIdsToUnbind.removeAll(selectedResourceIds);
 
+        // process un-bindings
         final List<BoundMonitor> boundMonitorsChanges =
             new ArrayList<>(
                 unbindByResourceId(monitor.getId(), resourceIdsToUnbind)
             );
 
+        // process new bindings
         selectedResources.stream()
             .filter(resource -> !boundResourceIds.contains(resource.getResourceId()))
             .forEach(resource -> {
