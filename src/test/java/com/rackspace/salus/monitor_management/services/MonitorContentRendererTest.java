@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.telemetry.model.Resource;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -41,9 +42,78 @@ public class MonitorContentRendererTest {
     final MonitorContentProperties properties = new MonitorContentProperties();
     final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
 
-    assertThat(renderer.render(
+    final String rendered = renderer.render(
         "{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}",
         resource
-    ), equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
+    );
+    assertThat(rendered, equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
+  }
+
+  @Test
+  public void testMetadataFieldNotPresent() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.emptyMap())
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "address=${resource.metadata.address}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("address="));
+  }
+
+  @Test
+  public void testMetadataFieldIsNull() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.emptyMap())
+        .setMetadata(Collections.singletonMap("nullness", null));
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "value=${resource.metadata.nullness}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("value="));
+  }
+
+  @Test
+  public void testTopLevelBadReference() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.emptyMap())
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "value=${nothere.novalue}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("value="));
+  }
+
+  @Test
+  public void testResourceLevelBadReference() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.emptyMap())
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "value=${resource.wrong.reference}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("value="));
   }
 }
