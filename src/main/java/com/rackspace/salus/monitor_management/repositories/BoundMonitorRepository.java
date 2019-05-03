@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.repositories;
 
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -37,4 +38,10 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
   List<BoundMonitor> findAllByMonitor_IdAndResourceId(UUID monitorId, String resourceId);
 
   Page<BoundMonitor> findAllByMonitor_TenantId(String tenantId, Pageable pageable);
+
+  List<BoundMonitor> findAllByMonitor_Id(UUID monitorId);
+
+  List<BoundMonitor> findAllByMonitor_IdAndResourceIdIn(UUID monitorId, Collection<String> resourceIds);
+
+  List<BoundMonitor> findAllByMonitor_IdAndZoneIdIn(UUID monitorId, Collection<String> zoneIds);
 }

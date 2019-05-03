@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.repositories;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertThat;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -128,5 +130,83 @@ public class BoundMonitorRepositoryTest {
     assertThat(results.getContent().get(0).getResourceId(), equalTo("r-3"));
     assertThat(results.getContent().get(1).getResourceId(), equalTo("r-4"));
     assertThat(results.getTotalElements(), equalTo(6L));
+  }
+
+  @Test
+  public void testfindAllByMonitor_IdAndResourceIdIn() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor otherMonitor = createMonitor("t-some-other");
+
+    save(monitor, "t-1", "z-1", "r-1", "e-1");
+    save(monitor, "t-1", "z-2", "r-1", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-1", "e-1");
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-2", "e-1");
+    save(monitor, "t-1", "z-1", "r-3", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-3", "e-1");
+
+    final List<BoundMonitor> results = repository
+        .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Arrays.asList("r-1", "r-3"));
+
+    assertThat(results, hasSize(3));
+    assertThat(results, containsInAnyOrder(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1"),
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-2"),
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-3")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+    ));
+  }
+
+  @Test
+  public void testfindAllByMonitor_IdAndZoneIdIn() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor otherMonitor = createMonitor("t-some-other");
+
+    save(monitor, "t-1", "z-1", "r-1", "e-1");
+    save(monitor, "t-1", "z-2", "r-1", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-1", "e-1");
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-2", "e-1");
+    save(monitor, "t-1", "z-3", "r-3", "e-1");
+    save(otherMonitor, "t-1", "z-3", "r-3", "e-1");
+
+    final List<BoundMonitor> results = repository
+        .findAllByMonitor_IdAndZoneIdIn(monitor.getId(), Arrays.asList("z-1", "z-2"));
+
+    assertThat(results, hasSize(3));
+    assertThat(results, containsInAnyOrder(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1"),
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-2"),
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-2")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+    ));
   }
 }
