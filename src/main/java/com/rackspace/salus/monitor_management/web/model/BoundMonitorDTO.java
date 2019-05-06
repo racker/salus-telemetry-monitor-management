@@ -16,17 +16,23 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.UUID;
 import lombok.Data;
 
 @Data
 public class BoundMonitorDTO {
   UUID monitorId;
+  @JsonInclude(Include.NON_EMPTY)
   String zoneTenantId;
+  @JsonInclude(Include.NON_EMPTY)
   String zoneId;
   String resourceTenant;
   String resourceId;
+  ConfigSelectorScope selectorScope;
   AgentType agentType;
   String renderedContent;
   String envoyId;

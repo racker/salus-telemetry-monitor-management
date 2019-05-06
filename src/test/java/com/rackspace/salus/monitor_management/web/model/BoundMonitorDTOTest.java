@@ -57,6 +57,7 @@ public class BoundMonitorDTOTest {
     assertThat(dto.getZoneId(), equalTo(boundMonitor.getZoneId()));
     assertThat(dto.getResourceTenant(), equalTo(boundMonitor.getMonitor().getTenantId()));
     assertThat(dto.getResourceId(), equalTo(boundMonitor.getResourceId()));
+    assertThat(dto.getSelectorScope(), equalTo(boundMonitor.getMonitor().getSelectorScope()));
     assertThat(dto.getAgentType(), equalTo(boundMonitor.getMonitor().getAgentType()));
     assertThat(dto.getRenderedContent(), equalTo(boundMonitor.getRenderedContent()));
     assertThat(dto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));

@@ -123,6 +123,7 @@ public class BoundMonitor implements Serializable {
         .setZoneId(zoneId)
         .setResourceTenant(monitor.getTenantId())
         .setResourceId(resourceId)
+        .setSelectorScope(monitor.getSelectorScope())
         .setAgentType(monitor.getAgentType())
         .setRenderedContent(renderedContent)
         .setEnvoyId(envoyId);

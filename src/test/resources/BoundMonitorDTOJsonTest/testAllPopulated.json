@@ -1,0 +1,11 @@
+{
+  "monitorId": "00000000-0000-0000-0001-000000000000",
+  "resourceTenant": "t-1",
+  "resourceId": "r-1",
+  "selectorScope": "REMOTE",
+  "agentType": "TELEGRAF",
+  "renderedContent": "{}",
+  "envoyId": "e-1",
+  "zoneTenantId": "t-1",
+  "zoneId": "z-1"
+}
