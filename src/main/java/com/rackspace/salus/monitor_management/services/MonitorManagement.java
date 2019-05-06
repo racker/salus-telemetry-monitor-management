@@ -42,6 +42,7 @@ import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -505,6 +506,13 @@ public class MonitorManagement {
             );
 
             monitor.setLabelSelector(updatedValues.getLabelSelector());
+        }
+        else {
+            // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+            // that has a field of type Map. It wants to clear the loaded map value, which is
+            // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+            // retrieved maps.
+            monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
         }
 
         if (updatedValues.getContent() != null &&

@@ -413,6 +413,105 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testUpdateExistingMonitor_contentChanged() {
+        // This resource will result in a change to rendered content
+        final Map<String, String> r1metadata = new HashMap<>();
+        r1metadata.put("ping_ip", "something_else");
+        r1metadata.put("address", "localhost");
+        final Resource r1 = new Resource()
+            .setLabels(Collections.singletonMap("os", "linux"))
+            .setMetadata(r1metadata)
+            .setResourceId("r-1")
+            .setTenantId("t-1");
+
+        when(resourceApi.getByResourceId("t-1", "r-1"))
+            .thenReturn(r1);
+
+        // ...and this resource will NOT since both metadata values are the same
+        final Map<String, String> r2metadata = new HashMap<>();
+        r2metadata.put("ping_ip", "localhost");
+        r2metadata.put("address", "localhost");
+        final Resource r2 = new Resource()
+            .setLabels(Collections.singletonMap("os", "linux"))
+            .setMetadata(r2metadata)
+            .setResourceId("r-2")
+            .setTenantId("t-1");
+
+        when(resourceApi.getByResourceId("t-1", "r-2"))
+            .thenReturn(r2);
+
+        final Monitor monitor = new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("address=${resource.metadata.ping_ip}")
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setLabelSelector(Collections.singletonMap("os", "linux"));
+        entityManager.persist(monitor);
+
+        final BoundMonitor bound1 = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+            .setRenderedContent("address=something_else");
+        entityManager.persist(bound1);
+
+        final BoundMonitor bound2 = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-2")
+            .setEnvoyId("e-2")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+            .setRenderedContent("address=localhost");
+        entityManager.persist(bound2);
+
+        // same resource r-2, but different zone to ensure query-by-resource is normalize to one query each
+        final BoundMonitor bound3 = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-2")
+            .setEnvoyId("e-3")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-2")
+            .setRenderedContent("address=localhost");
+        entityManager.persist(bound3);
+
+        when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
+            .thenReturn(Arrays.asList(bound1, bound2, bound3));
+
+        // EXECUTE
+
+        final MonitorCU update = new MonitorCU()
+            .setContent("address=${resource.metadata.address}");
+        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+        // VERIFY
+
+        verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setZoneTenantId("t-1")
+                .setZoneId("z-1")
+                .setRenderedContent("address=localhost")
+        ));
+
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+        // even though two bindings for r-2, the queries were grouped by resource and only one call here
+        verify(resourceApi).getByResourceId("t-1", "r-2");
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-1")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+            zoneStorage, monitorEventProducer);
+    }
+
+    @Test
     public void testRemoveMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
