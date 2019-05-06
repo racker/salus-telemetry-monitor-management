@@ -299,6 +299,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testUpdateExistingMonitor_labelsChanged() {
+        reset(envoyResourceManagement, resourceApi);
 
         Map<String, String> r1labels = new HashMap<>();
         r1labels.put("old", "yes");
@@ -373,8 +374,15 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        assertThat(updatedMonitor, notNullValue());
-        assertThat(updatedMonitor.getLabelSelector(), hasEntry("new", "yes"));
+        assertThat(updatedMonitor, equalTo(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setLabelSelector(newLabelSelector)
+        ));
 
         verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"));
 
@@ -414,6 +422,8 @@ public class MonitorManagementTest {
 
     @Test
     public void testUpdateExistingMonitor_contentChanged() {
+        reset(envoyResourceManagement, resourceApi);
+
         // This resource will result in a change to rendered content
         final Map<String, String> r1metadata = new HashMap<>();
         r1metadata.put("ping_ip", "something_else");
@@ -487,6 +497,16 @@ public class MonitorManagementTest {
 
         // VERIFY
 
+        assertThat(updatedMonitor, equalTo(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("address=${resource.metadata.address}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+        ));
+
         verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
 
         verify(boundMonitorRepository).saveAll(Collections.singletonList(
@@ -505,6 +525,106 @@ public class MonitorManagementTest {
 
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent().setEnvoyId("e-1")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+            zoneStorage, monitorEventProducer);
+    }
+
+    @Test
+    public void testUpdateExistingMonitor_zonesChanged() {
+        reset(envoyResourceManagement, resourceApi);
+
+        when(resourceApi.getResourcesWithLabels(any(), any()))
+            .thenReturn(Collections.singletonList(
+                new Resource()
+                .setResourceId("r-1")
+            ));
+
+        final Monitor monitor = new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}")
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Arrays.asList("z-1", "z-2"))
+            .setLabelSelector(Collections.singletonMap("os", "linux"));
+        entityManager.persist(monitor);
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .thenReturn(CompletableFuture.completedFuture(Optional.of("e-new")));
+        when(zoneStorage.incrementBoundCount(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(1));
+
+        final BoundMonitor boundZ1 = new BoundMonitor()
+            .setMonitor(monitor)
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+            .setResourceId("r-1")
+            .setRenderedContent("{}")
+            .setEnvoyId("e-existing");
+        entityManager.persist(boundZ1);
+        when(boundMonitorRepository.findAllByMonitor_IdAndZoneIdIn(
+            monitor.getId(), Collections.singletonList("z-1")
+        ))
+        .thenReturn(Collections.singletonList(
+            boundZ1
+        ));
+
+        final BoundMonitor boundZ2 = new BoundMonitor()
+            .setMonitor(monitor)
+            .setZoneTenantId("t-1")
+            .setZoneId("z-2")
+            .setResourceId("r-1")
+            .setRenderedContent("{}")
+            .setEnvoyId("e-existing");
+        entityManager.persist(boundZ2);
+
+        // EXECUTE
+
+        final MonitorCU update = new MonitorCU()
+            .setZones(Arrays.asList("z-2", "z-3"));
+
+        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+        // VERIFY
+
+        assertThat(updatedMonitor, equalTo(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Arrays.asList("z-2", "z-3"))
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+        ));
+
+        verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
+
+        final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
+        verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
+        verify(zoneStorage).incrementBoundCount(resolvedZ3, "e-new");
+
+        verify(boundMonitorRepository)
+            .findAllByMonitor_IdAndZoneIdIn(monitor.getId(), Collections.singletonList("z-1"));
+
+        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundZ1));
+
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setZoneTenantId("t-1")
+                .setZoneId("z-3")
+                .setResourceId("r-1")
+                .setRenderedContent("{}")
+                .setEnvoyId("e-new")
+        ));
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-existing")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-new")
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,

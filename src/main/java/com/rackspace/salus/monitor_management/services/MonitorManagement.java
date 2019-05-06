@@ -507,7 +507,7 @@ public class MonitorManagement {
 
             monitor.setLabelSelector(updatedValues.getLabelSelector());
         }
-        else {
+        else if (monitor.getLabelSelector() != null) {
             // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
             // that has a field of type Map. It wants to clear the loaded map value, which is
             // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
@@ -535,7 +535,13 @@ public class MonitorManagement {
                 processMonitorZonesModified(monitor, updatedValues.getZones())
             );
 
-            monitor.setZones(updatedValues.getZones());
+            // give JPA a modifiable copy of the given list
+            monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+        }
+        else if (monitor.getZones() != null){
+            // See above regarding:
+            // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+            monitor.setZones(new ArrayList<>(monitor.getZones()));
         }
 
         PropertyMapper map = PropertyMapper.get();
@@ -550,39 +556,29 @@ public class MonitorManagement {
     }
 
     private List<BoundMonitor> processMonitorZonesModified(Monitor monitor,
-                                                           List<String> updatedValuesZones) {
+                                                           List<String> updatedZones) {
 
-        final List<String> newZones = new ArrayList<>(updatedValuesZones);
-        updatedValuesZones.removeAll(monitor.getZones());
+        // determine new zones
+        final List<String> newZones = new ArrayList<>(updatedZones);
+        // ...by removing zones on currently stored monitor
+        newZones.removeAll(monitor.getZones());
 
+        // determine old zones
         final List<String> oldZones = new ArrayList<>(monitor.getZones());
-        oldZones.removeAll(updatedValuesZones);
+        // ...by removing the ones still in the update
+        oldZones.removeAll(updatedZones);
 
         final List<BoundMonitor> changed = new ArrayList<>(
+            // this will also delete the unbound bindings
             unbindByMonitorAndZone(monitor.getId(), oldZones)
         );
 
         changed.addAll(
+            // this will also save the new bindings
             bindMonitor(monitor, newZones)
         );
 
-        if (!changed.isEmpty()) {
-            log.debug("Saving bound monitors with zone changes: {}", changed);
-            boundMonitorRepository.saveAll(changed);
-        }
-
         return changed;
-    }
-
-    private List<BoundMonitor> unbindByMonitorAndZone(UUID monitorId, List<String> zones) {
-
-        final List<BoundMonitor> needToDelete = boundMonitorRepository
-            .findAllByMonitor_IdAndZoneIdIn(monitorId, zones);
-
-        log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
-        boundMonitorRepository.deleteAll(needToDelete);
-
-        return needToDelete;
     }
 
     private List<BoundMonitor> processMonitorContentModified(Monitor monitor,
@@ -826,6 +822,17 @@ public class MonitorManagement {
         boundMonitorRepository.deleteAll(boundMonitors);
 
         return boundMonitors;
+    }
+
+    private List<BoundMonitor> unbindByMonitorAndZone(UUID monitorId, List<String> zones) {
+
+        final List<BoundMonitor> needToDelete = boundMonitorRepository
+            .findAllByMonitor_IdAndZoneIdIn(monitorId, zones);
+
+        log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
+        boundMonitorRepository.deleteAll(needToDelete);
+
+        return needToDelete;
     }
 
     /**
