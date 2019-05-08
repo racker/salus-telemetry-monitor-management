@@ -116,4 +116,60 @@ public class MonitorContentRendererTest {
 
     assertThat(rendered, equalTo("value="));
   }
+
+  @Test
+  public void testDottedLabelFields() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.singletonMap("agent.discovered.os", "linux"))
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        // Attempt #1, resolves to default, empty string
+//        "os=${resource.labels.agent.discovered.os}",
+        // Attempt #2, resolves to default, empty string
+//        "os=${resource.labels.'agent.discovered.os'}",
+        // Attempt #3, works
+        "os=${#resource.labels}${agent.discovered.os}${/resource.labels}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("os=linux"));
+  }
+
+  @Test
+  public void testUnderscoredLabelFields() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.singletonMap("agent_discovered_os", "linux"))
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "os=${resource.labels.agent_discovered_os}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("os=linux"));
+  }
+
+  @Test
+  public void testDashedLabelFields() {
+    final Resource resource = new Resource()
+        .setLabels(Collections.singletonMap("agent-discovered-os", "linux"))
+        .setMetadata(Collections.emptyMap());
+
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(
+        "os=${resource.labels.agent-discovered-os}",
+        resource
+    );
+
+    assertThat(rendered, equalTo("os=linux"));
+  }
 }
