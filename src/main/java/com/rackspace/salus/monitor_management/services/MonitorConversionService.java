@@ -103,6 +103,7 @@ public class MonitorConversionService {
 
     final MonitorDetails details = input.getDetails();
 
+    // these will evaluate false when details is null during an update
     if (details instanceof LocalMonitorDetails) {
       monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
