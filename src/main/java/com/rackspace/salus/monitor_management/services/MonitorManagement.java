@@ -527,8 +527,7 @@ public class MonitorManagement {
             monitor.setContent(updatedValues.getContent());
         }
 
-        if (updatedValues.getZones() != null &&
-            !updatedValues.getZones().equals(monitor.getZones())) {
+        if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
             // Process potential changes to bound zones
 
             boundMonitorsChanges.addAll(
@@ -553,6 +552,12 @@ public class MonitorManagement {
         sendMonitorBoundEvents(boundMonitorsChanges);
 
         return monitor;
+    }
+
+    private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones) {
+        return updatedZones != null &&
+            ( updatedZones.size() != prevZones.size() ||
+            !updatedZones.containsAll(prevZones));
     }
 
     private List<BoundMonitor> processMonitorZonesModified(Monitor monitor,

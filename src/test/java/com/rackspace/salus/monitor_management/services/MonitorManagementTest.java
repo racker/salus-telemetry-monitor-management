@@ -632,6 +632,43 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testUpdateExistingMonitor_zonesOnlyChangedOrder() {
+        reset(envoyResourceManagement, resourceApi);
+
+        final Monitor monitor = new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}")
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Arrays.asList("z-1", "z-2"))
+            .setLabelSelector(Collections.singletonMap("os", "linux"));
+        entityManager.persist(monitor);
+
+        // EXECUTE
+
+        final MonitorCU update = new MonitorCU()
+            .setZones(Arrays.asList("z-2", "z-1"));
+
+        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+        // VERIFY
+
+        assertThat(updatedMonitor, equalTo(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Arrays.asList("z-1", "z-2"))
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+        ));
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+            zoneStorage, monitorEventProducer);
+    }
+
+    @Test
     public void testRemoveMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
