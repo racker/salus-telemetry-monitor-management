@@ -67,9 +67,14 @@
       <optional>true</optional>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>21.0</version>
+    </dependency>
+    <dependency>
       <groupId>com.rackspace.salus</groupId>
       <artifactId>salus-telemetry-protocol</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.1</version>
     </dependency>
     <dependency>
       <groupId>com.rackspace.salus</groupId>
@@ -222,6 +227,7 @@
           <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
+            <argument>/tenant/{tenantId}=</argument>
           </arguments>
         </configuration>
       </plugin>

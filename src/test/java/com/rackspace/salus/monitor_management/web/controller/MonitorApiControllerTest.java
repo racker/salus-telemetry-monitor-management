@@ -44,11 +44,11 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -99,7 +99,7 @@ public class MonitorApiControllerTest {
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(monitor);
+                .thenReturn(Optional.of(monitor));
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
         UUID id = UUID.randomUUID();
@@ -115,7 +115,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testNoMonitorFound() throws Exception {
         when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(null);
+                .thenReturn(Optional.empty());
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
         UUID id = UUID.randomUUID();
@@ -256,6 +256,27 @@ public class MonitorApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .characterEncoding(StandardCharsets.UTF_8.name()))
                 .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    public void testUpdateNonExistentMonitor() throws Exception {
+        when(monitorManagement.updateMonitor(anyString(), any(), any()))
+                .thenThrow(new NotFoundException("Custom not found message"));
+
+        String tenantId = RandomStringUtils.randomAlphabetic(10);
+        UUID id = UUID.randomUUID();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+
+        mockMvc.perform(put(url)
+                .content(objectMapper.writeValueAsString(update))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isNotFound())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }

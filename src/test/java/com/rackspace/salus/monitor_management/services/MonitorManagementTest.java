@@ -38,7 +38,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
@@ -54,11 +53,8 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.Resource;
-import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.model.*;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -213,12 +209,20 @@ public class MonitorManagementTest {
 
     @Test
     public void testGetMonitor() {
-        Monitor r = monitorManagement.getMonitor("abcde", currentMonitor.getId());
+        Optional<Monitor> m = monitorManagement.getMonitor("abcde", currentMonitor.getId());
 
-        assertThat(r.getId(), notNullValue());
-        assertThat(r.getLabelSelector(), hasEntry("os", "LINUX"));
-        assertThat(r.getContent(), equalTo(currentMonitor.getContent()));
-        assertThat(r.getAgentType(), equalTo(currentMonitor.getAgentType()));
+        assertTrue(m.isPresent());
+        assertThat(m.get().getId(), notNullValue());
+        assertThat(m.get().getLabelSelector(), hasEntry("os", "LINUX"));
+        assertThat(m.get().getContent(), equalTo(currentMonitor.getContent()));
+        assertThat(m.get().getAgentType(), equalTo(currentMonitor.getAgentType()));
+    }
+
+    @Test
+    public void testGetMonitorForUnauthorizedTenant() {
+        String unauthorizedTenantId = RandomStringUtils.randomAlphanumeric(10);
+        Optional<Monitor> monitor = monitorManagement.getMonitor(unauthorizedTenantId, currentMonitor.getId());
+        assertTrue(!monitor.isPresent());
     }
 
     @Test
@@ -237,10 +241,11 @@ public class MonitorManagementTest {
         assertThat(returned.getLabelSelector().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
 
-        Monitor retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
 
-        assertThat(retrieved.getMonitorName(), equalTo(returned.getMonitorName()));
-        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.getLabelSelector()).areEqual());
+        assertTrue(retrieved.isPresent());
+        assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
     }
 
 
@@ -669,6 +674,18 @@ public class MonitorManagementTest {
             zoneStorage, monitorEventProducer);
     }
 
+    @Test(expected = NotFoundException.class)
+    public void testUpdateNonExistentMonitor() {
+        String tenant = RandomStringUtils.randomAlphanumeric(10);
+        UUID uuid = UUID.randomUUID();
+
+        Map<String, String> newLabels = Collections.singletonMap("newLabel", "newValue");
+        MonitorCU update = new MonitorCU();
+        update.setLabelSelector(newLabels).setContent("newContent");
+
+        monitorManagement.updateMonitor(tenant, uuid, update);
+    }
+
     @Test
     public void testRemoveMonitor() {
         final Monitor monitor =
@@ -704,6 +721,13 @@ public class MonitorManagementTest {
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
+    }
+
+    @Test(expected = NotFoundException.class)
+    public void testRemoveNonExistentMonitor() {
+        String tenant = RandomStringUtils.randomAlphanumeric(10);
+        UUID uuid = UUID.randomUUID();
+        monitorManagement.removeMonitor(tenant, uuid);
     }
 
     @Test
@@ -970,7 +994,7 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testDistributeNewMonitor_remote() throws JsonProcessingException {
+    public void testDistributeNewMonitor_remote() {
         final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
         final ResolvedZone zoneWest = createPublicZone("public/west");
 
