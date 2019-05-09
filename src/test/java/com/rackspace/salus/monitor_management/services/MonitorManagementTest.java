@@ -604,6 +604,7 @@ public class MonitorManagementTest {
         final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
         verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
         verify(zoneStorage).incrementBoundCount(resolvedZ3, "e-new");
+        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "e-existing");
 
         verify(boundMonitorRepository)
             .findAllByMonitor_IdAndZoneIdIn(monitor.getId(), Collections.singletonList("z-1"));
@@ -1002,7 +1003,7 @@ public class MonitorManagementTest {
                 .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZoneTenantId("")
+                .setZoneTenantId(ResolvedZone.PUBLIC)
                 .setZoneId("public/west"),
             new BoundMonitor()
                 .setResourceId("r-2")
@@ -1016,7 +1017,7 @@ public class MonitorManagementTest {
                 .setMonitor(monitor)
                 .setEnvoyId("zoneWest-e-2")
                 .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZoneTenantId("")
+                .setZoneTenantId(ResolvedZone.PUBLIC)
                 .setZoneId("public/west")
         );
         verify(boundMonitorRepository).saveAll(expected);

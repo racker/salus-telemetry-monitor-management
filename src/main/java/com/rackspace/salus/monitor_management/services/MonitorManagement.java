@@ -314,12 +314,34 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(emptyStringForNull(resolvedZone.getTenantId()))
+            .setZoneTenantId(normalizeZoneTenant(resolvedZone.getTenantId()))
             .setZoneId(zone)
             .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource));
+    }
+
+    /**
+     * Ensures the zone tenant ID is a non-null value by normalizing to {@value ResolvedZone#PUBLIC}
+     * if the given tenant is null.
+     * @param tenantId the resolve zone tenant ID
+     * @return the normalized tenant value to use with {@link BoundMonitor#setZoneTenantId(String)}
+     */
+    private static String normalizeZoneTenant(@Nullable String tenantId) {
+        return tenantId != null ? tenantId : ResolvedZone.PUBLIC;
+    }
+
+    private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
+        final String zoneTenantId = boundMonitor.getZoneTenantId();
+        final String zoneId = boundMonitor.getZoneId();
+
+        if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
+            return ResolvedZone.createPublicZone(zoneId);
+        }
+        else {
+            return ResolvedZone.createPrivateZone(zoneTenantId, zoneId);
+        }
     }
 
     List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId) {
@@ -809,6 +831,7 @@ public class MonitorManagement {
         log.debug("Unbinding {} from monitorIds={}",
             boundMonitors, monitorIdsToUnbind);
         boundMonitorRepository.deleteAll(boundMonitors);
+        decrementBoundCounts(boundMonitors);
 
         return boundMonitors;
     }
@@ -825,6 +848,7 @@ public class MonitorManagement {
         log.debug("Unbinding {} from monitorId={} resourceIds={}", boundMonitors,
             monitorId, resourceIdsToUnbind);
         boundMonitorRepository.deleteAll(boundMonitors);
+        decrementBoundCounts(boundMonitors);
 
         return boundMonitors;
     }
@@ -837,7 +861,22 @@ public class MonitorManagement {
         log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
         boundMonitorRepository.deleteAll(needToDelete);
 
+        decrementBoundCounts(needToDelete);
+
         return needToDelete;
+    }
+
+    private void decrementBoundCounts(List<BoundMonitor> needToDelete) {
+        for (BoundMonitor boundMonitor : needToDelete) {
+            if (boundMonitor.getEnvoyId() != null &&
+                boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
+
+                zoneStorage.decrementBoundCount(getResolvedZoneOfBoundMonitor(boundMonitor),
+                    boundMonitor.getEnvoyId()
+                );
+
+            }
+        }
     }
 
     /**
