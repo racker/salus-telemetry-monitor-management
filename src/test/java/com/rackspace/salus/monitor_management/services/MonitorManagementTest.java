@@ -95,7 +95,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = true)
+@DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class})
