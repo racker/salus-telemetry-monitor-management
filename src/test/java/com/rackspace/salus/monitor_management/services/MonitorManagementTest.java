@@ -671,17 +671,39 @@ public class MonitorManagementTest {
 
     @Test
     public void testRemoveMonitor() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        Monitor newMon = monitorManagement.createMonitor(tenantId, create);
+        final Monitor monitor =
+            monitorRepository.save(new Monitor()
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Collections.singletonList("z-1"))
+                .setLabelSelector(Collections.singletonMap("os", "linux")));
 
-        Monitor monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
-        assertThat(monitor, notNullValue());
+        final BoundMonitor boundMonitor = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setZoneTenantId("t-1")
+            .setZoneId("z-1")
+            .setRenderedContent("{}")
+            .setEnvoyId("e-goner");
+        entityManager.persist(boundMonitor);
 
-        monitorManagement.removeMonitor(tenantId, newMon.getId());
-        monitor = monitorManagement.getMonitor(tenantId, newMon.getId());
-        assertThat(monitor, nullValue());
+        monitorManagement.removeMonitor("t-1", monitor.getId());
+
+        assertThat(
+            monitorManagement.getMonitor("t-1", monitor.getId()),
+            nullValue()
+        );
+
+        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
+
+        verify(zoneStorage).decrementBoundCount(
+            ResolvedZone.createPrivateZone("t-1", "z-1"),
+            "e-goner"
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
     }
 
     @Test

@@ -30,8 +30,6 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
-import com.rackspace.salus.telemetry.messaging.MonitorEvent;
-import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -457,51 +455,7 @@ public class MonitorManagement {
         return monitor.getZones();
     }
 
-    /**
-     * Send a kafka event announcing the monitor operation.  Finds the envoys that match labels in the
-     * current monitor as well as the ones that match the old labels, and sends and event to each envoy.
-     *
-     * @param monitor       the monitor to create the event for.
-     * @param operationType the crud operation that occurred on the monitor
-     * @param oldLabels     the old labels that were on the monitor before if this is an update operation
-     */
-    private void publishMonitor(Monitor monitor, OperationType operationType,
-                                Map<String, String> oldLabels) {
-        List<String> resources = extractResourceIds(resourceApi.getResourcesWithLabels(monitor.getTenantId(), monitor.getLabelSelector()));
-        List<String> oldResources = new ArrayList<>();
-        if (oldLabels != null && !oldLabels.equals(monitor.getLabelSelector())) {
-            oldResources = extractResourceIds(resourceApi.getResourcesWithLabels(monitor.getTenantId(), oldLabels));
-        }
-        resources.addAll(oldResources);
-
-        final Set<String> deduped = new HashSet<>(resources);
-
-        for (String resourceId : deduped) {
-            ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), resourceId).join();
-            if (resourceInfo != null) {
-                sendMonitorEvent(monitor, operationType, resourceInfo.getEnvoyId());
-            }
-        }
-    }
-
-    private List<String> extractResourceIds(List<Resource> resources) {
-        return resources.stream()
-            .map(Resource::getResourceId)
-            .collect(Collectors.toList());
-    }
-
-    private void sendMonitorEvent(Monitor monitor,
-                                  OperationType operationType,
-                                  String envoyId) {
-        MonitorEvent monitorEvent = new MonitorEvent()
-            .setFromMonitor(monitor)
-            .setOperationType(operationType)
-            .setEnvoyId(envoyId);
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
-    }
-
-    /**
+  /**
      * Update an existing monitor.
      *
      * @param tenantId      The tenant to create the entity for.
@@ -699,12 +653,15 @@ public class MonitorManagement {
     public void removeMonitor(String tenantId, UUID id) {
         Monitor monitor = getMonitor(tenantId, id);
         if (monitor != null) {
-            monitorRepository.deleteById(monitor.getId());
-            publishMonitor(monitor, OperationType.DELETE, null);
+            monitorRepository.delete(monitor);
         } else {
             throw new NotFoundException(String.format("No monitor found for %s on tenant %s",
                     id, tenantId));
         }
+
+        final List<BoundMonitor> unbound = unbindByMonitorId(Collections.singletonList(id));
+
+        sendMonitorBoundEvents(unbound);
     }
 
     /**
