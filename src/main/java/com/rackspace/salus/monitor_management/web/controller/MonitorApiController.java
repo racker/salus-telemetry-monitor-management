@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
@@ -72,17 +71,14 @@ public class MonitorApiController implements MonitorApi {
     private final BoundMonitorRepository boundMonitorRepository;
     private TaskExecutor taskExecutor;
     private MonitorConversionService monitorConversionService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public MonitorApiController(MonitorManagement monitorManagement, BoundMonitorRepository boundMonitorRepository,
-                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService,
-                                ObjectMapper objectMapper) {
+                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService) {
         this.monitorManagement = monitorManagement;
         this.boundMonitorRepository = boundMonitorRepository;
         this.taskExecutor = taskExecutor;
         this.monitorConversionService = monitorConversionService;
-        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/monitors")
@@ -192,5 +188,10 @@ public class MonitorApiController implements MonitorApi {
                                                  @RequestBody Map<String, String> labels) {
         return monitorManagement.getMonitorsFromLabels(labels, tenantId);
 
+    }
+
+    @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
+    public List<Monitor> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
+        return monitorManagement.getMonitorsForZone(tenantId, zone);
     }
 }

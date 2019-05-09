@@ -17,9 +17,13 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.telemetry.model.Monitor;
+
 import java.util.List;
 
 public interface MonitorApi {
 
   List<BoundMonitorDTO> getBoundMonitors(String envoyId);
+
+  List<Monitor> getMonitorsForZone(String tenantId, String zone);
 }
