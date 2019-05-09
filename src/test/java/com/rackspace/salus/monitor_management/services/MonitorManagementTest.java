@@ -26,12 +26,12 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,8 +53,12 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.*;
-
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -91,7 +95,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = false)
+@DataJpaTest(showSql = true)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class})
@@ -706,18 +710,29 @@ public class MonitorManagementTest {
             .setEnvoyId("e-goner");
         entityManager.persist(boundMonitor);
 
+        // Since boundMonitorRepository is mocked, need to propagate the actual deletion
+        // so that the reference integrity doesn't prevent deletion of the monitor
+        doAnswer(invocationOnMock -> {
+            entityManager.remove(boundMonitor);
+            return null;
+        })
+            .when(boundMonitorRepository).deleteAll(any());
+
         monitorManagement.removeMonitor("t-1", monitor.getId());
 
-        assertThat(
-            monitorManagement.getMonitor("t-1", monitor.getId()),
-            nullValue()
-        );
+        final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
+        assertThat(retrieved.isPresent(), equalTo(false));
 
         verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
 
         verify(zoneStorage).decrementBoundCount(
             ResolvedZone.createPrivateZone("t-1", "z-1"),
             "e-goner"
+        );
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+            .setEnvoyId("e-goner")
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);

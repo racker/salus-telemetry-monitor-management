@@ -618,14 +618,16 @@ public class MonitorManagement {
      * @param id       The id of the monitor.
      */
     public void removeMonitor(String tenantId, UUID id) {
-      Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
+        Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
           new NotFoundException(String.format("No monitor found for %s on tenant %s",
               id, tenantId)));
-      monitorRepository.delete(monitor);
 
-      final List<BoundMonitor> unbound = unbindByMonitorId(Collections.singletonList(id));
+        // need to unbind before deleting monitor since BoundMonitor references Monitor
+        final List<BoundMonitor> unbound = unbindByMonitorId(Collections.singletonList(id));
 
-      sendMonitorBoundEvents(unbound);
+        sendMonitorBoundEvents(unbound);
+
+        monitorRepository.delete(monitor);
     }
 
     /**
