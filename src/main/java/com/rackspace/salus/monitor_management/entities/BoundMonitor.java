@@ -86,7 +86,7 @@ public class BoundMonitor implements Serializable {
   Monitor monitor;
 
   /**
-   * Contains the tenant that owns the private zone or an empty string for public zones.
+   * Contains the tenant that owns the private zone or {@value com.rackspace.salus.telemetry.etcd.types.ResolvedZone#PUBLIC} for public zones.
    */
   @NotNull
   @Column(length = 100)
