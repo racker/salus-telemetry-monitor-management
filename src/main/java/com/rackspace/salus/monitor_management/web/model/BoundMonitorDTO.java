@@ -23,11 +23,14 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.UUID;
 import lombok.Data;
 
+/**
+ * Conveys the binding of a monitor to a resource and for remote monitors,
+ * where <code>selectorScope</code> is {@link ConfigSelectorScope#REMOTE},
+ * it also conveys the binding to a zone.
+ */
 @Data
 public class BoundMonitorDTO {
   UUID monitorId;
-  @JsonInclude(Include.NON_EMPTY)
-  String zoneTenantId;
   @JsonInclude(Include.NON_EMPTY)
   String zoneId;
   String resourceTenant;

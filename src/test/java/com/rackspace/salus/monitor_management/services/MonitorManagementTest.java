@@ -1249,7 +1249,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1"));
 
         // verify query argument normalized to non-null
-        verify(boundMonitorRepository).findAllWithoutEnvoy("", "public/west");
+        verify(boundMonitorRepository).findAllWithoutEnvoy(ResolvedZone.PUBLIC, "public/west");
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()

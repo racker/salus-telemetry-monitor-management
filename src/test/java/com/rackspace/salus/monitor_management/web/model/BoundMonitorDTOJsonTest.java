@@ -34,6 +34,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @JsonTest
 public class BoundMonitorDTOJsonTest {
 
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection") // IntelliJ has trouble resolving
   @Autowired
   private JacksonTester<BoundMonitorDTO> json;
 
@@ -41,7 +42,6 @@ public class BoundMonitorDTOJsonTest {
   public void testEmptyZone_nonNullEnvoy() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneTenantId("")
         .setZoneId("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")
@@ -59,7 +59,6 @@ public class BoundMonitorDTOJsonTest {
   public void testEmptyZone_nullEnvoy() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneTenantId("")
         .setZoneId("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")
@@ -77,7 +76,6 @@ public class BoundMonitorDTOJsonTest {
   public void testAllPopulated() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneTenantId("t-1")
         .setZoneId("z-1")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")

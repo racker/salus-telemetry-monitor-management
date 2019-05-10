@@ -53,7 +53,6 @@ public class BoundMonitorDTOTest {
     // and next verification is to check populated with correct values
 
     assertThat(dto.getMonitorId(), equalTo(boundMonitor.getMonitor().getId()));
-    assertThat(dto.getZoneTenantId(), equalTo(boundMonitor.getZoneTenantId()));
     assertThat(dto.getZoneId(), equalTo(boundMonitor.getZoneId()));
     assertThat(dto.getResourceTenant(), equalTo(boundMonitor.getMonitor().getTenantId()));
     assertThat(dto.getResourceId(), equalTo(boundMonitor.getResourceId()));

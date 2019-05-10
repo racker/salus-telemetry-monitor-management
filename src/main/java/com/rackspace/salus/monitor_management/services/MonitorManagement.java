@@ -346,7 +346,7 @@ public class MonitorManagement {
         final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
 
         final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
-            .findAllWithoutEnvoy(emptyStringForNull(zoneTenantId),  zoneId);
+            .findAllWithoutEnvoy(normalizeZoneTenant(zoneTenantId),  zoneId);
 
         log.debug("Found bound monitors without envoy: {}", onesWithoutEnvoy);
 

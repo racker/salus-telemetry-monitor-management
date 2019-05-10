@@ -119,7 +119,6 @@ public class BoundMonitor implements Serializable {
   public BoundMonitorDTO toDTO() {
     return new BoundMonitorDTO()
         .setMonitorId(monitor.getId())
-        .setZoneTenantId(zoneTenantId)
         .setZoneId(zoneId)
         .setResourceTenant(monitor.getTenantId())
         .setResourceId(resourceId)
