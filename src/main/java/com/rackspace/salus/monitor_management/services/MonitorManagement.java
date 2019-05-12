@@ -335,11 +335,7 @@ public class MonitorManagement {
             .getResultList();
     }
 
-    private static String emptyStringForNull(String input) {
-        return input == null ? "" : input;
-    }
-
-    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
+  public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
         log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
             zoneId, zoneTenantId);
 
@@ -374,7 +370,7 @@ public class MonitorManagement {
                                                  String toEnvoyId) {
 
         final List<BoundMonitor> boundToPrev = boundMonitorRepository.findAllWithEnvoy(
-            emptyStringForNull(tenantId),
+            normalizeZoneTenant(tenantId),
             zoneId,
             fromEnvoyId
         );
