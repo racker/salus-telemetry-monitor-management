@@ -34,6 +34,7 @@ import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
@@ -41,7 +42,9 @@ import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
 
 @Entity
-@Table(name = "monitors")
+@Table(name = "monitors", indexes = {
+    @Index(name = "by_tenant", columnList = "tenant_id")
+})
 @Data
 public class Monitor implements Serializable {
     @Id
