@@ -15,23 +15,31 @@
  */
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.rackspace.salus.telemetry.model.Monitor;
-import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.client.ZoneApi;
+import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreate;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
@@ -79,7 +87,9 @@ public class ZoneApiController implements ZoneApi {
     }
 
     @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
-    public List<Monitor> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
-        return zoneManagement.getMonitorsForZone(tenantId, zone);
+    public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
+        return zoneManagement.getMonitorsForZone(tenantId, zone).stream()
+            .map(Monitor::toDTO)
+            .collect(Collectors.toList());
     }
 }

@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management;
+package com.rackspace.salus.monitor_management.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
-import com.rackspace.salus.monitor_management.services.MonitorConversionService;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -33,15 +34,17 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import javax.validation.ConstraintViolation;
 import org.json.JSONException;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -52,6 +55,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.FileCopyUtils;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
 @JsonTest
@@ -80,7 +84,7 @@ public class MonitorConversionServiceTest {
         .setId(monitorId)
         .setMonitorName("name-a")
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(labels)
         .setContent(content);
 
@@ -123,7 +127,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
-    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.ALL_OF);
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
     final String content = readContent("/MonitorConversionServiceTest_cpu.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
@@ -137,7 +141,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
@@ -185,7 +189,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
@@ -239,7 +243,7 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.ALL_OF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content);
 
@@ -335,6 +339,28 @@ public class MonitorConversionServiceTest {
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
     final String content = readContent("/MonitorConversionServiceTest_ping.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void testValidationOfLabelSelectors() {
+    final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
+    validatorFactoryBean.afterPropertiesSet();
+
+    Map<String, String> labels = new HashMap<>();
+    labels.put("agent.discovered.os", "linux");
+
+    final DetailedMonitorInput input = new DetailedMonitorInput()
+        .setLabelSelector(labels)
+        .setDetails(
+            new LocalMonitorDetails()
+            .setPlugin(new Mem())
+        );
+    final Set<ConstraintViolation<DetailedMonitorInput>> results = validatorFactoryBean.validate(input);
+
+    Assert.assertThat(results.size(), equalTo(1));
+    final ConstraintViolation<DetailedMonitorInput> violation = results.iterator().next();
+    Assert.assertThat(violation.getPropertyPath().toString(), equalTo("labelSelector"));
+    Assert.assertThat(violation.getMessage(), equalTo("All label names must consist of alpha-numeric or underscore characters"));
   }
 
   private static String readContent(String resource) throws IOException {

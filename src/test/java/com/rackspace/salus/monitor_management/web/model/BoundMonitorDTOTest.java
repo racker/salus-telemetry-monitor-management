@@ -53,10 +53,10 @@ public class BoundMonitorDTOTest {
     // and next verification is to check populated with correct values
 
     assertThat(dto.getMonitorId(), equalTo(boundMonitor.getMonitor().getId()));
-    assertThat(dto.getZoneTenantId(), equalTo(boundMonitor.getZoneTenantId()));
-    assertThat(dto.getZoneId(), equalTo(boundMonitor.getZoneId()));
+    assertThat(dto.getZoneName(), equalTo(boundMonitor.getZoneName()));
     assertThat(dto.getResourceTenant(), equalTo(boundMonitor.getMonitor().getTenantId()));
     assertThat(dto.getResourceId(), equalTo(boundMonitor.getResourceId()));
+    assertThat(dto.getSelectorScope(), equalTo(boundMonitor.getMonitor().getSelectorScope()));
     assertThat(dto.getAgentType(), equalTo(boundMonitor.getMonitor().getAgentType()));
     assertThat(dto.getRenderedContent(), equalTo(boundMonitor.getRenderedContent()));
     assertThat(dto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));

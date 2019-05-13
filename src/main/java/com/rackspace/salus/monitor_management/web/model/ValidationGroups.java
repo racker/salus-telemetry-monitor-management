@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
-import java.util.Collections;
-import java.util.List;
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import javax.validation.constraints.NotNull;
+import org.springframework.validation.annotation.Validated;
 
-@ConfigurationProperties("zones")
-@Component
-@Data
-public class ZonesProperties {
+/**
+ * This contains validation group designations to allow for selective validation of fields
+ * such as {@link NotNull#groups()} and then activated during operations such as
+ * {@link Validated#value()}.
+ */
+public class ValidationGroups {
 
-  List<String> defaultZones = Collections.emptyList();
-
+  /**
+   * Used for validations that are activated during create operations
+   */
+  public interface Create { }
 }

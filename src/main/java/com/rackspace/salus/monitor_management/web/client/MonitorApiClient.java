@@ -18,8 +18,6 @@ package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import java.util.List;
-
-import com.rackspace.salus.telemetry.model.Monitor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestTemplate;

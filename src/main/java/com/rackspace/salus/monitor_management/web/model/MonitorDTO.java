@@ -14,19 +14,30 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
-import java.util.Collections;
+import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("zones")
-@Component
 @Data
-public class ZonesProperties {
+public class MonitorDTO {
+  UUID id;
 
-  List<String> defaultZones = Collections.emptyList();
+  String monitorName;
 
+  Map<String,String> labelSelector;
+
+  String tenantId;
+
+  String content;
+
+  AgentType agentType;
+
+  ConfigSelectorScope selectorScope;
+
+  List<String> zones;
 }

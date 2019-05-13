@@ -15,17 +15,15 @@
  */
 package com.rackspace.salus.monitor_management.web.client;
 
+import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
-import com.rackspace.salus.telemetry.model.Monitor;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import java.util.List;
 
 /**
  * This client component provides a small subset of Zone Management REST operations that
@@ -58,7 +56,7 @@ public class ZoneApiClient implements ZoneApi {
 
     private static final ParameterizedTypeReference<List<ZoneDTO>> LIST_OF_ZONES = new ParameterizedTypeReference<List<ZoneDTO>>() {
     };
-    private static final ParameterizedTypeReference<List<Monitor>> LIST_OF_MONITOR = new ParameterizedTypeReference<List<Monitor>>() {
+    private static final ParameterizedTypeReference<List<MonitorDTO>> LIST_OF_MONITOR = new ParameterizedTypeReference<List<MonitorDTO>>() {
     };
 
     private final RestTemplate restTemplate;
@@ -99,7 +97,7 @@ public class ZoneApiClient implements ZoneApi {
     }
 
     @Override
-    public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
+    public List<MonitorDTO> getMonitorsForZone(String tenantId, String zone) {
         return restTemplate.exchange(
                 "/api/tenant/{tenantId}/monitorsByZone/{zone}",
                 HttpMethod.GET,

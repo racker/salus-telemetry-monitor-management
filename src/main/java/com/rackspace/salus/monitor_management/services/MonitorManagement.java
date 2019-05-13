@@ -22,6 +22,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 import com.google.common.collect.Streams;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
@@ -32,20 +33,19 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
-import com.rackspace.salus.telemetry.messaging.MonitorEvent;
-import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -65,6 +65,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 
 @Slf4j
@@ -174,7 +176,8 @@ public class MonitorManagement {
                 .setZones(newMonitor.getZones());
 
         monitorRepository.save(monitor);
-        distributeNewMonitor(monitor);
+        final List<BoundMonitor> boundMonitors = bindMonitor(monitor);
+        sendMonitorBoundEvents(boundMonitors);
         return monitor;
     }
 
@@ -195,7 +198,12 @@ public class MonitorManagement {
         }
     }
 
-    void distributeNewMonitor(Monitor monitor) {
+    List<BoundMonitor> bindMonitor(Monitor monitor) {
+        return bindMonitor(monitor, determineMonitoringZones(monitor));
+    }
+
+    List<BoundMonitor> bindMonitor(Monitor monitor,
+                                   List<String> zones) {
         final List<Resource> resources = resourceApi.getResourcesWithLabels(
             monitor.getTenantId(), monitor.getLabelSelector());
 
@@ -203,7 +211,7 @@ public class MonitorManagement {
 
         final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
-        if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
+        if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
             // AGENT MONITOR
 
             for (Resource resource : resources) {
@@ -219,8 +227,6 @@ public class MonitorManagement {
         } else {
             // REMOTE MONITOR
 
-            final List<String> zones = determineMonitoringZones(monitor);
-
             for (Resource resource : resources) {
                 for (String zone : zones) {
                     boundMonitors.add(
@@ -235,11 +241,12 @@ public class MonitorManagement {
             log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
             boundMonitorRepository.saveAll(boundMonitors);
 
-            sendMonitorBoundEvents(boundMonitors);
         }
         else {
             log.debug("No monitors were bound from monitor={}", monitor);
         }
+
+        return boundMonitors;
     }
 
     private void sendMonitorBoundEvent(String envoyId) {
@@ -250,24 +257,24 @@ public class MonitorManagement {
         );
     }
 
-    private void sendMonitorBoundEvents(List<BoundMonitor> boundMonitors) {
-        // Convert and reduce the given bound monitors into one distinct event per envoy ID
-        final List<MonitorBoundEvent> events = boundMonitors.stream()
-            // ...only assigned ones
-            .filter(boundMonitor -> boundMonitor.getEnvoyId() != null)
+    /**
+     * This method sends at most one {@link MonitorBoundEvent} for each envoy ID referenced
+     * within the given collection of {@link BoundMonitor}s
+     * @param boundMonitors the {@link BoundMonitor}s to evaluate
+     */
+    void sendMonitorBoundEvents(List<BoundMonitor> boundMonitors) {
+        // Reduce the given bound monitors into one distinct event per envoy ID and send it
+        boundMonitors.stream()
             // ...extract envoy ID
             .map(BoundMonitor::getEnvoyId)
+            // ...only assigned ones
+            .filter(Objects::nonNull)
             // ...remove dupes
             .distinct()
             // ...create events
             .map(envoyId -> new MonitorBoundEvent()
                 .setEnvoyId(envoyId))
-            .collect(Collectors.toList());
-
-        for (MonitorBoundEvent event : events) {
-            monitorEventProducer.sendMonitorEvent(event);
-        }
-
+            .forEach(monitorEventProducer::sendMonitorEvent);
     }
 
     private BoundMonitor bindAgentMonitor(Monitor monitor, Resource resource, String envoyId) {
@@ -276,8 +283,7 @@ public class MonitorManagement {
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource))
-            .setZoneTenantId("")
-            .setZoneId("");
+            .setZoneName("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
@@ -296,46 +302,38 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(normalizeZoneTenant(resolvedZone.getTenantId()))
-            .setZoneId(zone)
+            .setZoneName(zone)
             .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource));
     }
 
-    /**
-     * Ensures the zone tenant ID is a non-null value by normalizing to {@value ResolvedZone#PUBLIC}
-     * if the given tenant is null.
-     * @param tenantId the resolve zone tenant ID
-     * @return the normalized tenant value to use with {@link BoundMonitor#setZoneTenantId(String)}
-     */
-    private static String normalizeZoneTenant(@Nullable String tenantId) {
-        return tenantId != null ? tenantId : ResolvedZone.PUBLIC;
+    private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
+        final String zoneTenantId = boundMonitor.getMonitor().getTenantId();
+        final String zoneName = boundMonitor.getZoneName();
+
+        if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
+            return ResolvedZone.createPublicZone(zoneName);
+        }
+        else {
+            return ResolvedZone.createPrivateZone(zoneTenantId, zoneName);
+        }
     }
 
-    List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId) {
-      return entityManager
-          .createQuery("select distinct b.monitor.id from BoundMonitor b"
-              + " where b.resourceId = :resourceId"
-              + " and b.monitor.tenantId = :tenantId", UUID.class)
-          .setParameter("tenantId", tenantId)
-          .setParameter("resourceId", resourceId)
-          .getResultList();
-    }
+    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneName) {
+        log.debug("Locating bound monitors without assigned envoy with zoneName={} and zoneTenantId={}",
+            zoneName, zoneTenantId);
 
-    private static String emptyStringForNull(String input) {
-        return input == null ? "" : input;
-    }
+        final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneName);
 
-    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
-        log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
-            zoneId, zoneTenantId);
-
-        final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
-
-        final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
-            .findAllWithoutEnvoy(emptyStringForNull(zoneTenantId),  zoneId);
+        final List<BoundMonitor> onesWithoutEnvoy;
+        if (resolvedZone.isPublicZone()) {
+            onesWithoutEnvoy = boundMonitorRepository.findAllWithoutEnvoyInPublicZone(zoneName);
+        }
+        else {
+            onesWithoutEnvoy = boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(zoneTenantId, zoneName);
+        }
 
         log.debug("Found bound monitors without envoy: {}", onesWithoutEnvoy);
 
@@ -359,14 +357,26 @@ public class MonitorManagement {
         }
     }
 
-    public void handleEnvoyResourceChangedInZone(String tenantId, String zoneId, String fromEnvoyId,
+    public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
+                                                 String zoneName, String fromEnvoyId,
                                                  String toEnvoyId) {
 
-        final List<BoundMonitor> boundToPrev = boundMonitorRepository.findAllWithEnvoy(
-            emptyStringForNull(tenantId),
-            zoneId,
-            fromEnvoyId
-        );
+        final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
+
+        final List<BoundMonitor> boundToPrev;
+        if ( resolvedZone.isPublicZone()) {
+            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPublicZone(
+                zoneName,
+                fromEnvoyId
+            );
+        }
+        else {
+            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPrivateZone(
+                tenantId,
+                zoneName,
+                fromEnvoyId
+            );
+        }
 
         if (!boundToPrev.isEmpty()) {
             log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
@@ -377,7 +387,7 @@ public class MonitorManagement {
             boundMonitorRepository.saveAll(boundToPrev);
 
             zoneStorage.incrementBoundCount(
-                createPrivateZone(tenantId, zoneId),
+                createPrivateZone(tenantId, zoneName),
                 toEnvoyId,
                 boundToPrev.size()
             );
@@ -395,7 +405,7 @@ public class MonitorManagement {
     }
 
     private ResolvedZone resolveZone(String tenantId, String zone) {
-        if (zone.startsWith(zonesProperties.getPublicZonePrefix())) {
+        if (zone.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
             return createPublicZone(zone);
         }
         else {
@@ -404,54 +414,13 @@ public class MonitorManagement {
     }
 
     private List<String> determineMonitoringZones(Monitor monitor) {
+        if (monitor.getSelectorScope() != ConfigSelectorScope.REMOTE) {
+            return Collections.emptyList();
+        }
         if (monitor.getZones() == null || monitor.getZones().isEmpty()) {
             return zonesProperties.getDefaultZones();
         }
         return monitor.getZones();
-    }
-
-    /**
-     * Send a kafka event announcing the monitor operation.  Finds the envoys that match labels in the
-     * current monitor as well as the ones that match the old labels, and sends and event to each envoy.
-     *
-     * @param monitor       the monitor to create the event for.
-     * @param operationType the crud operation that occurred on the monitor
-     * @param oldLabels     the old labels that were on the monitor before if this is an update operation
-     */
-    private void publishMonitor(Monitor monitor, OperationType operationType,
-                                Map<String, String> oldLabels) {
-        List<String> resources = extractResourceIds(resourceApi.getResourcesWithLabels(monitor.getTenantId(), monitor.getLabelSelector()));
-        List<String> oldResources = new ArrayList<>();
-        if (oldLabels != null && !oldLabels.equals(monitor.getLabelSelector())) {
-            oldResources = extractResourceIds(resourceApi.getResourcesWithLabels(monitor.getTenantId(), oldLabels));
-        }
-        resources.addAll(oldResources);
-
-        final Set<String> deduped = new HashSet<>(resources);
-
-        for (String resourceId : deduped) {
-            ResourceInfo resourceInfo = envoyResourceManagement
-                    .getOne(monitor.getTenantId(), resourceId).join();
-            if (resourceInfo != null) {
-                sendMonitorEvent(monitor, operationType, resourceInfo.getEnvoyId());
-            }
-        }
-    }
-
-    private List<String> extractResourceIds(List<Resource> resources) {
-        return resources.stream()
-            .map(Resource::getResourceId)
-            .collect(Collectors.toList());
-    }
-
-    private void sendMonitorEvent(Monitor monitor,
-                                  OperationType operationType,
-                                  String envoyId) {
-        MonitorEvent monitorEvent = new MonitorEvent()
-            .setFromMonitor(monitor)
-            .setOperationType(operationType)
-            .setEnvoyId(envoyId);
-        monitorEventProducer.sendMonitorEvent(monitorEvent);
     }
 
     /**
@@ -463,26 +432,184 @@ public class MonitorManagement {
      * @return The newly updated monitor.
      */
     public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
-        Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
-                new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                        id, tenantId)));
+      Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
+          new NotFoundException(String.format("No monitor found for %s on tenant %s",
+              id, tenantId)));
 
         validateMonitoringZones(tenantId, updatedValues.getZones());
 
-        Map<String, String> oldLabels = monitor.getLabelSelector();
+        final List<BoundMonitor> boundMonitorsChanges = new ArrayList<>();
+
+        if (updatedValues.getLabelSelector() != null &&
+            !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
+            // Process potential changes to resource selection and therefore bindings
+            // ...only need to process removed and new bindings
+
+            boundMonitorsChanges.addAll(
+                processMonitorLabelSelectorModified(monitor, updatedValues.getLabelSelector())
+            );
+
+            monitor.setLabelSelector(updatedValues.getLabelSelector());
+        }
+        else if (monitor.getLabelSelector() != null) {
+            // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+            // that has a field of type Map. It wants to clear the loaded map value, which is
+            // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+            // retrieved maps.
+            monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+        }
+
+        if (updatedValues.getContent() != null &&
+            !updatedValues.getContent().equals(monitor.getContent())) {
+            // Process potential changes to bound resource rendered content
+            // ...only need to process changed bindings
+
+            boundMonitorsChanges.addAll(
+                processMonitorContentModified(monitor, updatedValues.getContent())
+            );
+
+            monitor.setContent(updatedValues.getContent());
+        }
+
+        if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
+            // Process potential changes to bound zones
+
+            boundMonitorsChanges.addAll(
+                processMonitorZonesModified(monitor, updatedValues.getZones())
+            );
+
+            // give JPA a modifiable copy of the given list
+            monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+        }
+        else if (monitor.getZones() != null){
+            // See above regarding:
+            // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+            monitor.setZones(new ArrayList<>(monitor.getZones()));
+        }
+
         PropertyMapper map = PropertyMapper.get();
-        map.from(updatedValues.getLabelSelector())
-                .whenNonNull()
-                .to(monitor::setLabelSelector);
-        map.from(updatedValues.getContent())
-                .whenNonNull()
-                .to(monitor::setContent);
         map.from(updatedValues.getMonitorName())
                 .whenNonNull()
                 .to(monitor::setMonitorName);
         monitorRepository.save(monitor);
-        publishMonitor(monitor, OperationType.UPDATE, oldLabels);
+
+        sendMonitorBoundEvents(boundMonitorsChanges);
+
         return monitor;
+    }
+
+    private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones) {
+        return updatedZones != null &&
+            ( updatedZones.size() != prevZones.size() ||
+            !updatedZones.containsAll(prevZones));
+    }
+
+    private List<BoundMonitor> processMonitorZonesModified(Monitor monitor,
+                                                           List<String> updatedZones) {
+
+        // determine new zones
+        final List<String> newZones = new ArrayList<>(updatedZones);
+        // ...by removing zones on currently stored monitor
+        newZones.removeAll(monitor.getZones());
+
+        // determine old zones
+        final List<String> oldZones = new ArrayList<>(monitor.getZones());
+        // ...by removing the ones still in the update
+        oldZones.removeAll(updatedZones);
+
+        final List<BoundMonitor> changed = new ArrayList<>(
+            // this will also delete the unbound bindings
+            unbindByMonitorAndZone(monitor.getId(), oldZones)
+        );
+
+        changed.addAll(
+            // this will also save the new bindings
+            bindMonitor(monitor, newZones)
+        );
+
+        return changed;
+    }
+
+    private List<BoundMonitor> processMonitorContentModified(Monitor monitor,
+                                                             String updatedContent) {
+        final List<BoundMonitor> boundMonitors = boundMonitorRepository
+            .findAllByMonitor_Id(monitor.getId());
+
+        final MultiValueMap<String/*resourceId*/, BoundMonitor> groupedByResourceId = new LinkedMultiValueMap<>();
+        for (BoundMonitor boundMonitor : boundMonitors) {
+            groupedByResourceId.add(boundMonitor.getResourceId(), boundMonitor);
+        }
+
+        final List<BoundMonitor> modified = new ArrayList<>();
+
+        for (Entry<String, List<BoundMonitor>> resourceEntry : groupedByResourceId.entrySet()) {
+
+            final String tenantId = monitor.getTenantId();
+            final String resourceId = resourceEntry.getKey();
+            final Resource resource = resourceApi
+                .getByResourceId(tenantId, resourceId);
+
+            if (resource != null) {
+                final String newContent = monitorContentRenderer.render(updatedContent, resource);
+
+                for (BoundMonitor boundMonitor : resourceEntry.getValue()) {
+                    if (!newContent.equals(boundMonitor.getRenderedContent())) {
+                        boundMonitor.setRenderedContent(newContent);
+                        modified.add(boundMonitor);
+                    }
+                }
+            }
+            else {
+                log.warn("Failed to find resourceId={} during processing of monitor={}",
+                    resourceId, monitor);
+            }
+        }
+
+        if (!modified.isEmpty()) {
+            log.debug("Saving bound monitors with re-rendered content: {}", modified);
+            boundMonitorRepository.saveAll(modified);
+        }
+
+        return modified;
+    }
+
+    private List<BoundMonitor> processMonitorLabelSelectorModified(Monitor monitor,
+                                                                   Map<String, String> updatedLabelSelector) {
+
+      final Set<String> boundResourceIds =
+          boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
+
+        final List<Resource> selectedResources = resourceApi
+            .getResourcesWithLabels(monitor.getTenantId(), updatedLabelSelector);
+
+        final Set<String> selectedResourceIds = selectedResources.stream()
+            .map(Resource::getResourceId)
+            .collect(Collectors.toSet());
+
+        final List<String> resourceIdsToUnbind = new ArrayList<>(boundResourceIds);
+        resourceIdsToUnbind.removeAll(selectedResourceIds);
+
+        // process un-bindings
+        final List<BoundMonitor> boundMonitorsChanges =
+            new ArrayList<>(
+                unbindByResourceId(monitor.getId(), resourceIdsToUnbind)
+            );
+
+        // process new bindings
+        selectedResources.stream()
+            .filter(resource -> !boundResourceIds.contains(resource.getResourceId()))
+            .forEach(resource -> {
+
+                boundMonitorsChanges.addAll(
+                    upsertBindingToResource(
+                        Collections.singletonList(monitor),
+                        resource
+                    )
+                );
+
+            });
+
+        return boundMonitorsChanges;
     }
 
 
@@ -494,10 +621,15 @@ public class MonitorManagement {
      */
     public void removeMonitor(String tenantId, UUID id) {
         Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
-                new NotFoundException(String.format("No monitor found for %s on tenant %s",
-                        id, tenantId)));
-        monitorRepository.deleteById(monitor.getId());
-        publishMonitor(monitor, OperationType.DELETE, null);
+          new NotFoundException(String.format("No monitor found for %s on tenant %s",
+              id, tenantId)));
+
+        // need to unbind before deleting monitor since BoundMonitor references Monitor
+        final List<BoundMonitor> unbound = unbindByMonitorId(Collections.singletonList(id));
+
+        sendMonitorBoundEvents(unbound);
+
+        monitorRepository.delete(monitor);
     }
 
     /**
@@ -511,7 +643,8 @@ public class MonitorManagement {
         final String tenantId = event.getTenantId();
         final String resourceId = event.getResourceId();
 
-        final List<UUID> boundMonitorIds = findMonitorsBoundToResource(tenantId, resourceId);
+        final List<UUID> boundMonitorIds =
+            boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
 
         // monitorIdsToUnbind := boundMonitorIds \setminus selectedMonitorIds
         // ...so start with populating with boundMonitorIds
@@ -538,26 +671,17 @@ public class MonitorManagement {
             // ...and monitorIdsToUnbind remains ALL of the currently bound
         }
 
-        List<BoundMonitor> unbound = unbindByMonitorId(monitorIdsToUnbind);
+        List<BoundMonitor> changes = new ArrayList<>(
+            unbindByMonitorId(monitorIdsToUnbind)
+        );
 
-        final List<BoundMonitor> bound;
         if (!selectedMonitors.isEmpty()) {
-            bound = upsertBindingToResource(selectedMonitors, resource);
-        }
-        else {
-            bound = Collections.emptyList();
+            changes.addAll(
+                upsertBindingToResource(selectedMonitors, resource)
+            );
         }
 
-        // Send MonitorBoundEvents to the distinct set of envoys affected by unbind and bind
-        // changes collected above.
-        Stream.concat(
-            unbound.stream(),
-            bound.stream()
-        )
-            .map(BoundMonitor::getEnvoyId)
-            .filter(Objects::nonNull)
-            .distinct()
-            .forEach(this::sendMonitorBoundEvent);
+        sendMonitorBoundEvents(changes);
     }
 
     List<BoundMonitor> upsertBindingToResource(List<Monitor> monitors,
@@ -576,7 +700,7 @@ public class MonitorManagement {
             if (existing.isEmpty()) {
                 // need to create new bindings
 
-                if (monitor.getSelectorScope() == ConfigSelectorScope.ALL_OF) {
+                if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
                     // agent/local monitor
                     boundMonitors.add(
                         bindAgentMonitor(monitor, resource,
@@ -622,18 +746,58 @@ public class MonitorManagement {
             return Collections.emptyList();
         }
 
-        final List<BoundMonitor> boundMonitors = entityManager.createQuery(
-            "select b from BoundMonitor b where b.monitor.id in :monitorIds",
-            BoundMonitor.class
-        )
-            .setParameter("monitorIds", monitorIdsToUnbind)
-            .getResultList();
+        final List<BoundMonitor> boundMonitors =
+            boundMonitorRepository.findAllByMonitor_IdIn(monitorIdsToUnbind);
 
         log.debug("Unbinding {} from monitorIds={}",
             boundMonitors, monitorIdsToUnbind);
         boundMonitorRepository.deleteAll(boundMonitors);
+        decrementBoundCounts(boundMonitors);
 
         return boundMonitors;
+    }
+
+    private List<BoundMonitor> unbindByResourceId(UUID monitorId,
+                                                  List<String> resourceIdsToUnbind) {
+        if (resourceIdsToUnbind.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        final List<BoundMonitor> boundMonitors = boundMonitorRepository
+            .findAllByMonitor_IdAndResourceIdIn(monitorId, resourceIdsToUnbind);
+
+        log.debug("Unbinding {} from monitorId={} resourceIds={}", boundMonitors,
+            monitorId, resourceIdsToUnbind);
+        boundMonitorRepository.deleteAll(boundMonitors);
+        decrementBoundCounts(boundMonitors);
+
+        return boundMonitors;
+    }
+
+    private List<BoundMonitor> unbindByMonitorAndZone(UUID monitorId, List<String> zones) {
+
+        final List<BoundMonitor> needToDelete = boundMonitorRepository
+            .findAllByMonitor_IdAndZoneNameIn(monitorId, zones);
+
+        log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
+        boundMonitorRepository.deleteAll(needToDelete);
+
+        decrementBoundCounts(needToDelete);
+
+        return needToDelete;
+    }
+
+    private void decrementBoundCounts(List<BoundMonitor> needToDelete) {
+        for (BoundMonitor boundMonitor : needToDelete) {
+            if (boundMonitor.getEnvoyId() != null &&
+                boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
+
+                zoneStorage.decrementBoundCount(getResolvedZoneOfBoundMonitor(boundMonitor),
+                    boundMonitor.getEnvoyId()
+                );
+
+            }
+        }
     }
 
     /**

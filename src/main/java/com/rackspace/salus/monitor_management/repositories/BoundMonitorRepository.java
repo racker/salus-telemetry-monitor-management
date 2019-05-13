@@ -17,7 +17,9 @@
 package com.rackspace.salus.monitor_management.repositories;
 
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,13 +30,42 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
 
   List<BoundMonitor> findAllByEnvoyId(String envoyId);
 
-  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId is null")
-  List<BoundMonitor> findAllWithoutEnvoy(String zoneTenantId, String zoneId);
+  @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId is null")
+  List<BoundMonitor> findAllWithoutEnvoyInPublicZone(String zoneName);
 
-  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId = :envoyId")
-  List<BoundMonitor> findAllWithEnvoy(String zoneTenantId, String zoneId, String envoyId);
+  @Query(
+      "select b from BoundMonitor b"
+      + " where b.monitor.tenantId = :tenantId"
+          + " and b.zoneName = :zoneName"
+          + " and b.envoyId is null")
+  List<BoundMonitor> findAllWithoutEnvoyInPrivateZone(String tenantId, String zoneName);
+
+  @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId = :envoyId")
+  List<BoundMonitor> findAllWithEnvoyInPublicZone(String zoneName, String envoyId);
+
+  @Query("select b from BoundMonitor b"
+      + " where b.monitor.tenantId = :tenantId"
+      + " and b.zoneName = :zoneName"
+      + " and b.envoyId = :envoyId")
+  List<BoundMonitor> findAllWithEnvoyInPrivateZone(String tenantId, String zoneName, String envoyId);
+
+  @Query("select distinct b.resourceId from BoundMonitor b where b.monitor.id = :monitorId")
+  Set<String> findResourceIdsBoundToMonitor(UUID monitorId);
+
+  @Query("select distinct b.monitor.id from BoundMonitor b"
+      + " where b.resourceId = :resourceId"
+      + " and b.monitor.tenantId = :tenantId")
+  List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId);
 
   List<BoundMonitor> findAllByMonitor_IdAndResourceId(UUID monitorId, String resourceId);
 
   Page<BoundMonitor> findAllByMonitor_TenantId(String tenantId, Pageable pageable);
+
+  List<BoundMonitor> findAllByMonitor_Id(UUID monitorId);
+
+  List<BoundMonitor> findAllByMonitor_IdIn(Collection<UUID> monitorIds);
+
+  List<BoundMonitor> findAllByMonitor_IdAndResourceIdIn(UUID monitorId, Collection<String> resourceIds);
+
+  List<BoundMonitor> findAllByMonitor_IdAndZoneNameIn(UUID monitorId, Collection<String> zoneNames);
 }

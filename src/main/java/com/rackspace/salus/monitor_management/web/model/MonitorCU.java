@@ -45,7 +45,7 @@ public class MonitorCU implements Serializable {
 
     AgentType agentType;
 
-    ConfigSelectorScope selectorScope = ConfigSelectorScope.ALL_OF;
+    ConfigSelectorScope selectorScope = ConfigSelectorScope.LOCAL;
 
     List<String> zones;
 }

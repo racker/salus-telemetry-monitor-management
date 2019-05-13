@@ -15,9 +15,8 @@
  */
 package com.rackspace.salus.monitor_management.web.client;
 
+import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
-import com.rackspace.salus.telemetry.model.Monitor;
-
 import java.util.List;
 
 /**
@@ -32,5 +31,5 @@ public interface ZoneApi {
 
     List<ZoneDTO> getAvailableZones(String tenantId);
 
-    List<Monitor> getMonitorsForZone(String tenantId, String zone);
+    List<MonitorDTO> getMonitorsForZone(String tenantId, String zone);
 }
