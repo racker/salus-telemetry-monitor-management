@@ -13,16 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.rackspace.salus.monitor_management.types;
 
-package com.rackspace.salus.monitor_management.config;
-
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
-@ConfigurationProperties("services")
-@Component
-@Data
-public class ServicesProperties {
-    String resourceManagementUrl;
+public enum ZoneState {
+    ACTIVE, // running and accepting new checks
+    INACTIVE, // not running
+    MAINTENANCE // running but not accepting new checks
 }
