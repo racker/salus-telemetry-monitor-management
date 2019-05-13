@@ -54,8 +54,6 @@ public class MonitorApiClient implements MonitorApi {
 
   private static final ParameterizedTypeReference<List<BoundMonitorDTO>> LIST_OF_BOUND_MONITOR = new ParameterizedTypeReference<List<BoundMonitorDTO>>() {
   };
-  private static final ParameterizedTypeReference<List<Monitor>> LIST_OF_MONITOR = new ParameterizedTypeReference<List<Monitor>>() {
-  };
   private final RestTemplate restTemplate;
 
   public MonitorApiClient(RestTemplate restTemplate) {
@@ -70,18 +68,6 @@ public class MonitorApiClient implements MonitorApi {
         null,
         LIST_OF_BOUND_MONITOR,
         envoyId
-    ).getBody();
-  }
-
-  @Override
-  public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
-    return restTemplate.exchange(
-        "/api/tenant/{tenantId}/monitorsByZone/{zone}",
-        HttpMethod.GET,
-        null,
-        LIST_OF_MONITOR,
-        tenantId,
-        zone
     ).getBody();
   }
 }

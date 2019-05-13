@@ -5,6 +5,7 @@ import com.rackspace.salus.monitor_management.web.controller.ZoneApiController;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreate;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.Random;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.mockito.Mockito.when;
@@ -44,6 +46,13 @@ public class ZoneApiControllerTest {
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
+    private ZoneCreate newZoneCreate() {
+        Random random = new Random();
+        return new ZoneCreate()
+                .setName(RandomStringUtils.randomAlphanumeric(10))
+                .setPollerTimeout(random.nextInt(1000) + 30);
+    }
+
     @Test
     public void testGetByZoneName() throws Exception {
         final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
@@ -52,7 +61,7 @@ public class ZoneApiControllerTest {
 
         mvc.perform(get(
                 "/api/tenant/{tenantId}/zones/{name}",
-                "t-1", "r-1")
+                "t-1", "z-1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -67,7 +76,7 @@ public class ZoneApiControllerTest {
         when(zoneManagement.createZone(any(), any()))
                 .thenReturn(zone);
 
-        ZoneCreate create = podamFactory.manufacturePojo(ZoneCreate.class);
+        ZoneCreate create = newZoneCreate();
 
         mvc.perform(post(
                     "/api/tenant/{tenantId}/zones", "t-1")
@@ -82,7 +91,7 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testCreateZoneInvalidName() throws Exception {
-        ZoneCreate create = podamFactory.manufacturePojo(ZoneCreate.class);
+        ZoneCreate create = newZoneCreate();
         create.setName("Cant use non-alphanumeric!!!");
 
         String errorMsg = "\"name\" Only alphanumeric characters can be used";
@@ -102,7 +111,7 @@ public class ZoneApiControllerTest {
     public void testDeleteZone() throws Exception {
         mvc.perform(delete(
                 "/api/tenant/{tenantId}/zones/{name}",
-                "t-1", "r-1"))
+                "t-1", "z-1"))
                 .andDo(print())
                 .andExpect(status().isNoContent());
     }

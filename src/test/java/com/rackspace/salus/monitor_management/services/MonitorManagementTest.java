@@ -1453,17 +1453,4 @@ public class MonitorManagementTest {
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
             zoneStorage, monitorEventProducer, resourceApi);
     }
-
-    @Test
-    public void testGetMonitorsForZone() {
-        int count = 0;
-        String tenant = RandomStringUtils.randomAlphabetic(10);
-        String zone = RandomStringUtils.randomAlphabetic(10);
-        assertThat(monitorManagement.getMonitorsForZone(tenant, zone), hasSize(0));
-
-        createRemoteMonitorsForTenant(count, tenant, zone);
-        createRemoteMonitorsForTenant(count, tenant, "notMyZone");
-
-        assertThat(monitorManagement.getMonitorsForZone(tenant, zone), hasSize(count));
-    }
 }

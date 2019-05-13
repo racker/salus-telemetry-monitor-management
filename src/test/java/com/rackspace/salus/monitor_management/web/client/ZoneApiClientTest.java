@@ -45,12 +45,12 @@ public class ZoneApiClientTest {
     @Test
     public void testGetByZoneName() throws JsonProcessingException {
         ZoneDTO expectedZone = podamFactory.manufacturePojo(ZoneDTO.class);
-        mockServer.expect(requestTo("/api/tenant/t-1/zones/r-1"))
+        mockServer.expect(requestTo("/api/tenant/t-1/zones/z-1"))
                 .andRespond(withSuccess(
                         objectMapper.writeValueAsString(expectedZone), MediaType.APPLICATION_JSON
                 ));
 
-        final ZoneDTO zone = zoneApiClient.getByZoneName("t-1", "r-1");
+        final ZoneDTO zone = zoneApiClient.getByZoneName("t-1", "z-1");
 
         assertThat(zone, equalTo(expectedZone));
     }

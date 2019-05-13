@@ -24,6 +24,4 @@ import java.util.List;
 public interface MonitorApi {
 
   List<BoundMonitorDTO> getBoundMonitors(String envoyId);
-
-  List<Monitor> getMonitorsForZone(String tenantId, String zone);
 }

@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
-import static java.util.function.Predicate.not;
 
 import com.google.common.collect.Streams;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
@@ -51,15 +50,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
-
-import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -190,7 +186,7 @@ public class MonitorManagement {
                 .stream().map(Zone::getName).collect(Collectors.toList());
 
         List<String> invalidZones = providedZones.stream()
-                .filter(not(availableZones::contains))
+                .filter(z -> !availableZones.contains(z))
                 .collect(Collectors.toList());
 
         if (!invalidZones.isEmpty()) {
@@ -683,9 +679,5 @@ public class MonitorManagement {
             monitors.add(monitor);
         }
         return monitors;
-    }
-
-    public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
-        return monitorRepository.customFindByTenantIdAndZonesContains(tenantId, zone);
     }
 }

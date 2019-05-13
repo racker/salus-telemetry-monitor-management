@@ -1,7 +1,24 @@
+/*
+ * Copyright 2019 Rackspace US, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.entities.Zone;
@@ -24,15 +41,13 @@ import java.util.Optional;
 public class ZoneManagement {
     private final ZoneRepository zoneRepository;
     private final ZoneStorage zoneStorage;
-    private final MonitorManagement monitorManagement;
-
-    static final String PUBLIC = "_PUBLIC_";
+    private final MonitorRepository monitorRepository;
 
     @Autowired
-    public ZoneManagement(ZoneRepository zoneRepository, ZoneStorage zoneStorage, @Lazy MonitorManagement monitorManagement) {
+    public ZoneManagement(ZoneRepository zoneRepository, ZoneStorage zoneStorage, MonitorRepository monitorRepository) {
         this.zoneRepository = zoneRepository;
         this.zoneStorage = zoneStorage;
-        this.monitorManagement = monitorManagement;
+        this.monitorRepository = monitorRepository;
     }
 
     public Optional<Zone> getZone(String tenantId, String name) {
@@ -70,8 +85,6 @@ public class ZoneManagement {
         zone.setEnvoyTimeout(Duration.ofSeconds(updatedZone.getPollerTimeout()));
         zoneRepository.save(zone);
 
-        // TBD: need to restart watchers?
-
         return zone;
     }
 
@@ -80,7 +93,7 @@ public class ZoneManagement {
                 new NotFoundException(String.format("No zone found named %s on tenant %s",
                         name, tenantId)));
 
-        int monitors = monitorManagement.getMonitorsForZone(tenantId, name).size();
+        int monitors = getMonitorsForZone(tenantId, name).size();
         if(monitors > 0) {
             throw new IllegalArgumentException(
                     String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
@@ -100,7 +113,7 @@ public class ZoneManagement {
 
     private long getActiveEnvoyCountForZone(Zone zone) {
         ResolvedZone resolvedZone;
-        if (zone.getTenantId().equals(PUBLIC)) {
+        if (zone.getTenantId().equals(ResolvedZone.PUBLIC)) {
             resolvedZone = ResolvedZone.createPublicZone(zone.getName());
         } else {
             resolvedZone = ResolvedZone.createPrivateZone(zone.getTenantId(), zone.getName());
@@ -114,7 +127,7 @@ public class ZoneManagement {
     }
 
     private List<Zone> getAllPublicZones() {
-        return getZonesByTenant(PUBLIC);
+        return getZonesByTenant(ResolvedZone.PUBLIC);
     }
 
     public List<Zone> getAvailableZonesForTenant(String tenantId) {
@@ -123,6 +136,10 @@ public class ZoneManagement {
         availableZones.addAll(getZonesByTenant(tenantId));
 
         return availableZones;
+    }
+
+    public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
+        return monitorRepository.customFindByTenantIdAndZonesContains(tenantId, zone);
     }
 
     /**

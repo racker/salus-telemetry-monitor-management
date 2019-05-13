@@ -1,10 +1,28 @@
+/*
+ * Copyright 2019 Rackspace US, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.model.Monitor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import java.util.List;
@@ -40,6 +58,8 @@ public class ZoneApiClient implements ZoneApi {
 
     private static final ParameterizedTypeReference<List<ZoneDTO>> LIST_OF_ZONES = new ParameterizedTypeReference<List<ZoneDTO>>() {
     };
+    private static final ParameterizedTypeReference<List<Monitor>> LIST_OF_MONITOR = new ParameterizedTypeReference<List<Monitor>>() {
+    };
 
     private final RestTemplate restTemplate;
 
@@ -66,6 +86,7 @@ public class ZoneApiClient implements ZoneApi {
         }
     }
 
+    @Override
     public List<ZoneDTO> getAvailableZones(String tenantId) {
 
         return restTemplate.exchange(
@@ -74,6 +95,18 @@ public class ZoneApiClient implements ZoneApi {
                 null,
                 LIST_OF_ZONES,
                 tenantId
+        ).getBody();
+    }
+
+    @Override
+    public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
+        return restTemplate.exchange(
+                "/api/tenant/{tenantId}/monitorsByZone/{zone}",
+                HttpMethod.GET,
+                null,
+                LIST_OF_MONITOR,
+                tenantId,
+                zone
         ).getBody();
     }
 }

@@ -13,18 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.rackspace.salus.monitor_management.web.model;
+package com.rackspace.salus.monitor_management.types;
 
-import lombok.Data;
-
-import java.util.List;
-
-@Data
-public class ZoneDTO {
-    String name;
-    long envoyTimeout;
-    String provider;
-    String providerRegion;
-    boolean isPublic;
-    List<String> sourceIpRanges;
+public enum ZoneState {
+    ACTIVE, // running and accepting new checks
+    INACTIVE, // not running
+    MAINTENANCE // running but not accepting new checks
 }

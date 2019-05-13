@@ -18,7 +18,7 @@ package com.rackspace.salus.monitor_management.errors;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.BAD_REQUEST)
+@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
 public class ZoneAlreadyExists extends RuntimeException {
     public ZoneAlreadyExists(String message) { super(message);}
 }

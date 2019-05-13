@@ -189,9 +189,4 @@ public class MonitorApiController implements MonitorApi {
         return monitorManagement.getMonitorsFromLabels(labels, tenantId);
 
     }
-
-    @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
-    public List<Monitor> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
-        return monitorManagement.getMonitorsForZone(tenantId, zone);
-    }
 }
