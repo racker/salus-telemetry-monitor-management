@@ -311,31 +311,7 @@ public class MonitorManagement {
         }
     }
 
-    List<UUID> findMonitorsBoundToResource(String tenantId, String resourceId) {
-      return entityManager
-          .createQuery("select distinct b.monitor.id from BoundMonitor b"
-              + " where b.resourceId = :resourceId"
-              + " and b.monitor.tenantId = :tenantId", UUID.class)
-          .setParameter("tenantId", tenantId)
-          .setParameter("resourceId", resourceId)
-          .getResultList();
-    }
-
-    /**
-     * Finds the resourceId of resources that that bound to the given monitor
-     * @param monitorId the ID of the monitor to query
-     * @return the resourceId of the resources bound to the monitor
-     */
-    List<String> findResourcesBoundToMonitor(UUID monitorId) {
-        return entityManager
-            .createQuery("select distinct b.resourceId from BoundMonitor b"
-                    + " where b.monitor.id = :monitorId",
-                String.class)
-            .setParameter("monitorId", monitorId)
-            .getResultList();
-    }
-
-  public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
+    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
         log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
             zoneId, zoneTenantId);
 
@@ -420,7 +396,7 @@ public class MonitorManagement {
         return monitor.getZones();
     }
 
-  /**
+    /**
      * Update an existing monitor.
      *
      * @param tenantId      The tenant to create the entity for.
@@ -571,7 +547,8 @@ public class MonitorManagement {
     private List<BoundMonitor> processMonitorLabelSelectorModified(Monitor monitor,
                                                                    Map<String, String> updatedLabelSelector) {
 
-        final Set<String> boundResourceIds = new HashSet<>(findResourcesBoundToMonitor(monitor.getId()));
+      final Set<String> boundResourceIds =
+          boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
 
         final List<Resource> selectedResources = resourceApi
             .getResourcesWithLabels(monitor.getTenantId(), updatedLabelSelector);
@@ -637,7 +614,8 @@ public class MonitorManagement {
         final String tenantId = event.getTenantId();
         final String resourceId = event.getResourceId();
 
-        final List<UUID> boundMonitorIds = findMonitorsBoundToResource(tenantId, resourceId);
+        final List<UUID> boundMonitorIds =
+            boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
 
         // monitorIdsToUnbind := boundMonitorIds \setminus selectedMonitorIds
         // ...so start with populating with boundMonitorIds
@@ -668,7 +646,6 @@ public class MonitorManagement {
             unbindByMonitorId(monitorIdsToUnbind)
         );
 
-        final List<BoundMonitor> bound;
         if (!selectedMonitors.isEmpty()) {
             changes.addAll(
                 upsertBindingToResource(selectedMonitors, resource)
@@ -740,12 +717,8 @@ public class MonitorManagement {
             return Collections.emptyList();
         }
 
-        final List<BoundMonitor> boundMonitors = entityManager.createQuery(
-            "select b from BoundMonitor b where b.monitor.id in :monitorIds",
-            BoundMonitor.class
-        )
-            .setParameter("monitorIds", monitorIdsToUnbind)
-            .getResultList();
+        final List<BoundMonitor> boundMonitors =
+            boundMonitorRepository.findAllByMonitor_IdIn(monitorIdsToUnbind);
 
         log.debug("Unbinding {} from monitorIds={}",
             boundMonitors, monitorIdsToUnbind);

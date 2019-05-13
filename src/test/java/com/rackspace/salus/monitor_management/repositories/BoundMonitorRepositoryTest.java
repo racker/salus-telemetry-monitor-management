@@ -25,8 +25,11 @@ import static org.junit.Assert.assertThat;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.Monitor;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +39,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.junit4.SpringRunner;
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
@@ -48,6 +53,8 @@ public class BoundMonitorRepositoryTest {
 
   @Autowired
   private BoundMonitorRepository repository;
+
+  private PodamFactory podamFactory = new PodamFactoryImpl();
 
   @Test
   public void testFindOnesWithoutEnvoy() {
@@ -133,6 +140,32 @@ public class BoundMonitorRepositoryTest {
   }
 
   @Test
+  public void testfindAllByMonitor_IdIn() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor otherMonitor = createMonitor("t-some-other");
+    final Monitor yetAnotherMonitor = createMonitor("t-yet-another");
+
+    save(monitor, "t-1", "z-1", "r-1", null);
+    save(monitor, "t-1", "z-1", "r-2", null);
+    save(otherMonitor, "", "public/1", "r-3", null);
+    save(monitor, "t-1", "z-1", "r-4", null);
+    save(yetAnotherMonitor, "t-1", "z-1", "r-5", null);
+
+    // EXECUTE
+
+    final List<BoundMonitor> results = repository
+        .findAllByMonitor_IdIn(Arrays.asList(monitor.getId(), otherMonitor.getId()));
+
+    // VERIFY
+
+    assertThat(results, hasSize(4));
+    assertThat(results.get(0).getResourceId(), equalTo("r-1"));
+    assertThat(results.get(1).getResourceId(), equalTo("r-2"));
+    assertThat(results.get(2).getResourceId(), equalTo("r-3"));
+    assertThat(results.get(3).getResourceId(), equalTo("r-4"));
+  }
+
+  @Test
   public void testfindAllByMonitor_IdAndResourceIdIn() {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
     final Monitor otherMonitor = createMonitor("t-some-other");
@@ -209,4 +242,60 @@ public class BoundMonitorRepositoryTest {
             .setZoneId("z-1")
     ));
   }
+
+  @Test
+  public void testfindResourceIdsBoundToMonitor() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor otherMonitor = createMonitor("t-some-other");
+
+    save(monitor, "t-1", "z-1", "r-1", "e-1");
+    save(monitor, "t-1", "z-2", "r-1", "e-1");
+    save(otherMonitor, "t-1", "z-1", "r-3", "e-1");
+    save(monitor, "t-1", "z-1", "r-2", "e-1");
+
+    final Set<String> resourceIds =
+        repository.findResourceIdsBoundToMonitor(monitor.getId());
+
+    assertThat(resourceIds, containsInAnyOrder("r-1", "r-2"));
+  }
+
+  @Test
+  public void testFindMonitorsBoundToResource() {
+
+    final List<Monitor> monitors = new ArrayList<>();
+    for (int tenantIndex = 0; tenantIndex < 2; tenantIndex++) {
+      for (int monitorIndex = 0; monitorIndex < 5; monitorIndex++) {
+        final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setId(null);
+        monitor.setTenantId(String.format("t-%d", tenantIndex));
+        final Monitor savedMonitor = entityManager.persistFlushFind(monitor);
+        monitors.add(savedMonitor);
+
+        for (int boundIndex = 0; boundIndex < 3; boundIndex++) {
+          entityManager.persist(
+              new BoundMonitor()
+                  .setMonitor(savedMonitor)
+                  .setZoneTenantId(monitor.getTenantId())
+                  .setZoneId(String.format("z-%d", boundIndex))
+                  .setResourceId("r-1")
+                  .setRenderedContent(monitor.getContent())
+          );
+        }
+      }
+    }
+
+    final List<UUID> monitorIds = repository
+        .findMonitorsBoundToResource("t-0", "r-1");
+
+    assertThat(monitorIds, hasSize(5));
+
+    assertThat(monitorIds, containsInAnyOrder(
+        monitors.get(0).getId(),
+        monitors.get(1).getId(),
+        monitors.get(2).getId(),
+        monitors.get(3).getId(),
+        monitors.get(4).getId()
+    ));
+  }
+
 }

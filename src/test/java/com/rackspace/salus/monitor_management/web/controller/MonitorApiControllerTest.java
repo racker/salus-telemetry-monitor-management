@@ -43,12 +43,14 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.rackspace.salus.telemetry.model.NotFoundException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -249,6 +251,7 @@ public class MonitorApiControllerTest {
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
         DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        update.setLabelSelector(null);
         update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
         mockMvc.perform(put(url)
