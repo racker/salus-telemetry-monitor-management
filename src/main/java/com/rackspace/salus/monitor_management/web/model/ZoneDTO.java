@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
 import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("services")
-@Component
+import java.util.List;
+
 @Data
-public class ServicesProperties {
-    String resourceManagementUrl;
+public class ZoneDTO {
+    String name;
+    long envoyTimeout;
+    String provider;
+    String providerRegion;
+    boolean isPublic;
+    List<String> sourceIpRanges;
 }

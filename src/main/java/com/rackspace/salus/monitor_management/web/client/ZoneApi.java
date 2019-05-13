@@ -13,16 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.rackspace.salus.monitor_management.web.client;
 
-package com.rackspace.salus.monitor_management.config;
+import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.model.Monitor;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import java.util.List;
 
-@ConfigurationProperties("services")
-@Component
-@Data
-public class ServicesProperties {
-    String resourceManagementUrl;
+/**
+ * This interface declares a subset of internal REST API calls exposed by the Zone Management
+ * service.
+ *
+ * @see ZoneApiClient
+ */
+public interface ZoneApi {
+
+    ZoneDTO getByZoneName(String tenantId, String name);
+
+    List<ZoneDTO> getAvailableZones(String tenantId);
+
+    List<Monitor> getMonitorsForZone(String tenantId, String zone);
 }

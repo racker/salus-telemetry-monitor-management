@@ -23,6 +23,7 @@ import com.google.common.collect.Streams;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
+import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -77,6 +78,7 @@ public class MonitorManagement {
     private final MonitorEventProducer monitorEventProducer;
     private final MonitorContentRenderer monitorContentRenderer;
     private final ResourceApi resourceApi;
+    private final ZoneManagement zoneManagement;
     private final ZonesProperties zonesProperties;
 
     private final MonitorRepository monitorRepository;
@@ -96,7 +98,7 @@ public class MonitorManagement {
                              MonitorEventProducer monitorEventProducer,
                              MonitorContentRenderer monitorContentRenderer,
                              ResourceApi resourceApi,
-                             ZonesProperties zonesProperties,
+                             ZoneManagement zoneManagement, ZonesProperties zonesProperties,
                              JdbcTemplate jdbcTemplate) {
         this.monitorRepository = monitorRepository;
         this.entityManager = entityManager;
@@ -106,6 +108,7 @@ public class MonitorManagement {
         this.monitorEventProducer = monitorEventProducer;
         this.monitorContentRenderer = monitorContentRenderer;
         this.resourceApi = resourceApi;
+        this.zoneManagement = zoneManagement;
         this.zonesProperties = zonesProperties;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -159,9 +162,11 @@ public class MonitorManagement {
      * @return The newly created monitor.
      */
     public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
-      log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
+        log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
 
-      Monitor monitor = new Monitor()
+        validateMonitoringZones(tenantId, newMonitor.getZones());
+
+        Monitor monitor = new Monitor()
                 .setTenantId(tenantId)
                 .setMonitorName(newMonitor.getMonitorName())
                 .setLabelSelector(newMonitor.getLabelSelector())
@@ -174,6 +179,23 @@ public class MonitorManagement {
         final List<BoundMonitor> boundMonitors = bindMonitor(monitor);
         sendMonitorBoundEvents(boundMonitors);
         return monitor;
+    }
+
+    private void validateMonitoringZones(String tenantId, List<String> providedZones) throws IllegalArgumentException {
+        if (providedZones == null || providedZones.isEmpty()) {
+            return;
+        }
+        List<String> availableZones = zoneManagement.getAvailableZonesForTenant(tenantId)
+                .stream().map(Zone::getName).collect(Collectors.toList());
+
+        List<String> invalidZones = providedZones.stream()
+                .filter(z -> !availableZones.contains(z))
+                .collect(Collectors.toList());
+
+        if (!invalidZones.isEmpty()) {
+            throw new IllegalArgumentException(String.format("Invalid zone(s) provided: %s",
+                    String.join(",", invalidZones)));
+        }
     }
 
     List<BoundMonitor> bindMonitor(Monitor monitor) {
@@ -413,6 +435,8 @@ public class MonitorManagement {
       Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
           new NotFoundException(String.format("No monitor found for %s on tenant %s",
               id, tenantId)));
+
+        validateMonitoringZones(tenantId, updatedValues.getZones());
 
         final List<BoundMonitor> boundMonitorsChanges = new ArrayList<>();
 

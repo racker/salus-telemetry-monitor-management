@@ -13,16 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.rackspace.salus.monitor_management.repositories;
 
-package com.rackspace.salus.monitor_management.config;
+import com.rackspace.salus.monitor_management.entities.Zone;
+import org.springframework.data.repository.PagingAndSortingRepository;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-@ConfigurationProperties("services")
-@Component
-@Data
-public class ServicesProperties {
-    String resourceManagementUrl;
+public interface ZoneRepository extends PagingAndSortingRepository<Zone, UUID> {
+    Optional<Zone> findByTenantIdAndName(String tenantId, String name);
+
+    List<Zone> findAllByTenantId(String tenantId);
+
+    boolean existsByTenantIdAndName(String tenantId, String name);
 }

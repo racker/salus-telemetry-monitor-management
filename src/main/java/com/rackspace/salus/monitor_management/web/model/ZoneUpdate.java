@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
 import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("services")
-@Component
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import java.io.Serializable;
+
 @Data
-public class ServicesProperties {
-    String resourceManagementUrl;
+public class ZoneUpdate implements Serializable {
+
+    @Min(value = 30, message = "The timeout must not be less than 30s")
+    @Max(value = 1800, message = "The timeout must not be more than 1800s (30m)")
+    long pollerTimeout;
 }
