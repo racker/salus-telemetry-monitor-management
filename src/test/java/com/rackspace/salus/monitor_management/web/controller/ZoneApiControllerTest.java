@@ -1,7 +1,6 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.web.controller.ZoneApiController;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreate;
@@ -80,6 +79,26 @@ public class ZoneApiControllerTest {
 
         mvc.perform(post(
                     "/api/tenant/{tenantId}/zones", "t-1")
+                .content(objectMapper.writeValueAsString(create))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isCreated())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+    }
+
+    @Test
+    public void testCreateZoneWithUnderscores() throws Exception {
+        Zone zone = podamFactory.manufacturePojo(Zone.class);
+        when(zoneManagement.createZone(any(), any()))
+                .thenReturn(zone);
+
+        ZoneCreate create = newZoneCreate();
+        create.setName("underscores_are_allowed");
+
+        mvc.perform(post(
+                "/api/tenant/{tenantId}/zones", "t-1")
                 .content(objectMapper.writeValueAsString(create))
                 .contentType(MediaType.APPLICATION_JSON)
                 .characterEncoding(StandardCharsets.UTF_8.name()))

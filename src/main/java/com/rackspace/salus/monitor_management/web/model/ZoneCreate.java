@@ -26,7 +26,7 @@ import java.io.Serializable;
 public class ZoneCreate implements Serializable {
 
     @NotBlank
-    @Pattern(regexp = "^[\\p{Alnum}]+$", message = "Only alphanumeric characters can be used")
+    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "Only alphanumeric and underscore characters can be used")
     String name;
 
     @Min(value = 30, message = "The timeout must not be less than 30s")
