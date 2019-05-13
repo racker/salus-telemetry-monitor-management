@@ -16,9 +16,12 @@
 
 package com.rackspace.salus.monitor_management.entities;
 
+import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -72,4 +75,16 @@ public class Monitor implements Serializable {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name="monitor_zones", joinColumns = @JoinColumn(name="monitor_id"))
     List<String> zones;
+
+    public MonitorDTO toDTO() {
+      return new MonitorDTO()
+          .setId(id)
+          .setMonitorName(monitorName)
+          .setLabelSelector(new HashMap<>(labelSelector))
+          .setTenantId(tenantId)
+          .setContent(content)
+          .setAgentType(agentType)
+          .setSelectorScope(selectorScope)
+          .setZones(new ArrayList<>(zones));
+    }
 }
