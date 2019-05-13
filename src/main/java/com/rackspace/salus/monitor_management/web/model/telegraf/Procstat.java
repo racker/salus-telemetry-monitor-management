@@ -8,11 +8,13 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import javax.validation.Constraint;
+
 @Data
 @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@ProcstatValidator.OneOf(groups = ProcstatValidator.OneOf.class)
+@ProcstatValidator.OneOf()
 public class Procstat extends LocalPlugin {
     String pidFile;
     String user;
@@ -22,28 +24,6 @@ public class Procstat extends LocalPlugin {
     String cgroup;
     String win_service;
 
+    // This is optional; default is sourced from /proc/<pid>/status
     String process_name;
-
-    /*
-    Everything gets grabbed through a pgrep call
-    Not actually pgrep... Just pulls in the file from the path.
-    pidfile;
-    pgrep -u
-    user;
-    pgrep
-    exe;
-    pgrep -f
-    pattern;
-    systemd unit name
-    systemd_unit;
-    cgroup name or path
-    cgroup;
-    windows service name
-    win_service
-
-    process_name
-    prefix
-    pid_tag
-    pid_finder
-     */
 }
