@@ -47,7 +47,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @AutoConfigureJson
 public class BoundMonitorRepositoryTest {
 
-  public static final String MONITOR_TENANT = "monitor-t-1";
+  private static final String MONITOR_TENANT = "monitor-t-1";
   @Autowired
   private TestEntityManager entityManager;
 
@@ -60,16 +60,16 @@ public class BoundMonitorRepositoryTest {
   public void testFindOnesWithoutEnvoy() {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
 
-    save(monitor, "t-1", "z-1", "r-1", null);
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
-    save(monitor, "", "public/1", "r-3", null);
-    save(monitor, "", "public/1", "r-4", "e-2");
+    save(monitor, "z-1", "r-1", null);
+    save(monitor, "z-1", "r-2", "e-1");
+    save(monitor, "public/1", "r-3", null);
+    save(monitor, "public/1", "r-4", "e-2");
 
-    final List<BoundMonitor> t1z1 = repository.findAllWithoutEnvoy("t-1", "z-1");
+    final List<BoundMonitor> t1z1 = repository.findAllWithoutEnvoyInPrivateZone(MONITOR_TENANT, "z-1");
     assertThat(t1z1, hasSize(1));
     assertThat(t1z1.get(0).getResourceId(), equalTo("r-1"));
 
-    final List<BoundMonitor> publicResults = repository.findAllWithoutEnvoy("", "public/1");
+    final List<BoundMonitor> publicResults = repository.findAllWithoutEnvoyInPublicZone("public/1");
     assertThat(publicResults, hasSize(1));
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-3"));
   }
@@ -86,31 +86,30 @@ public class BoundMonitorRepositoryTest {
   public void testFindOnesWithEnvoy() {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
 
-    save(monitor, "t-1", "z-1", "r-1", null);
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
-    save(monitor, "t-1", "z-1", "r-3", "e-1");
-    save(monitor, "", "public/1", "r-4", null);
-    save(monitor, "", "public/1", "r-5", "e-1");
-    save(monitor, "", "public/2", "r-6", "e-1");
+    save(monitor, "z-1", "r-1", null);
+    save(monitor, "z-1", "r-2", "e-1");
+    save(monitor, "z-1", "r-3", "e-1");
+    save(monitor, "public/1", "r-4", null);
+    save(monitor, "public/1", "r-5", "e-1");
+    save(monitor, "public/2", "r-6", "e-1");
 
-    final List<BoundMonitor> t1z1 = repository.findAllWithEnvoy("t-1", "z-1", "e-1");
+    final List<BoundMonitor> t1z1 = repository.findAllWithEnvoyInPrivateZone(MONITOR_TENANT, "z-1", "e-1");
     assertThat(t1z1, hasSize(2));
     assertThat(t1z1.get(0).getResourceId(), equalTo("r-2"));
     assertThat(t1z1.get(1).getResourceId(), equalTo("r-3"));
 
-    final List<BoundMonitor> publicResults = repository.findAllWithEnvoy("", "public/1", "e-1");
+    final List<BoundMonitor> publicResults = repository.findAllWithEnvoyInPublicZone("public/1", "e-1");
     assertThat(publicResults, hasSize(1));
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-5"));
   }
 
-  private void save(Monitor monitor, String tenant, String zone, String resource, String envoyId) {
+  private void save(Monitor monitor, String zone, String resource, String envoyId) {
     final Monitor retrievedMonitor = entityManager.find(Monitor.class, monitor.getId());
     assertThat(retrievedMonitor, notNullValue());
 
     entityManager.persist(new BoundMonitor()
         .setMonitor(monitor)
-        .setZoneTenantId(tenant)
-        .setZoneId(zone)
+        .setZoneName(zone)
         .setResourceId(resource)
         .setEnvoyId(envoyId)
     );
@@ -122,13 +121,13 @@ public class BoundMonitorRepositoryTest {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
     final Monitor otherMonitor = createMonitor("t-some-other");
 
-    save(monitor, "t-1", "z-1", "r-1", null);
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
-    save(otherMonitor, "", "public/1", "r-2", null);
-    save(monitor, "t-1", "z-1", "r-3", "e-1");
-    save(monitor, "", "public/1", "r-4", null);
-    save(monitor, "", "public/1", "r-5", "e-1");
-    save(monitor, "", "public/2", "r-6", "e-1");
+    save(monitor, "z-1", "r-1", null);
+    save(monitor, "z-1", "r-2", "e-1");
+    save(otherMonitor, "public/1", "r-2", null);
+    save(monitor, "z-1", "r-3", "e-1");
+    save(monitor, "public/1", "r-4", null);
+    save(monitor, "public/1", "r-5", "e-1");
+    save(monitor, "public/2", "r-6", "e-1");
 
     final Page<BoundMonitor> results = repository
         .findAllByMonitor_TenantId(MONITOR_TENANT, PageRequest.of(1, 2));
@@ -145,11 +144,11 @@ public class BoundMonitorRepositoryTest {
     final Monitor otherMonitor = createMonitor("t-some-other");
     final Monitor yetAnotherMonitor = createMonitor("t-yet-another");
 
-    save(monitor, "t-1", "z-1", "r-1", null);
-    save(monitor, "t-1", "z-1", "r-2", null);
-    save(otherMonitor, "", "public/1", "r-3", null);
-    save(monitor, "t-1", "z-1", "r-4", null);
-    save(yetAnotherMonitor, "t-1", "z-1", "r-5", null);
+    save(monitor, "z-1", "r-1", null);
+    save(monitor, "z-1", "r-2", null);
+    save(otherMonitor, "public/1", "r-3", null);
+    save(monitor, "z-1", "r-4", null);
+    save(yetAnotherMonitor, "z-1", "r-5", null);
 
     // EXECUTE
 
@@ -170,13 +169,13 @@ public class BoundMonitorRepositoryTest {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
     final Monitor otherMonitor = createMonitor("t-some-other");
 
-    save(monitor, "t-1", "z-1", "r-1", "e-1");
-    save(monitor, "t-1", "z-2", "r-1", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-1", "e-1");
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-2", "e-1");
-    save(monitor, "t-1", "z-1", "r-3", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-3", "e-1");
+    save(monitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-2", "r-1", "e-1");
+    save(otherMonitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-1", "r-2", "e-1");
+    save(otherMonitor, "z-1", "r-2", "e-1");
+    save(monitor, "z-1", "r-3", "e-1");
+    save(otherMonitor, "z-1", "r-3", "e-1");
 
     final List<BoundMonitor> results = repository
         .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Arrays.asList("r-1", "r-3"));
@@ -187,20 +186,17 @@ public class BoundMonitorRepositoryTest {
             .setMonitor(monitor)
             .setResourceId("r-1")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-1"),
+            .setZoneName("z-1"),
         new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-2"),
+            .setZoneName("z-2"),
         new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-3")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-1")
+            .setZoneName("z-1")
     ));
   }
 
@@ -209,16 +205,16 @@ public class BoundMonitorRepositoryTest {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
     final Monitor otherMonitor = createMonitor("t-some-other");
 
-    save(monitor, "t-1", "z-1", "r-1", "e-1");
-    save(monitor, "t-1", "z-2", "r-1", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-1", "e-1");
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-2", "e-1");
-    save(monitor, "t-1", "z-3", "r-3", "e-1");
-    save(otherMonitor, "t-1", "z-3", "r-3", "e-1");
+    save(monitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-2", "r-1", "e-1");
+    save(otherMonitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-1", "r-2", "e-1");
+    save(otherMonitor, "z-1", "r-2", "e-1");
+    save(monitor, "z-3", "r-3", "e-1");
+    save(otherMonitor, "z-3", "r-3", "e-1");
 
     final List<BoundMonitor> results = repository
-        .findAllByMonitor_IdAndZoneIdIn(monitor.getId(), Arrays.asList("z-1", "z-2"));
+        .findAllByMonitor_IdAndZoneNameIn(monitor.getId(), Arrays.asList("z-1", "z-2"));
 
     assertThat(results, hasSize(3));
     assertThat(results, containsInAnyOrder(
@@ -226,20 +222,17 @@ public class BoundMonitorRepositoryTest {
             .setMonitor(monitor)
             .setResourceId("r-1")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-1"),
+            .setZoneName("z-1"),
         new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-2"),
+            .setZoneName("z-2"),
         new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-2")
             .setEnvoyId("e-1")
-            .setZoneTenantId("t-1")
-            .setZoneId("z-1")
+            .setZoneName("z-1")
     ));
   }
 
@@ -248,10 +241,10 @@ public class BoundMonitorRepositoryTest {
     final Monitor monitor = createMonitor(MONITOR_TENANT);
     final Monitor otherMonitor = createMonitor("t-some-other");
 
-    save(monitor, "t-1", "z-1", "r-1", "e-1");
-    save(monitor, "t-1", "z-2", "r-1", "e-1");
-    save(otherMonitor, "t-1", "z-1", "r-3", "e-1");
-    save(monitor, "t-1", "z-1", "r-2", "e-1");
+    save(monitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-2", "r-1", "e-1");
+    save(otherMonitor, "z-1", "r-3", "e-1");
+    save(monitor, "z-1", "r-2", "e-1");
 
     final Set<String> resourceIds =
         repository.findResourceIdsBoundToMonitor(monitor.getId());
@@ -275,8 +268,7 @@ public class BoundMonitorRepositoryTest {
           entityManager.persist(
               new BoundMonitor()
                   .setMonitor(savedMonitor)
-                  .setZoneTenantId(monitor.getTenantId())
-                  .setZoneId(String.format("z-%d", boundIndex))
+                  .setZoneName(String.format("z-%d", boundIndex))
                   .setResourceId("r-1")
                   .setRenderedContent(monitor.getContent())
           );

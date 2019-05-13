@@ -32,7 +32,7 @@ import lombok.Data;
 public class BoundMonitorDTO {
   UUID monitorId;
   @JsonInclude(Include.NON_EMPTY)
-  String zoneId;
+  String zoneName;
   String resourceTenant;
   String resourceId;
   ConfigSelectorScope selectorScope;

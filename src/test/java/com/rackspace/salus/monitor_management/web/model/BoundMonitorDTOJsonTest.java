@@ -42,7 +42,7 @@ public class BoundMonitorDTOJsonTest {
   public void testEmptyZone_nonNullEnvoy() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneId("")
+        .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")
         .setResourceId("r-1")
@@ -59,7 +59,7 @@ public class BoundMonitorDTOJsonTest {
   public void testEmptyZone_nullEnvoy() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneId("")
+        .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")
         .setResourceId("r-1")
@@ -76,7 +76,7 @@ public class BoundMonitorDTOJsonTest {
   public void testAllPopulated() throws IOException {
 
     final BoundMonitorDTO dto = new BoundMonitorDTO()
-        .setZoneId("z-1")
+        .setZoneName("z-1")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setResourceTenant("t-1")
         .setResourceId("r-1")

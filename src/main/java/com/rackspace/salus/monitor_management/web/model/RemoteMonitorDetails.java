@@ -26,6 +26,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class RemoteMonitorDetails extends MonitorDetails {
   /**
+   * The zone names where this remote monitor should operate.
    * If not specified, a set of default zones will be used for remote monitoring.
    */
   List<String> monitoringZones;

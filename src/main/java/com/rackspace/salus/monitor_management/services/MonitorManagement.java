@@ -261,8 +261,7 @@ public class MonitorManagement {
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource))
-            .setZoneTenantId("")
-            .setZoneId("");
+            .setZoneName("");
     }
 
     private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
@@ -281,44 +280,38 @@ public class MonitorManagement {
         }
 
         return new BoundMonitor()
-            .setZoneTenantId(normalizeZoneTenant(resolvedZone.getTenantId()))
-            .setZoneId(zone)
+            .setZoneName(zone)
             .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
             .setEnvoyId(envoyId)
             .setRenderedContent(renderMonitorContent(monitor, resource));
     }
 
-    /**
-     * Ensures the zone tenant ID is a non-null value by normalizing to {@value ResolvedZone#PUBLIC}
-     * if the given tenant is null.
-     * @param tenantId the resolve zone tenant ID
-     * @return the normalized tenant value to use with {@link BoundMonitor#setZoneTenantId(String)}
-     */
-    private static String normalizeZoneTenant(@Nullable String tenantId) {
-        return tenantId != null ? tenantId : ResolvedZone.PUBLIC;
-    }
-
     private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
-        final String zoneTenantId = boundMonitor.getZoneTenantId();
-        final String zoneId = boundMonitor.getZoneId();
+        final String zoneTenantId = boundMonitor.getMonitor().getTenantId();
+        final String zoneName = boundMonitor.getZoneName();
 
         if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
-            return ResolvedZone.createPublicZone(zoneId);
+            return ResolvedZone.createPublicZone(zoneName);
         }
         else {
-            return ResolvedZone.createPrivateZone(zoneTenantId, zoneId);
+            return ResolvedZone.createPrivateZone(zoneTenantId, zoneName);
         }
     }
 
-    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneId) {
-        log.debug("Locating bound monitors without assigned envoy with zoneId={} and zoneTenantId={}",
-            zoneId, zoneTenantId);
+    public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneName) {
+        log.debug("Locating bound monitors without assigned envoy with zoneName={} and zoneTenantId={}",
+            zoneName, zoneTenantId);
 
-        final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneId);
+        final ResolvedZone resolvedZone = resolveZone(zoneTenantId, zoneName);
 
-        final List<BoundMonitor> onesWithoutEnvoy = boundMonitorRepository
-            .findAllWithoutEnvoy(normalizeZoneTenant(zoneTenantId),  zoneId);
+        final List<BoundMonitor> onesWithoutEnvoy;
+        if (resolvedZone.isPublicZone()) {
+            onesWithoutEnvoy = boundMonitorRepository.findAllWithoutEnvoyInPublicZone(zoneName);
+        }
+        else {
+            onesWithoutEnvoy = boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(zoneTenantId, zoneName);
+        }
 
         log.debug("Found bound monitors without envoy: {}", onesWithoutEnvoy);
 
@@ -342,14 +335,26 @@ public class MonitorManagement {
         }
     }
 
-    public void handleEnvoyResourceChangedInZone(String tenantId, String zoneId, String fromEnvoyId,
+    public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
+                                                 String zoneName, String fromEnvoyId,
                                                  String toEnvoyId) {
 
-        final List<BoundMonitor> boundToPrev = boundMonitorRepository.findAllWithEnvoy(
-            normalizeZoneTenant(tenantId),
-            zoneId,
-            fromEnvoyId
-        );
+        final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
+
+        final List<BoundMonitor> boundToPrev;
+        if ( resolvedZone.isPublicZone()) {
+            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPublicZone(
+                zoneName,
+                fromEnvoyId
+            );
+        }
+        else {
+            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPrivateZone(
+                tenantId,
+                zoneName,
+                fromEnvoyId
+            );
+        }
 
         if (!boundToPrev.isEmpty()) {
             log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
@@ -360,7 +365,7 @@ public class MonitorManagement {
             boundMonitorRepository.saveAll(boundToPrev);
 
             zoneStorage.incrementBoundCount(
-                createPrivateZone(tenantId, zoneId),
+                createPrivateZone(tenantId, zoneName),
                 toEnvoyId,
                 boundToPrev.size()
             );
@@ -378,7 +383,7 @@ public class MonitorManagement {
     }
 
     private ResolvedZone resolveZone(String tenantId, String zone) {
-        if (zone.startsWith(zonesProperties.getPublicZonePrefix())) {
+        if (zone.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
             return createPublicZone(zone);
         }
         else {
@@ -748,7 +753,7 @@ public class MonitorManagement {
     private List<BoundMonitor> unbindByMonitorAndZone(UUID monitorId, List<String> zones) {
 
         final List<BoundMonitor> needToDelete = boundMonitorRepository
-            .findAllByMonitor_IdAndZoneIdIn(monitorId, zones);
+            .findAllByMonitor_IdAndZoneNameIn(monitorId, zones);
 
         log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
         boundMonitorRepository.deleteAll(needToDelete);
@@ -784,9 +789,9 @@ public class MonitorManagement {
 
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);
-        StringBuilder builder = new StringBuilder("SELECT monitors.id FROM monitors JOIN monitor_label_selectors AS ml WHERE monitors.id = ml.id AND monitors.id IN ");
-        builder.append("(SELECT id from monitor_label_selectors WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
-        builder.append("monitors.id IN (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM monitor_label_selectors GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM monitor_label_selectors WHERE ");
+        StringBuilder builder = new StringBuilder("SELECT monitors.id FROM monitors JOIN monitor_label_selectors AS ml WHERE monitors.id = ml.monitor_id AND monitors.id IN ");
+        builder.append("(SELECT monitor_id from monitor_label_selectors WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
+        builder.append("monitors.id IN (SELECT search_labels.monitor_id FROM (SELECT monitor_id, COUNT(*) AS count FROM monitor_label_selectors GROUP BY monitor_id) AS total_labels JOIN (SELECT monitor_id, COUNT(*) AS count FROM monitor_label_selectors WHERE ");
         int i = 0;
         labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
@@ -798,7 +803,7 @@ public class MonitorManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND search_labels.count >= total_labels.count GROUP BY search_labels.id)");
+        builder.append(" GROUP BY monitor_id) AS search_labels WHERE total_labels.monitor_id = search_labels.monitor_id AND search_labels.count >= total_labels.count GROUP BY search_labels.monitor_id)");
 
         builder.append(") ORDER BY monitors.id");
         paramSource.addValue("i", i);

@@ -30,11 +30,24 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
 
   List<BoundMonitor> findAllByEnvoyId(String envoyId);
 
-  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId is null")
-  List<BoundMonitor> findAllWithoutEnvoy(String zoneTenantId, String zoneId);
+  @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId is null")
+  List<BoundMonitor> findAllWithoutEnvoyInPublicZone(String zoneName);
 
-  @Query("select b from BoundMonitor b where b.zoneTenantId = :zoneTenantId and b.zoneId = :zoneId and b.envoyId = :envoyId")
-  List<BoundMonitor> findAllWithEnvoy(String zoneTenantId, String zoneId, String envoyId);
+  @Query(
+      "select b from BoundMonitor b"
+      + " where b.monitor.tenantId = :tenantId"
+          + " and b.zoneName = :zoneName"
+          + " and b.envoyId is null")
+  List<BoundMonitor> findAllWithoutEnvoyInPrivateZone(String tenantId, String zoneName);
+
+  @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId = :envoyId")
+  List<BoundMonitor> findAllWithEnvoyInPublicZone(String zoneName, String envoyId);
+
+  @Query("select b from BoundMonitor b"
+      + " where b.monitor.tenantId = :tenantId"
+      + " and b.zoneName = :zoneName"
+      + " and b.envoyId = :envoyId")
+  List<BoundMonitor> findAllWithEnvoyInPrivateZone(String tenantId, String zoneName, String envoyId);
 
   @Query("select distinct b.resourceId from BoundMonitor b where b.monitor.id = :monitorId")
   Set<String> findResourceIdsBoundToMonitor(UUID monitorId);
@@ -54,5 +67,5 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
 
   List<BoundMonitor> findAllByMonitor_IdAndResourceIdIn(UUID monitorId, Collection<String> resourceIds);
 
-  List<BoundMonitor> findAllByMonitor_IdAndZoneIdIn(UUID monitorId, Collection<String> zoneIds);
+  List<BoundMonitor> findAllByMonitor_IdAndZoneNameIn(UUID monitorId, Collection<String> zoneNames);
 }

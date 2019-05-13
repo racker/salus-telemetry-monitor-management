@@ -6,5 +6,5 @@
   "agentType": "TELEGRAF",
   "renderedContent": "{}",
   "envoyId": "e-1",
-  "zoneId": "z-1"
+  "zoneName": "z-1"
 }

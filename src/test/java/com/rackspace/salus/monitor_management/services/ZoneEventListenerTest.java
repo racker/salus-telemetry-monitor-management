@@ -45,7 +45,7 @@ public class ZoneEventListenerTest {
     zoneEventListener.handleEvent(
         new NewResourceZoneEvent()
         .setTenantId("t-1")
-        .setZoneId("z-1")
+        .setZoneName("z-1")
     );
 
     verify(monitorManagement).handleNewEnvoyInZone("t-1", "z-1");
@@ -58,7 +58,7 @@ public class ZoneEventListenerTest {
             .setFromEnvoyId("e-1")
             .setToEnvoyId("e-2")
             .setTenantId("t-1")
-            .setZoneId("z-1")
+            .setZoneName("z-1")
     );
 
     verify(monitorManagement).handleEnvoyResourceChangedInZone(
