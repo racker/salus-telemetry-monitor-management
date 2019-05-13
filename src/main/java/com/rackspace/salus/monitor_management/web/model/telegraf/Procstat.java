@@ -20,10 +20,10 @@ public class Procstat extends LocalPlugin {
     String user;
     String exe;
     String pattern;
-    String systemd_unit;
+    String systemdUnit;
     String cgroup;
-    String win_service;
+    String winService;
 
     // This is optional; default is sourced from /proc/<pid>/status
-    String process_name;
+    String processName;
 }

@@ -26,11 +26,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
-import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.monitor_management.web.model.telegraf.*;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.Monitor;
@@ -335,6 +331,68 @@ public class MonitorConversionServiceTest {
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
     final String content = readContent("/MonitorConversionServiceTest_ping.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertFromInput_procstat() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_ping");
+
+    final LocalMonitorDetails details = new LocalMonitorDetails();
+    final Procstat plugin = new Procstat();
+    plugin.setPidFile("/path/to/file");
+    plugin.setProcessName("thisIsAProcess");
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+            .setName("name-a")
+            .setLabelSelector(labels)
+            .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.ALL_OF);
+    final String content = readContent("/MonitorConversionServiceTest_procstat.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertToOutput_procstat() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_remote");
+
+    final String content = readContent("/MonitorConversionServiceTest_procstat.json");
+
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+            .setId(monitorId)
+            .setMonitorName("name-a")
+            .setAgentType(AgentType.TELEGRAF)
+            .setSelectorScope(ConfigSelectorScope.ALL_OF)
+            .setLabelSelector(labels)
+            .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+
+    final LocalMonitorDetails localMonitorDetails = (LocalMonitorDetails) result.getDetails();
+    final LocalPlugin plugin = localMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(Procstat.class);
+
+    final Procstat procstatPlugin = (Procstat) plugin;
+    assertThat(procstatPlugin.getPidFile()).contains("/path/to/file");
+    assertThat(procstatPlugin.getProcessName()).contains("thisIsAProcess");
   }
 
   private static String readContent(String resource) throws IOException {

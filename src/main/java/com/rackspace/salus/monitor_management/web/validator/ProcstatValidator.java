@@ -33,13 +33,13 @@ public class ProcstatValidator implements ConstraintValidator <ProcstatValidator
         if(!isNullOrEmpty(monitor.getPattern())) {
             count++;
         }
-        if(!isNullOrEmpty(monitor.getSystemd_unit())) {
+        if(!isNullOrEmpty(monitor.getSystemdUnit())) {
             count++;
         }
         if(!isNullOrEmpty(monitor.getCgroup())) {
             count++;
         }
-        if(!isNullOrEmpty(monitor.getWin_service())) {
+        if(!isNullOrEmpty(monitor.getWinService())) {
             count++;
         }
         if(count != 1) {
