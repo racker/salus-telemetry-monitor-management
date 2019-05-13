@@ -16,8 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -26,7 +26,6 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
-import com.rackspace.salus.telemetry.model.Monitor;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -35,15 +34,12 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -59,7 +55,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @RestController
@@ -76,19 +71,15 @@ public class MonitorApiController implements MonitorApi {
 
     private MonitorManagement monitorManagement;
     private final BoundMonitorRepository boundMonitorRepository;
-    private TaskExecutor taskExecutor;
     private MonitorConversionService monitorConversionService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
-    public MonitorApiController(MonitorManagement monitorManagement, BoundMonitorRepository boundMonitorRepository,
-                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService,
-                                ObjectMapper objectMapper) {
+    public MonitorApiController(MonitorManagement monitorManagement,
+                                BoundMonitorRepository boundMonitorRepository,
+                                MonitorConversionService monitorConversionService) {
         this.monitorManagement = monitorManagement;
         this.boundMonitorRepository = boundMonitorRepository;
-        this.taskExecutor = taskExecutor;
         this.monitorConversionService = monitorConversionService;
-        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/monitors")
@@ -99,23 +90,6 @@ public class MonitorApiController implements MonitorApi {
         return monitorManagement.getAllMonitors(PageRequest.of(page, size))
                 .map(monitorConversionService::convertToOutput);
 
-    }
-
-    @GetMapping("/monitorsAsStream")
-    public SseEmitter getAllAsStream() {
-        SseEmitter emitter = new SseEmitter();
-        Stream<Monitor> monitors = monitorManagement.getMonitorsAsStream();
-        taskExecutor.execute(() -> {
-            monitors.forEach(r -> {
-                try {
-                    emitter.send(r);
-                } catch (IOException e) {
-                    emitter.completeWithError(e);
-                }
-            });
-            emitter.complete();
-        });
-        return emitter;
     }
 
     @Override
@@ -195,9 +169,11 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitorLabels")
     @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
-    public List<Monitor> getMonitorsWithLabels(@PathVariable String tenantId,
+    public List<DetailedMonitorOutput> getMonitorsWithLabels(@PathVariable String tenantId,
                                                  @RequestBody Map<String, String> labels) {
-        return monitorManagement.getMonitorsFromLabels(labels, tenantId);
+        return monitorManagement.getMonitorsFromLabels(labels, tenantId).stream()
+            .map(monitor -> monitorConversionService.convertToOutput(monitor))
+            .collect(Collectors.toList());
 
     }
 }

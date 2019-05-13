@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.entities;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.Serializable;
 import java.util.UUID;
 import javax.persistence.Column;

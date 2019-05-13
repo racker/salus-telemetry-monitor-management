@@ -16,8 +16,7 @@
 
 package com.rackspace.salus.monitor_management.repositories;
 
-import com.rackspace.salus.telemetry.model.Monitor;
-
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

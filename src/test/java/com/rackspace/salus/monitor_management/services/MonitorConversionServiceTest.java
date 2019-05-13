@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -33,7 +34,6 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -360,7 +360,7 @@ public class MonitorConversionServiceTest {
     Assert.assertThat(results.size(), equalTo(1));
     final ConstraintViolation<DetailedMonitorInput> violation = results.iterator().next();
     Assert.assertThat(violation.getPropertyPath().toString(), equalTo("labelSelector"));
-    Assert.assertThat(violation.getMessage(), equalTo("All label names must consistent of alpha-numeric or underscore"));
+    Assert.assertThat(violation.getMessage(), equalTo("All label names must consist of alpha-numeric or underscore characters"));
   }
 
   private static String readContent(String resource) throws IOException {
