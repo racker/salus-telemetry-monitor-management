@@ -34,89 +34,90 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "zones", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"tenant_id", "name"})})
+    @UniqueConstraint(columnNames = {"tenant_id", "name"})})
 
 @Data
 public class Zone implements Serializable {
-    @Id
-    @GeneratedValue
-    @Type(type="uuid-char")
-    UUID id;
+  @Id
+  @GeneratedValue
+  @Type(type="uuid-char")
+  UUID id;
 
-    /**
-     * Contains the unique name/label for the zone.
-     * Public zones should have a "public/" prefix and then a trailing region descriptor.
-     * e.g. "public/us-central-1"
-     */
-    @NotBlank
-    @Column(name="name")
-    String name;
+  /**
+   * Contains the tenant that owns the private zone or "_PUBLIC_" for public zones.
+   */
+  @NotBlank
+  @Column(name="tenant_id")
+  String tenantId;
 
-    /**
-     * Contains an optional hosting provider of the zone.
-     * e.g. Rackspace, Google, Amazon
-     */
-    @Column(name="provider")
-    String provider;
+  /**
+   * Contains the unique name/label for the zone.
+   * Public zones should have a "public/" prefix and then a trailing region descriptor.
+   * e.g. "public/us-central-1"
+   */
+  @NotBlank
+  @Column(name="name")
+  String name;
 
-    /**
-     * Contains an optional region to more precisely define where the zone is running.
-     * e.g. for Rackspace, dfw3 may be used; for Google, europe-west3.
-     */
-    @Column(name="provider_region")
-    String providerRegion;
+  /**
+   * Contains an optional hosting provider of the zone.
+   * e.g. Rackspace, Google, Amazon
+   */
+  @Column(name="provider")
+  String provider;
 
-    /**
-     * Defines whether a zone is public or private.
-     */
-    @NotNull
-    @Column(name="is_public")
-    boolean isPublic;
+  /**
+   * Contains an optional region to more precisely define where the zone is running.
+   * e.g. for Rackspace, dfw3 may be used; for Google, europe-west3.
+   */
+  @Column(name="provider_region")
+  String providerRegion;
 
-    /**
-     * Contains an optional list of ipv4 and ipv6 ranges that the pollers in this zone reside in.
-     * This can be used to whitelist ranges to allow for remote polling.
-     */
-    @ElementCollection(fetch = FetchType.EAGER)
-    @Column(name="source_ips")
-    List<String> sourceIpRanges;
+  /**
+   * Defines whether a zone is public or private.
+   */
+  @NotNull
+  @Column(name="is_public")
+  boolean isPublic;
 
-    /**
-     * Defines whether the zone is available or not.
-     * This helps determine whether new monitors can be added to the zone.
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(name="state")
-    ZoneState state;
+  /**
+   * Contains an optional list of ipv4 and ipv6 ranges that the pollers in this zone reside in.
+   * This can be used to whitelist ranges to allow for remote polling.
+   * Entries must be valid CIDR notation.
+   */
+  @ElementCollection(fetch = FetchType.EAGER)
+  @Column(name="source_ips")
+  List<String> sourceIpAddresses;
 
-    /**
-     * Contains the tenant that owns the private zone or "_PUBLIC_" for public zones.
-     */
-    @NotBlank
-    @Column(name="tenant_id")
-    String tenantId;
+  /**
+   * Defines whether the zone is available or not.
+   * This helps determine whether new monitors can be added to the zone.
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name="state")
+  ZoneState state;
 
-    /**
-     * Contains a timeout value which begins to countdown after an envoy/poller has disconnected.
-     * If the timeout is met, the monitors bound to it will be distributed to other available pollers.
-     */
-    @DurationUnit(ChronoUnit.SECONDS)
-    @Column(name="envoy_timeout")
-    Duration envoyTimeout = Duration.ofSeconds(120);
+  /**
+   * Contains a timeout value which begins to countdown after a poller has disconnected.
+   * If the timeout is met, the monitors bound to it will be distributed to other available pollers.
+   */
+  @DurationUnit(ChronoUnit.SECONDS)
+  @Column(name="poller_timeout")
+  Duration pollerTimeout = Duration.ofSeconds(120);
 
-    /**
-     * Converts the Zone object to a ZoneDTO which is a stripped down version to be used
-     * as output in the APIs.
-     *
-     * @return A ZoneDTO with fields mapped from the Zone.
-     */
-    public ZoneDTO toDTO() {
-        return new ZoneDTO()
-                .setName(name)
-                .setEnvoyTimeout(envoyTimeout.getSeconds())
-                .setProvider(provider)
-                .setProviderRegion(providerRegion)
-                .setPublic(isPublic)
-                .setSourceIpRanges(sourceIpRanges);
-    }
+  /**
+   * Converts the Zone object to a ZoneDTO which is a stripped down version to be used
+   * as output in the APIs.
+   *
+   * @return A ZoneDTO with fields mapped from the Zone.
+   */
+  public ZoneDTO toDTO() {
+    return new ZoneDTO()
+        .setName(name)
+        .setPollerTimeout(pollerTimeout.getSeconds())
+        .setProvider(provider)
+        .setProviderRegion(providerRegion)
+        .setPublic(isPublic)
+        .setSourceIpAddresses(sourceIpAddresses);
+  }
 }

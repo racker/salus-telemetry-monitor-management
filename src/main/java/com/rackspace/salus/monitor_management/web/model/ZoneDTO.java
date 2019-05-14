@@ -15,6 +15,7 @@
  */
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.monitor_management.types.ZoneState;
 import lombok.Data;
 
 import java.util.List;
@@ -22,9 +23,11 @@ import java.util.List;
 @Data
 public class ZoneDTO {
     String name;
-    long envoyTimeout;
+    long pollerTimeout;
     String provider;
     String providerRegion;
     boolean isPublic;
-    List<String> sourceIpRanges;
+    List<String> sourceIpAddresses;
+
+    ZoneState state; // we want to filter this from public api responses
 }

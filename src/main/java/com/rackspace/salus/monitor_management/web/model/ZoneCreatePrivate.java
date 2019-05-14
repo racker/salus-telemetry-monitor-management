@@ -19,13 +19,18 @@ import com.rackspace.salus.monitor_management.types.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
 import java.util.List;
 import lombok.Data;
-
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.Pattern;
+import org.hibernate.validator.constraints.NotBlank;
 import java.io.Serializable;
 
 @Data
-public class ZoneUpdate implements Serializable {
+public class ZoneCreatePrivate implements Serializable {
+
+    @NotBlank
+    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "Only alphanumeric and underscore characters can be used")
+    String name;
 
     String provider;
 
@@ -34,9 +39,9 @@ public class ZoneUpdate implements Serializable {
     @ValidCidrList
     List<String> sourceIpAddresses;
 
-    ZoneState state;
+    ZoneState state = ZoneState.ACTIVE; // Can we do active for private, inactive for public?
 
     @Min(value = 30L, message = "The timeout must not be less than 30s")
     @Max(value = 1800L, message = "The timeout must not be more than 1800s (30m)")
-    Long pollerTimeout;
+    Long pollerTimeout = 120L;
 }
