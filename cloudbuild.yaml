@@ -27,6 +27,11 @@ steps:
     - name: user.home
       path: /root
 
+  - id: GIT_ALL
+    name: gcr.io/cloud-builders/git
+    args: ['fetch', '--unshallow']
+    waitFor: ['-']
+
   - id: DEPLOY
     name: 'gcr.io/cloud-builders/mvn'
     args: ['-B', 'deploy', '-s', '.mvn/settings.xml']
