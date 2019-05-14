@@ -231,7 +231,7 @@ public class ZoneManagement {
     }
 
     /**
-     * Helper method to public private zones by tenant id and zone name.
+     * Helper method to remove public zones by zone name.
      * @param name The name of the zone.
      * @throws NotFoundException
      * @throws IllegalArgumentException
