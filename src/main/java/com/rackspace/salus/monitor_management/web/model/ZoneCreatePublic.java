@@ -45,7 +45,7 @@ public class ZoneCreatePublic implements Serializable {
 
   ZoneState state = ZoneState.INACTIVE;
 
-  @Min(value = 30, message = "The timeout must not be less than 30s")
-  @Max(value = 1800, message = "The timeout must not be more than 1800s (30m)")
-  long pollerTimeout = 300;
+  @Min(value = 30L, message = "The timeout must not be less than 30s")
+  @Max(value = 1800L, message = "The timeout must not be more than 1800s (30m)")
+  Long pollerTimeout = 300L;
 }

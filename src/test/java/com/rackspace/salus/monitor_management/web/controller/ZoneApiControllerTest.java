@@ -56,7 +56,7 @@ public class ZoneApiControllerTest {
         Random random = new Random();
         return new ZoneCreatePrivate()
                 .setName(RandomStringUtils.randomAlphanumeric(10))
-                .setPollerTimeout(random.nextInt(1000) + 30);
+                .setPollerTimeout(random.nextInt(1000) + 30L);
     }
 
     private ZoneCreatePublic newZoneCreatePublic() {
@@ -65,7 +65,7 @@ public class ZoneApiControllerTest {
             .setName(ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphanumeric(6))
             .setProvider(RandomStringUtils.randomAlphanumeric(6))
             .setProviderRegion(RandomStringUtils.randomAlphanumeric(6))
-            .setPollerTimeout(random.nextInt(1000) + 30)
+            .setPollerTimeout(random.nextInt(1000) + 30L)
             .setSourceIpAddresses(podamFactory.manufacturePojo(ArrayList.class, String.class));
     }
 
