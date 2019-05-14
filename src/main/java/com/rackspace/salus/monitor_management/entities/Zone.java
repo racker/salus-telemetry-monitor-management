@@ -97,7 +97,7 @@ public class Zone implements Serializable {
   ZoneState state;
 
   /**
-   * Contains a timeout value which begins to countdown after an poller has disconnected.
+   * Contains a timeout value which begins to countdown after a poller has disconnected.
    * If the timeout is met, the monitors bound to it will be distributed to other available pollers.
    */
   @DurationUnit(ChronoUnit.SECONDS)
