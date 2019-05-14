@@ -56,9 +56,17 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/tenant/{tenantId}/zones/{name}")
     public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
         Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
-        return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found for %s on tenant %s",
+        return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
                 name, tenantId)))
                 .toDTO();
+    }
+
+    @GetMapping("/admin/zones/{name}")
+    public ZoneDTO getPublicZone(@PathVariable String name) {
+        Optional<Zone> zone = zoneManagement.getPublicZone(name);
+        return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
+            name)))
+            .toDTO();
     }
 
     @PostMapping("/tenant/{tenantId}/zones")

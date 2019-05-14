@@ -30,9 +30,6 @@ public interface MonitorRepository extends PagingAndSortingRepository<Monitor, U
 
     Page<Monitor> findByTenantId(String tenantId, Pageable pageable);
 
-    // this doesn't work in tests but it logs the exact same query as the one below.
-    //List<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone);
-
     @Query("select m from Monitor m where m.tenantId = :tenantId and :zone member of m.zones")
     List<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone);
 

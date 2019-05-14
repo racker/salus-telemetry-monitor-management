@@ -73,14 +73,29 @@ public class ZoneApiControllerTest {
                 .thenReturn(Optional.of(expectedZone));
 
         mvc.perform(get(
-                "/api/tenant/{tenantId}/zones/{name}",
-                "t-1", "z-1")
+                "/api/tenant/{tenantId}/zones/{name}", "t-1", "z-1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+    }
+
+    @Test
+    public void testGetPublicZone() throws Exception {
+        final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
+        when(zoneManagement.getPublicZone(any()))
+            .thenReturn(Optional.of(expectedZone));
+
+        mvc.perform(get(
+            "/api/admin/zones/{name}", "z-1")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
     }
 
     @Test

@@ -135,9 +135,7 @@ public class ZoneManagement {
           .to(zone::setSourceIpAddresses);
       map.from(updatedZone.getPollerTimeout())
           .whenNonNull()
-          .to(timeout -> {
-            zone.setPollerTimeout(Duration.ofSeconds(updatedZone.getPollerTimeout()));
-          });
+          .to(timeout -> zone.setPollerTimeout(Duration.ofSeconds(updatedZone.getPollerTimeout())));
       map.from(updatedZone.getState())
           .whenNonNull()
           .to(zone::setState);
@@ -224,7 +222,7 @@ public class ZoneManagement {
    * @param zoneName The zone to lookup.
    * @return The count of monitors in the zone.
    */
-  public int getMonitorCountForPublicZone(String zoneName) {
+  int getMonitorCountForPublicZone(String zoneName) {
     return monitorRepository.countAllByZonesContains(zoneName);
   }
 
@@ -236,7 +234,7 @@ public class ZoneManagement {
    * @param zoneName The zone to lookup.
    * @return The count of monitors in the zone.
    */
-  public int getMonitorCountForPrivateZone(String tenantId, String zoneName) {
+  int getMonitorCountForPrivateZone(String tenantId, String zoneName) {
     return monitorRepository.countAllByTenantIdAndZonesContains(tenantId, zoneName);
   }
 

@@ -12,7 +12,6 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.types.ZoneState;
-import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
@@ -29,7 +28,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -41,7 +39,7 @@ import java.util.Optional;
 import java.util.Random;
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = true)
+@DataJpaTest(showSql = false)
 @Import({ZoneManagement.class, ObjectMapper.class})
 public class ZoneManagementTest {
 
@@ -108,12 +106,30 @@ public class ZoneManagementTest {
     }
 
     @Test
-    public void testGetZone() {
+    public void testGetPublicZone() {
         Optional<Zone> zone = zoneManagement.getPublicZone(DEFAULT_ZONE);
         assertTrue(zone.isPresent());
         assertThat(zone.get().getId(), notNullValue());
         assertThat(zone.get().getTenantId(), equalTo(ResolvedZone.PUBLIC));
         assertThat(zone.get().getName(), equalTo(DEFAULT_ZONE));
+    }
+
+    @Test
+    public void testGetPrivateZone() {
+        String tenant = RandomStringUtils.randomAlphabetic(10);
+        String privateZone = RandomStringUtils.randomAlphabetic(10);
+
+        Zone created = new Zone()
+            .setTenantId(tenant)
+            .setName(privateZone)
+            .setPollerTimeout(Duration.ofSeconds(100));
+        zoneRepository.save(created);
+
+        Optional<Zone> zone = zoneManagement.getPrivateZone(tenant, privateZone);
+        assertTrue(zone.isPresent());
+        assertThat(zone.get().getId(), notNullValue());
+        assertThat(zone.get().getTenantId(), equalTo(tenant));
+        assertThat(zone.get().getName(), equalTo(privateZone));
     }
 
     @Test
@@ -271,7 +287,6 @@ public class ZoneManagementTest {
 
     @Test
     public void testDeleteEmptyPublicZone() {
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Zone newZone = createPublicZone();
 
         when(zoneStorage.getActiveEnvoyCountForZone(any()))
@@ -288,7 +303,6 @@ public class ZoneManagementTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testDeleteNonEmptyPublicZone() {
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Zone newZone = createPublicZone();
         when(zoneStorage.getActiveEnvoyCountForZone(any()))
             .thenReturn(CompletableFuture.completedFuture(1L));
