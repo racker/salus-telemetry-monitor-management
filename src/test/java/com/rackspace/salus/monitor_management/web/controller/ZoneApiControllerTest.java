@@ -7,6 +7,8 @@ import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -162,6 +164,7 @@ public class ZoneApiControllerTest {
             .thenReturn(zone);
 
         ZoneCreatePublic create = newZoneCreatePublic();
+        create.setSourceIpAddresses(Collections.singletonList("50.57.61.0/26"));
 
         mvc.perform(post(
             "/api/admin/zones")
@@ -172,6 +175,61 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+    }
+
+    @Test
+    public void testCreatePublicZoneInvalidName() throws Exception {
+        ZoneCreatePublic create = newZoneCreatePublic();
+        create.setName("Cant use non-alphanumeric!!!");
+        create.setSourceIpAddresses(Collections.singletonList("50.57.61.0/26"));
+
+        String errorMsg = "\"name\" Only alphanumeric, underscores, and slashes can be used";
+
+        mvc.perform(post(
+            "/api/admin/zones")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+    @Test
+    public void testCreatePublicZoneInvalidSourceIps() throws Exception {
+        ZoneCreatePublic create = newZoneCreatePublic();
+        create.setSourceIpAddresses(Collections.singletonList("a.b.c.d"));
+
+        String errorMsg = "\"sourceIpAddresses\" All values must be valid CIDR notation";
+
+        mvc.perform(post(
+            "/api/admin/zones")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+    @Test
+    public void testCreatePublicZoneEmptyIpList() throws Exception {
+        ZoneCreatePublic create = newZoneCreatePublic();
+        create.setSourceIpAddresses(Collections.emptyList());
+
+        String errorMsg = "\"sourceIpAddresses\" must not be empty";
+
+        mvc.perform(post(
+            "/api/admin/zones")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.message", is(errorMsg)));
     }
 
     @Test

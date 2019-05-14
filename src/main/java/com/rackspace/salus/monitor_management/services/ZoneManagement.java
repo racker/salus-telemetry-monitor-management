@@ -173,7 +173,7 @@ public class ZoneManagement {
    * @return The newly updated zone.
    */
   public Zone updatePrivateZone(String tenantId, String name, @Valid ZoneUpdate updatedZone) {
-    Zone zone = getZone(tenantId, name).orElseThrow(() ->
+    Zone zone = getPrivateZone(tenantId, name).orElseThrow(() ->
         new NotFoundException(String.format("No zone found named %s on tenant %s",
             name, tenantId)));
     return updateZone(zone, updatedZone);
@@ -186,7 +186,7 @@ public class ZoneManagement {
    * @return The newly updated zone.
    */
   public Zone updatePublicZone(String name, @Valid ZoneUpdate updatedZone) {
-    Zone zone = getZone(ResolvedZone.PUBLIC, name).orElseThrow(() ->
+    Zone zone = getPublicZone(name).orElseThrow(() ->
         new NotFoundException(String.format("No public zone found named %s", name)));
     return updateZone(zone, updatedZone);
   }

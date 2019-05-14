@@ -16,8 +16,10 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.types.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -28,6 +30,7 @@ import java.io.Serializable;
 public class ZoneCreatePublic implements Serializable {
 
   @NotBlank
+  @Pattern(regexp = "^[A-Za-z0-9_/]+$", message = "Only alphanumeric, underscores, and slashes can be used")
   String name;
 
   @NotBlank
@@ -37,6 +40,7 @@ public class ZoneCreatePublic implements Serializable {
   String providerRegion;
 
   @NotEmpty
+  @ValidCidrList
   List<String> sourceIpAddresses;
 
   ZoneState state = ZoneState.INACTIVE;

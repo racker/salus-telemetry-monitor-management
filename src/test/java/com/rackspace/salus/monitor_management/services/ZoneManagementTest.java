@@ -81,6 +81,14 @@ public class ZoneManagementTest {
         return zoneManagement.createPublicZone(create);
     }
 
+    private List<Zone> createPublicZones(int count) {
+        List<Zone> zones = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            zones.add(createPublicZone());
+        }
+        return zones;
+    }
+
     private Zone createPrivateZoneForTenant(String tenantId) {
         ZoneCreatePrivate create = podamFactory.manufacturePojo(ZoneCreatePrivate.class);
         create.setName(RandomStringUtils.randomAlphanumeric(10));
@@ -234,7 +242,7 @@ public class ZoneManagementTest {
         assertThat(zoneManagement.getAvailableZonesForTenant(tenant), hasSize(1 + privateCount));
 
         // new public zones should be visible too
-        createPrivateZonesForTenant(publicCount, ResolvedZone.PUBLIC);
+        createPublicZones(publicCount);
         assertThat(zoneManagement.getAvailableZonesForTenant(tenant), hasSize(1 + privateCount + publicCount));
 
         // Another tenant can only see public zones
@@ -326,7 +334,7 @@ public class ZoneManagementTest {
         assertThat(zoneManagement.getMonitorCountForPublicZone(publicZone), equalTo(0));
 
         createRemoteMonitorsForTenant(privateCount, tenant, privateZone);
-        createRemoteMonitorsForTenant(privateCount, tenant, "anotherPrivateZone");
+        createRemoteMonitorsForTenant(privateCount + 2, tenant, "anotherPrivateZone");
         createRemoteMonitorsForTenant(publicCount, tenant, publicZone);
 
         assertThat(zoneManagement.getMonitorCountForPrivateZone(tenant, privateZone), equalTo(privateCount));

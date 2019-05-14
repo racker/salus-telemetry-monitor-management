@@ -16,6 +16,7 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.types.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
 import java.util.List;
 import lombok.Data;
 import javax.validation.constraints.Max;
@@ -35,6 +36,7 @@ public class ZoneCreatePrivate implements Serializable {
 
     String providerRegion;
 
+    @ValidCidrList
     List<String> sourceIpAddresses;
 
     ZoneState state = ZoneState.ACTIVE; // Can we do active for private, inactive for public?

@@ -83,6 +83,7 @@ public class Zone implements Serializable {
   /**
    * Contains an optional list of ipv4 and ipv6 ranges that the pollers in this zone reside in.
    * This can be used to whitelist ranges to allow for remote polling.
+   * Entries must be valid CIDR notation.
    */
   @ElementCollection(fetch = FetchType.EAGER)
   @Column(name="source_ips")

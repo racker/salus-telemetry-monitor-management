@@ -16,6 +16,7 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.types.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
 import java.util.List;
 import lombok.Data;
 
@@ -30,6 +31,7 @@ public class ZoneUpdate implements Serializable {
 
     String providerRegion;
 
+    @ValidCidrList
     List<String> sourceIpAddresses;
 
     ZoneState state;
