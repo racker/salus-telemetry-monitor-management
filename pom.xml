@@ -135,6 +135,11 @@
       </plugin>
 
       <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+      </plugin>
+
+      <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.0.2</version>
         <executions>
@@ -153,6 +158,48 @@
       </plugin>
     </plugins>
   </build>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>salus-dev-snapshots</id>
+      <url>https://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot-local</url>
+    </snapshotRepository>
+    <repository>
+      <id>salus-dev-release</id>
+      <url>https://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release-local</url>
+    </repository>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>salus-dev-release</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release</url>
+    </repository>
+    <repository>
+      <snapshots />
+      <id>salus-dev-snapshots</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>salus-dev-release</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release</url>
+    </pluginRepository>
+    <pluginRepository>
+      <snapshots />
+      <id>salus-dev-snapshots</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+
 
 </project>
 
