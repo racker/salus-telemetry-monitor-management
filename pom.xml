@@ -188,6 +188,7 @@
               <locations>
                 <location>com.rackspace.salus.monitor_management.web.model</location>
                 <location>com.rackspace.salus.monitor_management.web.controller.MonitorApiController</location>
+                <location>com.rackspace.salus.monitor_management.web.controller.ZoneApiController</location>
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
