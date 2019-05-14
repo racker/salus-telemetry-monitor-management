@@ -85,7 +85,12 @@ public class ZoneApiController implements ZoneApi {
 
     @PutMapping("/tenant/{tenantId}/zones/{name}")
     public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
-        return zoneManagement.updateZone(tenantId, name, zone).toDTO();
+        return zoneManagement.updatePrivateZone(tenantId, name, zone).toDTO();
+    }
+
+    @PutMapping("/admin/zones/{name}")
+    public ZoneDTO update(@PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
+        return zoneManagement.updatePublicZone(name, zone).toDTO();
     }
 
     @DeleteMapping("/tenant/{tenantId}/zones/{name}")

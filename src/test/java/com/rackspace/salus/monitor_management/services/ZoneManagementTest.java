@@ -200,14 +200,14 @@ public class ZoneManagementTest {
     }
 
     @Test
-    public void testUpdateZone() {
+    public void testUpdatePublicZone() {
         Zone original = zoneManagement.getAvailableZonesForTenant(ResolvedZone.PUBLIC).get(0);
 
         assertThat(original, notNullValue());
 
         ZoneUpdate update = new ZoneUpdate().setPollerTimeout(original.getPollerTimeout().getSeconds() + 100);
 
-        Zone zone = zoneManagement.updateZone(ResolvedZone.PUBLIC, original.getName(), update);
+        Zone zone = zoneManagement.updatePublicZone(original.getName(), update);
         assertThat(zone.getId(), equalTo(original.getId()));
         assertThat(zone.getTenantId(), equalTo(original.getTenantId()));
         assertThat(zone.getName(), equalTo(original.getName()));

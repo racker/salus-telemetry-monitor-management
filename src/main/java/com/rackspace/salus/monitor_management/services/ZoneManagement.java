@@ -51,14 +51,31 @@ public class ZoneManagement {
       this.monitorRepository = monitorRepository;
     }
 
+  /**
+   * Retrieves the zone for the given tenant id and zone name.
+   * @param tenantId The tenantId the zone is stored under.
+   * @param name The name of the zone.
+   * @return A zone if it exists.
+   */
     private Optional<Zone> getZone(String tenantId, String name) {
       return zoneRepository.findByTenantIdAndName(tenantId, name);
     }
 
+  /**
+   * Helper method to get a public zone by name.
+   * @param name The name of the zone.
+   * @return A zone if it exists.
+   */
     public Optional<Zone> getPublicZone(String name) {
       return getZone(ResolvedZone.PUBLIC, name);
     }
 
+  /**
+   * Helper method to get a private zone by name and tenant.
+   * @param tenantId The tenantId the zone is stored under.
+   * @param name The name of the zone.
+   * @return A zone if it exists.
+   */
     public Optional<Zone> getPrivateZone(String tenantId, String name) {
       return getZone(tenantId, name);
     }
@@ -118,11 +135,14 @@ public class ZoneManagement {
     return zone;
   }
 
-    public Zone updateZone(String tenantId, String name, @Valid ZoneUpdate updatedZone) {
-      Zone zone = getZone(tenantId, name).orElseThrow(() ->
-          new NotFoundException(String.format("No zone found named %s on tenant %s",
-              name, tenantId)));
-
+    /**
+     * Modify the fields of a public or private zone if it exists.
+     *
+     * @param zone The stored Zone object to update.
+     * @param updatedZone The zone parameters to update.
+     * @return
+     */
+    private Zone updateZone(Zone zone, @Valid ZoneUpdate updatedZone) {
       PropertyMapper map = PropertyMapper.get();
       map.from(updatedZone.getProvider())
           .whenNonNull()
@@ -145,19 +165,57 @@ public class ZoneManagement {
       return zone;
     }
 
-    private void removeZone(Zone zone) {
-        long activeEnvoys = getActiveEnvoyCountForZone(zone);
-        log.debug("Found {} active envoys for zone {}", activeEnvoys, zone.getName());
-        if (activeEnvoys > 0) {
-            throw new IllegalArgumentException(
-                    String.format("Cannot remove zone with connected pollers. Found %d.", activeEnvoys));
-        }
+  /**
+   * Helper method to update a private zone's details.
+   * @param tenantId The tenant of the zone.
+   * @param name The name of the zone.
+   * @param updatedZone The zone parameters to update.
+   * @return The newly updated zone.
+   */
+  public Zone updatePrivateZone(String tenantId, String name, @Valid ZoneUpdate updatedZone) {
+    Zone zone = getZone(tenantId, name).orElseThrow(() ->
+        new NotFoundException(String.format("No zone found named %s on tenant %s",
+            name, tenantId)));
+    return updateZone(zone, updatedZone);
+  }
 
-        zoneRepository.deleteById(zone.getId());
+  /**
+   * Helper method to update a public zone's details.
+   * @param name The name of the zone.
+   * @param updatedZone The zone parameters to update.
+   * @return The newly updated zone.
+   */
+  public Zone updatePublicZone(String name, @Valid ZoneUpdate updatedZone) {
+    Zone zone = getZone(ResolvedZone.PUBLIC, name).orElseThrow(() ->
+        new NotFoundException(String.format("No public zone found named %s", name)));
+    return updateZone(zone, updatedZone);
+  }
 
-        // TBD: remove expected entries in etcd?
+  /**
+   * Deletes the zone from the database if it has no active envoys connected.
+   * @param zone The zone to remove.
+   */
+  private void removeZone(Zone zone) {
+    long activeEnvoys = getActiveEnvoyCountForZone(zone);
+    log.debug("Found {} active envoys for zone {}", activeEnvoys, zone.getName());
+    if (activeEnvoys > 0) {
+        throw new IllegalArgumentException(
+                String.format("Cannot remove zone with connected pollers. Found %d.", activeEnvoys));
     }
 
+    zoneRepository.deleteById(zone.getId());
+
+    // TBD: remove expected entries in etcd?
+  }
+
+
+    /**
+     * Helper method to delete private zones by tenant id and zone name.
+     * @param tenantId The tenantId the zone is stored under.
+     * @param name The name field of the zone.
+     * @throws NotFoundException
+     * @throws IllegalArgumentException
+     */
     public void removePrivateZone(String tenantId, String name)
         throws NotFoundException, IllegalArgumentException {
       Zone zone = getPrivateZone(tenantId, name).orElseThrow(() ->
@@ -172,6 +230,12 @@ public class ZoneManagement {
       removeZone(zone);
     }
 
+    /**
+     * Helper method to public private zones by tenant id and zone name.
+     * @param name The name of the zone.
+     * @throws NotFoundException
+     * @throws IllegalArgumentException
+     */
     public void removePublicZone(String name) {
       Zone zone = getPublicZone(name).orElseThrow(() ->
           new NotFoundException(String.format("No public zone found named %s", name)));
