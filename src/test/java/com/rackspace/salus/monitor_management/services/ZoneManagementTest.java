@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.any;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
@@ -18,7 +19,6 @@ import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
