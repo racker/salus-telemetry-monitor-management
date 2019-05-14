@@ -16,11 +16,23 @@
 
 package com.rackspace.salus.monitor_management.repositories;
 
-import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.monitor_management.entities.Monitor;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MonitorRepository extends PagingAndSortingRepository<Monitor, UUID> {
+
+    Page<Monitor> findByTenantId(String tenantId, Pageable pageable);
+
+    // this works in tests but not in reality.
+    List<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone);
+
+    @Query("select m from Monitor m where m.tenantId = :tenantId and :zone member of m.zones")
+    List<Monitor> customFindByTenantIdAndZonesContains(String tenantId, String zone);
 }

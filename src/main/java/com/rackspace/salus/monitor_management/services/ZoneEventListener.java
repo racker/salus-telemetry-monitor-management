@@ -54,14 +54,14 @@ public class ZoneEventListener {
       final NewResourceZoneEvent event = (NewResourceZoneEvent) zoneEvent;
       monitorManagement.handleNewEnvoyInZone(
           event.getTenantId(),
-          event.getZoneId()
+          event.getZoneName()
       );
     } else if (zoneEvent instanceof ReattachedResourceZoneEvent) {
       final ReattachedResourceZoneEvent event = (ReattachedResourceZoneEvent) zoneEvent;
 
       monitorManagement.handleEnvoyResourceChangedInZone(
           event.getTenantId(),
-          event.getZoneId(),
+          event.getZoneName(),
           event.getFromEnvoyId(),
           event.getToEnvoyId()
       );

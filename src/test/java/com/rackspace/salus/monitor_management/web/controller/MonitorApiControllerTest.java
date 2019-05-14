@@ -19,8 +19,6 @@ package com.rackspace.salus.monitor_management.web.controller;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.Matchers.stringContainsInOrder;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
@@ -28,13 +26,12 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -42,13 +39,12 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -95,11 +91,11 @@ public class MonitorApiControllerTest {
     @Test
     public void testGetMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(monitor);
+                .thenReturn(Optional.of(monitor));
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
         UUID id = UUID.randomUUID();
@@ -115,7 +111,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testNoMonitorFound() throws Exception {
         when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(null);
+                .thenReturn(Optional.empty());
 
         String tenantId = RandomStringUtils.randomAlphabetic(8);
         UUID id = UUID.randomUUID();
@@ -167,7 +163,7 @@ public class MonitorApiControllerTest {
         for (int i = 0; i < numberOfMonitors; i++) {
             final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
             monitors.add(monitor);
-            monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+            monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
             monitor.setAgentType(AgentType.TELEGRAF);
             monitor.setContent("{\"type\":\"mem\"}");
         }
@@ -213,7 +209,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testCreateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.createMonitor(anyString(), any()))
@@ -238,7 +234,7 @@ public class MonitorApiControllerTest {
     @Test
     public void testUpdateMonitor() throws Exception {
         Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
         monitor.setAgentType(AgentType.TELEGRAF);
         monitor.setContent("{\"type\":\"mem\"}");
         when(monitorManagement.updateMonitor(anyString(), any(), any()))
@@ -249,6 +245,7 @@ public class MonitorApiControllerTest {
         String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
         DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        update.setLabelSelector(null);
         update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
         mockMvc.perform(put(url)
@@ -256,6 +253,27 @@ public class MonitorApiControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .characterEncoding(StandardCharsets.UTF_8.name()))
                 .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    public void testUpdateNonExistentMonitor() throws Exception {
+        when(monitorManagement.updateMonitor(anyString(), any(), any()))
+                .thenThrow(new NotFoundException("Custom not found message"));
+
+        String tenantId = RandomStringUtils.randomAlphabetic(10);
+        UUID id = UUID.randomUUID();
+        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+        update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+
+        mockMvc.perform(put(url)
+                .content(objectMapper.writeValueAsString(update))
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8.name()))
+                .andExpect(status().isNotFound())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
@@ -290,37 +308,5 @@ public class MonitorApiControllerTest {
                 .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
                 .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
                 .andExpect(jsonPath("$.size", equalTo(pageSize)));
-    }
-
-    @Test
-    public void testGetStreamOfMonitors() throws Exception {
-        int numberOfMonitors = 20;
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            monitors.add(podamFactory.manufacturePojo(Monitor.class));
-        }
-
-        List<String> expectedData = monitors.stream()
-                .map(r -> {
-                    try {
-                        return "data:" + objectMapper.writeValueAsString(r);
-                    } catch (JsonProcessingException e) {
-                        assertThat(e, nullValue());
-                        return null;
-                    }
-                }).collect(Collectors.toList());
-        assertThat(expectedData.size(), equalTo(monitors.size()));
-
-        String url = "/api/monitorsAsStream";
-        Stream<Monitor> monitorStream = monitors.stream();
-
-        when(monitorManagement.getMonitorsAsStream())
-                .thenReturn(monitorStream);
-
-        mockMvc.perform(get(url))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
-                .andExpect(content().string(stringContainsInOrder(expectedData)));
     }
 }

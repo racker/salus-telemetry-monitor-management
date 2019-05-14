@@ -66,7 +66,6 @@ public class MonitorApiClient implements MonitorApi {
         null,
         LIST_OF_BOUND_MONITOR,
         envoyId
-    )
-        .getBody();
+    ).getBody();
   }
 }

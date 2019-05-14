@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.model.ValidLabelKeys;
+import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
@@ -30,9 +32,12 @@ public class DetailedMonitorInput {
    * This key-value mapping of labels specifies what resources will be monitored by this monitor.
    * For a resource to be selected, it must contain at least all of the labels given here.
    */
-  @NotEmpty
+  @ValidLabelKeys
+  @NotEmpty(groups = ValidationGroups.Create.class)
   Map<String,String> labelSelector;
 
-  @NotNull @Valid
+  @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
+  @NotNull(groups = ValidationGroups.Create.class)
+  @Valid
   MonitorDetails details;
 }

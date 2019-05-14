@@ -19,9 +19,11 @@ package com.rackspace.salus.monitor_management.web.model;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import io.swagger.annotations.ApiModel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+@ApiModel(parent=MonitorDetails.class)
 @Data @EqualsAndHashCode(callSuper = false)
 public class LocalMonitorDetails extends MonitorDetails {
   @NotNull @Valid

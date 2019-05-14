@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.config;
 
 import java.util.Collections;
 import java.util.List;
-import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -27,8 +26,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Data
 public class ZonesProperties {
-  @NotEmpty
-  String publicZonePrefix = "public/";
 
   List<String> defaultZones = Collections.emptyList();
+
 }

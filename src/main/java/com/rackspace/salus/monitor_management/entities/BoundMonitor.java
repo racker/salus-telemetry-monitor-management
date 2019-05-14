@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.entities;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.Serializable;
 import java.util.UUID;
 import javax.persistence.Column;
@@ -59,7 +58,7 @@ import lombok.Data;
 @Table(name = "bound_monitors",
 indexes = {
     @Index(name = "by_envoy_id", columnList = "envoyId"),
-    @Index(name = "by_zone_envoy", columnList = "zoneTenantId,zoneId,envoyId"),
+    @Index(name = "by_zone_envoy", columnList = "zoneName,envoyId"),
     @Index(name = "by_resource", columnList = "resourceId")
 })
 @Data
@@ -75,9 +74,9 @@ public class BoundMonitor implements Serializable {
     @org.hibernate.annotations.Type(type="uuid-char")
     UUID monitor;
     String resourceId;
-    String zoneId;
+    String zoneName;
 
-    // zoneTenantId and resourceTenant do not need to be part of the primary key
+    // resourceTenant does not need to be part of the primary key
     // since the Monitor, via monitorId, already scopes this binding to a tenant
   }
 
@@ -86,20 +85,13 @@ public class BoundMonitor implements Serializable {
   Monitor monitor;
 
   /**
-   * Contains the tenant that owns the private zone or an empty string for public zones.
-   */
-  @NotNull
-  @Column(length = 100)
-  String zoneTenantId;
-
-  /**
    * For remote monitors, contains the binding of a specific monitoring zone.
    * For local monitors, this field is an empty string.
    */
   @Id
   @NotNull
   @Column(length = 100)
-  String zoneId;
+  String zoneName;
 
   /**
    * Contains the binding of the {@link Monitor} (via <code>monitorId</code>) to a specific
@@ -119,10 +111,10 @@ public class BoundMonitor implements Serializable {
   public BoundMonitorDTO toDTO() {
     return new BoundMonitorDTO()
         .setMonitorId(monitor.getId())
-        .setZoneTenantId(zoneTenantId)
-        .setZoneId(zoneId)
+        .setZoneName(zoneName)
         .setResourceTenant(monitor.getTenantId())
         .setResourceId(resourceId)
+        .setSelectorScope(monitor.getSelectorScope())
         .setAgentType(monitor.getAgentType())
         .setRenderedContent(renderedContent)
         .setEnvoyId(envoyId);
