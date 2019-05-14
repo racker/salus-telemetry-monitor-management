@@ -16,15 +16,16 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
+import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.client.ZoneApi;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.ZoneCreate;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
-import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -54,7 +55,7 @@ public class ZoneApiController implements ZoneApi {
     @Override
     @GetMapping("/tenant/{tenantId}/zones/{name}")
     public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
-        Optional<Zone> zone = zoneManagement.getZone(tenantId, name);
+        Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found for %s on tenant %s",
                 name, tenantId)))
                 .toDTO();
@@ -62,9 +63,16 @@ public class ZoneApiController implements ZoneApi {
 
     @PostMapping("/tenant/{tenantId}/zones")
     @ResponseStatus(HttpStatus.CREATED)
-    public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreate zone)
+    public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreatePrivate zone)
             throws ZoneAlreadyExists {
-        return zoneManagement.createZone(tenantId, zone).toDTO();
+        return zoneManagement.createPrivateZone(tenantId, zone).toDTO();
+    }
+
+    @PostMapping("/admin/zones")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ZoneDTO create(@Valid @RequestBody ZoneCreatePublic zone)
+        throws ZoneAlreadyExists {
+        return zoneManagement.createPublicZone(zone).toDTO();
     }
 
     @PutMapping("/tenant/{tenantId}/zones/{name}")
@@ -75,7 +83,13 @@ public class ZoneApiController implements ZoneApi {
     @DeleteMapping("/tenant/{tenantId}/zones/{name}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String tenantId, @PathVariable String name) {
-        zoneManagement.removeZone(tenantId, name);
+        zoneManagement.removePrivateZone(tenantId, name);
+    }
+
+    @DeleteMapping("/admin/zones/{name}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String name) {
+        zoneManagement.removePublicZone(name);
     }
 
     @GetMapping("/tenant/{tenantId}/zones")

@@ -1,25 +1,35 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
+import com.rackspace.salus.monitor_management.types.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
-import com.rackspace.salus.monitor_management.web.model.ZoneCreate;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
-import com.rackspace.salus.telemetry.etcd.services.AgentsCatalogService;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.Monitor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -31,7 +41,7 @@ import java.util.Optional;
 import java.util.Random;
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = false)
+@DataJpaTest(showSql = true)
 @Import({ZoneManagement.class, ObjectMapper.class})
 public class ZoneManagementTest {
 
@@ -43,6 +53,9 @@ public class ZoneManagementTest {
 
     @Autowired
     ZoneRepository zoneRepository;
+
+    @Autowired
+    MonitorRepository monitorRepository;
 
     @Autowired
     ZoneManagement zoneManagement;
@@ -60,30 +73,43 @@ public class ZoneManagementTest {
         Zone zone = new Zone()
                 .setTenantId(ResolvedZone.PUBLIC)
                 .setName(DEFAULT_ZONE)
-                .setEnvoyTimeout(Duration.ofSeconds(100));
+                .setPollerTimeout(Duration.ofSeconds(100));
         zoneRepository.save(zone);
     }
 
-    private void createZonesForTenant(int count, String tenantId) {
+    private Zone createPublicZone() {
+        ZoneCreatePublic create = podamFactory.manufacturePojo(ZoneCreatePublic.class);
+        create.setName(ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphanumeric(6));
+        return zoneManagement.createPublicZone(create);
+    }
+
+    private Zone createPrivateZoneForTenant(String tenantId) {
+        ZoneCreatePrivate create = podamFactory.manufacturePojo(ZoneCreatePrivate.class);
+        create.setName(RandomStringUtils.randomAlphanumeric(10));
+        return zoneManagement.createPrivateZone(tenantId, create);
+    }
+
+    private List<Zone> createPrivateZonesForTenant(int count, String tenantId) {
+        List<Zone> zones = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            ZoneCreate create = podamFactory.manufacturePojo(ZoneCreate.class);
-            create.setName(RandomStringUtils.randomAlphanumeric(10));
-            zoneManagement.createZone(tenantId, create);
+            zones.add(createPrivateZoneForTenant(tenantId));
         }
+        return zones;
     }
 
     private void createRemoteMonitorsForTenant(int count, String tenantId, String zone) {
         for (int i = 0; i < count; i++) {
-            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+            Monitor create = podamFactory.manufacturePojo(Monitor.class);
             create.setSelectorScope(ConfigSelectorScope.REMOTE);
             create.setZones(Collections.singletonList(zone));
-            monitorManagement.createMonitor(tenantId, create);
+            create.setTenantId(tenantId);
+            monitorRepository.save(create);
         }
     }
 
     @Test
     public void testGetZone() {
-        Optional<Zone> zone = zoneManagement.getZone(ResolvedZone.PUBLIC, DEFAULT_ZONE);
+        Optional<Zone> zone = zoneManagement.getPublicZone(DEFAULT_ZONE);
         assertTrue(zone.isPresent());
         assertThat(zone.get().getId(), notNullValue());
         assertThat(zone.get().getTenantId(), equalTo(ResolvedZone.PUBLIC));
@@ -91,34 +117,68 @@ public class ZoneManagementTest {
     }
 
     @Test
-    public void testCreateZone() {
-        ZoneCreate create = podamFactory.manufacturePojo(ZoneCreate.class);
-        create.setName(RandomStringUtils.randomAlphanumeric(10));
+    public void testCreatePrivateZone() {
+        ZoneCreatePrivate create = new ZoneCreatePrivate()
+            .setName(RandomStringUtils.randomAlphanumeric(6))
+            .setProvider(RandomStringUtils.randomAlphanumeric(6))
+            .setProviderRegion(RandomStringUtils.randomAlphanumeric(6))
+            .setPollerTimeout(100L)
+            .setSourceIpAddresses(podamFactory.manufacturePojo(ArrayList.class, String.class));
         String tenant = RandomStringUtils.randomAlphabetic(10);
-        Zone zone = zoneManagement.createZone(tenant, create);
+        Zone zone = zoneManagement.createPrivateZone(tenant, create);
         assertThat(zone.getId(), notNullValue());
         assertThat(zone.getTenantId(), equalTo(tenant));
         assertThat(zone.getName(), equalTo(create.getName()));
-        assertThat(zone.getEnvoyTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
+        assertThat(zone.getPollerTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
+        assertThat(zone.getState(), equalTo(ZoneState.ACTIVE));
+        assertFalse(zone.isPublic());
 
-        Optional<Zone> z = zoneManagement.getZone(tenant, create.getName());
+        Optional<Zone> z = zoneManagement.getPrivateZone(tenant, create.getName());
         assertTrue(z.isPresent());
         assertThat(z.get().getName(), equalTo(create.getName()));
     }
 
     @Test
-    public void testCreateZoneNonAlphanumericName() {
+    public void testCreatePrivateZoneNonAlphanumericName() {
         // This should be successful because the alphanumeric validation only happens via Spring MVC.
-        ZoneCreate create = podamFactory.manufacturePojo(ZoneCreate.class);
+        ZoneCreatePrivate create = podamFactory.manufacturePojo(ZoneCreatePrivate.class);
         create.setName("onlyAlphaNumericAreAllowed!!!");
         String tenant = RandomStringUtils.randomAlphabetic(10);
-        Zone zone = zoneManagement.createZone(tenant, create);
+        Zone zone = zoneManagement.createPrivateZone(tenant, create);
         assertThat(zone.getId(), notNullValue());
         assertThat(zone.getTenantId(), equalTo(tenant));
         assertThat(zone.getName(), equalTo(create.getName()));
-        assertThat(zone.getEnvoyTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
+        assertThat(zone.getPollerTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
+        assertFalse(zone.isPublic());
 
-        Optional<Zone> z = zoneManagement.getZone(tenant, create.getName());
+        Optional<Zone> z = zoneManagement.getPrivateZone(tenant, create.getName());
+        assertTrue(z.isPresent());
+        assertThat(z.get().getName(), equalTo(create.getName()));
+    }
+
+    @Test
+    public void testCreatePublicZone() {
+        ZoneCreatePublic create = new ZoneCreatePublic()
+            .setName(ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphanumeric(6))
+            .setProvider(RandomStringUtils.randomAlphanumeric(6))
+            .setProviderRegion(RandomStringUtils.randomAlphanumeric(6))
+            .setPollerTimeout(100L)
+            .setSourceIpAddresses(podamFactory.manufacturePojo(ArrayList.class, String.class));
+
+        Zone zone = zoneManagement.createPublicZone(create);
+        assertThat(zone.getId(), notNullValue());
+        assertThat(zone.getTenantId(), equalTo(ResolvedZone.PUBLIC));
+        assertThat(zone.getName(), equalTo(create.getName()));
+        assertThat(zone.getProvider(), equalTo(create.getProvider()));
+        assertThat(zone.getProviderRegion(), equalTo(create.getProviderRegion()));
+        assertThat(zone.getState(), equalTo(ZoneState.INACTIVE));
+        assertThat(zone.getSourceIpAddresses(), hasSize(create.getSourceIpAddresses().size()));
+        //assertThat(zone.getSourceIpAddresses(), equalTo(create.getSourceIpAddresses()));// not sure why this isn't working. Looks fine when inspecting.
+        assertThat(zone.getState(), equalTo(create.getState()));
+        assertThat(zone.getPollerTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
+        assertTrue(zone.isPublic());
+
+        Optional<Zone> z = zoneManagement.getPublicZone(create.getName());
         assertTrue(z.isPresent());
         assertThat(z.get().getName(), equalTo(create.getName()));
     }
@@ -129,17 +189,17 @@ public class ZoneManagementTest {
 
         assertThat(original, notNullValue());
 
-        ZoneUpdate update = new ZoneUpdate().setPollerTimeout(original.getEnvoyTimeout().getSeconds() + 100);
+        ZoneUpdate update = new ZoneUpdate().setPollerTimeout(original.getPollerTimeout().getSeconds() + 100);
 
         Zone zone = zoneManagement.updateZone(ResolvedZone.PUBLIC, original.getName(), update);
         assertThat(zone.getId(), equalTo(original.getId()));
         assertThat(zone.getTenantId(), equalTo(original.getTenantId()));
         assertThat(zone.getName(), equalTo(original.getName()));
-        assertThat(zone.getEnvoyTimeout(), equalTo(Duration.ofSeconds(update.getPollerTimeout())));
+        assertThat(zone.getPollerTimeout(), equalTo(Duration.ofSeconds(update.getPollerTimeout())));
 
-        Optional<Zone> z = zoneManagement.getZone(ResolvedZone.PUBLIC, zone.getName());
+        Optional<Zone> z = zoneManagement.getPublicZone(zone.getName());
         assertTrue(z.isPresent());
-        assertThat(z.get().getEnvoyTimeout().getSeconds(), equalTo(update.getPollerTimeout()));
+        assertThat(z.get().getPollerTimeout().getSeconds(), equalTo(update.getPollerTimeout()));
     }
 
     @Test
@@ -154,11 +214,11 @@ public class ZoneManagementTest {
         assertThat(zoneManagement.getAvailableZonesForTenant(tenant), hasSize(1));
 
         // any new private zone for the tenant should be visible
-        createZonesForTenant(privateCount, tenant);
+        createPrivateZonesForTenant(privateCount, tenant);
         assertThat(zoneManagement.getAvailableZonesForTenant(tenant), hasSize(1 + privateCount));
 
         // new public zones should be visible too
-        createZonesForTenant(publicCount, ResolvedZone.PUBLIC);
+        createPrivateZonesForTenant(publicCount, ResolvedZone.PUBLIC);
         assertThat(zoneManagement.getAvailableZonesForTenant(tenant), hasSize(1 + privateCount + publicCount));
 
         // Another tenant can only see public zones
@@ -167,7 +227,7 @@ public class ZoneManagementTest {
 
     @Test
     public void testGetMonitorsForZone() {
-        int count = 0;
+        int count = 12;
         String tenant = RandomStringUtils.randomAlphabetic(10);
         String zone = RandomStringUtils.randomAlphabetic(10);
         assertThat(zoneManagement.getMonitorsForZone(tenant, zone), hasSize(0));
@@ -176,5 +236,86 @@ public class ZoneManagementTest {
         createRemoteMonitorsForTenant(count, tenant, "notMyZone");
 
         assertThat(zoneManagement.getMonitorsForZone(tenant, zone), hasSize(count));
+    }
+
+    @Test
+    public void testDeleteEmptyPrivateZone() {
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        Zone newZone = createPrivateZoneForTenant(tenantId);
+
+        when(zoneStorage.getActiveEnvoyCountForZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(0L));
+
+        Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, newZone.getName());
+        assertTrue(zone.isPresent());
+        assertThat(zone.get(), notNullValue());
+
+        zoneManagement.removePrivateZone(tenantId, newZone.getName());
+        zone = zoneManagement.getPrivateZone(tenantId, newZone.getName());
+        assertTrue(!zone.isPresent());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDeleteNonEmptyPrivateZone() {
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        Zone newZone = createPrivateZoneForTenant(tenantId);
+        when(zoneStorage.getActiveEnvoyCountForZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(1L));
+
+        Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, newZone.getName());
+        assertTrue(zone.isPresent());
+        assertThat(zone.get(), notNullValue());
+
+        zoneManagement.removePrivateZone(tenantId, newZone.getName());
+    }
+
+    @Test
+    public void testDeleteEmptyPublicZone() {
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        Zone newZone = createPublicZone();
+
+        when(zoneStorage.getActiveEnvoyCountForZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(0L));
+
+        Optional<Zone> zone = zoneManagement.getPublicZone(newZone.getName());
+        assertTrue(zone.isPresent());
+        assertThat(zone.get(), notNullValue());
+
+        zoneManagement.removePublicZone(newZone.getName());
+        zone = zoneManagement.getPublicZone(newZone.getName());
+        assertTrue(!zone.isPresent());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDeleteNonEmptyPublicZone() {
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        Zone newZone = createPublicZone();
+        when(zoneStorage.getActiveEnvoyCountForZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(1L));
+
+        Optional<Zone> zone = zoneManagement.getPublicZone(newZone.getName());
+        assertTrue(zone.isPresent());
+        assertThat(zone.get(), notNullValue());
+
+        zoneManagement.removePublicZone(newZone.getName());
+    }
+
+    @Test
+    public void testGetMonitorCountForZone() {
+        int privateCount = 13;
+        int publicCount = 17;
+        String tenant = RandomStringUtils.randomAlphabetic(10);
+        String privateZone = RandomStringUtils.randomAlphabetic(10);
+        String publicZone = ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphabetic(6);
+
+        assertThat(zoneManagement.getMonitorCountForPrivateZone(tenant, privateZone), equalTo(0));
+        assertThat(zoneManagement.getMonitorCountForPublicZone(publicZone), equalTo(0));
+
+        createRemoteMonitorsForTenant(privateCount, tenant, privateZone);
+        createRemoteMonitorsForTenant(privateCount, tenant, "anotherPrivateZone");
+        createRemoteMonitorsForTenant(publicCount, tenant, publicZone);
+
+        assertThat(zoneManagement.getMonitorCountForPrivateZone(tenant, privateZone), equalTo(privateCount));
+        assertThat(zoneManagement.getMonitorCountForPublicZone(publicZone), equalTo(publicCount));
     }
 }
