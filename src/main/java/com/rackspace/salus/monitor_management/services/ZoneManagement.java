@@ -292,7 +292,7 @@ public class ZoneManagement {
 
   /**
    * Get the number of monitors for a zone on a single tenant.
-   * This should be used when looking up public zones.
+   * This should be used when looking up private zones.
    *
    * @param tenantId The tenant the zone resides on.
    * @param zoneName The zone to lookup.
