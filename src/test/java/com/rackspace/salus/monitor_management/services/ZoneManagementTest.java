@@ -10,6 +10,7 @@ import static org.mockito.Mockito.any;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.types.ZoneState;
@@ -197,7 +198,10 @@ public class ZoneManagementTest {
         assertThat(zone.getProviderRegion(), equalTo(create.getProviderRegion()));
         assertThat(zone.getState(), equalTo(ZoneState.INACTIVE));
         assertThat(zone.getSourceIpAddresses(), hasSize(create.getSourceIpAddresses().size()));
-        //assertThat(zone.getSourceIpAddresses(), equalTo(create.getSourceIpAddresses()));// not sure why this isn't working. Looks fine when inspecting.
+        // we create a new arraylist here because the first param is a PersistentBag and `equals` does not work
+        // when comparing to the create arraylist.
+        assertThat(new ArrayList<>(zone.getSourceIpAddresses()), equalTo(create.getSourceIpAddresses()));
+
         assertThat(zone.getState(), equalTo(create.getState()));
         assertThat(zone.getPollerTimeout(), equalTo(Duration.ofSeconds(create.getPollerTimeout())));
         assertTrue(zone.isPublic());
@@ -279,7 +283,7 @@ public class ZoneManagementTest {
         assertTrue(!zone.isPresent());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = ZoneDeletionNotAllowed.class)
     public void testDeleteNonEmptyPrivateZone() {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Zone newZone = createPrivateZoneForTenant(tenantId);
@@ -309,7 +313,7 @@ public class ZoneManagementTest {
         assertTrue(!zone.isPresent());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = ZoneDeletionNotAllowed.class)
     public void testDeleteNonEmptyPublicZone() {
         Zone newZone = createPublicZone();
         when(zoneStorage.getActiveEnvoyCountForZone(any()))

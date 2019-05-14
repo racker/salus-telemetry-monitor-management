@@ -2,12 +2,13 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
+import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
@@ -120,6 +121,22 @@ public class ZoneApiControllerTest {
     }
 
     @Test
+    public void testCreateDuplicatePrivateZone() throws Exception {
+        String error = "Zone already exists with name z-1 on tenant t-1";
+        when(zoneManagement.createPrivateZone(any(), any()))
+            .thenThrow(new ZoneAlreadyExists(error));
+
+        ZoneCreatePrivate create = newZoneCreatePrivate();
+
+        mvc.perform(post(
+            "/api/tenant/{tenantId}/zones", "t-1")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
     public void testCreatePrivateZoneWithUnderscores() throws Exception {
         Zone zone = podamFactory.manufacturePojo(Zone.class);
         when(zoneManagement.createPrivateZone(any(), any()))
@@ -190,10 +207,7 @@ public class ZoneApiControllerTest {
             .content(objectMapper.writeValueAsString(create))
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
-            .andExpect(status().isBadRequest())
-            .andExpect(content()
-                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.message", is(errorMsg)));
+            .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -244,7 +258,7 @@ public class ZoneApiControllerTest {
     @Test
     public void testDeletePrivateZoneWithMonitors() throws Exception {
         String error = "Cannot remove zone with configured monitors. Found 2.";
-        doThrow(new IllegalArgumentException(error))
+        doThrow(new ZoneDeletionNotAllowed(error))
             .when(zoneManagement).removePrivateZone(any(), any());
 
         ZoneCreatePrivate create = newZoneCreatePrivate();
@@ -254,9 +268,6 @@ public class ZoneApiControllerTest {
             .content(objectMapper.writeValueAsString(create))
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
-            .andExpect(status().isBadRequest()) // This should maybe be a 409 conflict.
-            .andExpect(content()
-                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.message", is(error)));
+            .andExpect(status().isConflict());
     }
 }
