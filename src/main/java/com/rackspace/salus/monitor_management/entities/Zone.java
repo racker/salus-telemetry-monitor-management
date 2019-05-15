@@ -15,7 +15,7 @@
  */
 package com.rackspace.salus.monitor_management.entities;
 
-import com.rackspace.salus.monitor_management.types.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import lombok.Data;
 import org.hibernate.annotations.Type;

@@ -13,7 +13,7 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
-import com.rackspace.salus.monitor_management.types.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
