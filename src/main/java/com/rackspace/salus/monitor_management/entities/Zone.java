@@ -118,6 +118,7 @@ public class Zone implements Serializable {
         .setProvider(provider)
         .setProviderRegion(providerRegion)
         .setPublic(isPublic)
-        .setSourceIpAddresses(sourceIpAddresses);
+        .setSourceIpAddresses(sourceIpAddresses)
+        .setState(state);
   }
 }
