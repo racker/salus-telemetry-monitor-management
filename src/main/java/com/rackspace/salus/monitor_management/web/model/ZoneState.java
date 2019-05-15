@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.rackspace.salus.monitor_management.types;
+package com.rackspace.salus.monitor_management.web.model;
 
 public enum ZoneState {
     ACTIVE, // running and accepting new checks

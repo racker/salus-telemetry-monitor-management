@@ -15,7 +15,6 @@
  */
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.monitor_management.types.ZoneState;
 import lombok.Data;
 
 import java.util.List;
