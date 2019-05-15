@@ -5,6 +5,7 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
+import com.rackspace.salus.monitor_management.web.model.View;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
@@ -82,7 +83,9 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+                .andExpect(content().json(objectMapper
+                    .writerWithView(View.Public.class)
+                    .writeValueAsString(expectedZone.toDTO())));
     }
 
     @Test
@@ -98,7 +101,9 @@ public class ZoneApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+            .andExpect(content().json(objectMapper
+                .writerWithView(View.Admin.class)
+                .writeValueAsString(expectedZone.toDTO())));
     }
 
     @Test
@@ -117,7 +122,9 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+                .andExpect(content().json(objectMapper
+                    .writerWithView(View.Public.class)
+                    .writeValueAsString(zone.toDTO())));
     }
 
     @Test
@@ -153,7 +160,9 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+                .andExpect(content().json(objectMapper
+                    .writerWithView(View.Public.class)
+                    .writeValueAsString(zone.toDTO())));
     }
 
     @Test
@@ -191,7 +200,9 @@ public class ZoneApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+            .andExpect(content().json(objectMapper
+                .writerWithView(View.Admin.class)
+                .writeValueAsString(zone.toDTO())));
     }
 
     @Test

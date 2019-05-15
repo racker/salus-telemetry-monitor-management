@@ -18,8 +18,10 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import org.junit.Test;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -28,8 +30,10 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 public class ZoneDTOTest {
   final PodamFactory podamFactory = new PodamFactoryImpl();
 
+  final ObjectMapper objectMapper = new ObjectMapper();
+
   @Test
-  public void testFieldsCovered() {
+  public void testFieldsCovered() throws Exception {
     final Zone zone = podamFactory.manufacturePojo(Zone.class);
 
     final ZoneDTO dto = zone.toDTO();
@@ -49,5 +53,21 @@ public class ZoneDTOTest {
     assertThat(dto.getSourceIpAddresses(), equalTo(zone.getSourceIpAddresses()));
     assertThat(dto.getState(), equalTo(zone.getState()));
     assertThat(dto.isPublic(), equalTo(zone.isPublic()));
+
+
+    String objectAsString;
+    ZoneDTO convertedDto;
+
+    objectAsString = objectMapper.writerWithView(View.Public.class).writeValueAsString(dto);
+    convertedDto = objectMapper.readValue(objectAsString, ZoneDTO.class);
+    assertThat(convertedDto.getState(), nullValue());
+
+    objectAsString = objectMapper.writerWithView(View.Admin.class).writeValueAsString(dto);
+    convertedDto = objectMapper.readValue(objectAsString, ZoneDTO.class);
+    assertThat(convertedDto.getState(), notNullValue());
+
+    objectAsString = objectMapper.writerWithView(View.Internal.class).writeValueAsString(dto);
+    convertedDto = objectMapper.readValue(objectAsString, ZoneDTO.class);
+    assertThat(convertedDto.getState(), notNullValue());
   }
 }

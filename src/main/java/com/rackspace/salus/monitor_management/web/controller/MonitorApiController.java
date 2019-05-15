@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
@@ -26,6 +27,7 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
+import com.rackspace.salus.monitor_management.web.model.View;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -84,6 +86,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/monitors")
     @ApiOperation(value = "Gets all Monitors irrespective of Tenant")
+    @JsonView(View.Admin.class)
     public Page<DetailedMonitorOutput> getAll(@RequestParam(defaultValue = "100") int size,
                                 @RequestParam(defaultValue = "0") int page) {
 
@@ -95,6 +98,7 @@ public class MonitorApiController implements MonitorApi {
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
     @ApiOperation(value = "Gets all BoundMonitors attached to a particular Envoy")
+    @JsonView(View.Admin.class)
     public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
         return boundMonitorRepository.findAllByEnvoyId(envoyId).stream()
             .map(BoundMonitor::toDTO)
@@ -103,6 +107,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ApiOperation(value = "Gets specific Monitor for Tenant")
+    @JsonView(View.Public.class)
     public DetailedMonitorOutput getById(@PathVariable String tenantId,
                                          @PathVariable UUID uuid) throws NotFoundException {
         Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
@@ -112,6 +117,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/boundMonitors")
+    @JsonView(View.Public.class)
     public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
                                                            Pageable pageable) {
         return PagedContent.fromPage(
@@ -122,6 +128,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitors")
     @ApiOperation(value = "Gets all Monitors for Tenant")
+    @JsonView(View.Public.class)
     public Page<DetailedMonitorOutput> getAllForTenant(@PathVariable String tenantId,
                                          @RequestParam(defaultValue = "100") int size,
                                          @RequestParam(defaultValue = "0") int page) {
@@ -134,6 +141,7 @@ public class MonitorApiController implements MonitorApi {
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Creates new Monitor for Tenant")
     @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Monitor")})
+    @JsonView(View.Public.class)
     public DetailedMonitorOutput create(@PathVariable String tenantId,
                                         @Validated(ValidationGroups.Create.class) @RequestBody
                                         final DetailedMonitorInput input)
@@ -162,6 +170,7 @@ public class MonitorApiController implements MonitorApi {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes specific Monitor for Tenant")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
+    @JsonView(View.Public.class)
     public void delete(@PathVariable String tenantId,
                        @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
@@ -169,6 +178,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitorLabels")
     @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
+    @JsonView(View.Public.class)
     public List<DetailedMonitorOutput> getMonitorsWithLabels(@PathVariable String tenantId,
                                                  @RequestBody Map<String, String> labels) {
         return monitorManagement.getMonitorsFromLabels(labels, tenantId).stream()

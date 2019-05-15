@@ -15,20 +15,8 @@
  */
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import lombok.Data;
-
-import java.util.List;
-
-@Data
-public class ZoneDTO {
-    String name;
-    long pollerTimeout;
-    String provider;
-    String providerRegion;
-    boolean isPublic;
-    List<String> sourceIpAddresses;
-
-    @JsonView(View.Internal.class)
-    ZoneState state;
+public class View {
+  public interface Public {}
+  public interface Internal extends Public {}
+  public interface Admin extends Internal {}
 }
