@@ -1,0 +1,8 @@
+{
+  "name":"testPrivateZone_with_underscores",
+  "pollerTimeout":60,
+  "provider":"p-1",
+  "providerRegion":"p-r-1",
+  "sourceIpAddresses":[],
+  "public":false
+}
