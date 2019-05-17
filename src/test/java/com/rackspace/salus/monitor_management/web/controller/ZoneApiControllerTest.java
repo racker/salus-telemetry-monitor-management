@@ -5,7 +5,7 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
-import com.rackspace.salus.monitor_management.web.model.View;
+import com.rackspace.salus.telemetry.model.View;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;

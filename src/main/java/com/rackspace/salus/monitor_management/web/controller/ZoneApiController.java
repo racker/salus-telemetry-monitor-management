@@ -17,7 +17,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.web.model.View;
+import com.rackspace.salus.telemetry.model.View;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
