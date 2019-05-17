@@ -17,6 +17,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
+import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.entities.Zone;
@@ -33,9 +34,11 @@ import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +48,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.HandlerMapping;
 
 @Slf4j
 @RestController
@@ -64,23 +68,48 @@ public class ZoneApiController implements ZoneApi {
         this.zoneManagement = zoneManagement;
     }
 
-    @Override
-    @GetMapping("/tenant/{tenantId}/zones/{name}")
+    @GetMapping("/tenant/{tenantId}/zones/**")
     @ApiOperation(value = "Gets specific zone by tenant id and zone name")
-    public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
-        Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
-        return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
-                name, tenantId)))
-                .toDTO();
+    public ZoneDTO getAvailableZone(@PathVariable String tenantId, HttpServletRequest request) {
+      String name = extractZoneNameFromUri(request);
+      if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
+        return getPublicZone(request); // probably have to change this when json views are merged.
+      }
+      return getByZoneName(tenantId, name);
     }
 
-    @GetMapping("/admin/zones/{name}")
+    @Override
+    public ZoneDTO getByZoneName(String tenantId, String name) {
+      Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
+      return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
+              name, tenantId)))
+              .toDTO();
+    }
+
+    @GetMapping("/admin/zones/**")
     @ApiOperation(value = "Gets specific public zone by name")
-    public ZoneDTO getPublicZone(@PathVariable String name) {
-        Optional<Zone> zone = zoneManagement.getPublicZone(name);
-        return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
-            name)))
-            .toDTO();
+    public ZoneDTO getPublicZone(HttpServletRequest request) {
+      String name = extractZoneNameFromUri(request);
+      Optional<Zone> zone = zoneManagement.getPublicZone(name);
+      return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
+          name)))
+          .toDTO();
+    }
+
+    /**
+     * Discovers the zone name within the uri.
+     * Handles both public zones containing slashes as well as more simple private zone.
+     * Using @PathVariable does not work for public zones.
+     * @param request The incoming http request.
+     * @return The zone name provided within the uri.
+     */
+    private String extractZoneNameFromUri(HttpServletRequest request) {
+      // For example, /api/admin//zones/public/region_1
+      String path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+      // For example, /api/admin/zones/**
+      String bestMatchPattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+      // For example, public/region_1
+      return new AntPathMatcher().extractPathWithinPattern(bestMatchPattern, path);
     }
 
     @PostMapping("/tenant/{tenantId}/zones")
