@@ -15,7 +15,9 @@
  */
 package com.rackspace.salus.monitor_management.web.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.Monitor;
+import com.rackspace.salus.telemetry.model.View;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
@@ -67,6 +69,7 @@ public class ZoneApiController implements ZoneApi {
     @Override
     @GetMapping("/tenant/{tenantId}/zones/{name}")
     @ApiOperation(value = "Gets specific zone by tenant id and zone name")
+    @JsonView(View.Public.class)
     public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
         Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
@@ -76,6 +79,7 @@ public class ZoneApiController implements ZoneApi {
 
     @GetMapping("/admin/zones/{name}")
     @ApiOperation(value = "Gets specific public zone by name")
+    @JsonView(View.Admin.class)
     public ZoneDTO getPublicZone(@PathVariable String name) {
         Optional<Zone> zone = zoneManagement.getPublicZone(name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
@@ -86,6 +90,7 @@ public class ZoneApiController implements ZoneApi {
     @PostMapping("/tenant/{tenantId}/zones")
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Creates a new private zone for the tenant")
+    @JsonView(View.Public.class)
     public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreatePrivate zone)
             throws ZoneAlreadyExists {
         return zoneManagement.createPrivateZone(tenantId, zone).toDTO();
@@ -101,12 +106,14 @@ public class ZoneApiController implements ZoneApi {
 
     @PutMapping("/tenant/{tenantId}/zones/{name}")
     @ApiOperation(value = "Updates a specific private zone for the tenant")
+    @JsonView(View.Public.class)
     public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePrivateZone(tenantId, name, zone).toDTO();
     }
 
     @PutMapping("/admin/zones/{name}")
     @ApiOperation(value = "Updates a specific public zone")
+    @JsonView(View.Admin.class)
     public ZoneDTO update(@PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePublicZone(name, zone).toDTO();
     }
@@ -114,6 +121,7 @@ public class ZoneApiController implements ZoneApi {
     @DeleteMapping("/tenant/{tenantId}/zones/{name}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes a specific private zone for the tenant")
+    @JsonView(View.Public.class)
     public void delete(@PathVariable String tenantId, @PathVariable String name) {
         zoneManagement.removePrivateZone(tenantId, name);
     }
@@ -121,12 +129,14 @@ public class ZoneApiController implements ZoneApi {
     @DeleteMapping("/admin/zones/{name}")
     @ApiOperation(value = "Deletes a specific public zone")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @JsonView(View.Admin.class)
     public void delete(@PathVariable String name) {
         zoneManagement.removePublicZone(name);
     }
 
     @GetMapping("/tenant/{tenantId}/zones")
     @ApiOperation(value = "Gets all zones available to be used in the tenant's monitor configurations")
+    @JsonView(View.Public.class)
     public List<ZoneDTO> getAvailableZones(@PathVariable String tenantId) {
         return zoneManagement.getAvailableZonesForTenant(tenantId)
                 .stream()
@@ -136,6 +146,7 @@ public class ZoneApiController implements ZoneApi {
 
     @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
     @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
+    @JsonView(View.Public.class)
     public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
         return zoneManagement.getMonitorsForZone(tenantId, zone).stream()
             .map(Monitor::toDTO)
