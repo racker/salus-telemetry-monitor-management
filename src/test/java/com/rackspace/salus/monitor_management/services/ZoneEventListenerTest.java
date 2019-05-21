@@ -57,11 +57,12 @@ public class ZoneEventListenerTest {
         new ReattachedResourceZoneEvent()
             .setFromEnvoyId("e-1")
             .setToEnvoyId("e-2")
+            .setResourceId("r-1")
             .setTenantId("t-1")
             .setZoneName("z-1")
     );
 
     verify(monitorManagement).handleEnvoyResourceChangedInZone(
-        "t-1", "z-1", "e-1", "e-2");
+        "t-1", "z-1", "r-1", "e-1", "e-2");
   }
 }

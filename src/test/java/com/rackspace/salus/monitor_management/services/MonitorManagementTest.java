@@ -57,6 +57,7 @@ import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
@@ -575,8 +576,10 @@ public class MonitorManagementTest {
             .setLabelSelector(Collections.singletonMap("os", "linux"));
         entityManager.persist(monitor);
 
+        EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-1");
+
         when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of("e-new")));
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
 
@@ -633,8 +636,8 @@ public class MonitorManagementTest {
 
         final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
         verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
-        verify(zoneStorage).incrementBoundCount(resolvedZ3, "e-new");
-        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "e-existing");
+        verify(zoneStorage).incrementBoundCount(resolvedZ3, "r-1");
+        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "r-1");
 
         verify(boundMonitorRepository)
             .findAllByMonitor_IdAndZoneNameIn(monitor.getId(), Collections.singletonList("z-1"));
@@ -756,7 +759,7 @@ public class MonitorManagementTest {
 
         verify(zoneStorage).decrementBoundCount(
             ResolvedZone.createPrivateZone("t-1", "z-1"),
-            "e-goner"
+            "r-1"
         );
 
         verify(monitorEventProducer).sendMonitorEvent(
@@ -1049,13 +1052,15 @@ public class MonitorManagementTest {
         final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
         final ResolvedZone zoneWest = createPublicZone("public/west");
 
+
         when(zoneStorage.findLeastLoadedEnvoy(zone1))
             .thenReturn(CompletableFuture.completedFuture(
-                Optional.of("zone1-e-1")
+                Optional.of(
+                    new EnvoyResourcePair().setEnvoyId("zone1-e-1").setResourceId("r-1"))
             ));
         when(zoneStorage.findLeastLoadedEnvoy(zoneWest))
             .thenReturn(CompletableFuture.completedFuture(
-                Optional.of("zoneWest-e-2")
+                Optional.of(new EnvoyResourcePair().setEnvoyId("zoneWest-e-2").setResourceId("r-1"))
             ));
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
@@ -1120,8 +1125,10 @@ public class MonitorManagementTest {
         verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
         verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zoneWest);
 
-        verify(zoneStorage, times(2)).incrementBoundCount(zone1, "zone1-e-1");
-        verify(zoneStorage, times(2)).incrementBoundCount(zoneWest, "zoneWest-e-2");
+        verify(zoneStorage).incrementBoundCount(zone1, "r-1");
+        verify(zoneStorage).incrementBoundCount(zone1, "r-2");
+        verify(zoneStorage).incrementBoundCount(zoneWest, "r-1");
+        verify(zoneStorage).incrementBoundCount(zoneWest, "r-2");
 
         verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
     }
@@ -1181,14 +1188,14 @@ public class MonitorManagementTest {
         );
 
         // but only one envoy is available
-        Queue<String> availableEnvoys = new LinkedList<>();
-        availableEnvoys.add("e-1");
+        Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
+        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-1"));
         // ...same envoy again to verify de-duping
-        availableEnvoys.add("e-1");
+        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-1"));
 
         when(zoneStorage.findLeastLoadedEnvoy(any()))
             .then(invocationOnMock -> {
-                final Optional<String> result;
+                final Optional<EnvoyResourcePair> result;
                 if (availableEnvoys.isEmpty()) {
                     result = Optional.empty();
                 } else {
@@ -1208,6 +1215,11 @@ public class MonitorManagementTest {
 
         verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
             createPrivateZone("t-1", "z-1")
+        );
+
+        verify(zoneStorage, times(2)).incrementBoundCount(
+            createPrivateZone("t-1", "z-1"),
+            "r-1"
         );
 
         // two assignments to same envoy, but verify only one event
@@ -1244,14 +1256,14 @@ public class MonitorManagementTest {
         );
 
         // but only one envoy is available
-        Queue<String> availableEnvoys = new LinkedList<>();
-        availableEnvoys.add("e-1");
+        Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
+        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-1"));
         // ...same envoy again to verify de-duping
-        availableEnvoys.add("e-1");
+        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-1"));
 
         when(zoneStorage.findLeastLoadedEnvoy(any()))
             .then(invocationOnMock -> {
-                final Optional<String> result;
+                final Optional<EnvoyResourcePair> result;
                 if (availableEnvoys.isEmpty()) {
                     result = Optional.empty();
                 } else {
@@ -1274,6 +1286,11 @@ public class MonitorManagementTest {
 
         verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
             createPublicZone("public/west")
+        );
+
+        verify(zoneStorage, times(2)).incrementBoundCount(
+            createPublicZone("public/west"),
+            "r-1"
         );
 
         // two assignments to same envoy, but verify only one event
@@ -1316,7 +1333,7 @@ public class MonitorManagementTest {
 
         // EXECUTE
 
-        monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "e-1", "e-2");
+        monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "r-1", "e-1", "e-2");
 
         // VERIFY
 
@@ -1336,7 +1353,7 @@ public class MonitorManagementTest {
 
         verify(zoneStorage).incrementBoundCount(
             createPrivateZone("t-1", "z-1"),
-            "e-2",
+            "r-1",
             3
         );
 
@@ -1366,7 +1383,7 @@ public class MonitorManagementTest {
         // EXECUTE
 
         // The main thing being tested is that a null zone tenant ID
-        monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "e-1", "e-2");
+        monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "r-1", "e-1", "e-2");
 
         // VERIFY
 
@@ -1387,7 +1404,7 @@ public class MonitorManagementTest {
 
         verify(zoneStorage).incrementBoundCount(
             createPublicZone("public/1"),
-            "e-2",
+            "r-1",
             3
         );
 
@@ -1491,7 +1508,8 @@ public class MonitorManagementTest {
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
         when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of("e-2")));
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("r-1"))));
 
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
@@ -1562,8 +1580,8 @@ public class MonitorManagementTest {
         final ResolvedZone z2 = createPrivateZone("t-1", "z-2");
         verify(zoneStorage).findLeastLoadedEnvoy(z1);
         verify(zoneStorage).findLeastLoadedEnvoy(z2);
-        verify(zoneStorage).incrementBoundCount(z1, "e-2");
-        verify(zoneStorage).incrementBoundCount(z2, "e-2");
+        verify(zoneStorage).incrementBoundCount(z1, "r-1");
+        verify(zoneStorage).incrementBoundCount(z2, "r-1");
 
         verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
         verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
