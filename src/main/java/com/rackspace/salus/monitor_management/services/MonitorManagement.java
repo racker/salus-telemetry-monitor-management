@@ -33,6 +33,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -639,7 +640,7 @@ public class MonitorManagement {
      *
      * @param event the new resource event.
      */
-    void handleResourceEvent(ResourceEvent event) {
+    void handleResourceChangeEvent(ResourceEvent event) {
         final String tenantId = event.getTenantId();
         final String resourceId = event.getResourceId();
 
@@ -682,6 +683,37 @@ public class MonitorManagement {
         }
 
         sendMonitorBoundEvents(changes);
+    }
+
+    /**
+     * Finds all the local monitors bound to the resource and re-bind them to the newly attached
+     * Envoy
+     * @param resourceEvent the event indicating the re-attached envoy-resource
+     */
+    void handleReattachedEnvoy(ReattachedEnvoyResourceEvent resourceEvent) {
+        final List<BoundMonitor> bound = boundMonitorRepository
+            .findAllLocalByTenantResource(
+                resourceEvent.getTenantId(),
+                resourceEvent.getResourceId()
+            );
+
+        final List<String> previousEnvoyIds = bound.stream()
+            .map(BoundMonitor::getEnvoyId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .collect(Collectors.toList());
+
+        bound.forEach(boundMonitor ->
+            boundMonitor.setEnvoyId(resourceEvent.getEnvoyId())
+        );
+
+        boundMonitorRepository.saveAll(bound);
+
+        // now that the re-binding is saved
+        // ...tell any previous envoys about loss of binding
+        previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
+        // ...and tell the attached envoy about the re-bindings
+        sendMonitorBoundEvent(resourceEvent.getEnvoyId());
     }
 
     List<BoundMonitor> upsertBindingToResource(List<Monitor> monitors,

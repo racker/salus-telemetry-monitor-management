@@ -54,6 +54,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -1398,6 +1399,57 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testHandleReattachedEnvoy() {
+
+        when(boundMonitorRepository.findAllLocalByTenantResource("t-1", "r-1"))
+            .thenReturn(Arrays.asList(
+                new BoundMonitor()
+                    .setEnvoyId("e-old-1")
+                    .setRenderedContent("content-1"),
+                new BoundMonitor()
+                    .setEnvoyId("e-old-2")
+                    .setRenderedContent("content-2")
+            ));
+
+        // EXECUTE
+
+        final ReattachedEnvoyResourceEvent event = new ReattachedEnvoyResourceEvent()
+            .setEnvoyId("e-new");
+        event
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        monitorManagement.handleReattachedEnvoy(event);
+
+        // VERIFY
+
+        verify(boundMonitorRepository)
+            .findAllLocalByTenantResource("t-1", "r-1");
+        verify(boundMonitorRepository).saveAll(
+            Arrays.asList(
+                new BoundMonitor()
+                    .setEnvoyId("e-new")
+                    .setRenderedContent("content-1"),
+                new BoundMonitor()
+                    .setEnvoyId("e-new")
+                    .setRenderedContent("content-2")
+            )
+        );
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-old-1")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-old-2")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-new")
+        );
+
+        verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
     public void testUnbindByMonitorId() {
         final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
         monitor.setId(null);
@@ -1675,7 +1727,7 @@ public class MonitorManagementTest {
 
         // EXERCISE
 
-        monitorManagement.handleResourceEvent(new ResourceEvent()
+        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
             .setTenantId("t-1")
             .setResourceId("r-1"));
 
@@ -1751,7 +1803,7 @@ public class MonitorManagementTest {
 
         // EXERCISE
 
-        monitorManagement.handleResourceEvent(new ResourceEvent()
+        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
             .setTenantId("t-1")
             .setResourceId("r-1"));
 
@@ -1818,7 +1870,7 @@ public class MonitorManagementTest {
 
         // EXERCISE
 
-        monitorManagement.handleResourceEvent(new ResourceEvent()
+        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
             .setTenantId("t-1")
             .setResourceId("r-1"));
 
