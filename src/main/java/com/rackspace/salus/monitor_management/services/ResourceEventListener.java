@@ -1,7 +1,6 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,15 +39,8 @@ public class ResourceEventListener {
      */
     @KafkaListener(topics = "#{__listener.topic}")
     public void consumeResourceEvents(ResourceEvent resourceEvent) {
-        log.debug("Processing new resource event: {}", resourceEvent);
+        log.debug("Processing resource change event: {}", resourceEvent);
 
-        if (resourceEvent instanceof ReattachedEnvoyResourceEvent) {
-            monitorManagement.handleReattachedEnvoy(
-                ((ReattachedEnvoyResourceEvent) resourceEvent)
-            );
-        }
-        else {
-            monitorManagement.handleResourceChangeEvent(resourceEvent);
-        }
+        monitorManagement.handleResourceChangeEvent(resourceEvent);
     }
 }

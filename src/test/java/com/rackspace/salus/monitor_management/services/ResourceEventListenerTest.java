@@ -20,7 +20,7 @@ import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.verify;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,15 +69,14 @@ public class ResourceEventListenerTest {
 
   @Test
   public void testReattachedEnvoyResourceEvent() throws InterruptedException {
-    final ReattachedEnvoyResourceEvent event = new ReattachedEnvoyResourceEvent()
-        .setEnvoyId("e-1");
-    event
+    final ResourceEvent event = new ResourceEvent()
+        .setReattachedEnvoyId("e-1")
+        .setLabelsChanged(false)
         .setTenantId("t-1")
         .setResourceId("r-1");
 
     kafkaTemplate.send(TOPIC, "t-1:r-1", event);
 
-    verify(monitorManagement, after(5000))
-        .handleReattachedEnvoy(event);
+    verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
   }
 }
