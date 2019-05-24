@@ -338,6 +338,69 @@ public class MonitorConversionServiceTest {
   }
 
   @Test
+  public void convertToOutput_x509() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_x509");
+
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
+
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("z-1"))
+        .setLabelSelector(labels)
+        .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
+    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
+    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(X509_Cert.class);
+
+    final X509_Cert x509Plugin = (X509_Cert) plugin;
+    assertThat(pingPlugin.getUrls()).contains("localhost");
+    assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+  }
+
+  @Test
+  public void convertFromInput_x509() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_x509");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final X509_Cert plugin = new X509_Cert();
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabelSelector(labels)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
   public void testValidationOfLabelSelectors() {
     final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
     validatorFactoryBean.afterPropertiesSet();

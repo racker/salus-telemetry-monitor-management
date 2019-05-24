@@ -21,10 +21,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.monitor_management.web.model.telegraf.X509_Cert;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
 @JsonSubTypes({
-    @Type(name = "ping", value = Ping.class)
+    @Type(name = "ping", value = Ping.class),
+    @Type(name = "x509_cert", value = X509_Cert.class)
 })
 public abstract class RemotePlugin {
 

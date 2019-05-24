@@ -1,0 +1,9 @@
+{
+  "type": "x509_cert",
+  "sources": ["/etc/ssl/certs/ssl-cert-snakeoil.pem"],
+  "timeout": = "5s",
+  "tlsCa": "/etc/telegraf/ca.pem",
+  "tlsCert": "/etc/telegraf/cert.pem",
+  "tlsKey": "/etc/telegraf/key.pem",
+  "insecure_skip_verify": false
+}
