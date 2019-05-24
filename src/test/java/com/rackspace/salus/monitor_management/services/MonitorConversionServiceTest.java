@@ -370,7 +370,6 @@ public class MonitorConversionServiceTest {
     assertThat(plugin).isInstanceOf(X509_Cert.class);
 
     final X509_Cert x509Plugin = (X509_Cert) plugin;
-    assertThat(pingPlugin.getUrls()).contains("localhost");
     assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
   }
 

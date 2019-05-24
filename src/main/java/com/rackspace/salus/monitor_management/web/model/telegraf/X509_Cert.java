@@ -34,5 +34,5 @@ public class X509_Cert extends RemotePlugin {
   String tlsCa;
   String tlsCert;
   String tlsKey;
-  boolean insecureSkipVerify
+  boolean insecureSkipVerify;
 }
