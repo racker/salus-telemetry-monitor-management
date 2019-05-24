@@ -1842,24 +1842,16 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testhandleResourceEvent_modifiedResourceAndReattached() {
+    public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_sameContent() {
 
         // for this unit test the "new" value of the resource don't really matter as long as
         // the monitor label selector continues to align
         final Resource resource = new Resource()
             .setLabels(Collections.singletonMap("env", "prod"))
-            .setMetadata(Collections.singletonMap("custom", "value"))
+            .setMetadata(Collections.singletonMap("custom", "new"))
             .setResourceId("r-1")
             .setTenantId("t-1")
             .setId(1001L);
-        when(resourceApi.getByResourceId(any(), any()))
-            .thenReturn(resource);
-
-        ResourceInfo resourceInfo = new ResourceInfo()
-            .setResourceId("r-1")
-            .setEnvoyId("e-not-used"); // for this particular use case
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
         final Monitor monitor = new Monitor()
             .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -1877,9 +1869,6 @@ public class MonitorManagementTest {
             .setZoneName("")
             .setRenderedContent("static content")
             .setEnvoyId("e-old");
-
-        when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
-            .thenReturn(Collections.singletonList(monitor.getId()));
 
         when(boundMonitorRepository.findAllLocalByTenantResource(any(), any()))
             .thenReturn(Collections.singletonList(boundMonitor));
@@ -1908,6 +1897,94 @@ public class MonitorManagementTest {
                 .setRenderedContent("static content")
                 .setZoneName("")
         ));
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-old")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-new")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi);
+    }
+
+    @Test
+    public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_changedContent() {
+
+        // for this unit test the "new" value of the resource don't really matter as long as
+        // the monitor label selector continues to align
+        final Resource resource = new Resource()
+            .setLabels(Collections.singletonMap("env", "prod"))
+            .setMetadata(Collections.singletonMap("custom", "new"))
+            .setResourceId("r-1")
+            .setTenantId("t-1")
+            .setId(1001L);
+        when(resourceApi.getByResourceId(any(), any()))
+            .thenReturn(resource);
+
+        ResourceInfo resourceInfo = new ResourceInfo()
+            .setResourceId("r-1")
+            .setEnvoyId("e-not-used"); // for this particular use case
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+
+        final Monitor monitor = new Monitor()
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setTenantId("t-1")
+            .setLabelSelector(Collections.singletonMap("env", "prod"))
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("custom=${resource.metadata.custom}");
+        entityManager.persist(monitor);
+
+        entityManager.flush();
+
+        final BoundMonitor boundMonitor = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setZoneName("")
+            .setRenderedContent("custom=old")
+            .setEnvoyId("e-old");
+
+        when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
+            .thenReturn(Collections.singletonList(monitor.getId()));
+
+        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+            .thenReturn(Collections.singletonList(boundMonitor));
+
+        // EXERCISE
+
+        monitorManagement.handleResourceChangeEvent(
+            new ResourceEvent()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setLabelsChanged(true)
+            .setReattachedEnvoyId("e-new")
+        );
+
+        // VERIFY
+
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+        assertThat(savedBoundMonitors, hasSize(1));
+        assertThat(savedBoundMonitors, contains(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId("e-new")
+                .setRenderedContent("custom=new")
+                .setZoneName("")
+        ));
+
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent()

@@ -717,11 +717,7 @@ public class MonitorManagement {
                 resourceId
             );
 
-        final List<String> previousEnvoyIds = bound.stream()
-            .map(BoundMonitor::getEnvoyId)
-            .filter(Objects::nonNull)
-            .distinct()
-            .collect(Collectors.toList());
+        final Set<String> previousEnvoyIds = extractEnvoyIds(bound);
 
         bound.forEach(boundMonitor ->
             boundMonitor.setEnvoyId(envoyId)
@@ -785,19 +781,24 @@ public class MonitorManagement {
                 final String newRenderedContent = renderMonitorContent(monitor, resource);
 
                 for (BoundMonitor existingBind : existing) {
+                    boolean updated = false;
+
                     if (!existingBind.getRenderedContent().equals(newRenderedContent)) {
                         existingBind.setRenderedContent(newRenderedContent);
-                        boundMonitors.add(existingBind);
-                    } else if (
-                        reattachedEnvoyId != null &&
-                            monitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
-                            existingBind.getEnvoyId() != null
-                    ) {
+                        updated = true;
+                    }
+
+                    if (reattachedEnvoyId != null &&
+                            monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
                         // need to send an event to old Envoy just in case it's around, but
                         // probably won't be due to the re-attachment
                         affectedEnvoys.add(existingBind.getEnvoyId());
 
                         existingBind.setEnvoyId(reattachedEnvoyId);
+                        updated = true;
+                    }
+
+                    if (updated) {
                         boundMonitors.add(existingBind);
                     }
                 }
