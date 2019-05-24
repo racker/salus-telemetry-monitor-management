@@ -1,0 +1,24 @@
+{
+  "type": "http_response",
+  "address": "http://localhost",
+  "httpProxy": "http://localhost:8888",
+  "responseTimeout": "5s",
+  "method": "GET",
+  "followRedirects": false,
+  "body": "{'fake':'data'}",
+  "responseStringMatch": "\"service_status\": \"up\"",
+  "tlsCa": "/etc/telegraf/ca.pem",
+  "tlsCert": "/etc/telegraf/cert.pem",
+  "tlsKey": "/etc/telegraf/key.pem",
+  "insecureSkipVerify": false,
+  "headers": {"host": "github.com"}
+}
+
+
+
+
+
+
+
+
+
