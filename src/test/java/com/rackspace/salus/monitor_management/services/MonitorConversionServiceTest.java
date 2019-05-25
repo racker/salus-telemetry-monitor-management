@@ -19,7 +19,6 @@ package com.rackspace.salus.monitor_management.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
@@ -372,6 +371,11 @@ public class MonitorConversionServiceTest {
 
     final X509_Cert x509Plugin = (X509_Cert) plugin;
     assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+    assertThat(x509Plugin.getTimeout()).isEqualTo("5s");
+    assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
+    assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
+    assertThat(x509Plugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
+    assertThat(x509Plugin.isInsecureSkipVerify()).isEqualTo(false);
   }
 
   @Test
@@ -383,6 +387,12 @@ public class MonitorConversionServiceTest {
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final X509_Cert plugin = new X509_Cert();
+    //plugin.setSources("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+    plugin.setTimeout("5s");
+    plugin.setTlsCa("/etc/telegraf/ca.pem");
+    plugin.setTlsCert("/etc/telegraf/cert.pem");
+    plugin.setTlsKey("/etc/telegraf/key.pem");
+    plugin.setInsecureSkipVerify(false);
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
@@ -407,9 +417,6 @@ public class MonitorConversionServiceTest {
     labels.put("test", "convertToOutput_http");
 
     final String content = readContent("/MonitorConversionServiceTest_http.json");
-    final ObjectMapper objectMapper = new ObjectMapper();
-    final HttpResponse httpResponse = objectMapper.readValue(content, HttpResponse.class);
-
     final UUID monitorId = UUID.randomUUID();
 
     Monitor monitor = new Monitor()
@@ -455,9 +462,24 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput_http");
 
+    final Map<String, String> headers = new HashMap<>();
+    headers.put("host", "github.com");
+
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final HttpResponse plugin = new HttpResponse();
+    plugin.setAddress("http://localhost");
+    plugin.setHttpProxy("http://localhost:8888");
+    plugin.setResponseTimeout("5s");
+    plugin.setMethod("GET");
+    plugin.setFollowRedirects(false);
+    plugin.setBody("{'fake':'data'}");
+    plugin.setResponseStringMatch("\"service_status\": \"up\"");
+    plugin.setTlsCa("/etc/telegraf/ca.pem");
+    plugin.setTlsCert("/etc/telegraf/cert.pem");
+    plugin.setTlsKey("/etc/telegraf/key.pem");
+    plugin.setInsecureSkipVerify(false);
+    plugin.setHeaders(headers);
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
