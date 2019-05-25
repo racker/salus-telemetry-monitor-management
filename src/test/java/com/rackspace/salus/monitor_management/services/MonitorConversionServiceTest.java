@@ -400,6 +400,68 @@ public class MonitorConversionServiceTest {
   }
 
   @Test
+  public void convertToOutput_http_response() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_http");
+
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
+
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("z-1"))
+        .setLabelSelector(labels)
+        .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
+    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
+    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(HttpResponse.class);
+
+    final HttpResponse httpPlugin = (HttpResponse) plugin;
+    assertThat(httpPlugin.getAddress()).isEqualTo("http://localhost");
+  }
+
+  @Test
+  public void convertFromInput_http_response() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_http");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final HttpResponse plugin = new HttpResponse();
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabelSelector(labels)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
   public void testValidationOfLabelSelectors() {
     final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
     validatorFactoryBean.afterPropertiesSet();

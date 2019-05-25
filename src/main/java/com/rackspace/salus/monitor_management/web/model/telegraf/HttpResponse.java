@@ -21,18 +21,25 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
-import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import java.util.Map;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(Include.NON_NULL)
 public class HttpResponse extends RemotePlugin {
-  List<String> sources;
-  String timeout;
+  String address;
+  String httpProxy;
+  String responseTimeout;
+  String method;
+  boolean followRedirects;
+  String body;
+  String responseStringMatch;
   String tlsCa;
   String tlsCert;
   String tlsKey;
   boolean insecureSkipVerify;
+  Map<String, String> headers;
 }
