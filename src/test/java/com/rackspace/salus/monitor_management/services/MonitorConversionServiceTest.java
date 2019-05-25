@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
@@ -406,6 +407,8 @@ public class MonitorConversionServiceTest {
     labels.put("test", "convertToOutput_http");
 
     final String content = readContent("/MonitorConversionServiceTest_http.json");
+    final ObjectMapper objectMapper = new ObjectMapper();
+    final HttpResponse httpResponse = objectMapper.readValue(content, HttpResponse.class);
 
     final UUID monitorId = UUID.randomUUID();
 
@@ -433,6 +436,17 @@ public class MonitorConversionServiceTest {
 
     final HttpResponse httpPlugin = (HttpResponse) plugin;
     assertThat(httpPlugin.getAddress()).isEqualTo("http://localhost");
+    assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
+    assertThat(httpPlugin.getResponseTimeout()).isEqualTo("5s");
+    assertThat(httpPlugin.getMethod()).isEqualTo("GET");
+    assertThat(httpPlugin.isFollowRedirects()).isEqualTo(false);
+    assertThat(httpPlugin.getBody()).isEqualTo("{'fake':'data'}");
+    assertThat(httpPlugin.getResponseStringMatch()).isEqualTo("\"service_status\": \"up\"");
+    assertThat(httpPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
+    assertThat(httpPlugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
+    assertThat(httpPlugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
+    assertThat(httpPlugin.isInsecureSkipVerify()).isEqualTo(false);
+    assertThat(httpPlugin.getHeaders().get("host")).isEqualTo("github.com");
   }
 
   @Test
