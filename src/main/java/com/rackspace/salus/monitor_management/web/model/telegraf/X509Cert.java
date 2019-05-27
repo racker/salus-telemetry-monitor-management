@@ -28,7 +28,7 @@ import lombok.EqualsAndHashCode;
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(Include.NON_NULL)
-public class X509_Cert extends RemotePlugin {
+public class X509Cert extends RemotePlugin {
   List<String> sources;
   String timeout;
   String tlsCa;

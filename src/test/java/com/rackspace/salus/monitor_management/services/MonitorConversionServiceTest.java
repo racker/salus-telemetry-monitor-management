@@ -33,11 +33,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
 import org.junit.Assert;
@@ -367,9 +363,9 @@ public class MonitorConversionServiceTest {
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
     assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
     final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
-    assertThat(plugin).isInstanceOf(X509_Cert.class);
+    assertThat(plugin).isInstanceOf(X509Cert.class);
 
-    final X509_Cert x509Plugin = (X509_Cert) plugin;
+    final X509Cert x509Plugin = (X509Cert) plugin;
     assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
     assertThat(x509Plugin.getTimeout()).isEqualTo("5s");
     assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
@@ -383,11 +379,13 @@ public class MonitorConversionServiceTest {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput_x509");
+    final List<String> sources = new LinkedList<>();
+    sources.add("/etc/ssl/certs/ssl-cert-snakeoil.pem");
 
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
-    final X509_Cert plugin = new X509_Cert();
-    //plugin.setSources("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+    final X509Cert plugin = new X509Cert();
+    plugin.setSources(sources);
     plugin.setTimeout("5s");
     plugin.setTlsCa("/etc/telegraf/ca.pem");
     plugin.setTlsCert("/etc/telegraf/cert.pem");
