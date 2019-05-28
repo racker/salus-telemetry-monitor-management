@@ -34,7 +34,7 @@ import javax.validation.constraints.Pattern;
 public class X509Cert extends RemotePlugin {
   @NotEmpty
   List<String> sources;
-  @Pattern(regexp = "(([-+]?[0-9]*\\.?[0-9]+)(h|m|s|ns|us|ms))+", message = "invalid duration")
+  @Pattern(regexp = "([0-9]+)(h|m|s|ms)", message = "invalid duration")
   String timeout;
   String tlsCa;
   String tlsCert;

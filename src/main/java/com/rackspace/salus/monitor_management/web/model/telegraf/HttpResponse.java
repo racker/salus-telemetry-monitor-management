@@ -35,7 +35,7 @@ public class HttpResponse extends RemotePlugin {
   @NotEmpty
   String address;
   String httpProxy;
-  @Pattern(regexp = "(([-+]?[0-9]*\\.?[0-9]+)(h|m|s|ns|us|ms))+", message = "invalid duration")
+  @Pattern(regexp = "([0-9]+)(h|m|s|ms)", message = "invalid duration")
   String responseTimeout;
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
   String method;
