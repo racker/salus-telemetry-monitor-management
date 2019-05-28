@@ -35,6 +35,7 @@ import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
@@ -288,12 +289,12 @@ public class MonitorManagement {
     private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
         final ResolvedZone resolvedZone = resolveZone(monitor.getTenantId(), zone);
 
-        final Optional<String> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+        final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
 
         final String envoyId;
         if (result.isPresent()) {
-            envoyId = result.get();
-            zoneStorage.incrementBoundCount(resolvedZone, envoyId)
+            envoyId = result.get().getEnvoyId();
+            zoneStorage.incrementBoundCount(resolvedZone, resource.getResourceId())
             .join();
         }
         else {
@@ -340,10 +341,11 @@ public class MonitorManagement {
 
         for (BoundMonitor boundMonitor : onesWithoutEnvoy) {
 
-            final Optional<String> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+            final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
             if (result.isPresent()) {
-                boundMonitor.setEnvoyId(result.get());
+                boundMonitor.setEnvoyId(result.get().getEnvoyId());
                 assigned.add(boundMonitor);
+                zoneStorage.incrementBoundCount(resolvedZone, result.get().getResourceId());
             }
         }
 
@@ -357,8 +359,9 @@ public class MonitorManagement {
     }
 
     public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
-                                                 String zoneName, String fromEnvoyId,
-                                                 String toEnvoyId) {
+                                                 String zoneName, String resourceId,
+                                                 String fromEnvoyId, String toEnvoyId) {
+        log.debug("Moving bound monitors to new envoy for same resource");
 
         final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
 
@@ -385,9 +388,10 @@ public class MonitorManagement {
 
             boundMonitorRepository.saveAll(boundToPrev);
 
+
             zoneStorage.incrementBoundCount(
                 createPrivateZone(tenantId, zoneName),
-                toEnvoyId,
+                resourceId,
                 boundToPrev.size()
             );
 
@@ -890,7 +894,7 @@ public class MonitorManagement {
                 boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
 
                 zoneStorage.decrementBoundCount(getResolvedZoneOfBoundMonitor(boundMonitor),
-                    boundMonitor.getEnvoyId()
+                    boundMonitor.getResourceId()
                 );
 
             }
@@ -940,5 +944,27 @@ public class MonitorManagement {
             monitors.add(monitor);
         }
         return monitors;
+    }
+
+    /**
+     * Unassigns the old envoy from all relevant bound monitors,
+     * then attempts to reassign them to a different envoy if one is available.
+     * @param zoneTenantId The tenantId of the resolved zone.
+     * @param zoneName The name of the resolved zone.
+     * @param envoyId The envoy id that has disconnected.
+     */
+    public void handleExpiredEnvoy(String zoneTenantId, String zoneName, String envoyId) {
+        log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
+            envoyId, zoneName, zoneTenantId);
+        List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId);
+        if (boundMonitors.isEmpty()) {
+            return;
+        }
+        for (BoundMonitor boundMonitor : boundMonitors) {
+            boundMonitor.setEnvoyId(null);
+        }
+
+        boundMonitorRepository.saveAll(boundMonitors);
+        handleNewEnvoyInZone(zoneTenantId, zoneName);
     }
 }
