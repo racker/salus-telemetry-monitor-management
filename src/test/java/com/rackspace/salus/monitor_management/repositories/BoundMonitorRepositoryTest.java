@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThat;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -58,7 +59,7 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testFindOnesWithoutEnvoy() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", null);
     save(monitor, "z-1", "r-2", "e-1");
@@ -74,17 +75,9 @@ public class BoundMonitorRepositoryTest {
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-3"));
   }
 
-  private Monitor createMonitor(String monitorTenant) {
-    return entityManager.persist(new Monitor()
-        .setAgentType(AgentType.TELEGRAF)
-        .setContent("{}")
-        .setTenantId(monitorTenant)
-    );
-  }
-
   @Test
   public void testFindOnesWithEnvoy() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", null);
     save(monitor, "z-1", "r-2", "e-1");
@@ -118,8 +111,8 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testFindAllByMonitor_TenantId() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
-    final Monitor otherMonitor = createMonitor("t-some-other");
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+    final Monitor otherMonitor = createMonitor("t-some-other", ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", null);
     save(monitor, "z-1", "r-2", "e-1");
@@ -140,9 +133,9 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testfindAllByMonitor_IdIn() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
-    final Monitor otherMonitor = createMonitor("t-some-other");
-    final Monitor yetAnotherMonitor = createMonitor("t-yet-another");
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+    final Monitor otherMonitor = createMonitor("t-some-other", ConfigSelectorScope.LOCAL);
+    final Monitor yetAnotherMonitor = createMonitor("t-yet-another", ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", null);
     save(monitor, "z-1", "r-2", null);
@@ -166,8 +159,8 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testfindAllByMonitor_IdAndResourceIdIn() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
-    final Monitor otherMonitor = createMonitor("t-some-other");
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+    final Monitor otherMonitor = createMonitor("t-some-other", ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", "e-1");
     save(monitor, "z-2", "r-1", "e-1");
@@ -202,8 +195,8 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testfindAllByMonitor_IdAndZoneIdIn() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
-    final Monitor otherMonitor = createMonitor("t-some-other");
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+    final Monitor otherMonitor = createMonitor("t-some-other", ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", "e-1");
     save(monitor, "z-2", "r-1", "e-1");
@@ -238,8 +231,8 @@ public class BoundMonitorRepositoryTest {
 
   @Test
   public void testfindResourceIdsBoundToMonitor() {
-    final Monitor monitor = createMonitor(MONITOR_TENANT);
-    final Monitor otherMonitor = createMonitor("t-some-other");
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+    final Monitor otherMonitor = createMonitor("t-some-other", ConfigSelectorScope.LOCAL);
 
     save(monitor, "z-1", "r-1", "e-1");
     save(monitor, "z-2", "r-1", "e-1");
@@ -290,4 +283,56 @@ public class BoundMonitorRepositoryTest {
     ));
   }
 
+  @Test
+  public void testfindAllLocalByTenantResource() {
+    final Monitor localMonitorT1 = createMonitor("t-1", ConfigSelectorScope.LOCAL);
+    final Monitor remoteMonitorT1 = createMonitor("t-1", ConfigSelectorScope.REMOTE);
+    final Monitor localMonitorT2 = createMonitor("t-2", ConfigSelectorScope.LOCAL);
+
+    // matches the query of t-1, r-1, local
+    entityManager.persist(
+        new BoundMonitor()
+          .setMonitor(localMonitorT1)
+          .setResourceId("r-1")
+          .setZoneName("")
+          .setRenderedContent("1")
+    );
+    entityManager.persist(
+        new BoundMonitor()
+          .setMonitor(localMonitorT1)
+          .setResourceId("r-2") // mismatch, other resource
+          .setZoneName("")
+          .setRenderedContent("2")
+    );
+    entityManager.persist(
+        new BoundMonitor()
+          .setMonitor(remoteMonitorT1) // mismatch, remote
+          .setResourceId("r-1")
+          .setZoneName("public/west")
+          .setRenderedContent("3")
+    );
+    entityManager.persist(
+        new BoundMonitor()
+          .setMonitor(localMonitorT2) // mismatch, other tenant
+          .setResourceId("r-1")
+          .setZoneName("")
+          .setRenderedContent("4")
+    );
+
+    final List<BoundMonitor> results = repository
+        .findAllLocalByTenantResource("t-1", "r-1");
+
+    assertThat(results, hasSize(1));
+    assertThat(results.get(0).getRenderedContent(), equalTo("1"));
+  }
+
+  private Monitor createMonitor(String monitorTenant,
+                                ConfigSelectorScope selectorScope) {
+    return entityManager.persist(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(selectorScope)
+        .setContent("{}")
+        .setTenantId(monitorTenant)
+    );
+  }
 }
