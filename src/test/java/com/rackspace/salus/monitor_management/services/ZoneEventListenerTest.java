@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static org.mockito.Mockito.verify;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
+import com.rackspace.salus.telemetry.messaging.ExpiredResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.NewResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.ReattachedResourceZoneEvent;
 import org.junit.Before;
@@ -64,5 +65,18 @@ public class ZoneEventListenerTest {
 
     verify(monitorManagement).handleEnvoyResourceChangedInZone(
         "t-1", "z-1", "r-1", "e-1", "e-2");
+  }
+
+  @Test
+  public void testExpiredResourceZoneEvent() {
+    zoneEventListener.handleEvent(
+        new ExpiredResourceZoneEvent()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setZoneName("z-1")
+    );
+
+    verify(monitorManagement).handleExpiredEnvoy(
+        "t-1", "z-1", "e-1");
   }
 }
