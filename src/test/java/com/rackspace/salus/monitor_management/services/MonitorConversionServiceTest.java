@@ -382,6 +382,8 @@ public class MonitorConversionServiceTest {
     violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 1);
     x509Plugin.setTimeout("300ms");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
   }
 
   @Test
