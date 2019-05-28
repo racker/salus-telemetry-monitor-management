@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -372,6 +373,25 @@ public class MonitorConversionServiceTest {
     assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
     assertThat(x509Plugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
     assertThat(x509Plugin.isInsecureSkipVerify()).isEqualTo(false);
+
+    final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
+    validatorFactoryBean.afterPropertiesSet();
+    Set<ConstraintViolation<X509Cert>> violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+    violations = validatorFactoryBean.validate(x509Plugin);
+    x509Plugin.setTimeout("xx");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 1);
+    x509Plugin.setTimeout("300ms");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+    x509Plugin.setTimeout("-1.5h");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+    x509Plugin.setTimeout("2h45m");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+
   }
 
   @Test
@@ -452,6 +472,14 @@ public class MonitorConversionServiceTest {
     assertThat(httpPlugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
     assertThat(httpPlugin.isInsecureSkipVerify()).isEqualTo(false);
     assertThat(httpPlugin.getHeaders().get("host")).isEqualTo("github.com");
+
+    final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
+    validatorFactoryBean.afterPropertiesSet();
+    Set<ConstraintViolation<HttpResponse>> violations = validatorFactoryBean.validate(httpPlugin);
+    assertEquals(violations.size(), 0);
+    httpPlugin.setMethod("badMethod");
+    violations = validatorFactoryBean.validate(httpPlugin);
+    assertEquals(violations.size(), 1);
   }
 
   @Test

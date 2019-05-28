@@ -24,15 +24,20 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import java.util.Map;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(Include.NON_NULL)
 public class HttpResponse extends RemotePlugin {
+  @NotEmpty
   String address;
   String httpProxy;
+  @Pattern(regexp = "(([-+]?[0-9]*\\.?[0-9]+)(h|m|s|ns|us|ms))+", message = "invalid duration")
   String responseTimeout;
+  @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
   String method;
   boolean followRedirects;
   String body;

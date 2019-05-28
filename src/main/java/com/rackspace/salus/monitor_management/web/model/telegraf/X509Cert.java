@@ -25,11 +25,16 @@ import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
+
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(Include.NON_NULL)
 public class X509Cert extends RemotePlugin {
+  @NotEmpty
   List<String> sources;
+  @Pattern(regexp = "(([-+]?[0-9]*\\.?[0-9]+)(h|m|s|ns|us|ms))+", message = "invalid duration")
   String timeout;
   String tlsCa;
   String tlsCert;
