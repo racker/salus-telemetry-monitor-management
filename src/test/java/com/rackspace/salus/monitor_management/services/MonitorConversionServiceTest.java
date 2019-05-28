@@ -378,7 +378,6 @@ public class MonitorConversionServiceTest {
     validatorFactoryBean.afterPropertiesSet();
     Set<ConstraintViolation<X509Cert>> violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 0);
-    violations = validatorFactoryBean.validate(x509Plugin);
     x509Plugin.setTimeout("xx");
     violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 1);
