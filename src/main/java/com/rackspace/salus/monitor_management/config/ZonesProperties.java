@@ -32,10 +32,10 @@ public class ZonesProperties {
   /**
    * When rebalancing calculates the average and standard deviation of assignment counts, this
    * property indicates if Envoy's with zero assignments should be included in that calculation.
-   * Inclusion potentially skews the average downward and the standard deviation wider, but
-   * that could be mathematically "more correct".
+   * Exclusion potentially leaves the non-zero Envoys balanced with each other, but the unused
+   * Envoys would never get assignments due to lack of outliers.
    */
-  boolean rebalanceEvaluateZeroes = false;
+  boolean rebalanceEvaluateZeroes = true;
 
   /**
    * When rebalancing, this property indicates how many standard deviations above the average
