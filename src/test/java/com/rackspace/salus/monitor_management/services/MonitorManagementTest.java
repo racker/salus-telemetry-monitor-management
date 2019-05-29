@@ -32,6 +32,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,15 +51,16 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
@@ -214,6 +216,18 @@ public class MonitorManagementTest {
             create.setZones(Collections.emptyList());
             monitorManagement.createMonitor(tenantId, create);
         }
+    }
+
+    private Monitor persistNewMonitor(String tenantId) {
+        return monitorRepository.save(
+            new Monitor()
+                .setTenantId(tenantId)
+                .setAgentType(AgentType.TELEGRAF)
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+        );
     }
 
     @Test
@@ -1330,7 +1344,7 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         );
 
-        when(boundMonitorRepository.findAllWithEnvoyInPrivateZone(any(), any(), any()))
+        when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), any()))
             .thenReturn(boundMonitors);
 
         // EXECUTE
@@ -1339,7 +1353,8 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        verify(boundMonitorRepository).findAllWithEnvoyInPrivateZone("t-1", "z-1", "e-1");
+        verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
+            "t-1", "z-1", "e-1", null);
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -1353,7 +1368,7 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         ));
 
-        verify(zoneStorage).incrementBoundCount(
+        verify(zoneStorage).changeBoundCount(
             createPrivateZone("t-1", "z-1"),
             "r-1",
             3
@@ -1379,7 +1394,7 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         );
 
-        when(boundMonitorRepository.findAllWithEnvoyInPublicZone(any(), any()))
+        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), any()))
             .thenReturn(boundMonitors);
 
         // EXECUTE
@@ -1390,7 +1405,8 @@ public class MonitorManagementTest {
         // VERIFY
 
         // ...gets normalized into an empty string for the query
-        verify(boundMonitorRepository).findAllWithEnvoyInPublicZone("public/1", "e-1");
+        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+            "public/1", "e-1", null);
 
         verify(boundMonitorRepository).saveAll(Arrays.asList(
             new BoundMonitor()
@@ -1404,7 +1420,7 @@ public class MonitorManagementTest {
                 .setResourceId("r-3")
         ));
 
-        verify(zoneStorage).incrementBoundCount(
+        verify(zoneStorage).changeBoundCount(
             createPublicZone("public/1"),
             "r-1",
             3
@@ -2074,5 +2090,270 @@ public class MonitorManagementTest {
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
             zoneStorage, monitorEventProducer, resourceApi);
+    }
+
+    @Test
+    public void testGetZoneAssignmentCounts() {
+        Map<EnvoyResourcePair, Integer> rawCounts = new HashMap<>();
+        rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
+        rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
+
+        when(zoneStorage.getZoneBindingCounts(any()))
+            .thenReturn(CompletableFuture.completedFuture(rawCounts));
+
+        // EXECUTE
+
+        final List<ZoneAssignmentCount> counts =
+            monitorManagement.getZoneAssignmentCounts("t-1", "z-1").join();
+
+        // VERIFY
+
+        assertThat(counts, hasSize(2));
+        assertThat(counts, containsInAnyOrder(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5),
+            new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6)
+
+        ));
+
+        verify(zoneStorage).getZoneBindingCounts(
+            ResolvedZone.createPrivateZone("t-1", "z-1")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi
+        );
+    }
+
+    @Test
+    public void testRebalanceZone_privateZone() {
+        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
+
+        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+        // mean=3.25, stddev=1.639
+        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+
+        when(zoneStorage.getZoneBindingCounts(any()))
+            .thenReturn(CompletableFuture.completedFuture(counts));
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+            )));
+
+        // only need to return the two within the limit that will get used
+        final List<BoundMonitor> e3bound = Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+        );
+        when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), eq(PageRequest.of(0,2))))
+            .thenReturn(e3bound);
+
+        when(boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(any(), any()))
+            .thenReturn(Arrays.asList(
+                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+            ));
+
+        // EXECUTE
+
+        monitorManagement.rebalanceZone("t-1", "z-1").join();
+
+        // VERIFY
+
+        final ResolvedZone zone = createPrivateZone("t-1", "z-1");
+        verify(zoneStorage).getZoneBindingCounts(zone);
+
+        verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
+            "t-1", "z-1", "e-3", PageRequest.of(0, 2));
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+        ));
+
+        verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-3")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-least")
+        );
+
+        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
+
+        verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
+        verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
+        ));
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi
+        );
+    }
+
+    @Test
+    public void testRebalanceZone_publicZone() {
+        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
+
+        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+        // mean=3.25, stddev=1.639
+        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+
+        when(zoneStorage.getZoneBindingCounts(any()))
+            .thenReturn(CompletableFuture.completedFuture(counts));
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+            )));
+
+        // only need to return the two within the limit that will get used
+        final List<BoundMonitor> e3bound = Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+        );
+        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,2))))
+            .thenReturn(e3bound);
+
+        when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
+            .thenReturn(Arrays.asList(
+                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+            ));
+
+        // EXECUTE
+
+        monitorManagement.rebalanceZone(null, "public/west").join();
+
+        // VERIFY
+
+        final ResolvedZone zone = createPublicZone("public/west");
+        verify(zoneStorage).getZoneBindingCounts(zone);
+
+        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+            "public/west", "e-3", PageRequest.of(0, 2));
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+        ));
+
+        verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-3")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-least")
+        );
+
+        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
+
+        verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
+        verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
+        ));
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi
+        );
+    }
+
+    @Test
+    public void testRebalanceZone_includeZeroes() {
+        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+        // INCLUDE zero-count assignments
+        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(true);
+
+        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+        // mean=2.6 stddev=1.9595
+        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+
+        when(zoneStorage.getZoneBindingCounts(any()))
+            .thenReturn(CompletableFuture.completedFuture(counts));
+
+        when(zoneStorage.findLeastLoadedEnvoy(any()))
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+            )));
+
+        // with zeroes included the average skewed lower and it should compute three to reassign
+        final List<BoundMonitor> e3bound = Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+        );
+        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,3))))
+            .thenReturn(e3bound);
+
+        when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
+            .thenReturn(Arrays.asList(
+                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor()),
+                new BoundMonitor().setMonitor(e3bound.get(2).getMonitor())
+            ));
+
+        // EXECUTE
+
+        monitorManagement.rebalanceZone(null, "public/west").join();
+
+        // VERIFY
+
+        final ResolvedZone zone = createPublicZone("public/west");
+        verify(zoneStorage).getZoneBindingCounts(zone);
+
+        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+            "public/west", "e-3", PageRequest.of(0, 3));
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setMonitor(e3bound.get(1).getMonitor()),
+            new BoundMonitor().setMonitor(e3bound.get(2).getMonitor())
+        ));
+
+        verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-3")
+        );
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId("e-least")
+        );
+
+        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(zone);
+
+        verify(zoneStorage).changeBoundCount(zone, "r-3", -3);
+        verify(zoneStorage, times(3)).incrementBoundCount(zone, "r-least");
+
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor()),
+            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(2).getMonitor())
+        ));
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi
+        );
     }
 }
