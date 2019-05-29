@@ -384,22 +384,8 @@ public class MonitorManagement {
 
         final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
 
-        final List<BoundMonitor> boundToPrev;
-        if ( resolvedZone.isPublicZone()) {
-            boundToPrev = boundMonitorRepository.findWithEnvoyInPublicZone(
-                zoneName,
-                fromEnvoyId,
-                null
-            );
-        }
-        else {
-            boundToPrev = boundMonitorRepository.findWithEnvoyInPrivateZone(
-                tenantId,
-                zoneName,
-                fromEnvoyId,
-                null
-            );
-        }
+        final List<BoundMonitor> boundToPrev = findBoundMonitorsWithEnvoy(
+            resolvedZone, fromEnvoyId, null);
 
         if (!boundToPrev.isEmpty()) {
             log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
@@ -1048,17 +1034,8 @@ public class MonitorManagement {
                 final int amountToUnassign = entry.getValue() - avgInt;
                 final PageRequest limit = PageRequest.of(0, amountToUnassign);
 
-                final List<BoundMonitor> boundMonitors;
-                if (zone.isPublicZone()) {
-                    boundMonitors = boundMonitorRepository.findWithEnvoyInPublicZone(
-                        zone.getName(), entry.getKey().getEnvoyId(), limit
-                    );
-                }
-                else {
-                    boundMonitors = boundMonitorRepository.findWithEnvoyInPrivateZone(
-                        zone.getTenantId(), zone.getName(), entry.getKey().getEnvoyId(), limit
-                    );
-                }
+                final List<BoundMonitor> boundMonitors = findBoundMonitorsWithEnvoy(
+                    zone, entry.getKey().getEnvoyId(), limit);
 
                 overAssigned.addAll(boundMonitors);
 
@@ -1071,14 +1048,30 @@ public class MonitorManagement {
 
         log.debug("Rebalancing boundMonitors={} in zone={}", overAssigned, zone);
 
-        // tell previous envoys to stop unassigned monitors
-        sendMonitorBoundEvents(extractEnvoyIds(overAssigned));
+        final Set<String> overassignedEnvoyIds = extractEnvoyIds(overAssigned);
 
         // "unassign" the bound monitors
         overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
         boundMonitorRepository.saveAll(overAssigned);
 
+        // tell previous envoys to stop unassigned monitors
+        sendMonitorBoundEvents(overassignedEnvoyIds);
         // ...and then this will "re-assign" the bound monitors and send out new bound events
         handleNewEnvoyInZone(zone.getTenantId(), zone.getName());
+    }
+
+    private List<BoundMonitor> findBoundMonitorsWithEnvoy(ResolvedZone zone, String envoyId,
+                                                          PageRequest limit) {
+        final List<BoundMonitor> boundMonitors;
+        if (zone.isPublicZone()) {
+            boundMonitors = boundMonitorRepository.findWithEnvoyInPublicZone(
+                zone.getName(), envoyId, limit
+            );
+        } else {
+            boundMonitors = boundMonitorRepository.findWithEnvoyInPrivateZone(
+                zone.getTenantId(), zone.getName(), envoyId, limit
+            );
+        }
+        return boundMonitors;
     }
 }

@@ -93,7 +93,7 @@ public class ZoneApiController implements ZoneApi {
             .toDTO();
     }
 
-    @GetMapping("/tenant/{tenantId}/zoneAssignmentCounts/{name}")
+    @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
     @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
     public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
         @PathVariable String tenantId, @PathVariable String name) {
@@ -101,7 +101,7 @@ public class ZoneApiController implements ZoneApi {
         return monitorManagement.getZoneAssignmentCounts(tenantId, name);
     }
 
-    @GetMapping("/admin/zoneAssignmentCounts/{name}")
+    @GetMapping("/admin/zone-assignment-counts/{name}")
     @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
     public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
         @PathVariable String name) {
@@ -140,7 +140,7 @@ public class ZoneApiController implements ZoneApi {
         return zoneManagement.updatePublicZone(name, zone).toDTO();
     }
 
-    @PostMapping("/tenant/{tenantId}/rebalanceZone/{name}")
+    @PostMapping("/tenant/{tenantId}/rebalance-zone/{name}")
     @ApiOperation(value = "Rebalances a private zone")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void rebalancePrivateZone(@PathVariable String tenantId,
@@ -152,7 +152,7 @@ public class ZoneApiController implements ZoneApi {
             .join();
     }
 
-    @PostMapping("/admin/rebalanceZone/{name}")
+    @PostMapping("/admin/rebalance-zone/{name}")
     @ApiOperation(value = "Rebalances a public zone")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void rebalancePublicZone(@PathVariable String name) {
