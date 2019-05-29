@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -33,11 +34,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
 import org.junit.Assert;
@@ -334,6 +331,187 @@ public class MonitorConversionServiceTest {
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
     final String content = readContent("/MonitorConversionServiceTest_ping.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertToOutput_x509() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_x509");
+
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
+
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("z-1"))
+        .setLabelSelector(labels)
+        .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
+    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
+    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(X509Cert.class);
+
+    final X509Cert x509Plugin = (X509Cert) plugin;
+    assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+    assertThat(x509Plugin.getTimeout()).isEqualTo("5s");
+    assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
+    assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
+    assertThat(x509Plugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
+    assertThat(x509Plugin.isInsecureSkipVerify()).isEqualTo(false);
+
+    final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
+    validatorFactoryBean.afterPropertiesSet();
+    Set<ConstraintViolation<X509Cert>> violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+    x509Plugin.setTimeout("xx");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 1);
+    x509Plugin.setTimeout("300ms");
+    violations = validatorFactoryBean.validate(x509Plugin);
+    assertEquals(violations.size(), 0);
+  }
+
+  @Test
+  public void convertFromInput_x509() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_x509");
+    final List<String> sources = new LinkedList<>();
+    sources.add("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final X509Cert plugin = new X509Cert();
+    plugin.setSources(sources);
+    plugin.setTimeout("5s");
+    plugin.setTlsCa("/etc/telegraf/ca.pem");
+    plugin.setTlsCert("/etc/telegraf/cert.pem");
+    plugin.setTlsKey("/etc/telegraf/key.pem");
+    plugin.setInsecureSkipVerify(false);
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabelSelector(labels)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertToOutput_http_response() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput_http");
+
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("z-1"))
+        .setLabelSelector(labels)
+        .setContent(content);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
+    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
+    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(HttpResponse.class);
+
+    final HttpResponse httpPlugin = (HttpResponse) plugin;
+    assertThat(httpPlugin.getAddress()).isEqualTo("http://localhost");
+    assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
+    assertThat(httpPlugin.getResponseTimeout()).isEqualTo("5s");
+    assertThat(httpPlugin.getMethod()).isEqualTo("GET");
+    assertThat(httpPlugin.isFollowRedirects()).isEqualTo(false);
+    assertThat(httpPlugin.getBody()).isEqualTo("{'fake':'data'}");
+    assertThat(httpPlugin.getResponseStringMatch()).isEqualTo("\"service_status\": \"up\"");
+    assertThat(httpPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
+    assertThat(httpPlugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
+    assertThat(httpPlugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
+    assertThat(httpPlugin.isInsecureSkipVerify()).isEqualTo(false);
+    assertThat(httpPlugin.getHeaders().get("host")).isEqualTo("github.com");
+
+    final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
+    validatorFactoryBean.afterPropertiesSet();
+    Set<ConstraintViolation<HttpResponse>> violations = validatorFactoryBean.validate(httpPlugin);
+    assertEquals(violations.size(), 0);
+    httpPlugin.setMethod("badMethod");
+    violations = validatorFactoryBean.validate(httpPlugin);
+    assertEquals(violations.size(), 1);
+  }
+
+  @Test
+  public void convertFromInput_http_response() throws JSONException, IOException {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_http");
+
+    final Map<String, String> headers = new HashMap<>();
+    headers.put("host", "github.com");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final HttpResponse plugin = new HttpResponse();
+    plugin.setAddress("http://localhost");
+    plugin.setHttpProxy("http://localhost:8888");
+    plugin.setResponseTimeout("5s");
+    plugin.setMethod("GET");
+    plugin.setFollowRedirects(false);
+    plugin.setBody("{'fake':'data'}");
+    plugin.setResponseStringMatch("\"service_status\": \"up\"");
+    plugin.setTlsCa("/etc/telegraf/ca.pem");
+    plugin.setTlsCert("/etc/telegraf/cert.pem");
+    plugin.setTlsKey("/etc/telegraf/key.pem");
+    plugin.setInsecureSkipVerify(false);
+    plugin.setHeaders(headers);
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabelSelector(labels)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
