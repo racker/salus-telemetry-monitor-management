@@ -1,9 +1,22 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
@@ -12,9 +25,12 @@ import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
@@ -30,20 +46,6 @@ import org.springframework.util.FileCopyUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.Random;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 @RunWith(SpringRunner.class)
 @WebMvcTest(ZoneApiController.class)
 public class ZoneApiControllerTest {
@@ -53,6 +55,9 @@ public class ZoneApiControllerTest {
 
     @MockBean
     ZoneManagement zoneManagement;
+
+    @MockBean
+    MonitorManagement monitorManagement;
 
     @Autowired
     private ObjectMapper objectMapper;

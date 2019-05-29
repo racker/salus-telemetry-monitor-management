@@ -17,23 +17,27 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.telemetry.model.View;
-import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
-import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.client.ZoneApi;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -61,9 +65,11 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class ZoneApiController implements ZoneApi {
     private ZoneManagement zoneManagement;
+    private final MonitorManagement monitorManagement;
 
-    public ZoneApiController(ZoneManagement zoneManagement) {
+    public ZoneApiController(ZoneManagement zoneManagement, MonitorManagement monitorManagement) {
         this.zoneManagement = zoneManagement;
+        this.monitorManagement = monitorManagement;
     }
 
     @Override
@@ -85,6 +91,22 @@ public class ZoneApiController implements ZoneApi {
         return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
             name)))
             .toDTO();
+    }
+
+    @GetMapping("/tenant/{tenantId}/zoneAssignmentCounts/{name}")
+    @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
+    public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
+        @PathVariable String tenantId, @PathVariable String name) {
+
+        return monitorManagement.getZoneAssignmentCounts(tenantId, name);
+    }
+
+    @GetMapping("/admin/zoneAssignmentCounts/{name}")
+    @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
+    public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
+        @PathVariable String name) {
+
+        return monitorManagement.getZoneAssignmentCounts(null, name);
     }
 
     @PostMapping("/tenant/{tenantId}/zones")
@@ -116,6 +138,29 @@ public class ZoneApiController implements ZoneApi {
     @JsonView(View.Admin.class)
     public ZoneDTO update(@PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePublicZone(name, zone).toDTO();
+    }
+
+    @PostMapping("/tenant/{tenantId}/rebalanceZone/{name}")
+    @ApiOperation(value = "Rebalances a private zone")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rebalancePrivateZone(@PathVariable String tenantId,
+                                     @PathVariable String name) {
+        if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
+            throw new IllegalArgumentException("Only private zone names are allowed");
+        }
+        monitorManagement.rebalanceZone(tenantId, name)
+            .join();
+    }
+
+    @PostMapping("/admin/rebalanceZone/{name}")
+    @ApiOperation(value = "Rebalances a public zone")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rebalancePublicZone(@PathVariable String name) {
+        if (!name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
+            throw new IllegalArgumentException("Invalid public zone name");
+        }
+        monitorManagement.rebalanceZone(null, name)
+            .join();
     }
 
     @DeleteMapping("/tenant/{tenantId}/zones/{name}")
