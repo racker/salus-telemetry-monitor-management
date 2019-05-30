@@ -20,16 +20,54 @@ You can trigger these events to be posted by utilizing some of the API operation
 # API Operations
 Examples of a subset of the available API operations.
 
-## Create a new monitor
-```
-echo '{"monitorName":"mon1", "content":"content1", "agentType":"TELEGRAF"}' | http POST 'localhost:8089/api/tenant/aaaaa/monitors' | tee /tmp/newMonitor.txt; 
-```
-## Save the monitor id in a env var
-export MonitorId=`jq -r .id /tmp/newMonitor.txt`
+## Create a new local monitor
 
-## Update an existing monitor
+HTTP POST to http://localhost:8089/api/tenant/aaaaa/monitors with body:
 ```
-echo '{"content":"content1xxxxx"}' | http PUT localhost:8089/api/tenant/aaaaa/monitors/$MonitorId
+{
+  "labelSelector": {
+    "agent_discovered_os": "darwin"
+  },
+  "details": {
+    "type": "local",
+    "plugin": {"type": "mem"}
+  }
+}
+```
+
+## Create a new remote monitor
+
+HTTP POST to http://localhost:8089/api/tenant/aaaaa/monitors with body:
+```
+{
+  "labelSelector": {
+    "agent_environment": "localdev"
+  },
+  "details": {
+    "type": "remote",
+    "monitoringZones": ["dev"],
+    "plugin": {
+      "type": "ping",
+      "urls": ["127.0.0.1"]
+    }
+  }
+}
+```
+
+## Update an existing monitor to use template placeholders
+
+http PUT localhost:8089/api/tenant/aaaaa/monitors/$MonitorId with body:
+```
+{
+  "details": {
+    "type": "remote",
+    "monitoringZones": ["dev"],
+    "plugin": {
+      "type": "ping",
+      "urls": ["${resource.labels.agent_discovered_hostname}"]
+    }
+  }
+}
 ```
 
 ## Get all monitors
