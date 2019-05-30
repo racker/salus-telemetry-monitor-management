@@ -147,6 +147,30 @@ public class ZoneApiControllerTest {
     }
 
     @Test
+    public void testGetInvalidPublicZone() throws Exception {
+        final String errorMsg = "No zone found named testPublicZone";
+
+        mvc.perform(get(
+            "/api/admin/zones/{name}", "testPublicZone")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+    @Test
+    public void testGetInvalidPrivateZone() throws Exception {
+        final String errorMsg = "No zone found named public/testPrivateZone";
+
+        mvc.perform(get(
+            "/api/admin/zones/{name}", "public/testPrivateZone")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message", is(errorMsg)));
+    }
+
+    @Test
     public void testGetPublicZone() throws Exception {
         final Zone expectedZone = new Zone()
             .setId(UUID.randomUUID())
@@ -162,7 +186,7 @@ public class ZoneApiControllerTest {
             .thenReturn(Optional.of(expectedZone));
 
         mvc.perform(get(
-            "/api/admin/zones/{name}", "z-1")
+            "/api/admin/zones/{name}", "public/testPublicZone")
             .contentType(MediaType.APPLICATION_JSON))
             .andDo(print())
             .andExpect(status().isOk())
