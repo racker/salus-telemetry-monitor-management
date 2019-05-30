@@ -13,6 +13,9 @@ spring:
           json:
             trusted:
               packages: com.rackspace.salus.telemetry.messaging
+  jackson:
+    mapper:
+      default-view-inclusion: true
   http:
     log-request-details: true
 logging:

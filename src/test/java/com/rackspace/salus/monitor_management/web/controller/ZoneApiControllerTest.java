@@ -7,18 +7,26 @@ import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
+import com.rackspace.salus.monitor_management.web.model.ZoneState;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.FileCopyUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -71,7 +79,16 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testGetAvailablePrivateZoneForTenant() throws Exception {
-        final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
+        final Zone expectedZone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("testPrivateZone")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(false)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.emptyList());
+
         when(zoneManagement.getPrivateZone(any(), any()))
                 .thenReturn(Optional.of(expectedZone));
 
@@ -82,7 +99,8 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+                .andExpect(content().json(
+                    readContent("ZoneApiControllerTest/privateZone_basic.json")));
     }
 
     @Test
@@ -103,7 +121,16 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testGetPublicZone() throws Exception {
-        final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
+        final Zone expectedZone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("public/testPublicZone")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(true)
+            .setState(ZoneState.INACTIVE)
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
 
@@ -114,12 +141,22 @@ public class ZoneApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/publicZone_basic.json")));
     }
 
     @Test
     public void testCreatePrivateZone() throws Exception {
-        Zone zone = podamFactory.manufacturePojo(Zone.class);
+        final Zone zone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("testPrivateZone")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(false)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.emptyList());
+
         when(zoneManagement.createPrivateZone(any(), any()))
                 .thenReturn(zone);
 
@@ -133,7 +170,8 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZone_basic.json")));
     }
 
     @Test
@@ -154,7 +192,16 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testCreatePrivateZoneWithUnderscores() throws Exception {
-        Zone zone = podamFactory.manufacturePojo(Zone.class);
+        final Zone zone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("testPrivateZone_with_underscores")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(false)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.emptyList());
+
         when(zoneManagement.createPrivateZone(any(), any()))
                 .thenReturn(zone);
 
@@ -169,7 +216,8 @@ public class ZoneApiControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+                .andExpect(content().json(
+                    readContent("ZoneApiControllerTest/privateZone_underscores.json")));
     }
 
     @Test
@@ -192,12 +240,21 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testCreatePublicZone() throws Exception {
-        Zone zone = podamFactory.manufacturePojo(Zone.class);
+        final Zone zone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("public/testPublicZone")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(true)
+            .setState(ZoneState.INACTIVE)
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+
         when(zoneManagement.createPublicZone(any()))
             .thenReturn(zone);
 
         ZoneCreatePublic create = newZoneCreatePublic();
-        create.setSourceIpAddresses(Collections.singletonList("50.57.61.0/26"));
+        create.setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
 
         mvc.perform(post(
             "/api/admin/zones")
@@ -207,14 +264,15 @@ public class ZoneApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(zone.toDTO())));
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/publicZone_basic.json")));
     }
 
     @Test
     public void testCreatePublicZoneInvalidName() throws Exception {
         ZoneCreatePublic create = newZoneCreatePublic();
         create.setName("Cant use non-alphanumeric!!!");
-        create.setSourceIpAddresses(Collections.singletonList("50.57.61.0/26"));
+        create.setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
 
         String errorMsg = "\"name\" Only alphanumeric, underscores, and slashes can be used";
 
@@ -285,5 +343,11 @@ public class ZoneApiControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isConflict());
+    }
+
+    private static String readContent(String resource) throws IOException {
+        try (InputStream in = new ClassPathResource(resource).getInputStream()) {
+            return FileCopyUtils.copyToString(new InputStreamReader(in));
+        }
     }
 }
