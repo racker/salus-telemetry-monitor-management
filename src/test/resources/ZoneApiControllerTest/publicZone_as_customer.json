@@ -1,0 +1,8 @@
+{
+  "name":"public/zone-1",
+  "pollerTimeout":60,
+  "provider":"p-1",
+  "providerRegion":"p-r-1",
+  "sourceIpAddresses":["127.0.0.1/27"],
+  "public":true
+}
