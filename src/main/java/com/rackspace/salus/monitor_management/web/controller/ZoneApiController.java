@@ -72,6 +72,7 @@ public class ZoneApiController implements ZoneApi {
 
     @GetMapping("/tenant/{tenantId}/zones/**")
     @ApiOperation(value = "Gets specific zone by tenant id and zone name")
+    @JsonView(View.Public.class)
     public ZoneDTO getAvailableZone(@PathVariable String tenantId, HttpServletRequest request) {
       String name = extractZoneNameFromUri(request);
       if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
@@ -129,6 +130,7 @@ public class ZoneApiController implements ZoneApi {
     @PostMapping("/admin/zones")
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Creates a new public zone")
+    @JsonView(View.Admin.class)
     public ZoneDTO create(@Valid @RequestBody ZoneCreatePublic zone)
         throws ZoneAlreadyExists {
         return zoneManagement.createPublicZone(zone).toDTO();
