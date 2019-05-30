@@ -503,6 +503,129 @@ public class ZoneApiControllerTest {
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
 
+    @Test
+    public void testGetPublicZoneAssignmentCounts_valid() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(true);
+
+        List<ZoneAssignmentCount> expected = Collections.singletonList(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+        );
+
+        when(monitorManagement.getZoneAssignmentCounts(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(expected));
+
+        final MvcResult result = mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "public/west"))
+            // CompletableFuture return value, so the request is asynchronous
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
+                true));
+
+        verify(zoneManagement).publicZoneExists("public/west");
+        verify(monitorManagement).getZoneAssignmentCounts(null, "public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPublicZoneAssignmentCounts_missingZone() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "public/doesNotExist"))
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).publicZoneExists("public/doesNotExist");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPublicZoneAssignmentCounts_notPublic() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "privateZone"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", equalTo("Must provide a public zone name")));
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_valid() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(true);
+
+        when(monitorManagement.rebalanceZone(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(3));
+
+        final MvcResult result = mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "public/west"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.reassigned", equalTo(3)));
+
+        verify(zoneManagement).publicZoneExists("public/west");
+        verify(monitorManagement).rebalanceZone(null, "public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_missingZone() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "public/west"
+            )
+        )
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).publicZoneExists("public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_notPublic() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "notPublic"
+            )
+        )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", equalTo("Must provide a public zone name")));
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
     private static String readContent(String resource) throws IOException {
         try (InputStream in = new ClassPathResource(resource).getInputStream()) {
             return FileCopyUtils.copyToString(new InputStreamReader(in));
