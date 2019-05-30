@@ -76,7 +76,8 @@ public class ZoneApiController implements ZoneApi {
     public ZoneDTO getAvailableZone(@PathVariable String tenantId, HttpServletRequest request) {
       String name = extractZoneNameFromUri(request);
       if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
-        return getPublicZone(request); // probably have to change this when json views are merged.
+        // The JsonView on getPublicZone is ignored
+        return getPublicZone(request);
       }
       return getByZoneName(tenantId, name);
     }

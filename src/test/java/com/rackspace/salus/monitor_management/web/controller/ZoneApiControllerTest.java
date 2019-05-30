@@ -100,11 +100,38 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(
-                    readContent("ZoneApiControllerTest/privateZone_basic.json")));
+                    readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
     @Test
     public void testGetAvailablePublicZoneForTenant() throws Exception {
+        final Zone expectedZone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("public/zone-1")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(true)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+
+        when(zoneManagement.getPublicZone(any()))
+            .thenReturn(Optional.of(expectedZone));
+
+        mvc.perform(get(
+            "/api/tenant/{tenantId}/zones/{name}", "t-1", "public/zone-1")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                // the STATE field should not be included
+                readContent("ZoneApiControllerTest/publicZone_as_customer.json"), true));
+    }
+
+    @Test
+    public void testGetAvailablePublicZoneAsAdmin() throws Exception {
         final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
@@ -116,7 +143,7 @@ public class ZoneApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO())));
+            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO()), true));
     }
 
     @Test
@@ -142,7 +169,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                readContent("ZoneApiControllerTest/publicZone_basic.json")));
+                readContent("ZoneApiControllerTest/publicZone_basic.json"), true));
     }
 
     @Test
@@ -171,7 +198,7 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                readContent("ZoneApiControllerTest/privateZone_basic.json")));
+                readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
     @Test
@@ -217,7 +244,7 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(
-                    readContent("ZoneApiControllerTest/privateZone_underscores.json")));
+                    readContent("ZoneApiControllerTest/privateZone_underscores.json"), true));
     }
 
     @Test
@@ -265,7 +292,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                readContent("ZoneApiControllerTest/publicZone_basic.json")));
+                readContent("ZoneApiControllerTest/publicZone_basic.json"), true));
     }
 
     @Test
