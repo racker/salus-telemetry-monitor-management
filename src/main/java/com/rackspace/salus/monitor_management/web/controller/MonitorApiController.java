@@ -16,8 +16,9 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -25,23 +26,27 @@ import com.rackspace.salus.monitor_management.web.client.MonitorApi;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.telemetry.model.Monitor;
+import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
+import com.rackspace.salus.telemetry.model.View;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import java.io.IOException;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Authorization;
+import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,8 +57,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import io.swagger.annotations.*;
 
 @Slf4j
 @RestController
@@ -70,23 +73,20 @@ public class MonitorApiController implements MonitorApi {
 
     private MonitorManagement monitorManagement;
     private final BoundMonitorRepository boundMonitorRepository;
-    private TaskExecutor taskExecutor;
     private MonitorConversionService monitorConversionService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
-    public MonitorApiController(MonitorManagement monitorManagement, BoundMonitorRepository boundMonitorRepository,
-                                TaskExecutor taskExecutor, MonitorConversionService monitorConversionService,
-                                ObjectMapper objectMapper) {
+    public MonitorApiController(MonitorManagement monitorManagement,
+                                BoundMonitorRepository boundMonitorRepository,
+                                MonitorConversionService monitorConversionService) {
         this.monitorManagement = monitorManagement;
         this.boundMonitorRepository = boundMonitorRepository;
-        this.taskExecutor = taskExecutor;
         this.monitorConversionService = monitorConversionService;
-        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/monitors")
     @ApiOperation(value = "Gets all Monitors irrespective of Tenant")
+    @JsonView(View.Admin.class)
     public Page<DetailedMonitorOutput> getAll(@RequestParam(defaultValue = "100") int size,
                                 @RequestParam(defaultValue = "0") int page) {
 
@@ -95,26 +95,10 @@ public class MonitorApiController implements MonitorApi {
 
     }
 
-    @GetMapping("/monitorsAsStream")
-    public SseEmitter getAllAsStream() {
-        SseEmitter emitter = new SseEmitter();
-        Stream<Monitor> monitors = monitorManagement.getMonitorsAsStream();
-        taskExecutor.execute(() -> {
-            monitors.forEach(r -> {
-                try {
-                    emitter.send(r);
-                } catch (IOException e) {
-                    emitter.completeWithError(e);
-                }
-            });
-            emitter.complete();
-        });
-        return emitter;
-    }
-
     @Override
     @GetMapping("/boundMonitors/{envoyId}")
     @ApiOperation(value = "Gets all BoundMonitors attached to a particular Envoy")
+    @JsonView(View.Admin.class)
     public List<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId) {
         return boundMonitorRepository.findAllByEnvoyId(envoyId).stream()
             .map(BoundMonitor::toDTO)
@@ -123,6 +107,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
     @ApiOperation(value = "Gets specific Monitor for Tenant")
+    @JsonView(View.Public.class)
     public DetailedMonitorOutput getById(@PathVariable String tenantId,
                                          @PathVariable UUID uuid) throws NotFoundException {
         Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
@@ -132,6 +117,7 @@ public class MonitorApiController implements MonitorApi {
     }
 
     @GetMapping("/tenant/{tenantId}/boundMonitors")
+    @JsonView(View.Public.class)
     public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
                                                            Pageable pageable) {
         return PagedContent.fromPage(
@@ -142,6 +128,7 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitors")
     @ApiOperation(value = "Gets all Monitors for Tenant")
+    @JsonView(View.Public.class)
     public Page<DetailedMonitorOutput> getAllForTenant(@PathVariable String tenantId,
                                          @RequestParam(defaultValue = "100") int size,
                                          @RequestParam(defaultValue = "0") int page) {
@@ -154,8 +141,10 @@ public class MonitorApiController implements MonitorApi {
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Creates new Monitor for Tenant")
     @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Monitor")})
+    @JsonView(View.Public.class)
     public DetailedMonitorOutput create(@PathVariable String tenantId,
-                                        @Valid @RequestBody final DetailedMonitorInput input)
+                                        @Validated(ValidationGroups.Create.class) @RequestBody
+                                        final DetailedMonitorInput input)
             throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(
@@ -168,7 +157,7 @@ public class MonitorApiController implements MonitorApi {
     @ApiOperation(value = "Updates specific Monitor for Tenant")
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
-                          @Valid @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
+                          @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(
                 monitorManagement.updateMonitor(
@@ -181,6 +170,7 @@ public class MonitorApiController implements MonitorApi {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes specific Monitor for Tenant")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
+    @JsonView(View.Public.class)
     public void delete(@PathVariable String tenantId,
                        @PathVariable UUID uuid) {
         monitorManagement.removeMonitor(tenantId, uuid);
@@ -188,9 +178,12 @@ public class MonitorApiController implements MonitorApi {
 
     @GetMapping("/tenant/{tenantId}/monitorLabels")
     @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
-    public List<Monitor> getMonitorsWithLabels(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public List<DetailedMonitorOutput> getMonitorsWithLabels(@PathVariable String tenantId,
                                                  @RequestBody Map<String, String> labels) {
-        return monitorManagement.getMonitorsFromLabels(labels, tenantId);
+        return monitorManagement.getMonitorsFromLabels(labels, tenantId).stream()
+            .map(monitor -> monitorConversionService.convertToOutput(monitor))
+            .collect(Collectors.toList());
 
     }
 }

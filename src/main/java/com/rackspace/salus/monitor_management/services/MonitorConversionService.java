@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
@@ -28,7 +29,6 @@ import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.Monitor;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,7 +56,7 @@ public class MonitorConversionService {
 
     final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
 
-    if (selectorScope == ConfigSelectorScope.ALL_OF) {
+    if (selectorScope == ConfigSelectorScope.LOCAL) {
       final LocalMonitorDetails monitorDetails = new LocalMonitorDetails();
       detailedMonitorOutput.setDetails(monitorDetails);
 
@@ -103,8 +103,9 @@ public class MonitorConversionService {
 
     final MonitorDetails details = input.getDetails();
 
+    // these will evaluate false when details is null during an update
     if (details instanceof LocalMonitorDetails) {
-      monitor.setSelectorScope(ConfigSelectorScope.ALL_OF);
+      monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateAgentConfigContent(input, monitor, plugin);

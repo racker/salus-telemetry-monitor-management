@@ -37,7 +37,10 @@ public class MonitorContentRenderer {
 
   @Autowired
   public MonitorContentRenderer(MonitorContentProperties properties) {
-    mustacheCompiler = Mustache.compiler().withEscaper(Escapers.NONE).withDelims(properties.getPlaceholderDelimiters());
+    mustacheCompiler = Mustache.compiler()
+        .defaultValue("")
+        .withEscaper(Escapers.NONE)
+        .withDelims(properties.getPlaceholderDelimiters());
   }
 
   public String render(String rawContent, Resource resource) {

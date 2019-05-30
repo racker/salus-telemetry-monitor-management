@@ -39,8 +39,8 @@ public class ResourceEventListener {
      */
     @KafkaListener(topics = "#{__listener.topic}")
     public void consumeResourceEvents(ResourceEvent resourceEvent) {
-        log.debug("Processing new resource event: {}", resourceEvent);
+        log.debug("Processing resource change event: {}", resourceEvent);
 
-        monitorManagement.handleResourceEvent(resourceEvent);
+        monitorManagement.handleResourceChangeEvent(resourceEvent);
     }
 }

@@ -42,9 +42,9 @@ export MonitorId=`jq -r .id /tmp/newMonitor.txt`
 echo '{"content":"content1xxxxx"}' | http PUT localhost:8089/api/tenant/aaaaa/monitors/$MonitorId
 ```
 
-## Get a stream of all monitors
+## Get all monitors
 ```
-curl localhost:8089/api/monitorsAsStream
+curl localhost:8089/api/monitors?page=0&size=100
 ```
 
 > **Notes**:

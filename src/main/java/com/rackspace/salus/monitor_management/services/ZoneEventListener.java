@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
+import com.rackspace.salus.telemetry.messaging.ExpiredResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.NewResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.ReattachedResourceZoneEvent;
 import com.rackspace.salus.telemetry.messaging.ZoneEvent;
@@ -54,17 +55,22 @@ public class ZoneEventListener {
       final NewResourceZoneEvent event = (NewResourceZoneEvent) zoneEvent;
       monitorManagement.handleNewEnvoyInZone(
           event.getTenantId(),
-          event.getZoneId()
+          event.getZoneName()
       );
     } else if (zoneEvent instanceof ReattachedResourceZoneEvent) {
       final ReattachedResourceZoneEvent event = (ReattachedResourceZoneEvent) zoneEvent;
 
       monitorManagement.handleEnvoyResourceChangedInZone(
           event.getTenantId(),
-          event.getZoneId(),
+          event.getZoneName(),
+          event.getResourceId(),
           event.getFromEnvoyId(),
           event.getToEnvoyId()
       );
+    } else if (zoneEvent instanceof ExpiredResourceZoneEvent) {
+      final ExpiredResourceZoneEvent event = (ExpiredResourceZoneEvent) zoneEvent;
+      monitorManagement.handleExpiredEnvoy(
+          event.getTenantId(), event.getZoneName(), event.getEnvoyId());
     } else {
       log.warn("Discarding unknown ZoneEvent={}", zoneEvent);
     }

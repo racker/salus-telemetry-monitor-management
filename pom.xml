@@ -69,12 +69,11 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>21.0</version>
     </dependency>
     <dependency>
       <groupId>com.rackspace.salus</groupId>
       <artifactId>salus-telemetry-protocol</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.1</version>
     </dependency>
     <dependency>
       <groupId>com.rackspace.salus</groupId>
@@ -126,7 +125,7 @@
     </dependency>
     <dependency>
       <groupId>io.swagger</groupId>
-      <artifactId>swagger-hibernate-validations</artifactId>
+      <artifactId>swagger-core</artifactId>
       <version>1.5.6</version>
     </dependency>
     <dependency>
@@ -142,6 +141,13 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>com.google.cloud.tools</groupId>
@@ -177,6 +183,7 @@
               <locations>
                 <location>com.rackspace.salus.monitor_management.web.model</location>
                 <location>com.rackspace.salus.monitor_management.web.controller.MonitorApiController</location>
+                <location>com.rackspace.salus.monitor_management.web.controller.ZoneApiController</location>
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
@@ -233,6 +240,48 @@
       </plugin>
     </plugins>
   </build>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>salus-dev-snapshots</id>
+      <url>https://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot-local</url>
+    </snapshotRepository>
+    <repository>
+      <id>salus-dev-release</id>
+      <url>https://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release-local</url>
+    </repository>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>salus-dev-release</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release</url>
+    </repository>
+    <repository>
+      <snapshots />
+      <id>salus-dev-snapshots</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>salus-dev-release</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-release</url>
+    </pluginRepository>
+    <pluginRepository>
+      <snapshots />
+      <id>salus-dev-snapshots</id>
+      <url>http://salus-artifactory.dev.monplat.rackspace.net/artifactory/libs-snapshot</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+
 
 </project>
 

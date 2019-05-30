@@ -1,0 +1,5 @@
+{
+  "type" : "procstat",
+  "pidFile" : "/path/to/file",
+  "processName" : "thisIsAProcess"
+}

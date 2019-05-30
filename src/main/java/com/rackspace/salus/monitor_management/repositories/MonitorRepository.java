@@ -16,11 +16,12 @@
 
 package com.rackspace.salus.monitor_management.repositories;
 
-import com.rackspace.salus.telemetry.model.Monitor;
-
+import com.rackspace.salus.monitor_management.entities.Monitor;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
 
@@ -28,4 +29,13 @@ import org.springframework.stereotype.Repository;
 public interface MonitorRepository extends PagingAndSortingRepository<Monitor, UUID> {
 
     Page<Monitor> findByTenantId(String tenantId, Pageable pageable);
+
+    @Query("select m from Monitor m where m.tenantId = :tenantId and :zone member of m.zones")
+    List<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone);
+
+    @Query("select count(m) from Monitor m where :zone member of m.zones")
+    int countAllByZonesContains(String zone);
+
+    @Query("select count(m) from Monitor m where m.tenantId = :tenantId and :zone member of m.zones")
+    int countAllByTenantIdAndZonesContains(String tenantId, String zone);
 }

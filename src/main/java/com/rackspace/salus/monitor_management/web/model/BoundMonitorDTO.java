@@ -16,17 +16,26 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.UUID;
 import lombok.Data;
 
+/**
+ * Conveys the binding of a monitor to a resource and for remote monitors,
+ * where <code>selectorScope</code> is {@link ConfigSelectorScope#REMOTE},
+ * it also conveys the binding to a zone.
+ */
 @Data
 public class BoundMonitorDTO {
   UUID monitorId;
-  String zoneTenantId;
-  String zoneId;
+  @JsonInclude(Include.NON_EMPTY)
+  String zoneName;
   String resourceTenant;
   String resourceId;
+  ConfigSelectorScope selectorScope;
   AgentType agentType;
   String renderedContent;
   String envoyId;
