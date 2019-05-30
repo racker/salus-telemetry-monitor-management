@@ -86,14 +86,39 @@ public class BoundMonitorRepositoryTest {
     save(monitor, "public/1", "r-5", "e-1");
     save(monitor, "public/2", "r-6", "e-1");
 
-    final List<BoundMonitor> t1z1 = repository.findAllWithEnvoyInPrivateZone(MONITOR_TENANT, "z-1", "e-1");
+    final List<BoundMonitor> t1z1 = repository.findWithEnvoyInPrivateZone(
+        MONITOR_TENANT, "z-1", "e-1", null);
     assertThat(t1z1, hasSize(2));
     assertThat(t1z1.get(0).getResourceId(), equalTo("r-2"));
     assertThat(t1z1.get(1).getResourceId(), equalTo("r-3"));
 
-    final List<BoundMonitor> publicResults = repository.findAllWithEnvoyInPublicZone("public/1", "e-1");
+    final List<BoundMonitor> publicResults = repository.findWithEnvoyInPublicZone("public/1", "e-1", null);
     assertThat(publicResults, hasSize(1));
     assertThat(publicResults.get(0).getResourceId(), equalTo("r-5"));
+  }
+
+  @Test
+  public void testFindOnesWithEnvoy_paging() {
+    final Monitor monitor = createMonitor(MONITOR_TENANT, ConfigSelectorScope.LOCAL);
+
+    save(monitor, "z-1", "r-1", "e-1");
+    save(monitor, "z-1", "r-2", "e-1");
+    save(monitor, "z-1", "r-3", "e-1");
+    save(monitor, "public/1", "r-4", "e-1");
+    save(monitor, "public/1", "r-5", "e-1");
+    save(monitor, "public/1", "r-6", "e-1");
+
+    final List<BoundMonitor> t1z1 = repository.findWithEnvoyInPrivateZone(
+        MONITOR_TENANT, "z-1", "e-1", PageRequest.of(0, 2));
+    assertThat(t1z1, hasSize(2));
+    assertThat(t1z1.get(0).getResourceId(), equalTo("r-1"));
+    assertThat(t1z1.get(1).getResourceId(), equalTo("r-2"));
+
+    final List<BoundMonitor> publicResults = repository.findWithEnvoyInPublicZone(
+        "public/1", "e-1", PageRequest.of(0, 2));
+    assertThat(publicResults, hasSize(2));
+    assertThat(publicResults.get(0).getResourceId(), equalTo("r-4"));
+    assertThat(publicResults.get(1).getResourceId(), equalTo("r-5"));
   }
 
   private void save(Monitor monitor, String zone, String resource, String envoyId) {

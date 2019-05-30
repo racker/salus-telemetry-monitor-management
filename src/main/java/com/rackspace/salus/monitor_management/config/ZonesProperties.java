@@ -29,4 +29,18 @@ public class ZonesProperties {
 
   List<String> defaultZones = Collections.emptyList();
 
+  /**
+   * When rebalancing calculates the average and standard deviation of assignment counts, this
+   * property indicates if Envoy's with zero assignments should be included in that calculation.
+   * Exclusion potentially leaves the non-zero Envoys balanced with each other, but the unused
+   * Envoys would never get assignments due to lack of outliers.
+   */
+  boolean rebalanceEvaluateZeroes = true;
+
+  /**
+   * When rebalancing, this property indicates how many standard deviations above the average
+   * assignment count will be considered over-assigned. Those Envoys that are over-assigned will
+   * have bound monitors reassigned to other Envoys in the zone.
+   */
+  float rebalanceStandardDeviations = 1.0f;
 }

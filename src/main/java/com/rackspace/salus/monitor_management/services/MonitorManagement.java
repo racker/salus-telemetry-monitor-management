@@ -20,6 +20,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivat
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 
 import com.google.common.collect.Streams;
+import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
@@ -27,15 +28,16 @@ import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
@@ -51,6 +53,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -61,11 +64,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -112,6 +117,14 @@ public class MonitorManagement {
         this.zoneManagement = zoneManagement;
         this.zonesProperties = zonesProperties;
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    /**
+     * FOR UNIT TESTING, provides the zone properties
+     * @return the {@link ZonesProperties} used by this service
+     */
+    ZonesProperties getZonesProperties() {
+        return zonesProperties;
     }
 
     /**
@@ -321,6 +334,12 @@ public class MonitorManagement {
         }
     }
 
+    /**
+     * Evaluates unassigned {@link BoundMonitor}s in the given zone and assigns those to
+     * least-bound envoys.
+     * @param zoneTenantId for private zones, the tenant owning the zone, or <code>null</code> for public zones
+     * @param zoneName the zone name
+     */
     public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneName) {
         log.debug("Locating bound monitors without assigned envoy with zoneName={} and zoneTenantId={}",
             zoneName, zoneTenantId);
@@ -365,20 +384,8 @@ public class MonitorManagement {
 
         final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
 
-        final List<BoundMonitor> boundToPrev;
-        if ( resolvedZone.isPublicZone()) {
-            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPublicZone(
-                zoneName,
-                fromEnvoyId
-            );
-        }
-        else {
-            boundToPrev = boundMonitorRepository.findAllWithEnvoyInPrivateZone(
-                tenantId,
-                zoneName,
-                fromEnvoyId
-            );
-        }
+        final List<BoundMonitor> boundToPrev = findBoundMonitorsWithEnvoy(
+            resolvedZone, fromEnvoyId, null);
 
         if (!boundToPrev.isEmpty()) {
             log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
@@ -389,7 +396,7 @@ public class MonitorManagement {
             boundMonitorRepository.saveAll(boundToPrev);
 
 
-            zoneStorage.incrementBoundCount(
+            zoneStorage.changeBoundCount(
                 createPrivateZone(tenantId, zoneName),
                 resourceId,
                 boundToPrev.size()
@@ -412,6 +419,7 @@ public class MonitorManagement {
             return createPublicZone(zone);
         }
         else {
+            Assert.notNull(tenantId, "Private zones require a tenantId");
             return createPrivateZone(tenantId, zone);
         }
     }
@@ -949,11 +957,12 @@ public class MonitorManagement {
     /**
      * Unassigns the old envoy from all relevant bound monitors,
      * then attempts to reassign them to a different envoy if one is available.
-     * @param zoneTenantId The tenantId of the resolved zone.
+     * @param zoneTenantId The tenantId of the resolved zone
+     *  or <code>null</code> if it is a public zone.
      * @param zoneName The name of the resolved zone.
      * @param envoyId The envoy id that has disconnected.
      */
-    public void handleExpiredEnvoy(String zoneTenantId, String zoneName, String envoyId) {
+    public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
         log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
             envoyId, zoneName, zoneTenantId);
         List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId);
@@ -966,5 +975,112 @@ public class MonitorManagement {
 
         boundMonitorRepository.saveAll(boundMonitors);
         handleNewEnvoyInZone(zoneTenantId, zoneName);
+    }
+
+    public CompletableFuture<List<ZoneAssignmentCount>> getZoneAssignmentCounts(
+        @Nullable String zoneTenantId, String zoneName) {
+
+        final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
+
+        return zoneStorage.getZoneBindingCounts(zone)
+            .thenApply(bindingCounts ->
+                bindingCounts.entrySet().stream()
+                    .map(entry ->
+                        new ZoneAssignmentCount()
+                            .setResourceId(entry.getKey().getResourceId())
+                            .setEnvoyId(entry.getKey().getEnvoyId())
+                            .setAssignments(entry.getValue()))
+                    .collect(Collectors.toList()));
+    }
+
+  /**
+   * Rebalances a zone by re-assigning bound monitors from envoys that are over-assigned
+   * to the least loaded envoys.
+   * @param zoneTenantId for private zones, the tenant owning the zone, or null for public zones
+   * @param zoneName the zone name
+   * @return the number of bound monitors that were re-assigned
+   */
+    public CompletableFuture<Integer> rebalanceZone(@Nullable String zoneTenantId, String zoneName) {
+        final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
+
+        return zoneStorage.getZoneBindingCounts(zone)
+            .thenApply(bindingCounts ->
+                rebalanceWithZoneBindingCounts(zone, bindingCounts)
+            );
+    }
+
+    private int rebalanceWithZoneBindingCounts(ResolvedZone zone,
+                                                Map<EnvoyResourcePair, Integer> bindingCounts) {
+        if (bindingCounts.size() <= 1) {
+            // nothing to rebalance if only one or none envoys in zone
+            return 0;
+        }
+
+        log.debug("Rebalancing zone={} given bindingCounts={}", zone, bindingCounts);
+
+        final List<Integer> values = bindingCounts.values().stream()
+            .filter(value ->
+                zonesProperties.isRebalanceEvaluateZeroes() || value != 0)
+            .collect(Collectors.toList());
+
+        @SuppressWarnings("UnstableApiUsage")
+        final Stats stats = Stats.of(values);
+
+        final double stddev = stats.populationStandardDeviation();
+        final double avg = stats.mean();
+        final double threshold = avg + stddev * zonesProperties.getRebalanceStandardDeviations();
+        // round up to be lean towards slightly less reassignments
+        final int avgInt = (int) Math.ceil(avg);
+
+        final List<BoundMonitor> overAssigned = new ArrayList<>();
+
+        for (Entry<EnvoyResourcePair, Integer> entry : bindingCounts.entrySet()) {
+            if (entry.getValue() > threshold) {
+
+                // pick off enough bound monitors to bring this one down to average
+                final int amountToUnassign = entry.getValue() - avgInt;
+                final PageRequest limit = PageRequest.of(0, amountToUnassign);
+
+                final List<BoundMonitor> boundMonitors = findBoundMonitorsWithEnvoy(
+                    zone, entry.getKey().getEnvoyId(), limit);
+
+                overAssigned.addAll(boundMonitors);
+
+                // decrease the assignment count of bound monitors
+                zoneStorage.changeBoundCount(
+                    zone, entry.getKey().getResourceId(), -amountToUnassign
+                );
+            }
+        }
+
+        log.debug("Rebalancing boundMonitors={} in zone={}", overAssigned, zone);
+
+        final Set<String> overassignedEnvoyIds = extractEnvoyIds(overAssigned);
+
+        // "unassign" the bound monitors
+        overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
+        boundMonitorRepository.saveAll(overAssigned);
+
+        // tell previous envoys to stop unassigned monitors
+        sendMonitorBoundEvents(overassignedEnvoyIds);
+        // ...and then this will "re-assign" the bound monitors and send out new bound events
+        handleNewEnvoyInZone(zone.getTenantId(), zone.getName());
+
+        return overAssigned.size();
+    }
+
+    private List<BoundMonitor> findBoundMonitorsWithEnvoy(ResolvedZone zone, String envoyId,
+                                                          PageRequest limit) {
+        final List<BoundMonitor> boundMonitors;
+        if (zone.isPublicZone()) {
+            boundMonitors = boundMonitorRepository.findWithEnvoyInPublicZone(
+                zone.getName(), envoyId, limit
+            );
+        } else {
+            boundMonitors = boundMonitorRepository.findWithEnvoyInPrivateZone(
+                zone.getTenantId(), zone.getName(), envoyId, limit
+            );
+        }
+        return boundMonitors;
     }
 }

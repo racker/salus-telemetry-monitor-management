@@ -1,10 +1,29 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
+import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
+import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneState;
@@ -12,10 +31,15 @@ import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,23 +50,10 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.FileCopyUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.Random;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(ZoneApiController.class)
@@ -53,6 +64,9 @@ public class ZoneApiControllerTest {
 
     @MockBean
     ZoneManagement zoneManagement;
+
+    @MockBean
+    MonitorManagement monitorManagement;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -394,6 +408,222 @@ public class ZoneApiControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    public void testGetPrivateZoneAssignmentCounts_valid() throws Exception {
+        when(zoneManagement.exists(any(), any()))
+            .thenReturn(true);
+
+        List<ZoneAssignmentCount> expected = Collections.singletonList(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+        );
+
+        when(monitorManagement.getZoneAssignmentCounts(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(expected));
+
+        final MvcResult result = mvc.perform(
+            get("/api/tenant/{tenantId}/zone-assignment-counts/{name}",
+                "t-1", "z-1"))
+            // CompletableFuture return value, so the request is asynchronous
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
+                true));
+
+        verify(zoneManagement).exists("t-1", "z-1");
+        verify(monitorManagement).getZoneAssignmentCounts("t-1", "z-1");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPrivateZoneAssignmentCounts_missingZone() throws Exception {
+        when(zoneManagement.exists(any(), any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            get("/api/tenant/{tenantId}/zone-assignment-counts/{name}",
+                "t-1", "doesNotExist"))
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).exists("t-1", "doesNotExist");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePrivateZone_valid() throws Exception {
+        when(zoneManagement.exists(any(), any()))
+            .thenReturn(true);
+
+        when(monitorManagement.rebalanceZone(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(3));
+
+        final MvcResult result = mvc.perform(
+            post("/api/tenant/{tenantId}/rebalance-zone/{name}",
+                "t-1", "z-1"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.reassigned", equalTo(3)));
+
+        verify(zoneManagement).exists("t-1", "z-1");
+        verify(monitorManagement).rebalanceZone("t-1", "z-1");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePrivateZone_missingZone() throws Exception {
+        when(zoneManagement.exists(any(), any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            post("/api/tenant/{tenantId}/rebalance-zone/{name}",
+                "t-1", "z-1"
+            )
+        )
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).exists("t-1", "z-1");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPublicZoneAssignmentCounts_valid() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(true);
+
+        List<ZoneAssignmentCount> expected = Collections.singletonList(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+        );
+
+        when(monitorManagement.getZoneAssignmentCounts(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(expected));
+
+        final MvcResult result = mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "public/west"))
+            // CompletableFuture return value, so the request is asynchronous
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
+                true));
+
+        verify(zoneManagement).publicZoneExists("public/west");
+        verify(monitorManagement).getZoneAssignmentCounts(null, "public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPublicZoneAssignmentCounts_missingZone() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "public/doesNotExist"))
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).publicZoneExists("public/doesNotExist");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testGetPublicZoneAssignmentCounts_notPublic() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            get("/api/admin/zone-assignment-counts/{name}",
+                "privateZone"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", equalTo("Must provide a public zone name")));
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_valid() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(true);
+
+        when(monitorManagement.rebalanceZone(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(3));
+
+        final MvcResult result = mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "public/west"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.reassigned", equalTo(3)));
+
+        verify(zoneManagement).publicZoneExists("public/west");
+        verify(monitorManagement).rebalanceZone(null, "public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_missingZone() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "public/west"
+            )
+        )
+            .andExpect(status().isNotFound());
+
+        verify(zoneManagement).publicZoneExists("public/west");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void testRebalancePublicZone_notPublic() throws Exception {
+        when(zoneManagement.publicZoneExists(any()))
+            .thenReturn(false);
+
+        mvc.perform(
+            post("/api/admin/rebalance-zone/{name}",
+                "notPublic"
+            )
+        )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message", equalTo("Must provide a public zone name")));
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
 
     private static String readContent(String resource) throws IOException {

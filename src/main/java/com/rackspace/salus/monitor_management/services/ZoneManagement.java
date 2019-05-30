@@ -21,22 +21,21 @@ import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
-import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
+import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.PropertyMapper;
-import org.springframework.stereotype.Service;
-
-import javax.validation.Valid;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -312,7 +311,16 @@ public class ZoneManagement {
      * @param zoneName The unique value representing the zone.
      * @return True if the zone exists on the tenant, otherwise false.
      */
-    private boolean exists(String tenantId, String zoneName) {
+    public boolean exists(String tenantId, String zoneName) {
         return zoneRepository.existsByTenantIdAndName(tenantId, zoneName);
+    }
+
+    /**
+     * Tests whether the public zone exists.
+     * @param zoneName The unique value representing the zone.
+     * @return True if the zone exists, otherwise false.
+     */
+    public boolean publicZoneExists(String zoneName) {
+        return exists(ResolvedZone.PUBLIC, zoneName);
     }
 }

@@ -16,19 +16,21 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
+import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
+import java.io.Serializable;
 import java.util.List;
-import lombok.Data;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Pattern;
+import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
-import java.io.Serializable;
 
 @Data
 public class ZoneCreatePrivate implements Serializable {
 
     @NotBlank
     @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "Only alphanumeric and underscore characters can be used")
+    @PrivateZoneName
     String name;
 
     String provider;

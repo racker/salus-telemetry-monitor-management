@@ -40,14 +40,30 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
           + " and b.envoyId is null")
   List<BoundMonitor> findAllWithoutEnvoyInPrivateZone(String tenantId, String zoneName);
 
+  /**
+   * Queries for all of the bound monitors assigned to the given envoy in a public zone.
+   * @param zoneName name of the public zone
+   * @param envoyId the envoy ID
+   * @param pageable if non-null, applies paging limits on the query
+   * @return bound monitors assigned to envoy in zone
+   */
   @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId = :envoyId")
-  List<BoundMonitor> findAllWithEnvoyInPublicZone(String zoneName, String envoyId);
+  List<BoundMonitor> findWithEnvoyInPublicZone(String zoneName, String envoyId, Pageable pageable);
 
+  /**
+   * Queries for all of the bound monitors assigned to the given envoy in a private zone.
+   * @param tenantId the tenant owning the private zone
+   * @param zoneName name of the private zone
+   * @param envoyId the envoy ID
+   * @param pageable if non-null, applies paging limits on the query
+   * @return bound monitors assigned to envoy in zone
+   */
   @Query("select b from BoundMonitor b"
       + " where b.monitor.tenantId = :tenantId"
       + " and b.zoneName = :zoneName"
       + " and b.envoyId = :envoyId")
-  List<BoundMonitor> findAllWithEnvoyInPrivateZone(String tenantId, String zoneName, String envoyId);
+  List<BoundMonitor> findWithEnvoyInPrivateZone(String tenantId, String zoneName, String envoyId,
+                                                Pageable pageable);
 
   @Query("select distinct b.resourceId from BoundMonitor b where b.monitor.id = :monitorId")
   Set<String> findResourceIdsBoundToMonitor(UUID monitorId);
