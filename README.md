@@ -54,7 +54,7 @@ HTTP POST to http://localhost:8089/api/tenant/aaaaa/monitors with body:
 }
 ```
 
-## Update an existing monitor to use wildcards
+## Update an existing monitor to use template placeholders
 
 http PUT localhost:8089/api/tenant/aaaaa/monitors/$MonitorId with body:
 ```
