@@ -993,20 +993,27 @@ public class MonitorManagement {
                     .collect(Collectors.toList()));
     }
 
-    public CompletableFuture<Void> rebalanceZone(@Nullable String zoneTenantId, String zoneName) {
+  /**
+   * Rebalances a zone by re-assigning bound monitors from envoys that are over-assigned
+   * to the least loaded envoys.
+   * @param zoneTenantId for private zones, the tenant owning the zone, or null for public zones
+   * @param zoneName the zone name
+   * @return the number of bound monitors that were re-assigned
+   */
+    public CompletableFuture<Integer> rebalanceZone(@Nullable String zoneTenantId, String zoneName) {
         final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
 
         return zoneStorage.getZoneBindingCounts(zone)
-            .thenAccept(bindingCounts ->
+            .thenApply(bindingCounts ->
                 rebalanceWithZoneBindingCounts(zone, bindingCounts)
             );
     }
 
-    private void rebalanceWithZoneBindingCounts(ResolvedZone zone,
+    private int rebalanceWithZoneBindingCounts(ResolvedZone zone,
                                                 Map<EnvoyResourcePair, Integer> bindingCounts) {
         if (bindingCounts.size() <= 1) {
             // nothing to rebalance if only one or none envoys in zone
-            return;
+            return 0;
         }
 
         log.debug("Rebalancing zone={} given bindingCounts={}", zone, bindingCounts);
@@ -1058,6 +1065,8 @@ public class MonitorManagement {
         sendMonitorBoundEvents(overassignedEnvoyIds);
         // ...and then this will "re-assign" the bound monitors and send out new bound events
         handleNewEnvoyInZone(zone.getTenantId(), zone.getName());
+
+        return overAssigned.size();
     }
 
     private List<BoundMonitor> findBoundMonitorsWithEnvoy(ResolvedZone zone, String envoyId,

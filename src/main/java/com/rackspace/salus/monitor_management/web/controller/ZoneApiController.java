@@ -23,11 +23,14 @@ import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.client.ZoneApi;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.RebalanceResult;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
+import com.rackspace.salus.telemetry.etcd.types.PublicZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.View;
@@ -77,6 +80,7 @@ public class ZoneApiController implements ZoneApi {
     @ApiOperation(value = "Gets specific zone by tenant id and zone name")
     @JsonView(View.Public.class)
     public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
+        // NOTE name doesn't need to be constrained to public or private since either can be queried here
         Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
                 name, tenantId)))
@@ -86,7 +90,7 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/admin/zones/{name}")
     @ApiOperation(value = "Gets specific public zone by name")
     @JsonView(View.Admin.class)
-    public ZoneDTO getPublicZone(@PathVariable String name) {
+    public ZoneDTO getPublicZone(@PathVariable @PublicZoneName String name) {
         Optional<Zone> zone = zoneManagement.getPublicZone(name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
             name)))
@@ -96,7 +100,11 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
     @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
     public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
-        @PathVariable String tenantId, @PathVariable String name) {
+        @PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
+
+        if (!zoneManagement.exists(tenantId, name)) {
+            throw new NotFoundException(String.format("No private zone found named %s", name));
+        }
 
         return monitorManagement.getZoneAssignmentCounts(tenantId, name);
     }
@@ -104,7 +112,11 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/admin/zone-assignment-counts/{name}")
     @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
     public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
-        @PathVariable String name) {
+        @PathVariable @PublicZoneName String name) {
+
+        if (!zoneManagement.publicZoneExists(name)) {
+            throw new NotFoundException(String.format("No public zone found named %s", name));
+        }
 
         return monitorManagement.getZoneAssignmentCounts(null, name);
     }
@@ -129,45 +141,48 @@ public class ZoneApiController implements ZoneApi {
     @PutMapping("/tenant/{tenantId}/zones/{name}")
     @ApiOperation(value = "Updates a specific private zone for the tenant")
     @JsonView(View.Public.class)
-    public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
+    public ZoneDTO update(@PathVariable String tenantId,
+                          @PathVariable @PrivateZoneName String name,
+                          @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePrivateZone(tenantId, name, zone).toDTO();
     }
 
     @PutMapping("/admin/zones/{name}")
     @ApiOperation(value = "Updates a specific public zone")
     @JsonView(View.Admin.class)
-    public ZoneDTO update(@PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
+    public ZoneDTO update(@PathVariable @PublicZoneName String name,
+                          @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePublicZone(name, zone).toDTO();
     }
 
     @PostMapping("/tenant/{tenantId}/rebalance-zone/{name}")
     @ApiOperation(value = "Rebalances a private zone")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void rebalancePrivateZone(@PathVariable String tenantId,
-                                     @PathVariable String name) {
-        if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
-            throw new IllegalArgumentException("Only private zone names are allowed");
+    public CompletableFuture<RebalanceResult> rebalancePrivateZone(@PathVariable String tenantId,
+                                                                   @PathVariable @PrivateZoneName String name) {
+        if (!zoneManagement.exists(tenantId, name)) {
+            throw new NotFoundException(String.format("No private zone found named %s", name));
         }
-        monitorManagement.rebalanceZone(tenantId, name)
-            .join();
+
+        return monitorManagement.rebalanceZone(tenantId, name)
+            .thenApply(reassigned -> new RebalanceResult().setReassigned(reassigned));
     }
 
     @PostMapping("/admin/rebalance-zone/{name}")
     @ApiOperation(value = "Rebalances a public zone")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void rebalancePublicZone(@PathVariable String name) {
-        if (!name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
-            throw new IllegalArgumentException("Invalid public zone name");
+    public CompletableFuture<RebalanceResult> rebalancePublicZone(@PathVariable @PublicZoneName String name) {
+        if (!zoneManagement.exists(ResolvedZone.PUBLIC, name)) {
+            throw new NotFoundException(String.format("No public zone found named %s", name));
         }
-        monitorManagement.rebalanceZone(null, name)
-            .join();
+
+        return monitorManagement.rebalanceZone(null, name)
+            .thenApply(reassigned -> new RebalanceResult().setReassigned(reassigned));
     }
 
     @DeleteMapping("/tenant/{tenantId}/zones/{name}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes a specific private zone for the tenant")
     @JsonView(View.Public.class)
-    public void delete(@PathVariable String tenantId, @PathVariable String name) {
+    public void delete(@PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
         zoneManagement.removePrivateZone(tenantId, name);
     }
 
@@ -175,7 +190,7 @@ public class ZoneApiController implements ZoneApi {
     @ApiOperation(value = "Deletes a specific public zone")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @JsonView(View.Admin.class)
-    public void delete(@PathVariable String name) {
+    public void delete(@PathVariable @PublicZoneName String name) {
         zoneManagement.removePublicZone(name);
     }
 
@@ -192,7 +207,8 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
     @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
     @JsonView(View.Public.class)
-    public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
+    public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId,
+                                               @PathVariable @PrivateZoneName String zone) {
         return zoneManagement.getMonitorsForZone(tenantId, zone).stream()
             .map(Monitor::toDTO)
             .collect(Collectors.toList());

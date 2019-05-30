@@ -2237,9 +2237,12 @@ public class MonitorManagementTest {
 
         // EXECUTE
 
-        monitorManagement.rebalanceZone(null, "public/west").join();
+        final Integer reassigned =
+            monitorManagement.rebalanceZone(null, "public/west").join();
 
         // VERIFY
+
+        assertThat(reassigned, equalTo(2));
 
         final ResolvedZone zone = createPublicZone("public/west");
         verify(zoneStorage).getZoneBindingCounts(zone);
@@ -2316,9 +2319,12 @@ public class MonitorManagementTest {
 
         // EXECUTE
 
-        monitorManagement.rebalanceZone(null, "public/west").join();
+        final Integer reassigned =
+            monitorManagement.rebalanceZone(null, "public/west").join();
 
         // VERIFY
+
+        assertThat(reassigned, equalTo(3));
 
         final ResolvedZone zone = createPublicZone("public/west");
         verify(zoneStorage).getZoneBindingCounts(zone);
@@ -2351,6 +2357,29 @@ public class MonitorManagementTest {
             new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor()),
             new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(2).getMonitor())
         ));
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi
+        );
+    }
+
+    @Test
+    public void testRebalanceZone_emptyZone() {
+        when(zoneStorage.getZoneBindingCounts(any()))
+            .thenReturn(CompletableFuture.completedFuture(
+                Collections.emptyMap()
+            ));
+
+        // EXECUTE
+
+        final Integer reassigned =
+            monitorManagement.rebalanceZone("t-1", "z-1").join();
+
+        // VERIFY
+
+        assertThat(reassigned, equalTo(0));
+
+        verify(zoneStorage).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
             zoneStorage, monitorEventProducer, resourceApi
