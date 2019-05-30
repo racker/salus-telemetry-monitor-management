@@ -80,7 +80,6 @@ public class ZoneApiController implements ZoneApi {
     @ApiOperation(value = "Gets specific zone by tenant id and zone name")
     @JsonView(View.Public.class)
     public ZoneDTO getByZoneName(@PathVariable String tenantId, @PathVariable String name) {
-        // NOTE name doesn't need to be constrained to public or private since either can be queried here
         Optional<Zone> zone = zoneManagement.getPrivateZone(tenantId, name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No zone found named %s on tenant %s",
                 name, tenantId)))
@@ -90,7 +89,7 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/admin/zones/{name}")
     @ApiOperation(value = "Gets specific public zone by name")
     @JsonView(View.Admin.class)
-    public ZoneDTO getPublicZone(@PathVariable @PublicZoneName String name) {
+    public ZoneDTO getPublicZone(@PathVariable String name) {
         Optional<Zone> zone = zoneManagement.getPublicZone(name);
         return zone.orElseThrow(() -> new NotFoundException(String.format("No public zone found named %s",
             name)))
@@ -141,17 +140,14 @@ public class ZoneApiController implements ZoneApi {
     @PutMapping("/tenant/{tenantId}/zones/{name}")
     @ApiOperation(value = "Updates a specific private zone for the tenant")
     @JsonView(View.Public.class)
-    public ZoneDTO update(@PathVariable String tenantId,
-                          @PathVariable @PrivateZoneName String name,
-                          @Valid @RequestBody ZoneUpdate zone) {
+    public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePrivateZone(tenantId, name, zone).toDTO();
     }
 
     @PutMapping("/admin/zones/{name}")
     @ApiOperation(value = "Updates a specific public zone")
     @JsonView(View.Admin.class)
-    public ZoneDTO update(@PathVariable @PublicZoneName String name,
-                          @Valid @RequestBody ZoneUpdate zone) {
+    public ZoneDTO update(@PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
         return zoneManagement.updatePublicZone(name, zone).toDTO();
     }
 
@@ -182,7 +178,7 @@ public class ZoneApiController implements ZoneApi {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Deletes a specific private zone for the tenant")
     @JsonView(View.Public.class)
-    public void delete(@PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
+    public void delete(@PathVariable String tenantId, @PathVariable String name) {
         zoneManagement.removePrivateZone(tenantId, name);
     }
 
@@ -190,7 +186,7 @@ public class ZoneApiController implements ZoneApi {
     @ApiOperation(value = "Deletes a specific public zone")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @JsonView(View.Admin.class)
-    public void delete(@PathVariable @PublicZoneName String name) {
+    public void delete(@PathVariable String name) {
         zoneManagement.removePublicZone(name);
     }
 
@@ -207,8 +203,7 @@ public class ZoneApiController implements ZoneApi {
     @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
     @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
     @JsonView(View.Public.class)
-    public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId,
-                                               @PathVariable @PrivateZoneName String zone) {
+    public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
         return zoneManagement.getMonitorsForZone(tenantId, zone).stream()
             .map(Monitor::toDTO)
             .collect(Collectors.toList());
