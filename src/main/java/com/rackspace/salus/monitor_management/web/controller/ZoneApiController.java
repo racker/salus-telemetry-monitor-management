@@ -141,6 +141,7 @@ public class ZoneApiController implements ZoneApi {
 
   @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
+  @JsonView(View.Public.class)
   public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
       @PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
 
@@ -153,6 +154,7 @@ public class ZoneApiController implements ZoneApi {
 
   @GetMapping("/admin/zone-assignment-counts/**")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
+  @JsonView(View.Admin.class)
   public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
       HttpServletRequest request) {
 
@@ -200,6 +202,7 @@ public class ZoneApiController implements ZoneApi {
 
   @PostMapping("/tenant/{tenantId}/rebalance-zone/{name}")
   @ApiOperation(value = "Rebalances a private zone")
+  @JsonView(View.Public.class)
   public CompletableFuture<RebalanceResult> rebalancePrivateZone(@PathVariable String tenantId,
                                                                  @PathVariable @PrivateZoneName String name) {
     if (!zoneManagement.exists(tenantId, name)) {
@@ -212,6 +215,7 @@ public class ZoneApiController implements ZoneApi {
 
   @PostMapping("/admin/rebalance-zone/**")
   @ApiOperation(value = "Rebalances a public zone")
+  @JsonView(View.Admin.class)
   public CompletableFuture<RebalanceResult> rebalancePublicZone(HttpServletRequest request) {
     String name = extractPublicZoneNameFromUri(request);
 
