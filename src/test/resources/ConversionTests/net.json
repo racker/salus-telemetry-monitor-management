@@ -1,0 +1,5 @@
+{
+  "type": "net",
+  "interfaces": ["eth*", "enp0s[0-1]"],
+  "ignoreProtocolStats": true
+}
