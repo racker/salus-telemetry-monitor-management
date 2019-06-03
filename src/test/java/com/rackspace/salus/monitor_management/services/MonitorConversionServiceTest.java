@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.monitor_management.TestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -28,13 +29,24 @@ import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.telegraf.*;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
+import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
+import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
+import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
 import org.junit.Assert;
@@ -45,9 +57,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
@@ -250,7 +260,7 @@ public class MonitorConversionServiceTest {
     // no config to validate
   }
 
- @Test
+  @Test
   public void convertFromInput_mem() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
@@ -597,11 +607,5 @@ public class MonitorConversionServiceTest {
     final Procstat procstatPlugin = (Procstat) plugin;
     assertThat(procstatPlugin.getPidFile()).contains("/path/to/file");
     assertThat(procstatPlugin.getProcessName()).contains("thisIsAProcess");
-  }
-
-  private static String readContent(String resource) throws IOException {
-    try (InputStream in = new ClassPathResource(resource).getInputStream()) {
-      return FileCopyUtils.copyToString(new InputStreamReader(in));
-    }
   }
 }
