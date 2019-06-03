@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +34,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @JsonTest
 public class BoundMonitorDTOJsonTest {
+
+  // A default timestamp to be used in test objects
+  private static final String DEFAULT_TIMESTAMP = "1970-01-02T03:46:40Z";
 
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection") // IntelliJ has trouble resolving
   @Autowired
@@ -49,7 +53,9 @@ public class BoundMonitorDTOJsonTest {
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
-        .setEnvoyId("e-1");
+        .setEnvoyId("e-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     assertThat(json.write(dto)).isEqualToJson("/BoundMonitorDTOJsonTest/testEmptyZone_nonNullEnvoy.json", JSONCompareMode.STRICT);
 
@@ -66,7 +72,9 @@ public class BoundMonitorDTOJsonTest {
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
-        .setEnvoyId(null);
+        .setEnvoyId(null)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     assertThat(json.write(dto)).isEqualToJson("/BoundMonitorDTOJsonTest/testEmptyZone_nullEnvoy.json", JSONCompareMode.STRICT);
 
@@ -83,7 +91,9 @@ public class BoundMonitorDTOJsonTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
-        .setEnvoyId("e-1");
+        .setEnvoyId("e-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     assertThat(json.write(dto)).isEqualToJson("/BoundMonitorDTOJsonTest/testAllPopulated.json", JSONCompareMode.STRICT);
 

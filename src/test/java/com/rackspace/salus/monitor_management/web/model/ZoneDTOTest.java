@@ -46,6 +46,8 @@ public class ZoneDTOTest {
     assertThat(dto.getSourceIpAddresses(), notNullValue());
     assertThat(dto.getState(), notNullValue());
     assertThat(dto.isPublic(), notNullValue());
+    assertThat(dto.getCreatedTimestamp(), notNullValue());
+    assertThat(dto.getUpdatedTimestamp(), notNullValue());
 
     assertThat(dto.getName(), equalTo(zone.getName()));
     assertThat(dto.getPollerTimeout(), equalTo(zone.getPollerTimeout().getSeconds()));
@@ -54,6 +56,8 @@ public class ZoneDTOTest {
     assertThat(dto.getSourceIpAddresses(), equalTo(zone.getSourceIpAddresses()));
     assertThat(dto.getState(), equalTo(zone.getState()));
     assertThat(dto.isPublic(), equalTo(zone.isPublic()));
+    assertThat(dto.getCreatedTimestamp(), equalTo(zone.getCreatedTimestamp().toString()));
+    assertThat(dto.getUpdatedTimestamp(), equalTo(zone.getUpdatedTimestamp().toString()));
 
 
     String objectAsString;

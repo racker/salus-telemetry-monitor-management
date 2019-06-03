@@ -20,6 +20,8 @@ import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +41,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.validator.constraints.NotBlank;
 
 @Entity
@@ -79,6 +83,14 @@ public class Monitor implements Serializable {
     @CollectionTable(name="monitor_zones", joinColumns = @JoinColumn(name="monitor_id"))
     List<String> zones;
 
+    @CreationTimestamp
+    @Column(name="created_timestamp")
+    Instant createdTimestamp;
+
+    @UpdateTimestamp
+    @Column(name="updated_timestamp")
+    Instant updatedTimestamp;
+
     public MonitorDTO toDTO() {
       return new MonitorDTO()
           .setId(id)
@@ -88,6 +100,8 @@ public class Monitor implements Serializable {
           .setContent(content)
           .setAgentType(agentType)
           .setSelectorScope(selectorScope)
-          .setZones(new ArrayList<>(zones));
+          .setZones(new ArrayList<>(zones))
+          .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(createdTimestamp))
+          .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(updatedTimestamp));
     }
 }

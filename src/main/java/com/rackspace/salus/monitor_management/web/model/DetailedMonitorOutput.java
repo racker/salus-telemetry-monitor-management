@@ -31,4 +31,6 @@ public class DetailedMonitorOutput {
     Map<String,String> labelSelector;
     @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;
+    String createdTimestamp;
+    String updatedTimestamp;
 }

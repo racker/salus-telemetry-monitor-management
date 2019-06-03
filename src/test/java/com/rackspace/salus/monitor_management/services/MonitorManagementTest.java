@@ -53,6 +53,7 @@ import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
@@ -62,7 +63,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -188,8 +189,8 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(anyString(), anyString()))
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
-        List<Resource> resourceList = new ArrayList<>();
-        resourceList.add(new Resource()
+        List<ResourceDTO> resourceList = new ArrayList<>();
+        resourceList.add(new ResourceDTO()
             .setResourceId(resourceEvent.getResourceId())
             .setLabels(resourceInfo.getLabels())
         );
@@ -355,14 +356,14 @@ public class MonitorManagementTest {
         Map<String, String> r2labels = new HashMap<>();
         r2labels.put("old", "yes");
         r2labels.put("new", "yes");
-        final Resource r2 = new Resource()
+        final ResourceDTO r2 = new ResourceDTO()
             .setLabels(r2labels)
             .setResourceId("r-2")
             .setTenantId("t-1");
 
         Map<String, String> r3labels = new HashMap<>();
         r3labels.put("new", "yes");
-        final Resource r3 = new Resource()
+        final ResourceDTO r3 = new ResourceDTO()
             .setLabels(r3labels)
             .setResourceId("r-3")
             .setTenantId("t-1");
@@ -411,15 +412,12 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        assertThat(updatedMonitor, equalTo(
-            new Monitor()
-                .setId(monitor.getId())
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setLabelSelector(newLabelSelector)
-        ));
+        assertThat(updatedMonitor.getId(), equalTo(monitor.getId()));
+        assertThat(updatedMonitor.getAgentType(), equalTo(monitor.getAgentType()));
+        assertThat(updatedMonitor.getContent(), equalTo("{}"));
+        assertThat(updatedMonitor.getTenantId(), equalTo("t-1"));
+        assertThat(updatedMonitor.getSelectorScope(), equalTo(ConfigSelectorScope.LOCAL));
+        assertThat(updatedMonitor.getLabelSelector(), equalTo(newLabelSelector));
 
         verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"));
 
@@ -465,7 +463,7 @@ public class MonitorManagementTest {
         final Map<String, String> r1metadata = new HashMap<>();
         r1metadata.put("ping_ip", "something_else");
         r1metadata.put("address", "localhost");
-        final Resource r1 = new Resource()
+        final ResourceDTO r1 = new ResourceDTO()
             .setLabels(Collections.singletonMap("os", "linux"))
             .setMetadata(r1metadata)
             .setResourceId("r-1")
@@ -478,7 +476,7 @@ public class MonitorManagementTest {
         final Map<String, String> r2metadata = new HashMap<>();
         r2metadata.put("ping_ip", "localhost");
         r2metadata.put("address", "localhost");
-        final Resource r2 = new Resource()
+        final ResourceDTO r2 = new ResourceDTO()
             .setLabels(Collections.singletonMap("os", "linux"))
             .setMetadata(r2metadata)
             .setResourceId("r-2")
@@ -570,7 +568,7 @@ public class MonitorManagementTest {
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
             .thenReturn(Collections.singletonList(
-                new Resource()
+                new ResourceDTO()
                 .setResourceId("r-1")
             ));
 
@@ -1081,14 +1079,14 @@ public class MonitorManagementTest {
         when(zoneStorage.incrementBoundCount(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(1));
 
-        final List<Resource> tenantResources = new ArrayList<>();
+        final List<ResourceDTO> tenantResources = new ArrayList<>();
         tenantResources.add(
-            new Resource().setResourceId("r-1")
+            new ResourceDTO().setResourceId("r-1")
                 .setLabels(Collections.singletonMap("os", "LINUX"))
                 .setMetadata(Collections.singletonMap("public_ip", "151.1.1.1"))
         );
         tenantResources.add(
-            new Resource().setResourceId("r-2")
+            new ResourceDTO().setResourceId("r-2")
                 .setLabels(Collections.singletonMap("os", "LINUX"))
                 .setMetadata(Collections.singletonMap("public_ip", "151.2.2.2"))
         );
@@ -1563,7 +1561,7 @@ public class MonitorManagementTest {
             .setZones(Collections.singletonList("z-1"))
         );
 
-        final Resource resource = new Resource()
+        final ResourceDTO resource = new ResourceDTO()
             .setTenantId("t-1")
             .setResourceId("r-1")
             .setLabels(Collections.singletonMap("env", "prod"));
@@ -1682,7 +1680,7 @@ public class MonitorManagementTest {
                 .setZones(Collections.singletonList("z-1"))
         );
 
-        final Resource resource = new Resource()
+        final ResourceDTO resource = new ResourceDTO()
             .setTenantId("t-1")
             .setResourceId("r-1")
             .setLabels(Collections.singletonMap("env", "prod"));
@@ -1735,11 +1733,10 @@ public class MonitorManagementTest {
 
     @Test
     public void testhandleResourceEvent_newResource() {
-        final Resource resource = new Resource()
+        final ResourceDTO resource = new ResourceDTO()
             .setLabels(Collections.singletonMap("env", "prod"))
             .setResourceId("r-1")
-            .setTenantId("t-1")
-            .setId(1001L);
+            .setTenantId("t-1");
         when(resourceApi.getByResourceId(any(), any()))
             .thenReturn(resource);
 
@@ -1802,11 +1799,10 @@ public class MonitorManagementTest {
     @Test
     public void testhandleResourceEvent_modifiedResource() {
 
-        final Resource resource = new Resource()
+        final ResourceDTO resource = new ResourceDTO()
             .setLabels(Collections.singletonMap("env", "prod"))
             .setResourceId("r-1")
-            .setTenantId("t-1")
-            .setId(1001L);
+            .setTenantId("t-1");
         when(resourceApi.getByResourceId(any(), any()))
             .thenReturn(resource);
 
@@ -1950,12 +1946,11 @@ public class MonitorManagementTest {
 
         // for this unit test the "new" value of the resource don't really matter as long as
         // the monitor label selector continues to align
-        final Resource resource = new Resource()
+        final ResourceDTO resource = new ResourceDTO()
             .setLabels(Collections.singletonMap("env", "prod"))
             .setMetadata(Collections.singletonMap("custom", "new"))
             .setResourceId("r-1")
-            .setTenantId("t-1")
-            .setId(1001L);
+            .setTenantId("t-1");
         when(resourceApi.getByResourceId(any(), any()))
             .thenReturn(resource);
 

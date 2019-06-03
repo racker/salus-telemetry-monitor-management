@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.Instant;
 import java.util.*;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
@@ -54,6 +55,9 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 @JsonTest
 @Import({MonitorConversionService.class})
 public class MonitorConversionServiceTest {
+
+  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
+  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
   @Configuration
   public static class TestConfig {
@@ -79,7 +83,9 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(labels)
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -136,7 +142,9 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -184,7 +192,9 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -238,7 +248,9 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -288,7 +300,9 @@ public class MonitorConversionServiceTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -351,7 +365,9 @@ public class MonitorConversionServiceTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -436,7 +452,9 @@ public class MonitorConversionServiceTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -580,7 +598,9 @@ public class MonitorConversionServiceTest {
             .setAgentType(AgentType.TELEGRAF)
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setLabelSelector(labels)
-            .setContent(content);
+            .setContent(content)
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 

@@ -16,10 +16,12 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Data;
 
@@ -39,4 +41,6 @@ public class BoundMonitorDTO {
   AgentType agentType;
   String renderedContent;
   String envoyId;
+  String createdTimestamp;
+  String updatedTimestamp;
 }
