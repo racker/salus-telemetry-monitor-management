@@ -20,13 +20,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
+import java.util.Map;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
-import java.util.Map;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
@@ -35,7 +35,7 @@ public class HttpResponse extends RemotePlugin {
   @NotEmpty
   String address;
   String httpProxy;
-  @Pattern(regexp = "([0-9]+)(h|m|s|ms)", message = "invalid duration")
+  @ValidGoDuration
   String responseTimeout;
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
   String method;
