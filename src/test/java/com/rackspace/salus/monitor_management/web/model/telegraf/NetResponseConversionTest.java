@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse.Pro
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -49,6 +50,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class NetResponseConversionTest {
   @Configuration
   public static class TestConfig { }
+
+  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
+  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
   @Autowired
   MonitorConversionService conversionService;
@@ -95,7 +99,9 @@ public class NetResponseConversionTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setLabelSelector(labels)
-        .setContent(content);
+        .setContent(content)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
