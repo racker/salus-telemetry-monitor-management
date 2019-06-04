@@ -63,7 +63,6 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1873,16 +1872,6 @@ public class MonitorManagementTest {
 
     @Test
     public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_sameContent() {
-
-        // for this unit test the "new" value of the resource don't really matter as long as
-        // the monitor label selector continues to align
-        final Resource resource = new Resource()
-            .setLabels(Collections.singletonMap("env", "prod"))
-            .setMetadata(Collections.singletonMap("custom", "new"))
-            .setResourceId("r-1")
-            .setTenantId("t-1")
-            .setId(1001L);
-
         final Monitor monitor = new Monitor()
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setTenantId("t-1")
