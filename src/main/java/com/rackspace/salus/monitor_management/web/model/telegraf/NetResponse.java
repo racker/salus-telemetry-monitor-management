@@ -21,22 +21,35 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidHostAndPort;
 import com.rackspace.salus.telemetry.model.AgentType;
-import java.util.List;
-import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = true)
+@Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @JsonInclude(Include.NON_NULL)
-public class X509Cert extends RemotePlugin {
-  @NotEmpty
-  List<String> sources;
+public class NetResponse extends RemotePlugin {
+
+  public enum Protocol {
+    udp, tcp
+  }
+
+  @NotNull
+  Protocol protocol;
+
+  @NotNull
+  @ValidHostAndPort
+  String address;
+
   @ValidGoDuration
   String timeout;
-  String tlsCa;
-  String tlsCert;
-  String tlsKey;
-  boolean insecureSkipVerify;
+
+  @ValidGoDuration
+  String readTimeout;
+
+  String send;
+
+  String expect;
 }

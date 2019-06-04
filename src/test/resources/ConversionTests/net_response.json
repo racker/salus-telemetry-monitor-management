@@ -1,0 +1,9 @@
+{
+  "type": "net_response",
+  "address": "localhost:80",
+  "protocol": "tcp",
+  "timeout": "5s",
+  "readTimeout": "10s",
+  "send": "request",
+  "expect": "response"
+}
