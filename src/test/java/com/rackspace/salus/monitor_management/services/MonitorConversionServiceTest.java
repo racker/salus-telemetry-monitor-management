@@ -47,7 +47,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID
+import java.util.UUID;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
 import org.junit.Assert;
