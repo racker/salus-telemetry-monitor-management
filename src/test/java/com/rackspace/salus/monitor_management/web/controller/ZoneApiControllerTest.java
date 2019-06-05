@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
@@ -27,6 +26,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneState;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.io.IOException;
 import java.io.InputStream;
@@ -256,7 +256,7 @@ public class ZoneApiControllerTest {
     public void testCreateDuplicatePrivateZone() throws Exception {
         String error = "Zone already exists with name z-1 on tenant t-1";
         when(zoneManagement.createPrivateZone(any(), any()))
-            .thenThrow(new ZoneAlreadyExists(error));
+            .thenThrow(new AlreadyExistsException(error));
 
         ZoneCreatePrivate create = newZoneCreatePrivate();
 
