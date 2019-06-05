@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.web.controller;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.client.ZoneApi;
@@ -29,6 +28,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -172,7 +172,7 @@ public class ZoneApiController implements ZoneApi {
   @ApiOperation(value = "Creates a new private zone for the tenant")
   @JsonView(View.Public.class)
   public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreatePrivate zone)
-          throws ZoneAlreadyExists {
+          throws AlreadyExistsException {
     return zoneManagement.createPrivateZone(tenantId, zone).toDTO();
   }
 
@@ -181,7 +181,7 @@ public class ZoneApiController implements ZoneApi {
   @ApiOperation(value = "Creates a new public zone")
   @JsonView(View.Admin.class)
   public ZoneDTO create(@Valid @RequestBody ZoneCreatePublic zone)
-      throws ZoneAlreadyExists {
+      throws AlreadyExistsException {
     return zoneManagement.createPublicZone(zone).toDTO();
   }
 

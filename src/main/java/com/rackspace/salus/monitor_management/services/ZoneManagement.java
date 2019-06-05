@@ -17,13 +17,13 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.ZoneAlreadyExists;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -85,11 +85,11 @@ public class ZoneManagement {
      * @param tenantId The tenant to create the zone for.
      * @param newZone The zone parameters to store.
      * @return The newly created resource.
-     * @throws ZoneAlreadyExists If the zone name already exists for the tenant.
+     * @throws com.rackspace.salus.telemetry.errors.AlreadyExistsException If the zone name already exists for the tenant.
      */
-    public Zone createPrivateZone(String tenantId, @Valid ZoneCreatePrivate newZone) throws ZoneAlreadyExists {
+    public Zone createPrivateZone(String tenantId, @Valid ZoneCreatePrivate newZone) throws AlreadyExistsException {
         if (exists(tenantId, newZone.getName())) {
-            throw new ZoneAlreadyExists(String.format("Zone already exists with name %s on tenant %s",
+            throw new AlreadyExistsException(String.format("Zone already exists with name %s on tenant %s",
                     newZone.getName(), tenantId));
         }
 
@@ -112,11 +112,11 @@ public class ZoneManagement {
    * Store a new public zone in the database.
    * @param newZone The zone parameters to store.
    * @return The newly created resource.
-   * @throws ZoneAlreadyExists If the zone name already exists for the tenant.
+   * @throws AlreadyExistsException If the zone name already exists for the tenant.
    */
-  public Zone createPublicZone(@Valid ZoneCreatePublic newZone) throws ZoneAlreadyExists {
+  public Zone createPublicZone(@Valid ZoneCreatePublic newZone) throws AlreadyExistsException {
     if (exists(ResolvedZone.PUBLIC, newZone.getName())) {
-      throw new ZoneAlreadyExists(String.format("Public zone already exists with name %s",
+      throw new AlreadyExistsException(String.format("Public zone already exists with name %s",
           newZone.getName()));
     }
 
