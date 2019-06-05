@@ -1,5 +1,6 @@
 server:
-  port: 8089
+  contextPath: /swagger2-demo
+  port: 8080
 services:
   resourceManagementUrl:
     http://localhost:8085
