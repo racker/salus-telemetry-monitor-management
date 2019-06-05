@@ -31,7 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class RestExceptionHandler
         extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class, AlreadyExistsException.class})
+    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class})
     protected ResponseEntity<Object> handleBadRequest(
             RuntimeException ex, WebRequest request) {
         GenericError error = new GenericError(ex.getMessage());
@@ -45,6 +45,14 @@ public class RestExceptionHandler
         GenericError error = new GenericError(ex.getMessage());
         return handleExceptionInternal(ex, error,
                 new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(value = { AlreadyExistsException.class})
+    protected ResponseEntity<Object> handleAlreadyExists(
+        RuntimeException ex, WebRequest request) {
+        GenericError error = new GenericError(ex.getMessage());
+        return handleExceptionInternal(ex, error,
+            new HttpHeaders(), HttpStatus.UNPROCESSABLE_ENTITY, request);
     }
 
     /**
