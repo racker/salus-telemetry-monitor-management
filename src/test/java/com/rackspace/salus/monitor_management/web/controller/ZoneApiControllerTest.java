@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,9 +56,13 @@ import org.springframework.util.FileCopyUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
+
 @RunWith(SpringRunner.class)
 @WebMvcTest(ZoneApiController.class)
 public class ZoneApiControllerTest {
+
+    // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
+    private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
     @Autowired
     MockMvc mvc;
@@ -101,7 +106,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(false)
             .setState(ZoneState.ACTIVE)
-            .setSourceIpAddresses(Collections.emptyList());
+            .setSourceIpAddresses(Collections.emptyList())
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.getPrivateZone(any(), any()))
                 .thenReturn(Optional.of(expectedZone));
@@ -127,7 +134,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(true)
             .setState(ZoneState.ACTIVE)
-            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"))
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
@@ -194,7 +203,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(true)
             .setState(ZoneState.INACTIVE)
-            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"))
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
@@ -220,7 +231,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(false)
             .setState(ZoneState.ACTIVE)
-            .setSourceIpAddresses(Collections.emptyList());
+            .setSourceIpAddresses(Collections.emptyList())
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.createPrivateZone(any(), any()))
                 .thenReturn(zone);
@@ -265,7 +278,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(false)
             .setState(ZoneState.ACTIVE)
-            .setSourceIpAddresses(Collections.emptyList());
+            .setSourceIpAddresses(Collections.emptyList())
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.createPrivateZone(any(), any()))
                 .thenReturn(zone);
@@ -313,7 +328,9 @@ public class ZoneApiControllerTest {
             .setProviderRegion("p-r-1")
             .setPublic(true)
             .setState(ZoneState.INACTIVE)
-            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"))
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
         when(zoneManagement.createPublicZone(any()))
             .thenReturn(zone);
@@ -330,7 +347,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                readContent("ZoneApiControllerTest/publicZone_basic.json"), true));
+                readContent("ZoneApiControllerTest/publicZone_basic.json")));
     }
 
     @Test

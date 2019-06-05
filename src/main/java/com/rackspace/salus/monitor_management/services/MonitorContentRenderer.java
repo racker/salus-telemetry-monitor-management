@@ -17,7 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.samskivert.mustache.Escapers;
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Mustache.Compiler;
@@ -43,7 +43,7 @@ public class MonitorContentRenderer {
         .withDelims(properties.getPlaceholderDelimiters());
   }
 
-  public String render(String rawContent, Resource resource) {
+  public String render(String rawContent, ResourceDTO resource) {
     final Template template = mustacheCompiler.compile(rawContent);
 
     final Map<String, Object> context = new HashMap<>();

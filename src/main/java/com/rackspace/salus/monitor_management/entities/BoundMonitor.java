@@ -18,6 +18,8 @@ package com.rackspace.salus.monitor_management.entities;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -29,6 +31,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 // Using the old validation exceptions for podam support
 // Will move to the newer ones once they're supported.
@@ -108,6 +112,14 @@ public class BoundMonitor implements Serializable {
   @Column(length = 100)
   String envoyId;
 
+  @CreationTimestamp
+  @Column(name="created_timestamp")
+  Instant createdTimestamp;
+
+  @UpdateTimestamp
+  @Column(name="updated_timestamp")
+  Instant updatedTimestamp;
+
   public BoundMonitorDTO toDTO() {
     return new BoundMonitorDTO()
         .setMonitorId(monitor.getId())
@@ -117,6 +129,8 @@ public class BoundMonitor implements Serializable {
         .setSelectorScope(monitor.getSelectorScope())
         .setAgentType(monitor.getAgentType())
         .setRenderedContent(renderedContent)
-        .setEnvoyId(envoyId);
+        .setEnvoyId(envoyId)
+        .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(createdTimestamp))
+        .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(updatedTimestamp));
   }
 }

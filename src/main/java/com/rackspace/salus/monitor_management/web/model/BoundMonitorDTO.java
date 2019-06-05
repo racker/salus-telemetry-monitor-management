@@ -39,4 +39,6 @@ public class BoundMonitorDTO {
   AgentType agentType;
   String renderedContent;
   String envoyId;
+  String createdTimestamp;
+  String updatedTimestamp;
 }

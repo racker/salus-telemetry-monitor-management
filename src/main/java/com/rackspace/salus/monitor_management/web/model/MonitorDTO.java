@@ -40,4 +40,8 @@ public class MonitorDTO {
   ConfigSelectorScope selectorScope;
 
   List<String> zones;
+
+  String createdTimestamp;
+
+  String updatedTimestamp;
 }

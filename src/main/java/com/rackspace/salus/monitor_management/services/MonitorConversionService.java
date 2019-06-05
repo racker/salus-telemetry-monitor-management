@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -52,7 +53,9 @@ public class MonitorConversionService {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId(monitor.getId().toString())
         .setName(monitor.getMonitorName())
-        .setLabelSelector(monitor.getLabelSelector());
+        .setLabelSelector(monitor.getLabelSelector())
+        .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
+        .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
 
     final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
 

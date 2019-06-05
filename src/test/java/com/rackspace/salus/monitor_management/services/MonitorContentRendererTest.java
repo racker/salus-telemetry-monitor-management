@@ -20,7 +20,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class MonitorContentRendererTest {
     final Map<String, String> metadata = new HashMap<>();
     metadata.put("public_ip", "150.1.2.3");
 
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(labels)
         .setMetadata(metadata);
 
@@ -51,7 +51,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testMetadataFieldNotPresent() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
 
@@ -68,7 +68,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testMetadataFieldIsNull() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.singletonMap("nullness", null));
 
@@ -85,7 +85,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testTopLevelBadReference() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
 
@@ -102,7 +102,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testResourceLevelBadReference() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
 
@@ -119,7 +119,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testDottedLabelFields() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent.discovered.os", "linux"))
         .setMetadata(Collections.emptyMap());
 
@@ -141,7 +141,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testUnderscoredLabelFields() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent_discovered_os", "linux"))
         .setMetadata(Collections.emptyMap());
 
@@ -158,7 +158,7 @@ public class MonitorContentRendererTest {
 
   @Test
   public void testDashedLabelFields() {
-    final Resource resource = new Resource()
+    final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent-discovered-os", "linux"))
         .setMetadata(Collections.emptyMap());
 

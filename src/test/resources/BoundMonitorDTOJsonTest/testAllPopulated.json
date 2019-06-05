@@ -6,5 +6,7 @@
   "agentType": "TELEGRAF",
   "renderedContent": "{}",
   "envoyId": "e-1",
-  "zoneName": "z-1"
+  "zoneName": "z-1",
+  "createdTimestamp": "1970-01-02T03:46:40Z",
+  "updatedTimestamp": "1970-01-02T03:46:40Z"
 }

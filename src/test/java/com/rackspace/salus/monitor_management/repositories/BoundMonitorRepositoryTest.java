@@ -199,23 +199,25 @@ public class BoundMonitorRepositoryTest {
         .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Arrays.asList("r-1", "r-3"));
 
     assertThat(results, hasSize(3));
-    assertThat(results, containsInAnyOrder(
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setEnvoyId("e-1")
-            .setZoneName("z-1"),
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setEnvoyId("e-1")
-            .setZoneName("z-2"),
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-3")
-            .setEnvoyId("e-1")
-            .setZoneName("z-1")
-    ));
+    org.assertj.core.api.Assertions.assertThat(results)
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactlyInAnyOrder(
+          new BoundMonitor()
+              .setMonitor(monitor)
+              .setResourceId("r-1")
+              .setEnvoyId("e-1")
+              .setZoneName("z-1"),
+          new BoundMonitor()
+              .setMonitor(monitor)
+              .setResourceId("r-1")
+              .setEnvoyId("e-1")
+              .setZoneName("z-2"),
+          new BoundMonitor()
+              .setMonitor(monitor)
+              .setResourceId("r-3")
+              .setEnvoyId("e-1")
+              .setZoneName("z-1")
+    );
   }
 
   @Test
@@ -235,23 +237,25 @@ public class BoundMonitorRepositoryTest {
         .findAllByMonitor_IdAndZoneNameIn(monitor.getId(), Arrays.asList("z-1", "z-2"));
 
     assertThat(results, hasSize(3));
-    assertThat(results, containsInAnyOrder(
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setEnvoyId("e-1")
-            .setZoneName("z-1"),
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setEnvoyId("e-1")
-            .setZoneName("z-2"),
-        new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-2")
-            .setEnvoyId("e-1")
-            .setZoneName("z-1")
-    ));
+    org.assertj.core.api.Assertions.assertThat(results)
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactlyInAnyOrder(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setZoneName("z-1"),
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setZoneName("z-2"),
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-2")
+                .setEnvoyId("e-1")
+                .setZoneName("z-1")
+        );
   }
 
   @Test

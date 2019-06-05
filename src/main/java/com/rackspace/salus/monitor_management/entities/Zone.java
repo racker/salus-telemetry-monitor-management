@@ -17,8 +17,12 @@ package com.rackspace.salus.monitor_management.entities;
 
 import com.rackspace.salus.monitor_management.web.model.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.boot.convert.DurationUnit;
 
 import javax.persistence.*;
@@ -105,6 +109,14 @@ public class Zone implements Serializable {
   @Column(name="poller_timeout")
   Duration pollerTimeout = Duration.ofSeconds(120);
 
+  @CreationTimestamp
+  @Column(name="created_timestamp")
+  Instant createdTimestamp;
+
+  @UpdateTimestamp
+  @Column(name="updated_timestamp")
+  Instant updatedTimestamp;
+
   /**
    * Converts the Zone object to a ZoneDTO which is a stripped down version to be used
    * as output in the APIs.
@@ -119,6 +131,8 @@ public class Zone implements Serializable {
         .setProviderRegion(providerRegion)
         .setPublic(isPublic)
         .setSourceIpAddresses(sourceIpAddresses)
-        .setState(state);
+        .setState(state)
+        .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(createdTimestamp))
+        .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(updatedTimestamp));
   }
 }

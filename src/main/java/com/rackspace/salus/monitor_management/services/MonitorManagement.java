@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -39,7 +40,6 @@ import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -227,7 +227,7 @@ public class MonitorManagement {
      */
     Set<String> bindMonitor(Monitor monitor,
                             List<String> zones) {
-        final List<Resource> resources = resourceApi.getResourcesWithLabels(
+        final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
             monitor.getTenantId(), monitor.getLabelSelector());
 
         log.debug("Distributing new monitor={} to resources={}", monitor, resources);
@@ -237,7 +237,7 @@ public class MonitorManagement {
         if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
             // AGENT MONITOR
 
-            for (Resource resource : resources) {
+            for (ResourceDTO resource : resources) {
                 final ResourceInfo resourceInfo = envoyResourceManagement
                     .getOne(monitor.getTenantId(), resource.getResourceId())
                     .join();
@@ -250,7 +250,7 @@ public class MonitorManagement {
         } else {
             // REMOTE MONITOR
 
-            for (Resource resource : resources) {
+            for (ResourceDTO resource : resources) {
                 for (String zone : zones) {
                     boundMonitors.add(
                         bindRemoteMonitor(monitor, resource, zone)
@@ -290,7 +290,7 @@ public class MonitorManagement {
             .forEach(monitorEventProducer::sendMonitorEvent);
     }
 
-    private BoundMonitor bindAgentMonitor(Monitor monitor, Resource resource, String envoyId) {
+    private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId) {
         return new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId(resource.getResourceId())
@@ -299,7 +299,7 @@ public class MonitorManagement {
             .setZoneName("");
     }
 
-    private BoundMonitor bindRemoteMonitor(Monitor monitor, Resource resource, String zone) {
+    private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone) {
         final ResolvedZone resolvedZone = resolveZone(monitor.getTenantId(), zone);
 
         final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
@@ -410,7 +410,7 @@ public class MonitorManagement {
     }
 
     private String renderMonitorContent(Monitor monitor,
-                                        Resource resource) {
+                                        ResourceDTO resource) {
         return monitorContentRenderer.render(monitor.getContent(), resource);
     }
 
@@ -565,7 +565,7 @@ public class MonitorManagement {
 
             final String tenantId = monitor.getTenantId();
             final String resourceId = resourceEntry.getKey();
-            final Resource resource = resourceApi
+            final ResourceDTO resource = resourceApi
                 .getByResourceId(tenantId, resourceId);
 
             if (resource != null) {
@@ -603,11 +603,11 @@ public class MonitorManagement {
       final Set<String> boundResourceIds =
           boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
 
-        final List<Resource> selectedResources = resourceApi
+        final List<ResourceDTO> selectedResources = resourceApi
             .getResourcesWithLabels(monitor.getTenantId(), updatedLabelSelector);
 
         final Set<String> selectedResourceIds = selectedResources.stream()
-            .map(Resource::getResourceId)
+            .map(ResourceDTO::getResourceId)
             .collect(Collectors.toSet());
 
         final List<String> resourceIdsToUnbind = new ArrayList<>(boundResourceIds);
@@ -679,7 +679,7 @@ public class MonitorManagement {
         final Set<UUID> monitorIdsToUnbind = new HashSet<>(boundMonitorIds);
 
         final List<Monitor> selectedMonitors;
-        final Resource resource = resourceApi.getByResourceId(tenantId, resourceId);
+        final ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
         if (resource != null) {
             // resource created or updated
 
@@ -751,7 +751,7 @@ public class MonitorManagement {
      * @return affected envoy IDs
      */
     Set<String> upsertBindingToResource(List<Monitor> monitors,
-                                        Resource resource,
+                                        ResourceDTO resource,
                                         String reattachedEnvoyId) {
 
         final ResourceInfo resourceInfo = envoyResourceManagement

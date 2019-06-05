@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.web.model;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.telemetry.model.View;
 import lombok.Data;
-
 import java.util.List;
 
 @Data
@@ -29,6 +28,8 @@ public class ZoneDTO {
     String providerRegion;
     boolean isPublic;
     List<String> sourceIpAddresses;
+    String createdTimestamp;
+    String updatedTimestamp;
 
     @JsonView(View.Internal.class)
     ZoneState state;
