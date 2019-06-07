@@ -1,5 +1,22 @@
+/*
+ * Copyright 2019 Rackspace US, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
@@ -305,17 +322,14 @@ public class ZoneApiControllerTest {
         ZoneCreatePrivate create = newZoneCreatePrivate();
         create.setName("Cant use non-alphanumeric!!!");
 
-        String errorMsg = "\"name\" Only alphanumeric and underscore characters can be used";
-
         mvc.perform(post(
-                "/api/tenant/{tenantId}/zones", "t-1")
-                .content(objectMapper.writeValueAsString(create))
-                .contentType(MediaType.APPLICATION_JSON)
-                .characterEncoding(StandardCharsets.UTF_8.name()))
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message", is(errorMsg)));
+            "/api/tenant/{tenantId}/zones", "t-1")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isBadRequest())
+            .andExpect(validationError("name",
+                "Only alphanumeric and underscore characters can be used"));
     }
 
     @Test
@@ -371,17 +385,14 @@ public class ZoneApiControllerTest {
         ZoneCreatePublic create = newZoneCreatePublic();
         create.setSourceIpAddresses(Collections.singletonList("a.b.c.d"));
 
-        String errorMsg = "\"sourceIpAddresses\" All values must be valid CIDR notation";
-
         mvc.perform(post(
             "/api/admin/zones")
             .content(objectMapper.writeValueAsString(create))
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isBadRequest())
-            .andExpect(content()
-                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.message", is(errorMsg)));
+            .andExpect(validationError("sourceIpAddresses",
+                "All values must be valid CIDR notation"));
     }
 
     @Test
@@ -389,17 +400,14 @@ public class ZoneApiControllerTest {
         ZoneCreatePublic create = newZoneCreatePublic();
         create.setSourceIpAddresses(Collections.emptyList());
 
-        String errorMsg = "\"sourceIpAddresses\" must not be empty";
-
         mvc.perform(post(
             "/api/admin/zones")
             .content(objectMapper.writeValueAsString(create))
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isBadRequest())
-            .andExpect(content()
-                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.message", is(errorMsg)));
+            .andExpect(validationError("sourceIpAddresses",
+                "must not be empty"));
     }
 
     @Test
