@@ -18,60 +18,55 @@ package com.rackspace.salus.monitor_management.web.error;
 
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import org.springframework.http.HttpHeaders;
+import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.context.request.ServletWebRequest;
 
-@ControllerAdvice
-public class RestExceptionHandler
-        extends ResponseEntityExceptionHandler {
+@ControllerAdvice(basePackages = "com.rackspace.salus.monitor_management.web")
+@ResponseBody
+public class RestExceptionHandler {
 
-    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class})
-    protected ResponseEntity<Object> handleBadRequest(
-            RuntimeException ex, WebRequest request) {
-        GenericError error = new GenericError(ex.getMessage());
-        return handleExceptionInternal(ex, error,
-                new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
-    }
+  private final ErrorAttributes errorAttributes;
 
-    @ExceptionHandler(value ={NotFoundException.class})
-    protected ResponseEntity<Object> handleNotFoundRequest(
-            RuntimeException ex, WebRequest request) {
-        GenericError error = new GenericError(ex.getMessage());
-        return handleExceptionInternal(ex, error,
-                new HttpHeaders(), HttpStatus.NOT_FOUND, request);
-    }
+  @Autowired
+  public RestExceptionHandler(ErrorAttributes errorAttributes) {
+    this.errorAttributes = errorAttributes;
+  }
 
-    @ExceptionHandler(value = { AlreadyExistsException.class})
-    protected ResponseEntity<Object> handleAlreadyExists(
-        RuntimeException ex, WebRequest request) {
-        GenericError error = new GenericError(ex.getMessage());
-        return handleExceptionInternal(ex, error,
-            new HttpHeaders(), HttpStatus.UNPROCESSABLE_ENTITY, request);
-    }
+  @ExceptionHandler({IllegalArgumentException.class})
+  public ResponseEntity<?> handleBadRequest(
+      HttpServletRequest request) {
+    return respondWith(request, HttpStatus.BAD_REQUEST);
+  }
 
-    /**
-     * This method is triggered by our model validations.
-     * It cannot be included in an @ExceptionHandler so instead we must override.
-     *
-     * @return A message stating the invalid paramater and the reason why it is invalid.
-     */
-    @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatus status,
-                                                                  WebRequest request) {
-        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
-                .map(e -> String.format("\"%s\" %s", e.getField(), e.getDefaultMessage()))
-                .findFirst()
-                .orElse(ex.getMessage());
-        GenericError error = new GenericError(errorMessage);
-        return handleExceptionInternal(ex, error,
-                new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
-    }
+  @ExceptionHandler({NotFoundException.class})
+  public ResponseEntity<?> handleNotFound(
+      HttpServletRequest request) {
+    return respondWith(request, HttpStatus.NOT_FOUND);
+  }
+
+  @ExceptionHandler({AlreadyExistsException.class})
+  public ResponseEntity<?> handleAlreadyExists(
+      HttpServletRequest request) {
+    return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
+  }
+
+  private ResponseEntity<?> respondWith(HttpServletRequest request,
+                                        HttpStatus status) {
+    Map<String, Object> body = getErrorAttributes(request);
+    body.put("status", status.value());
+    return new ResponseEntity<>(body, status);
+  }
+
+  private Map<String, Object> getErrorAttributes(HttpServletRequest request) {
+    final ServletWebRequest webRequest = new ServletWebRequest(request);
+    return errorAttributes.getErrorAttributes(webRequest, false);
+  }
 }
