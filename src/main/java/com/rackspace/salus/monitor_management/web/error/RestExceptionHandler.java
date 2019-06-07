@@ -62,6 +62,7 @@ public class RestExceptionHandler {
                                         HttpStatus status) {
     Map<String, Object> body = getErrorAttributes(request);
     body.put("status", status.value());
+    body.put("error", status.getReasonPhrase());
     return new ResponseEntity<>(body, status);
   }
 
