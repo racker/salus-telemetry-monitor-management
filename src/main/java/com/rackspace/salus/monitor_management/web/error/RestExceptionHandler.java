@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.web.error;
 
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
@@ -27,17 +26,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.context.request.ServletWebRequest;
 
 @ControllerAdvice(basePackages = "com.rackspace.salus.monitor_management.web")
 @ResponseBody
-public class RestExceptionHandler {
-
-  private final ErrorAttributes errorAttributes;
+public class RestExceptionHandler extends
+    com.rackspace.salus.common.web.AbstractRestExceptionHandler {
 
   @Autowired
   public RestExceptionHandler(ErrorAttributes errorAttributes) {
-    this.errorAttributes = errorAttributes;
+    super(errorAttributes);
   }
 
   @ExceptionHandler({IllegalArgumentException.class})
@@ -58,16 +55,4 @@ public class RestExceptionHandler {
     return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
-  private ResponseEntity<?> respondWith(HttpServletRequest request,
-                                        HttpStatus status) {
-    Map<String, Object> body = getErrorAttributes(request);
-    body.put("status", status.value());
-    body.put("error", status.getReasonPhrase());
-    return new ResponseEntity<>(body, status);
-  }
-
-  private Map<String, Object> getErrorAttributes(HttpServletRequest request) {
-    final ServletWebRequest webRequest = new ServletWebRequest(request);
-    return errorAttributes.getErrorAttributes(webRequest, false);
-  }
 }
