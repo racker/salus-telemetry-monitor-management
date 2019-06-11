@@ -131,7 +131,7 @@ public class MonitorApiControllerTest {
         int numberOfMonitors = 1;
         // Use the APIs default Pageable settings
         int page = 0;
-        int pageSize = 100;
+        int pageSize = 20;
         List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;
@@ -286,7 +286,7 @@ public class MonitorApiControllerTest {
         int numberOfMonitors = 20;
         // Use the APIs default Pageable settings
         int page = 0;
-        int pageSize = 100;
+        int pageSize = 20;
         final List<Monitor> monitors = createMonitors(numberOfMonitors);
 
         int start = page * pageSize;

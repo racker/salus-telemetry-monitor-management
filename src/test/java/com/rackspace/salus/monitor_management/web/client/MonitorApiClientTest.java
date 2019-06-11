@@ -24,6 +24,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +34,8 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -78,9 +81,11 @@ public class MonitorApiClientTest {
             .setMonitorId(id3)
             .setRenderedContent("{\"instance\":3, \"state\":1}")
     );
+    final PagedContent<BoundMonitorDTO> resultPage = PagedContent.fromPage(
+        new PageImpl<>(givenBoundMonitors, Pageable.unpaged(), givenBoundMonitors.size()));
 
-    mockServer.expect(requestTo("/api/boundMonitors/e-1"))
-        .andRespond(withSuccess(objectMapper.writeValueAsString(givenBoundMonitors), MediaType.APPLICATION_JSON));
+    mockServer.expect(requestTo("/api/admin/bound-monitors/e-1?size=2147483647"))
+        .andRespond(withSuccess(objectMapper.writeValueAsString(resultPage), MediaType.APPLICATION_JSON));
 
     final List<BoundMonitorDTO> boundMonitors = monitorApiClient.getBoundMonitors("e-1");
     assertThat(boundMonitors, equalTo(givenBoundMonitors));
