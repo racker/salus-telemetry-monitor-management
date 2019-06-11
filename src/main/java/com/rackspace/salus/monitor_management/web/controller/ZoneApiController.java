@@ -20,7 +20,6 @@ import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
-import com.rackspace.salus.monitor_management.web.client.ZoneApi;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.RebalanceResult;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
@@ -32,6 +31,7 @@ import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -40,10 +40,10 @@ import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -68,7 +68,7 @@ import org.springframework.web.servlet.HandlerMapping;
             @AuthorizationScope(scope = "delete:zone", description = "delete your Zones")
         })
 })
-public class ZoneApiController implements ZoneApi {
+public class ZoneApiController {
 
   private ZoneManagement zoneManagement;
   private final MonitorManagement monitorManagement;
@@ -86,7 +86,6 @@ public class ZoneApiController implements ZoneApi {
     return getByZoneName(tenantId, name);
   }
 
-  @Override
   public ZoneDTO getByZoneName(String tenantId, String name) {
     Optional<Zone> zone;
     if (name.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
@@ -248,19 +247,27 @@ public class ZoneApiController implements ZoneApi {
   @GetMapping("/tenant/{tenantId}/zones")
   @ApiOperation(value = "Gets all zones available to be used in the tenant's monitor configurations")
   @JsonView(View.Public.class)
-  public List<ZoneDTO> getAvailableZones(@PathVariable String tenantId) {
-    return zoneManagement.getAvailableZonesForTenant(tenantId)
-        .stream()
-        .map(Zone::toDTO)
-        .collect(Collectors.toList());
+  public PagedContent<ZoneDTO> getAvailableZones(@PathVariable String tenantId, Pageable pageable) {
+    return PagedContent.fromPage(
+        zoneManagement.getAvailableZonesForTenant(tenantId, pageable)
+        .map(Zone::toDTO));
+  }
+
+  @GetMapping("/admin/zones")
+  @ApiOperation(value = "Gets all public zones")
+  @JsonView(View.Admin.class)
+  public PagedContent<ZoneDTO> getAllPublicZones(Pageable pageable) {
+    return PagedContent.fromPage(
+        zoneManagement.getAllPublicZones(pageable)
+        .map(Zone::toDTO));
   }
 
   @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
   @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
   @JsonView(View.Public.class)
-  public List<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone) {
-    return zoneManagement.getMonitorsForZone(tenantId, zone).stream()
-        .map(Monitor::toDTO)
-        .collect(Collectors.toList());
+  public PagedContent<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone, Pageable pageable) {
+    return PagedContent.fromPage(
+        zoneManagement.getMonitorsForZone(tenantId, zone, pageable)
+        .map(Monitor::toDTO));
   }
 }

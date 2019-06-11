@@ -40,6 +40,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -138,6 +139,8 @@ public class MonitorApiControllerTest {
                 PageRequest.of(page, pageSize),
                 numberOfMonitors);
 
+        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+
         when(monitorManagement.getMonitors(anyString(), any()))
                 .thenReturn(pageOfMonitors);
 
@@ -148,14 +151,13 @@ public class MonitorApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
+                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalPages", equalTo(1)))
-                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
-                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
-                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+                .andExpect(jsonPath("$.number", equalTo(page)))
+                .andExpect(jsonPath("$.last", is(true)))
+                .andExpect(jsonPath("$.first", is(true)));
     }
 
     private List<Monitor> createMonitors(int numberOfMonitors) {
@@ -182,6 +184,8 @@ public class MonitorApiControllerTest {
                 PageRequest.of(page, pageSize),
                 numberOfMonitors);
 
+        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+
         assertThat(pageOfMonitors.getContent().size(), equalTo(pageSize));
 
         when(monitorManagement.getMonitors(anyString(), any()))
@@ -196,14 +200,13 @@ public class MonitorApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
+                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
                 .andExpect(jsonPath("$.totalPages", equalTo((numberOfMonitors + pageSize - 1) / pageSize)))
-                .andExpect(jsonPath("$.numberOfElements", equalTo(pageSize)))
                 .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
-                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
-                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+                .andExpect(jsonPath("$.number", equalTo(page)))
+                .andExpect(jsonPath("$.last", is(false)))
+                .andExpect(jsonPath("$.first", is(false)));
     }
 
     @Test
@@ -291,22 +294,23 @@ public class MonitorApiControllerTest {
                 PageRequest.of(page, pageSize),
                 numberOfMonitors);
 
+        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+
         when(monitorManagement.getAllMonitors(any()))
                 .thenReturn(pageOfMonitors);
 
-        String url = "/api/monitors";
+        String url = "/api/admin/monitors";
 
         mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(pageOfMonitors.map(monitorConversionService::convertToOutput))))
+                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
                 .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalPages", equalTo(1)))
-                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfMonitors)))
                 .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
-                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
-                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+                .andExpect(jsonPath("$.number", equalTo(page)))
+                .andExpect(jsonPath("$.last", is(true)))
+                .andExpect(jsonPath("$.first", is(true)));
     }
 }

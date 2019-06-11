@@ -64,6 +64,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -199,8 +200,10 @@ public class MonitorManagement {
         if (providedZones == null || providedZones.isEmpty()) {
             return;
         }
-        List<String> availableZones = zoneManagement.getAvailableZonesForTenant(tenantId)
-                .stream().map(Zone::getName).collect(Collectors.toList());
+        List<String> availableZones = zoneManagement.getAvailableZonesForTenant(tenantId, Pageable.unpaged())
+            .stream()
+            .map(Zone::getName)
+            .collect(Collectors.toList());
 
         List<String> invalidZones = providedZones.stream()
                 .filter(z -> !availableZones.contains(z))
@@ -688,7 +691,7 @@ public class MonitorManagement {
                 // continue with normal processing, assuming it got revived concurrently
             }
 
-            selectedMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId);
+            selectedMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
 
             final List<UUID> selectedMonitorIds = selectedMonitors.stream()
                 .map(Monitor::getId)
@@ -915,7 +918,7 @@ public class MonitorManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Monitor's that match the labels
      */
-    public List<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException {
+    public Page<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, Pageable page) throws IllegalArgumentException {
         if(labels.size() == 0) {
             throw new IllegalArgumentException("Labels must be provided for search");
         }
@@ -951,7 +954,22 @@ public class MonitorManagement {
         for (Monitor monitor : monitorRepository.findAllById(monitorIds)) {
             monitors.add(monitor);
         }
-        return monitors;
+        if (page.isPaged()) {
+            int start = page.getPageSize() * page.getPageNumber();
+            int end = start + page.getPageSize();
+            if (end > monitors.size()) {
+                end = monitors.size();
+            }
+            List<Monitor> results;
+            try {
+                results = monitors.subList(start, end);
+            } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+                results = Collections.emptyList();
+            }
+            return new PageImpl<>(results, page, monitors.size());
+        } else {
+            return new PageImpl<>(monitors, page, monitors.size());
+        }
     }
 
     /**
@@ -965,7 +983,7 @@ public class MonitorManagement {
     public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
         log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
             envoyId, zoneName, zoneTenantId);
-        List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId);
+        List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId, Pageable.unpaged()).getContent();
         if (boundMonitors.isEmpty()) {
             return;
         }
