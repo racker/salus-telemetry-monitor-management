@@ -29,6 +29,7 @@ import org.springframework.data.repository.CrudRepository;
 public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, BoundMonitor.PrimaryKey> {
 
   List<BoundMonitor> findAllByEnvoyId(String envoyId);
+  Page<BoundMonitor> findAllByEnvoyId(String envoyId, Pageable page);
 
   @Query("select b from BoundMonitor b where b.zoneName = :zoneName and b.envoyId is null")
   List<BoundMonitor> findAllWithoutEnvoyInPublicZone(String zoneName);
@@ -75,7 +76,8 @@ public interface BoundMonitorRepository extends CrudRepository<BoundMonitor, Bou
 
   List<BoundMonitor> findAllByMonitor_IdAndResourceId(UUID monitorId, String resourceId);
 
-  Page<BoundMonitor> findAllByMonitor_TenantId(String tenantId, Pageable pageable);
+  List<BoundMonitor> findAllByMonitor_TenantId(String tenantId);
+  Page<BoundMonitor> findAllByMonitor_TenantId(String tenantId, Pageable page);
 
   @Query("select b from BoundMonitor b"
       + " where b.monitor.tenantId = :tenantId"

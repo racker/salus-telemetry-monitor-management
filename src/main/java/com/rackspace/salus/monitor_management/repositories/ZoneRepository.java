@@ -16,6 +16,10 @@
 package com.rackspace.salus.monitor_management.repositories;
 
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 import java.util.List;
@@ -25,7 +29,14 @@ import java.util.UUID;
 public interface ZoneRepository extends PagingAndSortingRepository<Zone, UUID> {
     Optional<Zone> findByTenantIdAndName(String tenantId, String name);
 
-    List<Zone> findAllByTenantId(String tenantId);
+    Page<Zone> findAllByTenantId(String tenantId, Pageable page);
+
+    @Query(
+        "select z from Zone z where z.tenantId = :tenantId"
+        + " or z.tenantId = com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC"
+            + " order by FIELD(tenantId, com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC) DESC"
+            + ", name ASC")
+    Page<Zone> findAllAvailableForTenant(String tenantId, Pageable page);
 
     boolean existsByTenantIdAndName(String tenantId, String name);
 }

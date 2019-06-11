@@ -31,7 +31,7 @@ public interface MonitorRepository extends PagingAndSortingRepository<Monitor, U
     Page<Monitor> findByTenantId(String tenantId, Pageable pageable);
 
     @Query("select m from Monitor m where m.tenantId = :tenantId and :zone member of m.zones")
-    List<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone);
+    Page<Monitor> findByTenantIdAndZonesContains(String tenantId, String zone, Pageable page);
 
     @Query("select count(m) from Monitor m where :zone member of m.zones")
     int countAllByZonesContains(String zone);

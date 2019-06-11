@@ -84,7 +84,9 @@ import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -95,6 +97,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -126,6 +129,9 @@ public class MonitorManagementTest {
                 .setResourceManagementUrl("");
         }
     }
+
+    @Rule
+    public ExpectedException exceptionRule = ExpectedException.none();
 
     @MockBean
     MonitorEventProducer monitorEventProducer;
@@ -218,6 +224,16 @@ public class MonitorManagementTest {
         }
     }
 
+    private void createMonitorsForTenant(int count, String tenantId, Map<String, String> labels) {
+        for (int i = 0; i < count; i++) {
+            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+            create.setSelectorScope(ConfigSelectorScope.LOCAL);
+            create.setZones(Collections.emptyList());
+            create.setLabelSelector(labels);
+            monitorManagement.createMonitor(tenantId, create);
+        }
+    }
+
     private Monitor persistNewMonitor(String tenantId) {
         return monitorRepository.save(
             new Monitor()
@@ -259,8 +275,8 @@ public class MonitorManagementTest {
 
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
-        when(zoneManagement.getAvailableZonesForTenant(any()))
-                .thenReturn(zones);
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+                .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
 
@@ -279,7 +295,7 @@ public class MonitorManagementTest {
         assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCreateNewMonitorInvalidZone() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
@@ -287,9 +303,11 @@ public class MonitorManagementTest {
 
         assertThat(create.getZones().size(), greaterThan(0));
 
-        when(zoneManagement.getAvailableZonesForTenant(any()))
-                .thenReturn(Collections.emptyList());
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+                .thenReturn(Page.empty());
 
+        exceptionRule.expect(IllegalArgumentException.class);
+        exceptionRule.expectMessage("Invalid zone(s) provided:");
         monitorManagement.createMonitor(tenantId, create);
     }
 
@@ -609,12 +627,14 @@ public class MonitorManagementTest {
             .setEnvoyId("e-existing");
         entityManager.persist(boundZ2);
 
-        when(zoneManagement.getAvailableZonesForTenant("t-1"))
-            .thenReturn(Arrays.asList(
-                new Zone().setName("z-1"),
-                new Zone().setName("z-2"),
-                new Zone().setName("z-3")
-            ));
+        List<Zone> zones = Arrays.asList(
+            new Zone().setName("z-1"),
+            new Zone().setName("z-2"),
+            new Zone().setName("z-3")
+        );
+
+        when(zoneManagement.getAvailableZonesForTenant("t-1", Pageable.unpaged()))
+            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
         // EXECUTE
 
@@ -664,7 +684,7 @@ public class MonitorManagementTest {
             new MonitorBoundEvent().setEnvoyId("e-new")
         );
 
-        verify(zoneManagement).getAvailableZonesForTenant("t-1");
+        verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
             zoneStorage, monitorEventProducer, zoneManagement);
@@ -683,11 +703,13 @@ public class MonitorManagementTest {
             .setLabelSelector(Collections.singletonMap("os", "linux"));
         entityManager.persist(monitor);
 
-        when(zoneManagement.getAvailableZonesForTenant(any()))
-            .thenReturn(Arrays.asList(
-                new Zone().setName("z-1"),
-                new Zone().setName("z-2")
-            ));
+        List<Zone> zones = Arrays.asList(
+            new Zone().setName("z-1"),
+            new Zone().setName("z-2")
+        );
+
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
         // EXECUTE
 
@@ -709,13 +731,13 @@ public class MonitorManagementTest {
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
         ));
 
-        verify(zoneManagement).getAvailableZonesForTenant("t-1");
+        verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
             zoneStorage, monitorEventProducer, zoneManagement);
     }
 
-    @Test(expected = NotFoundException.class)
+    @Test
     public void testUpdateNonExistentMonitor() {
         String tenant = RandomStringUtils.randomAlphanumeric(10);
         UUID uuid = UUID.randomUUID();
@@ -724,6 +746,8 @@ public class MonitorManagementTest {
         MonitorCU update = new MonitorCU();
         update.setLabelSelector(newLabels).setContent("newContent");
 
+        exceptionRule.expect(NotFoundException.class);
+        exceptionRule.expectMessage("No monitor found for");
         monitorManagement.updateMonitor(tenant, uuid, update);
     }
 
@@ -774,11 +798,60 @@ public class MonitorManagementTest {
         verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
     }
 
-    @Test(expected = NotFoundException.class)
+    @Test
     public void testRemoveNonExistentMonitor() {
         String tenant = RandomStringUtils.randomAlphanumeric(10);
         UUID uuid = UUID.randomUUID();
+
+        exceptionRule.expect(NotFoundException.class);
+        exceptionRule.expectMessage("No monitor found for");
         monitorManagement.removeMonitor(tenant, uuid);
+    }
+
+    @Test
+    public void testGetMonitorsFromLabels() {
+        int monitorsWithLabels = new Random().nextInt(10) + 10;
+        int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+        String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+        Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
+
+        // Create monitors which don't have the labels we care about
+        createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+
+        // Create monitors which do have the labels we care about
+        createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
+
+        entityManager.flush();
+
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(monitorsWithLabels, monitors.getTotalElements());
+        assertNotNull(monitors);
+    }
+
+    @Test
+    public void testGetMonitorsFromLabelsPaginated() {
+        int monitorsWithLabels = new Random().nextInt(10) + 10;
+        int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+        String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+        Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
+
+        // Create monitors which don't have the labels we care about
+        createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+
+        // Create monitors which do have the labels we care about
+        createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
+
+        entityManager.flush();
+
+        int page = 3;
+        int size = 2;
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, PageRequest.of(page, size));
+        assertThat(monitors.getTotalElements(), equalTo((long) monitorsWithLabels));
+        int totalPages = (monitorsWithLabels  + size  -1 ) / size;
+        assertThat(monitors.getTotalPages(), equalTo(totalPages));
+        assertThat(monitors.getContent(), hasSize(size));
     }
 
     @Test
@@ -793,8 +866,8 @@ public class MonitorManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(1, monitors.size());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, monitors.getTotalElements());
         assertNotNull(monitors);
     }
 
@@ -812,21 +885,29 @@ public class MonitorManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId);
-        assertEquals(0, monitors.size());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
+        assertEquals(0L, monitors.getTotalElements());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyLabelsException() {
         final Map<String, String> labels = new HashMap<>();
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+        create.setZones(Collections.emptyList());
         create.setLabelSelector(labels);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+            .thenReturn(Page.empty());
+
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
-        monitorManagement.getMonitorsFromLabels(labels, tenantId);
+
+        exceptionRule.expect(IllegalArgumentException.class);
+        exceptionRule.expectMessage("Labels must be provided for search");
+        monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
     }
 
     @Test
@@ -844,14 +925,14 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId2, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(1, monitors.size()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
     }
 
     @Test
@@ -868,14 +949,14 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(1, monitors.size()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
     }
 
     @Test
@@ -896,8 +977,8 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId);
-        assertEquals(0, monitors.size());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
+        assertEquals(0L, monitors.getTotalElements());
     }
 
     @Test
@@ -919,8 +1000,8 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(0, monitors.size()); //make sure we only returned the one value
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
     }
 
     @Test
@@ -942,8 +1023,8 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(0, monitors.size());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, monitors.getTotalElements());
     }
 
     @Test
@@ -966,14 +1047,14 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(1, monitors.size()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.get(0).getLabelSelector());
+        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
     }
 
     public void testMisMatchResourceWithSubsetOfLabels() {
@@ -994,8 +1075,8 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
         entityManager.flush();
 
-        List<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId);
-        assertEquals(0, resources.size());
+        Page<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, resources.getTotalElements());
     }
 
     @Test

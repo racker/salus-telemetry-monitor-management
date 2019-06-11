@@ -28,13 +28,13 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -260,24 +260,20 @@ public class ZoneManagement {
         return zoneStorage.getActiveEnvoyCountForZone(resolvedZone).join();
     }
 
-    private List<Zone> getZonesByTenant(String tenantId) {
-        return zoneRepository.findAllByTenantId(tenantId);
+    private Page<Zone> getZonesByTenant(String tenantId, Pageable page) {
+        return zoneRepository.findAllByTenantId(tenantId, page);
     }
 
-    private List<Zone> getAllPublicZones() {
-        return getZonesByTenant(ResolvedZone.PUBLIC);
+    public Page<Zone> getAllPublicZones(Pageable page) {
+        return getZonesByTenant(ResolvedZone.PUBLIC, page);
     }
 
-    public List<Zone> getAvailableZonesForTenant(String tenantId) {
-        List<Zone> availableZones = new ArrayList<>();
-        availableZones.addAll(getAllPublicZones());
-        availableZones.addAll(getZonesByTenant(tenantId));
-
-        return availableZones;
+    public Page<Zone> getAvailableZonesForTenant(String tenantId, Pageable page) {
+        return zoneRepository.findAllAvailableForTenant(tenantId, page);
     }
 
-    public List<Monitor> getMonitorsForZone(String tenantId, String zone) {
-        return monitorRepository.findByTenantIdAndZonesContains(tenantId, zone);
+    public Page<Monitor> getMonitorsForZone(String tenantId, String zone, Pageable page) {
+        return monitorRepository.findByTenantIdAndZonesContains(tenantId, zone, page);
     }
 
   /**
