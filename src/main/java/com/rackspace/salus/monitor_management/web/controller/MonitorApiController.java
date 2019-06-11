@@ -173,6 +173,5 @@ public class MonitorApiController {
                                                  @RequestBody Map<String, String> labels, Pageable pageable) {
         return PagedContent.fromPage(monitorManagement.getMonitorsFromLabels(labels, tenantId, pageable)
             .map(monitor -> monitorConversionService.convertToOutput(monitor)));
-
     }
 }
