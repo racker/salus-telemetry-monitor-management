@@ -42,14 +42,14 @@ import org.springframework.web.util.UriComponentsBuilder;
  {@literal @}Configuration
  public class RestClientsConfig {
 
- {@literal @}Bean
- public ZoneApi zoneApi(RestTemplateBuilder restTemplateBuilder) {
- return new ZoneApiClient(
- restTemplateBuilder
- .rootUri("http://localhost:8089")
- .build()
- );
- }
+   {@literal @}Bean
+   public ZoneApi zoneApi(RestTemplateBuilder restTemplateBuilder) {
+      return new ZoneApiClient(
+        restTemplateBuilder
+          .rootUri("http://localhost:8089")
+          .build()
+      );
+   }
  }
  * </pre>
  *
