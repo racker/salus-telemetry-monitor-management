@@ -262,7 +262,7 @@ public class ZoneApiController {
         .map(Zone::toDTO));
   }
 
-  @GetMapping("/tenant/{tenantId}/monitorsByZone/{zone}")
+  @GetMapping("/tenant/{tenantId}/monitors-by-zone/{zone}")
   @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
   @JsonView(View.Public.class)
   public PagedContent<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone, Pageable pageable) {

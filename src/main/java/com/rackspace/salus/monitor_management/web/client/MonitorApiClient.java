@@ -17,10 +17,14 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.telemetry.model.PagedContent;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * This client component provides a small subset of Monitor Management REST operations that
@@ -50,7 +54,7 @@ import org.springframework.web.client.RestTemplate;
  */
 public class MonitorApiClient implements MonitorApi {
 
-  private static final ParameterizedTypeReference<List<BoundMonitorDTO>> LIST_OF_BOUND_MONITOR = new ParameterizedTypeReference<List<BoundMonitorDTO>>() {
+  private static final ParameterizedTypeReference<PagedContent<BoundMonitorDTO>> PAGE_OF_BOUND_MONITOR = new ParameterizedTypeReference<PagedContent<BoundMonitorDTO>>() {
   };
   private final RestTemplate restTemplate;
 
@@ -60,12 +64,17 @@ public class MonitorApiClient implements MonitorApi {
 
   @Override
   public List<BoundMonitorDTO> getBoundMonitors(String envoyId) {
-    return restTemplate.exchange(
-        "/api/boundMonitors/{envoyId}",
+    final String uri = UriComponentsBuilder
+        .fromPath("/api/admin/bound-monitors/{envoyId}")
+        .queryParam("size", Integer.MAX_VALUE)
+        .build(envoyId)
+        .toString();
+
+    return Objects.requireNonNull(restTemplate.exchange(
+        uri,
         HttpMethod.GET,
         null,
-        LIST_OF_BOUND_MONITOR,
-        envoyId
-    ).getBody();
+        PAGE_OF_BOUND_MONITOR
+      ).getBody()).getContent();
   }
 }

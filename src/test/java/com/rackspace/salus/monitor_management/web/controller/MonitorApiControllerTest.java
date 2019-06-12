@@ -75,242 +75,277 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({MonitorConversionService.class})
 public class MonitorApiControllerTest {
 
-    private PodamFactory podamFactory = new PodamFactoryImpl();
+  private PodamFactory podamFactory = new PodamFactoryImpl();
 
-    @Autowired
-    MockMvc mockMvc;
+  @Autowired
+  MockMvc mockMvc;
 
-    @MockBean
-    MonitorManagement monitorManagement;
+  @MockBean
+  MonitorManagement monitorManagement;
 
-    @Autowired
-    ObjectMapper objectMapper;
+  @Autowired
+  ObjectMapper objectMapper;
 
-    @Autowired
-    MonitorConversionService monitorConversionService;
+  @Autowired
+  MonitorConversionService monitorConversionService;
 
-    @Test
-    public void testGetMonitor() throws Exception {
-        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-        monitor.setAgentType(AgentType.TELEGRAF);
-        monitor.setContent("{\"type\":\"mem\"}");
-        when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(Optional.of(monitor));
+  @Test
+  public void testGetMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.getMonitor(anyString(), any()))
+        .thenReturn(Optional.of(monitor));
 
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        UUID id = UUID.randomUUID();
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
+  }
+
+  @Test
+  public void testNoMonitorFound() throws Exception {
+    when(monitorManagement.getMonitor(anyString(), any()))
+        .thenReturn(Optional.empty());
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+    String errorMsg = String.format("No monitor found for %s on tenant %s", id, tenantId);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+  }
+
+  @Test
+  public void testGetAllForTenant() throws Exception {
+    int numberOfMonitors = 1;
+    // Use the APIs default Pageable settings
+    int page = 0;
+    int pageSize = 20;
+    List<Monitor> monitors = createMonitors(numberOfMonitors);
+
+    int start = page * pageSize;
+    Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
+        PageRequest.of(page, pageSize),
+        numberOfMonitors);
+
+    PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+
+    when(monitorManagement.getMonitors(anyString(), any()))
+        .thenReturn(pageOfMonitors);
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
+        .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
+        .andExpect(jsonPath("$.totalPages", equalTo(1)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+        .andExpect(jsonPath("$.number", equalTo(page)))
+        .andExpect(jsonPath("$.last", is(true)))
+        .andExpect(jsonPath("$.first", is(true)));
+  }
+
+  private List<Monitor> createMonitors(int numberOfMonitors) {
+    List<Monitor> monitors = new ArrayList<>();
+    for (int i = 0; i < numberOfMonitors; i++) {
+      final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+      monitors.add(monitor);
+      monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+      monitor.setAgentType(AgentType.TELEGRAF);
+      monitor.setContent("{\"type\":\"mem\"}");
     }
+    return monitors;
+  }
 
-    @Test
-    public void testNoMonitorFound() throws Exception {
-        when(monitorManagement.getMonitor(anyString(), any()))
-                .thenReturn(Optional.empty());
+  @Test
+  public void testGetAllForTenantPagination() throws Exception {
+    int numberOfMonitors = 99;
+    int pageSize = 4;
+    int page = 14;
+    final List<Monitor> monitors = createMonitors(numberOfMonitors);
+    int start = page * pageSize;
+    int end = start + pageSize;
+    Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
+        PageRequest.of(page, pageSize),
+        numberOfMonitors);
 
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        UUID id = UUID.randomUUID();
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
-        String errorMsg = String.format("No monitor found for %s on tenant %s", id, tenantId);
+    PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
 
-        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message", is(errorMsg)));
-    }
+    assertThat(pageOfMonitors.getContent().size(), equalTo(pageSize));
 
-    @Test
-    public void testGetAllForTenant() throws Exception {
-        int numberOfMonitors = 1;
-        // Use the APIs default Pageable settings
-        int page = 0;
-        int pageSize = 100;
-        List<Monitor> monitors = createMonitors(numberOfMonitors);
+    when(monitorManagement.getMonitors(anyString(), any()))
+        .thenReturn(pageOfMonitors);
 
-        int start = page * pageSize;
-        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
-                PageRequest.of(page, pageSize),
-                numberOfMonitors);
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
 
-        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+        .param("page", Integer.toString(page))
+        .param("size", Integer.toString(pageSize)))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
+        .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
+        .andExpect(jsonPath("$.totalPages", equalTo((numberOfMonitors + pageSize - 1) / pageSize)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+        .andExpect(jsonPath("$.number", equalTo(page)))
+        .andExpect(jsonPath("$.last", is(false)))
+        .andExpect(jsonPath("$.first", is(false)));
+  }
 
-        when(monitorManagement.getMonitors(anyString(), any()))
-                .thenReturn(pageOfMonitors);
+  @Test
+  public void testCreateMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
 
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors", tenantId);
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
-        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
-                .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
-                .andExpect(jsonPath("$.totalPages", equalTo(1)))
-                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.number", equalTo(page)))
-                .andExpect(jsonPath("$.last", is(true)))
-                .andExpect(jsonPath("$.first", is(true)));
-    }
-
-    private List<Monitor> createMonitors(int numberOfMonitors) {
-        List<Monitor> monitors = new ArrayList<>();
-        for (int i = 0; i < numberOfMonitors; i++) {
-            final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-            monitors.add(monitor);
-            monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-            monitor.setAgentType(AgentType.TELEGRAF);
-            monitor.setContent("{\"type\":\"mem\"}");
-        }
-        return monitors;
-    }
-
-    @Test
-    public void testGetAllForTenantPagination() throws Exception {
-        int numberOfMonitors = 99;
-        int pageSize = 4;
-        int page = 14;
-        final List<Monitor> monitors = createMonitors(numberOfMonitors);
-        int start = page * pageSize;
-        int end = start + pageSize;
-        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, end),
-                PageRequest.of(page, pageSize),
-                numberOfMonitors);
-
-        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
-
-        assertThat(pageOfMonitors.getContent().size(), equalTo(pageSize));
-
-        when(monitorManagement.getMonitors(anyString(), any()))
-                .thenReturn(pageOfMonitors);
-
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors", tenantId);
-
-        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
-                .param("page", Integer.toString(page))
-                .param("size", Integer.toString(pageSize)))
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
-                .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
-                .andExpect(jsonPath("$.totalPages", equalTo((numberOfMonitors + pageSize - 1) / pageSize)))
-                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.number", equalTo(page)))
-                .andExpect(jsonPath("$.last", is(false)))
-                .andExpect(jsonPath("$.first", is(false)));
-    }
-
-    @Test
-    public void testCreateMonitor() throws Exception {
-        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-        monitor.setAgentType(AgentType.TELEGRAF);
-        monitor.setContent("{\"type\":\"mem\"}");
-        when(monitorManagement.createMonitor(anyString(), any()))
-                .thenReturn(monitor);
-
-        String tenantId = RandomStringUtils.randomAlphabetic(8);
-        String url = String.format("/api/tenant/%s/monitors", tenantId);
-        DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-        create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-
-        mockMvc.perform(post(url)
-                .content(objectMapper.writeValueAsString(create))
-                .contentType(MediaType.APPLICATION_JSON)
-                .characterEncoding(StandardCharsets.UTF_8.name()))
-                .andExpect(status().isCreated())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-    }
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
 
 
 
-    @Test
-    public void testUpdateMonitor() throws Exception {
-        Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-        monitor.setAgentType(AgentType.TELEGRAF);
-        monitor.setContent("{\"type\":\"mem\"}");
-        when(monitorManagement.updateMonitor(anyString(), any(), any()))
-                .thenReturn(monitor);
+  @Test
+  public void testUpdateMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.updateMonitor(anyString(), any(), any()))
+        .thenReturn(monitor);
 
-        String tenantId = monitor.getTenantId();
-        UUID id = monitor.getId();
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+    String tenantId = monitor.getTenantId();
+    UUID id = monitor.getId();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-        update.setLabelSelector(null);
-        update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    update.setLabelSelector(null);
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
-        mockMvc.perform(put(url)
-                .content(objectMapper.writeValueAsString(update))
-                .contentType(MediaType.APPLICATION_JSON)
-                .characterEncoding(StandardCharsets.UTF_8.name()))
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-    }
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
 
-    @Test
-    public void testUpdateNonExistentMonitor() throws Exception {
-        when(monitorManagement.updateMonitor(anyString(), any(), any()))
-                .thenThrow(new NotFoundException("Custom not found message"));
+  @Test
+  public void testUpdateNonExistentMonitor() throws Exception {
+    when(monitorManagement.updateMonitor(anyString(), any(), any()))
+        .thenThrow(new NotFoundException("Custom not found message"));
 
-        String tenantId = RandomStringUtils.randomAlphabetic(10);
-        UUID id = UUID.randomUUID();
-        String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-        DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-        update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
-        mockMvc.perform(put(url)
-                .content(objectMapper.writeValueAsString(update))
-                .contentType(MediaType.APPLICATION_JSON)
-                .characterEncoding(StandardCharsets.UTF_8.name()))
-                .andExpect(status().isNotFound())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-    }
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
 
-    @Test
-    public void testGetAll() throws Exception {
-        int numberOfMonitors = 20;
-        // Use the APIs default Pageable settings
-        int page = 0;
-        int pageSize = 100;
-        final List<Monitor> monitors = createMonitors(numberOfMonitors);
+  @Test
+  public void testGetAll() throws Exception {
+    int numberOfMonitors = 20;
+    // Use the APIs default Pageable settings
+    int page = 0;
+    int pageSize = 20;
+    final List<Monitor> monitors = createMonitors(numberOfMonitors);
 
-        int start = page * pageSize;
-        Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
-                PageRequest.of(page, pageSize),
-                numberOfMonitors);
+    int start = page * pageSize;
+    Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
+        PageRequest.of(page, pageSize),
+        numberOfMonitors);
 
-        PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+    PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
 
-        when(monitorManagement.getAllMonitors(any()))
-                .thenReturn(pageOfMonitors);
+    when(monitorManagement.getAllMonitors(any()))
+        .thenReturn(pageOfMonitors);
 
-        String url = "/api/admin/monitors";
+    String url = "/api/admin/monitors";
 
-        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
-                .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
-                .andExpect(jsonPath("$.totalPages", equalTo(1)))
-                .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
-                .andExpect(jsonPath("$.number", equalTo(page)))
-                .andExpect(jsonPath("$.last", is(true)))
-                .andExpect(jsonPath("$.first", is(true)));
-    }
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
+        .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
+        .andExpect(jsonPath("$.totalPages", equalTo(1)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+        .andExpect(jsonPath("$.number", equalTo(page)))
+        .andExpect(jsonPath("$.last", is(true)))
+        .andExpect(jsonPath("$.first", is(true)));
+  }
+
+  @Test
+  public void testGetAllMonitors_LargePage() throws Exception {
+    // This test is to verify that we can get more than 1000 results back via spring mvc.
+
+    int numberOfMonitors = 2000;
+    // Use the APIs default Pageable settings
+    int page = 0;
+    int pageSize = Integer.MAX_VALUE;
+    final List<Monitor> monitors = createMonitors(numberOfMonitors);
+
+    int start = page * pageSize;
+    Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
+        PageRequest.of(page, pageSize),
+        numberOfMonitors);
+
+    PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
+
+    when(monitorManagement.getAllMonitors(any()))
+        .thenReturn(pageOfMonitors);
+
+    mockMvc.perform(get("/api/admin/monitors")
+        .requestAttr("size", pageSize)
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(content().string(objectMapper.writeValueAsString(result.map(monitorConversionService::convertToOutput))))
+        .andExpect(jsonPath("$.content.*", hasSize(numberOfMonitors)))
+        .andExpect(jsonPath("$.totalPages", equalTo(1)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfMonitors)))
+        .andExpect(jsonPath("$.number", equalTo(page)))
+        .andExpect(jsonPath("$.last", is(true)))
+        .andExpect(jsonPath("$.first", is(true)));
+  }
 }

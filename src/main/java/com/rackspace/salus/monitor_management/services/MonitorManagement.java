@@ -918,6 +918,7 @@ public class MonitorManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Monitor's that match the labels
      */
+    @SuppressWarnings("Duplicates")
     public Page<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, Pageable page) throws IllegalArgumentException {
         if(labels.size() == 0) {
             throw new IllegalArgumentException("Labels must be provided for search");

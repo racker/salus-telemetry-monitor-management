@@ -17,13 +17,16 @@ package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * This client component provides a small subset of Zone Management REST operations that
@@ -41,11 +44,11 @@ import org.springframework.web.client.RestTemplate;
 
    {@literal @}Bean
    public ZoneApi zoneApi(RestTemplateBuilder restTemplateBuilder) {
-     return new ZoneApiClient(
-       restTemplateBuilder
-       .rootUri("http://localhost:8089")
-       .build()
-     );
+      return new ZoneApiClient(
+        restTemplateBuilder
+          .rootUri("http://localhost:8089")
+          .build()
+      );
    }
  }
  * </pre>
@@ -54,57 +57,65 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class ZoneApiClient implements ZoneApi {
 
-    private static final ParameterizedTypeReference<List<ZoneDTO>> LIST_OF_ZONES = new ParameterizedTypeReference<List<ZoneDTO>>() {
-    };
-    private static final ParameterizedTypeReference<List<MonitorDTO>> LIST_OF_MONITOR = new ParameterizedTypeReference<List<MonitorDTO>>() {
-    };
+  private static final ParameterizedTypeReference<PagedContent<ZoneDTO>> PAGE_OF_ZONES = new ParameterizedTypeReference<PagedContent<ZoneDTO>>() {
+  };
+  private static final ParameterizedTypeReference<PagedContent<MonitorDTO>> PAGE_OF_MONITOR = new ParameterizedTypeReference<PagedContent<MonitorDTO>>() {
+  };
 
-    private final RestTemplate restTemplate;
+  private final RestTemplate restTemplate;
 
 
-    public ZoneApiClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+  public ZoneApiClient(RestTemplate restTemplate) {
+    this.restTemplate = restTemplate;
+  }
+  @Override
+  public ZoneDTO getByZoneName(String tenantId, String name) {
+    try {
+      return restTemplate.getForObject(
+          "/api/tenant/{tenantId}/zones/{name}",
+          ZoneDTO.class,
+          tenantId, name
+      );
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+        return null;
+        // what happens if this isn't here?
+      }
+      else {
+        throw new IllegalArgumentException(e);
+      }
     }
-    @Override
-    public ZoneDTO getByZoneName(String tenantId, String name) {
-        try {
-            return restTemplate.getForObject(
-                    "/api/tenant/{tenantId}/zones/{name}",
-                    ZoneDTO.class,
-                    tenantId, name
-            );
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                return null;
-                // what happens if this isn't here?
-            }
-            else {
-                throw new IllegalArgumentException(e);
-            }
-        }
-    }
+  }
 
-    @Override
-    public List<ZoneDTO> getAvailableZones(String tenantId) {
+  @Override
+  public List<ZoneDTO> getAvailableZones(String tenantId) {
+    final String uri = UriComponentsBuilder
+        .fromPath("/api/tenant/{tenantId}/zones")
+        .queryParam("size", Integer.MAX_VALUE)
+        .build(tenantId)
+        .toString();
 
-        return restTemplate.exchange(
-                "/api/tenant/{tenantId}/zones",
-                HttpMethod.GET,
-                null,
-                LIST_OF_ZONES,
-                tenantId
-        ).getBody();
-    }
+    return Objects.requireNonNull(restTemplate.exchange(
+        uri,
+        HttpMethod.GET,
+        null,
+        PAGE_OF_ZONES
+    ).getBody()).getContent();
+  }
 
-    @Override
-    public List<MonitorDTO> getMonitorsForZone(String tenantId, String zone) {
-        return restTemplate.exchange(
-                "/api/tenant/{tenantId}/monitorsByZone/{zone}",
-                HttpMethod.GET,
-                null,
-                LIST_OF_MONITOR,
-                tenantId,
-                zone
-        ).getBody();
-    }
+  @Override
+  public List<MonitorDTO> getMonitorsForZone(String tenantId, String zone) {
+    final String uri = UriComponentsBuilder
+        .fromPath("/api/tenant/{tenantId}/monitors-by-zone/{zone}")
+        .queryParam("size", Integer.MAX_VALUE)
+        .build(tenantId, zone)
+        .toString();
+
+    return Objects.requireNonNull(restTemplate.exchange(
+        uri,
+        HttpMethod.GET,
+        null,
+        PAGE_OF_MONITOR
+    ).getBody()).getContent();
+  }
 }
