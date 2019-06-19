@@ -311,7 +311,6 @@ public class MonitorManagementTest {
         monitorManagement.createMonitor(tenantId, create);
     }
 
-
     @Test
     public void testGetAll() {
         Random random = new Random();
@@ -1559,6 +1558,88 @@ public class MonitorManagementTest {
         );
 
         verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
+    }
+
+    @Test
+    public void testBindMonitor_AgentWithEnvoy() {
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        final Monitor monitor = new Monitor()
+            .setId(m0)
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("static content")
+            .setZones(Collections.emptyList());
+
+        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+            .setResourceId("r-1")
+            .setLabels(Collections.emptyMap())
+        );
+
+        when(resourceApi.getResourcesWithLabels(any(), any()))
+            .thenReturn(resourceList);
+
+        final ResourceInfo resourceInfo = new ResourceInfo()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setEnvoyId("e-1");
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+
+        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+
+        assertThat(result, hasSize(1));
+        assertThat(result.toArray()[0], equalTo("e-1"));
+
+        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setRenderedContent("static content")
+                .setZoneName("")
+        ));
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+    }
+
+    @Test
+    public void testBindMonitor_AgentWithNoEnvoy() {
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        final Monitor monitor = new Monitor()
+            .setId(m0)
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("static content")
+            .setZones(Collections.emptyList());
+
+        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+            .setResourceId("r-1")
+            .setLabels(Collections.emptyMap())
+        );
+
+        when(resourceApi.getResourcesWithLabels(any(), any()))
+            .thenReturn(resourceList);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+
+        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+
+        assertThat(result, hasSize(0));
+
+        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("static content")
+                .setZoneName("")
+        ));
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
     }
 
     @Test
