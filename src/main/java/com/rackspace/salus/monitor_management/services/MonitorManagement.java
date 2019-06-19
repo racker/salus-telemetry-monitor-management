@@ -246,7 +246,8 @@ public class MonitorManagement {
                     .join();
 
                 boundMonitors.add(
-                    bindAgentMonitor(monitor, resource, resourceInfo.getEnvoyId())
+                    bindAgentMonitor(monitor, resource,
+                        resourceInfo != null ? resourceInfo.getEnvoyId() : null)
                 );
             }
 
