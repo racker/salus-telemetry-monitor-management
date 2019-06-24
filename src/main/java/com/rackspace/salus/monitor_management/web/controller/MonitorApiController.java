@@ -132,8 +132,8 @@ public class MonitorApiController {
     @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Monitor")})
     @JsonView(View.Public.class)
     public DetailedMonitorOutput create(@PathVariable String tenantId,
-                                        @Validated(ValidationGroups.Create.class) @RequestBody
-                                        final DetailedMonitorInput input)
+                                        @Validated(ValidationGroups.Create.class)
+                                        @RequestBody final DetailedMonitorInput input)
             throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(
