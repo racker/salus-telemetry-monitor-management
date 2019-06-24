@@ -1649,10 +1649,11 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testUnbindByMonitorId() {
+    public void testUnbindByMonitorId_remote() {
         final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
         monitor.setId(null);
         monitor.setTenantId("t-1");
+        monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
         entityManager.persist(monitor);
         entityManager.flush();
 
