@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import javax.validation.constraints.NotNull;
+import javax.validation.groups.Default;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -29,5 +30,5 @@ public class ValidationGroups {
   /**
    * Used for validations that are activated during create operations
    */
-  public interface Create { }
+  public interface Create extends Default { }
 }

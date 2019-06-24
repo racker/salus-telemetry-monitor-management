@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -36,13 +37,16 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -232,7 +236,50 @@ public class MonitorApiControllerTest {
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }
 
+  @Test
+  public void testCreateRemotePingMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"ping\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
 
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new RemoteMonitorDetails()
+        .setMonitoringZones(monitor.getZones())
+        .setPlugin(new Ping()
+            .setUrls(Collections.singletonList("my.test.url.com"))));
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateRemotePingMonitor_NoUrls() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new RemoteMonitorDetails()
+        .setMonitoringZones(Collections.singletonList("myzone"))
+        .setPlugin(new Ping()
+            // If no urls are set validation should fail
+            .setUrls(Collections.emptyList())));
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(validationError("details.plugin.urls", "must not be empty"));
+  }
 
   @Test
   public void testUpdateMonitor() throws Exception {
