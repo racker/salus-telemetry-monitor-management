@@ -1,7 +1,7 @@
 {
   "type": "cpu",
-  "collectCpuTime": false,
+  "collectCpuTime": true,
   "percpu": false,
   "reportActive": false,
-  "totalcpu": false
+  "totalcpu": true
 }
