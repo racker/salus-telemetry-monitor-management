@@ -29,8 +29,6 @@ import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
@@ -76,120 +74,6 @@ public class MonitorConversionServiceTest {
 
   @Autowired
   MonitorConversionService conversionService;
-
-  @Test
-  public void convertToOutput_local() throws IOException {
-    Map<String, String> labels = new HashMap<>();
-    labels.put("os", "linux");
-    labels.put("test", "convertToOutput_local");
-
-    final String content = readContent("/MonitorConversionServiceTest_cpu.json");
-
-    final UUID monitorId = UUID.randomUUID();
-
-    Monitor monitor = new Monitor()
-        .setId(monitorId)
-        .setMonitorName("name-a")
-        .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.LOCAL)
-        .setLabelSelector(labels)
-        .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
-
-    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
-
-    assertThat(result).isNotNull();
-    assertThat(result.getId()).isEqualTo(monitorId.toString());
-    assertThat(result.getName()).isEqualTo("name-a");
-    assertThat(result.getLabelSelector()).isEqualTo(labels);
-    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
-
-    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
-    assertThat(plugin).isInstanceOf(Cpu.class);
-
-    final Cpu cpuPlugin = (Cpu) plugin;
-    assertThat(cpuPlugin.isCollectCpuTime()).isFalse();
-    assertThat(cpuPlugin.isPercpu()).isFalse();
-    assertThat(cpuPlugin.isReportActive()).isFalse();
-    assertThat(cpuPlugin.isTotalcpu()).isFalse();
-  }
-
-  @Test
-  public void convertFromInput_local() throws JSONException, IOException {
-    final Map<String, String> labels = new HashMap<>();
-    labels.put("os", "linux");
-    labels.put("test", "convertFromInput_local");
-
-    final LocalMonitorDetails details = new LocalMonitorDetails();
-    final Cpu plugin = new Cpu();
-    plugin.setPercpu(false);
-    details.setPlugin(plugin);
-
-    DetailedMonitorInput input = new DetailedMonitorInput()
-        .setName("name-a")
-        .setLabelSelector(labels)
-        .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
-
-    assertThat(result).isNotNull();
-    assertThat(result.getLabelSelector()).isEqualTo(labels);
-    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
-    assertThat(result.getMonitorName()).isEqualTo("name-a");
-    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/MonitorConversionServiceTest_cpu.json");
-    JSONAssert.assertEquals(content, result.getContent(), true);
-  }
-
-  @Test
-  public void convertToOutput_disk() throws IOException {
-    // NOTE: this unit test is purposely abbreviated compared convertToOutput
-
-    final String content = readContent("/MonitorConversionServiceTest_disk.json");
-
-    Monitor monitor = new Monitor()
-        .setId(UUID.randomUUID())
-        .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.LOCAL)
-        .setLabelSelector(Collections.singletonMap("os","linux"))
-        .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
-
-    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
-
-    assertThat(result).isNotNull();
-    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
-
-    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
-    assertThat(plugin).isInstanceOf(Disk.class);
-
-    final Disk specificPlugin = (Disk) plugin;
-    assertThat(specificPlugin.getMountPoints()).contains("/var/lib");
-    assertThat(specificPlugin.getIgnoreFs()).contains("/dev");
-  }
-
-  @Test
-  public void convertFromInput_disk() throws JSONException, IOException {
-    // NOTE: this unit test is purposely abbreviated compared convertFromInput
-
-    final String content = readContent("/MonitorConversionServiceTest_disk.json");
-
-    final Disk plugin = new Disk();
-    plugin.setMountPoints(Collections.singletonList("/var/lib"));
-    plugin.setIgnoreFs(Collections.singletonList("/dev"));
-
-    final LocalMonitorDetails details = new LocalMonitorDetails();
-    details.setPlugin(plugin);
-
-    DetailedMonitorInput input = new DetailedMonitorInput()
-        .setLabelSelector(Collections.singletonMap("os","linux"))
-        .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
-
-    assertThat(result).isNotNull();
-    JSONAssert.assertEquals(content, result.getContent(), true);
-  }
 
   @Test
   public void convertToOutput_diskio() throws IOException {

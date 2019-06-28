@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -26,7 +27,8 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 public class Cpu extends LocalPlugin {
   boolean percpu;
-  boolean totalcpu;
+  @JsonProperty(defaultValue = "true")
+  boolean totalcpu = true;
   boolean collectCpuTime;
   boolean reportActive;
 }
