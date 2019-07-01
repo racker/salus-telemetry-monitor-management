@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -37,7 +38,7 @@ public class RestExceptionHandler extends
     super(errorAttributes);
   }
 
-  @ExceptionHandler({IllegalArgumentException.class})
+  @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
   public ResponseEntity<?> handleBadRequest(
       HttpServletRequest request) {
     return respondWith(request, HttpStatus.BAD_REQUEST);
