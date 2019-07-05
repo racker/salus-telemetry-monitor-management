@@ -296,6 +296,39 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testCreateNewMonitor_EmptyLabelSelector() {
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
+
+        @SuppressWarnings("unchecked")
+        List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
+        create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
+        create.setLabelSelector(Collections.emptyMap());
+
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+        assertThat(returned.getId(), notNullValue());
+        assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+        assertThat(returned.getContent(), equalTo(create.getContent()));
+        assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
+        assertThat(returned.getLabelSelector(), notNullValue());
+        assertThat(returned.getLabelSelector().size(), equalTo(0));
+        assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
+
+        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+        assertTrue(retrieved.isPresent());
+        assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+    }
+
+    @Test
     public void testCreateNewMonitorInvalidZone() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);

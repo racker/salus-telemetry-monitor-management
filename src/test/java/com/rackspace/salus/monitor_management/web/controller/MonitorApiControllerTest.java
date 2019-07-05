@@ -237,6 +237,53 @@ public class MonitorApiControllerTest {
   }
 
   @Test
+  public void testCreateMonitor_EmptyLabelSelector() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setLabelSelector(Collections.emptyMap());
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateMonitor_NullLabelSelector() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setLabelSelector(null);
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(validationError("labelSelector", "must not be null"));
+  }
+
+  @Test
   public void testCreateRemotePingMonitor() throws Exception {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setSelectorScope(ConfigSelectorScope.REMOTE);

@@ -20,7 +20,6 @@ import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
 import javax.validation.Valid;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -33,7 +32,7 @@ public class DetailedMonitorInput {
    * For a resource to be selected, it must contain at least all of the labels given here.
    */
   @ValidLabelKeys
-  @NotEmpty(groups = ValidationGroups.Create.class)
+  @NotNull(groups = ValidationGroups.Create.class)
   Map<String,String> labelSelector;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
