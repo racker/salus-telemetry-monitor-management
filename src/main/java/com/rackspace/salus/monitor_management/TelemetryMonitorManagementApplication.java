@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management;
 
 import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
+import com.rackspace.salus.common.util.DumpConfigProperties;
 import com.rackspace.salus.common.web.ExtendedErrorAttributesConfig;
 import com.rackspace.salus.telemetry.etcd.EnableEtcd;
 import org.springframework.boot.SpringApplication;
@@ -34,9 +35,11 @@ import org.springframework.context.annotation.Import;
 @Import(ExtendedErrorAttributesConfig.class)
 public class TelemetryMonitorManagementApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(TelemetryMonitorManagementApplication.class, args);
-    }
+  public static void main(String[] args) {
+    DumpConfigProperties.process(args);
+
+    SpringApplication.run(TelemetryMonitorManagementApplication.class, args);
+  }
 
 }
 
