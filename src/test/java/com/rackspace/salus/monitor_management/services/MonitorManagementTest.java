@@ -198,6 +198,7 @@ public class MonitorManagementTest {
         resourceList.add(new ResourceDTO()
             .setResourceId(resourceEvent.getResourceId())
             .setLabels(resourceInfo.getLabels())
+            .setAssociatedWithEnvoy(true)
         );
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
@@ -408,6 +409,7 @@ public class MonitorManagementTest {
         final ResourceDTO r2 = new ResourceDTO()
             .setLabels(r2labels)
             .setResourceId("r-2")
+            .setAssociatedWithEnvoy(true)
             .setTenantId("t-1");
 
         Map<String, String> r3labels = new HashMap<>();
@@ -415,6 +417,7 @@ public class MonitorManagementTest {
         final ResourceDTO r3 = new ResourceDTO()
             .setLabels(r3labels)
             .setResourceId("r-3")
+            .setAssociatedWithEnvoy(true)
             .setTenantId("t-1");
         when(envoyResourceManagement.getOne("t-1", "r-3"))
             .thenReturn(
@@ -1612,6 +1615,7 @@ public class MonitorManagementTest {
         List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
             .setResourceId("r-1")
             .setLabels(Collections.emptyMap())
+            .setAssociatedWithEnvoy(true)
         );
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
@@ -1645,6 +1649,8 @@ public class MonitorManagementTest {
 
     @Test
     public void testBindMonitor_AgentWithNoEnvoy() {
+        reset(resourceApi, envoyResourceManagement);
+
         final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
         final Monitor monitor = new Monitor()
             .setId(m0)
@@ -1656,6 +1662,8 @@ public class MonitorManagementTest {
         List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
             .setResourceId("r-1")
             .setLabels(Collections.emptyMap())
+            // doesn't have envoy at the moment, but did before
+            .setAssociatedWithEnvoy(true)
         );
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
@@ -1678,6 +1686,36 @@ public class MonitorManagementTest {
                 .setRenderedContent("static content")
                 .setZoneName("")
         ));
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+    }
+
+    @Test
+    public void testBindMonitor_AgentWithNoPriorEnvoy() {
+        reset(resourceApi, envoyResourceManagement);
+
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        final Monitor monitor = new Monitor()
+            .setId(m0)
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("static content")
+            .setZones(Collections.emptyList());
+
+        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+            .setResourceId("r-1")
+            .setLabels(Collections.emptyMap())
+            .setAssociatedWithEnvoy(false)
+        );
+
+        when(resourceApi.getResourcesWithLabels(any(), any()))
+            .thenReturn(resourceList);
+
+        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+
+        assertThat(result, hasSize(0));
+
+        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
     }
 
@@ -1775,6 +1813,7 @@ public class MonitorManagementTest {
         final ResourceDTO resource = new ResourceDTO()
             .setTenantId("t-1")
             .setResourceId("r-1")
+            .setAssociatedWithEnvoy(true)
             .setLabels(Collections.singletonMap("env", "prod"));
 
         final ResourceInfo resourceInfo = new ResourceInfo()
@@ -1894,6 +1933,8 @@ public class MonitorManagementTest {
         final ResourceDTO resource = new ResourceDTO()
             .setTenantId("t-1")
             .setResourceId("r-1")
+            // doesn't have envoy at the moment, but did before
+            .setAssociatedWithEnvoy(true)
             .setLabels(Collections.singletonMap("env", "prod"));
 
         // simulate no envoys attached
@@ -1943,10 +1984,52 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testUpsertBindingToResource_noPriorEnvoyResource() {
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
+        List<Monitor> monitors = Collections.singletonList(
+            new Monitor()
+                .setId(m0)
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setContent("new local domain=${resource.labels.env}")
+        );
+
+        final ResourceDTO resource = new ResourceDTO()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            // never had an envoy
+            .setAssociatedWithEnvoy(false)
+            .setLabels(Collections.singletonMap("env", "prod"));
+
+        // simulate no envoys attached
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+
+        // EXERCISE
+
+        final Set<String> affectedEnvoys =
+            monitorManagement.upsertBindingToResource(monitors, resource, null);
+
+        // VERIFY
+
+        assertThat(affectedEnvoys, hasSize(0));
+
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage
+        );
+    }
+
+    @Test
     public void testhandleResourceEvent_newResource() {
         final ResourceDTO resource = new ResourceDTO()
             .setLabels(Collections.singletonMap("env", "prod"))
             .setResourceId("r-1")
+            .setAssociatedWithEnvoy(true)
             .setTenantId("t-1");
         when(resourceApi.getByResourceId(any(), any()))
             .thenReturn(resource);
