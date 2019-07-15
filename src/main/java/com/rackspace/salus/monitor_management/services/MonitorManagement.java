@@ -241,14 +241,19 @@ public class MonitorManagement {
       // AGENT MONITOR
 
       for (ResourceDTO resource : resources) {
-        final ResourceInfo resourceInfo = envoyResourceManagement
-            .getOne(monitor.getTenantId(), resource.getResourceId())
-            .join();
 
-        boundMonitors.add(
-            bindAgentMonitor(monitor, resource,
-                resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-        );
+        // agent monitors can only bind to resources that have (or had) an envoy
+        if (resource.isAssociatedWithEnvoy()) {
+
+          final ResourceInfo resourceInfo = envoyResourceManagement
+              .getOne(monitor.getTenantId(), resource.getResourceId())
+              .join();
+
+          boundMonitors.add(
+              bindAgentMonitor(monitor, resource,
+                  resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+          );
+        }
       }
 
     } else {
@@ -775,10 +780,14 @@ public class MonitorManagement {
 
         if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
           // agent/local monitor
-          boundMonitors.add(
-              bindAgentMonitor(monitor, resource,
-                  resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-          );
+
+          // but skip the resource if it doesn't have (or ever had) an envoy
+          if (resource.isAssociatedWithEnvoy()) {
+            boundMonitors.add(
+                bindAgentMonitor(monitor, resource,
+                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+            );
+          }
         } else {
           // remote monitor
           final List<String> zones = determineMonitoringZones(monitor);
@@ -821,9 +830,14 @@ public class MonitorManagement {
       }
     }
 
-    log.debug("Saving boundMonitors={} due to binding of monitors={} to resource={}",
-        boundMonitors, monitors, resource);
-    boundMonitorRepository.saveAll(boundMonitors);
+    if (!boundMonitors.isEmpty()) {
+      log.debug("Saving boundMonitors={} due to binding of monitors={} to resource={}",
+          boundMonitors, monitors, resource);
+      boundMonitorRepository.saveAll(boundMonitors);
+    } else {
+      log.debug("None of monitors={} needed to be bound to resource={}",
+          monitors, resource);
+    }
 
     affectedEnvoys.addAll(
         extractEnvoyIds(boundMonitors)
