@@ -26,9 +26,9 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
-import com.rackspace.salus.telemetry.model.View;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
+import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -173,5 +174,12 @@ public class MonitorApiController {
                                                  @RequestBody Map<String, String> labels, Pageable pageable) {
         return PagedContent.fromPage(monitorManagement.getMonitorsFromLabels(labels, tenantId, pageable)
             .map(monitor -> monitorConversionService.convertToOutput(monitor)));
+    }
+
+    @GetMapping("/tenant/{tenantId}/monitor-label-selectors")
+    @ApiOperation("Lists the label selector keys and the values for each that are currently in use on monitors")
+    @JsonView(View.Public.class)
+    public MultiValueMap<String,String> getMonitorLabelSelectors(@PathVariable String tenantId) {
+        return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
     }
 }

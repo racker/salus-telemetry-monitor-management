@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -23,6 +24,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -46,6 +49,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -64,6 +68,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -441,5 +447,28 @@ public class MonitorApiControllerTest {
         .andExpect(jsonPath("$.number", equalTo(page)))
         .andExpect(jsonPath("$.last", is(true)))
         .andExpect(jsonPath("$.first", is(true)));
+  }
+
+  @Test
+  public void testGetMonitorLabelSelectors() throws Exception {
+    final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
+    expected.put("agent_discovered_os", Arrays.asList("linux", "darwin", "windows"));
+    expected.put("agent_discovered_arch", Arrays.asList("amd64", "386"));
+    expected.put("cluster", Arrays.asList("dev", "prod"));
+
+    when(monitorManagement.getTenantMonitorLabelSelectors(any()))
+        .thenReturn(expected);
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/monitor-label-selectors",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(readContent("/MonitorApiControllerTest/monitor_label_selectors.json"), true));
+
+    verify(monitorManagement).getTenantMonitorLabelSelectors("t-1");
+
+    verifyNoMoreInteractions(monitorManagement);
   }
 }
