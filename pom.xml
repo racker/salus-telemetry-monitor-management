@@ -31,10 +31,6 @@
   <name>salus-telemetry-monitor-management</name>
   <description>Service for managing monitors</description>
 
-  <properties>
-    <java.version>1.8</java.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.springframework.kafka</groupId>
