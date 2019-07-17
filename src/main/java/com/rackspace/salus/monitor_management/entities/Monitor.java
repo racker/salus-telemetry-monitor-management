@@ -38,6 +38,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -48,6 +50,10 @@ import org.hibernate.validator.constraints.NotBlank;
 @Entity
 @Table(name = "monitors", indexes = {
     @Index(name = "by_tenant", columnList = "tenant_id")
+})
+@NamedQueries({
+    @NamedQuery(name = "Monitor.getDistinctLabelSelectors",
+        query = "select distinct entry(m.labelSelector) from Monitor m where m.tenantId = :tenantId")
 })
 @Data
 public class Monitor implements Serializable {

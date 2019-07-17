@@ -102,6 +102,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -236,12 +238,17 @@ public class MonitorManagementTest {
     }
 
     private Monitor persistNewMonitor(String tenantId) {
+        return persistNewMonitor(tenantId, Collections.singletonMap("os", "LINUX"));
+    }
+
+    private Monitor persistNewMonitor(
+        String tenantId, Map<String, String> labelSelector) {
         return monitorRepository.save(
             new Monitor()
                 .setTenantId(tenantId)
                 .setAgentType(AgentType.TELEGRAF)
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+                .setLabelSelector(labelSelector)
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("{}")
         );
@@ -2663,5 +2670,41 @@ public class MonitorManagementTest {
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
             zoneStorage, monitorEventProducer, resourceApi
         );
+    }
+
+    @Test
+    public void testGetTenantMonitorLabelSelectors() {
+        Map<String, String> labels1 = new HashMap<>();
+        labels1.put("key1", "value-1-1");
+        labels1.put("key2", "value-2-1");
+        labels1.put("key3", "value-3-1");
+        persistNewMonitor("t-1", labels1);
+
+        Map<String, String> labels2 = new HashMap<>();
+        labels2.put("key1", "value-1-1");
+        labels2.put("key2", "value-2-2");
+        labels2.put("key3", "value-3-2");
+        persistNewMonitor("t-1", labels2);
+
+        Map<String, String> labels3 = new HashMap<>();
+        labels3.put("key1", "value-1-2");
+        labels3.put("key2", "value-2-2");
+        labels3.put("key3", "value-3-2");
+        persistNewMonitor("t-1", labels3);
+
+        Map<String, String> labels4 = new HashMap<>();
+        labels4.put("key1", "value-1-x");
+        labels4.put("key2", "value-2-x");
+        labels4.put("key3", "value-3-x");
+        persistNewMonitor("t-2", labels4);
+
+        final MultiValueMap<String, String> results = monitorManagement
+            .getTenantMonitorLabelSelectors("t-1");
+
+        final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
+        expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
+        expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
+        expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
+        assertThat(results, equalTo(expected));
     }
 }

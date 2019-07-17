@@ -1057,6 +1057,19 @@ public class MonitorManagement {
         );
   }
 
+  public MultiValueMap<String, String> getTenantMonitorLabelSelectors(String tenantId) {
+    final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(
+        "Monitor.getDistinctLabelSelectors", Map.Entry.class)
+        .setParameter("tenantId", tenantId)
+        .getResultList();
+
+    final MultiValueMap<String,String> combined = new LinkedMultiValueMap<>();
+    for (Entry entry : distinctLabelTuples) {
+      combined.add((String)entry.getKey(), (String)entry.getValue());
+    }
+    return combined;
+  }
+
   private int rebalanceWithZoneBindingCounts(ResolvedZone zone,
       Map<EnvoyResourcePair, Integer> bindingCounts) {
     if (bindingCounts.size() <= 1) {
