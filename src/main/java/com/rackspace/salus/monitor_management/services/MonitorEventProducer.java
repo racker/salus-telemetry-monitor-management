@@ -25,6 +25,7 @@ public class MonitorEventProducer {
         final String topic = properties.getMonitors();
 
         log.debug("Sending monitorBoundEvent={} on topic={}", event, topic);
-        kafkaTemplate.send(topic, event.getEnvoyId(), event);
+        kafkaTemplate.executeInTransaction(t->
+            t.send(topic, event.getEnvoyId(), event));
     }
 }
