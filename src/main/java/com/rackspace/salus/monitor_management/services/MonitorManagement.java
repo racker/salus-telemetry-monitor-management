@@ -72,6 +72,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -189,6 +190,9 @@ public class MonitorManagement {
    * @param newMonitor The monitor parameters to store.
    * @return The newly created monitor.
    */
+//  @Transactional(value="chainedTransactionManager")
+  // @Transactional(value="transactionManager")
+  //@Transactional
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
@@ -211,6 +215,8 @@ public class MonitorManagement {
     monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(monitor);
     sendMonitorBoundEvents(affectedEnvoys);
+    if (newMonitor.getMonitorName().equals("bad"))
+      throw new RuntimeException("george's dummy exception");
     return monitor;
   }
 
@@ -306,7 +312,9 @@ public class MonitorManagement {
       log.debug("No monitors were bound from monitor={}", monitor);
     }
 
-    return extractEnvoyIds(boundMonitors);
+    HashSet<String> dummy = new HashSet<String>();
+    dummy.add(monitor.getMonitorName());
+    return dummy;
   }
 
   private void sendMonitorBoundEvent(String envoyId) {
