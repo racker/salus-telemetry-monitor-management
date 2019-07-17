@@ -4,6 +4,7 @@ spring:
   kafka:
     producer:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      transaction-id-prefix: gbjId
     consumer:
       group-id: ${spring.application.name}-${salus.environment}
       auto-offset-reset: latest
