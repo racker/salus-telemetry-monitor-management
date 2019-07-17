@@ -178,8 +178,8 @@ public class MonitorManagement {
    * @return The newly created monitor.
    */
 //  @Transactional(value="chainedTransactionManager")
-  // @Transactional(value="transactionManager")
-  @Transactional
+  //@Transactional(value="transactionManager")
+  //@Transactional
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
 
