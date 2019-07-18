@@ -20,7 +20,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("monitor-content")
+@ConfigurationProperties("salus.monitor-content")
 @Component
 @Data
 public class MonitorContentProperties {
