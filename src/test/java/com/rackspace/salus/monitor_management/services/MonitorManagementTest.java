@@ -44,6 +44,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
+import com.rackspace.salus.monitor_management.config.TxnConfig;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
@@ -101,18 +102,24 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
+import org.springframework.transaction.TransactionStatus;
 
 
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
-    MonitorContentProperties.class})
+    MonitorContentProperties.class,
+    TxnConfig.class})
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -130,7 +137,32 @@ public class MonitorManagementTest {
             return new ServicesProperties()
                 .setResourceManagementUrl("");
         }
+        public static class DummyTransactionManager implements PlatformTransactionManager {
+
+            @Override
+            public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+                return null;
+            }
+
+            @Override
+            public void commit(TransactionStatus status) throws TransactionException {
+
+            }
+
+            @Override
+            public void rollback(TransactionStatus status) throws TransactionException {
+
+            }
+
+        }
+        @Bean
+        public PlatformTransactionManager chainedTransactionManager() {
+            return new DummyTransactionManager();
+        }
     }
+
+
+
 
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
@@ -152,6 +184,9 @@ public class MonitorManagementTest {
 
     @MockBean
     ZoneManagement zoneManagement;
+
+    @MockBean
+    KafkaTransactionManager kafkaTransactionManager;
 
     @Autowired
     ObjectMapper objectMapper;
