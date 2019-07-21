@@ -192,7 +192,7 @@ public class MonitorManagement {
    */
 //  @Transactional(value="chainedTransactionManager")
   //@Transactional(value="transactionManager")
-  //@Transactional
+  @Transactional
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
