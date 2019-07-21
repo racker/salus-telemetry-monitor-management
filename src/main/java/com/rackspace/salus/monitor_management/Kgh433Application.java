@@ -22,7 +22,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootApplication
+//@SpringBootApplication
 @EntityScan({
 		"com.rackspace.salus.telemetry.model",
 		"com.rackspace.salus.monitor_management.entities"
@@ -30,56 +30,56 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableTransactionManagement
 public class Kgh433Application {
 
-	public static void main(String[] args) {
-		ConfigurableApplicationContext ctx = SpringApplication.run(Kgh433Application.class, args);
-		Map<String, PlatformTransactionManager> tms = ctx.getBeansOfType(PlatformTransactionManager.class);
-		System.out.println(tms);
-		ctx.close();
-	}
-
-	@Bean
-	public ApplicationRunner runner(Foo foo) {
-		return args -> foo.sendToKafkaAndDB();
-	}
-
-	@Bean
-	public JpaTransactionManager transactionManager() {
-		return new JpaTransactionManager();
-	}
-
-	@Bean
-	public ChainedTransactionManager chainedTxM(JpaTransactionManager jpa, KafkaTransactionManager<?, ?> kafka) {
-		return new ChainedTransactionManager(jpa, kafka);
-	}
-
-	@Component
-	public static class Foo {
-
-		@Autowired
-		private KafkaTemplate<Object, Object> template;
-
-		@Autowired
-		private MonitorRepository repo;
-
-
-		@Transactional(transactionManager = "chainedTxM")
-		public void sendToKafkaAndDB() throws Exception {
-
-			final String content = "{\n"
-					+ "  \"type\": \"mem\"\n"
-					+ "}";
-
-			Monitor monitor = new Monitor()
-					.setAgentType(AgentType.TELEGRAF)
-					.setSelectorScope(ConfigSelectorScope.LOCAL)
-					.setLabelSelector(Collections.singletonMap("os","linux"))
-					.setContent(content);
-
-			this.repo.save(monitor);
-			System.out.println(this.template.send("kgh433", "bar").get());
-			System.out.println(this.template.send("kgh433", "baz").get());
-		}
-
-	}
+//	public static void main(String[] args) {
+//		ConfigurableApplicationContext ctx = SpringApplication.run(Kgh433Application.class, args);
+//		Map<String, PlatformTransactionManager> tms = ctx.getBeansOfType(PlatformTransactionManager.class);
+//		System.out.println(tms);
+//		ctx.close();
+//	}
+//
+//	@Bean
+//	public ApplicationRunner runner(Foo foo) {
+//		return args -> foo.sendToKafkaAndDB();
+//	}
+//
+//	@Bean
+//	public JpaTransactionManager transactionManager() {
+//		return new JpaTransactionManager();
+//	}
+//
+//	@Bean
+//	public ChainedTransactionManager chainedTxM(JpaTransactionManager jpa, KafkaTransactionManager<?, ?> kafka) {
+//		return new ChainedTransactionManager(jpa, kafka);
+//	}
+//
+//	@Component
+//	public static class Foo {
+//
+//		@Autowired
+//		private KafkaTemplate<Object, Object> template;
+//
+//		@Autowired
+//		private MonitorRepository repo;
+//
+//
+//		//@Transactional(transactionManager = "chainedTxM")
+//		public void sendToKafkaAndDB() throws Exception {
+//
+//			final String content = "{\n"
+//					+ "  \"type\": \"mem\"\n"
+//					+ "}";
+//
+//			Monitor monitor = new Monitor()
+//					.setAgentType(AgentType.TELEGRAF)
+//					.setSelectorScope(ConfigSelectorScope.LOCAL)
+//					.setLabelSelector(Collections.singletonMap("os","linux"))
+//					.setContent(content);
+//
+//			this.repo.save(monitor);
+//			System.out.println(this.template.send("kgh433", "bar").get());
+//			System.out.println(this.template.send("kgh433", "baz").get());
+//		}
+//
+//	}
 
 }
