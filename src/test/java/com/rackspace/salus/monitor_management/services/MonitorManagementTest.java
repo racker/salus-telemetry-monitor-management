@@ -83,6 +83,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -97,13 +98,18 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.transaction.ChainedTransactionManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -118,8 +124,8 @@ import org.springframework.transaction.TransactionStatus;
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
-    MonitorContentProperties.class,
-    TxnConfig.class})
+    MonitorContentProperties.class})
+@EnableTransactionManagement
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -155,10 +161,19 @@ public class MonitorManagementTest {
             }
 
         }
+        @Primary
         @Bean
         public PlatformTransactionManager chainedTransactionManager() {
             return new DummyTransactionManager();
         }
+
+         @Bean(name = "transactionManager")
+
+
+
+         public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+             return new JpaTransactionManager(em);
+         }
     }
 
 
@@ -192,6 +207,8 @@ public class MonitorManagementTest {
     ObjectMapper objectMapper;
     @Autowired
     MonitorRepository monitorRepository;
+
+
     @Autowired
     EntityManager entityManager;
     @Autowired
@@ -894,6 +911,7 @@ public class MonitorManagementTest {
     }
 
     @Test
+ //   @Transactional
     public void testGetMonitorsFromLabels() {
         int monitorsWithLabels = new Random().nextInt(10) + 10;
         int monitorsWithoutLabels = new Random().nextInt(10) + 20;
