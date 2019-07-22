@@ -309,11 +309,8 @@ public class MonitorManagement {
     else {
       log.debug("No monitors were bound from monitor={}", monitor);
     }
-    HashSet<String> dummy = new HashSet<String>();
-    dummy.add(monitor.getMonitorName());
-    return dummy;
 
-//    return extractEnvoyIds(boundMonitors);
+    return extractEnvoyIds(boundMonitors);
   }
 
   private void sendMonitorBoundEvent(String envoyId) {
