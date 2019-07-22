@@ -177,8 +177,7 @@ public class MonitorManagement {
    * @param newMonitor The monitor parameters to store.
    * @return The newly created monitor.
    */
-//  @Transactional(value="chainedTransactionManager")
-  @Transactional
+  @Transactional(value="chainedTransactionManager")
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
 
@@ -282,10 +281,11 @@ public class MonitorManagement {
     else {
       log.debug("No monitors were bound from monitor={}", monitor);
     }
+    // HashSet<String> dummy = new HashSet<String>();
+    // dummy.add(monitor.getMonitorName());
+    // return dummy;
 
-    HashSet<String> dummy = new HashSet<String>();
-    dummy.add(monitor.getMonitorName());
-    return dummy;
+    return extractEnvoyIds(boundMonitors);
   }
 
   private void sendMonitorBoundEvent(String envoyId) {
@@ -458,8 +458,7 @@ public class MonitorManagement {
    * @param updatedValues The new monitor parameters to store.
    * @return The newly updated monitor.
    */
-//  @Transactional(value="chainedTransactionManager")
-  @Transactional
+  @Transactional(value="chainedTransactionManager")
   public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
@@ -660,8 +659,7 @@ public class MonitorManagement {
    * @param tenantId The tenant the monitor belongs to.
    * @param id       The id of the monitor.
    */
-//  @Transactional(value="chainedTransactionManager")
-  @Transactional
+  @Transactional(value="chainedTransactionManager")
   public void removeMonitor(String tenantId, UUID id) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
