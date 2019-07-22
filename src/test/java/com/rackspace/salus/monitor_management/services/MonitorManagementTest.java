@@ -165,12 +165,12 @@ public class MonitorManagementTest {
 
         @Primary
         @Bean
-        public PlatformTransactionManager chainedTransactionManager() {
-            return new DummyTransactionManager();
+        public PlatformTransactionManager chainedTransactionManager(EntityManagerFactory em) {
+            return transactionManager(em);
         }
 
         @Bean(name = "transactionManager")
-        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+        public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
             return new JpaTransactionManager(em);
         }
         
