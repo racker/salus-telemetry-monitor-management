@@ -993,7 +993,7 @@ public class MonitorManagementTest {
         // Create monitors which do have the labels we care about
         createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
-//        entityManager.flush();
+        entityManager.flush();
 
         Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
         assertEquals(monitorsWithLabels, monitors.getTotalElements());
