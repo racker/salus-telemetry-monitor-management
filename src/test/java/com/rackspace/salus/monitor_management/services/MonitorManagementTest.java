@@ -163,33 +163,33 @@ public class MonitorManagementTest {
 //            return new DummyTransactionManager();
 //        }
 
-//        @Bean(name = "chainedTransactionManager")
-//
-//        public ChainedTransactionManager chainedTransactionManager(PlatformTransactionManager transactionManager) {
-//            return new ChainedTransactionManager(transactionManager);
-//        }
-//
-//        @Bean(name = "transactionManager")
-//        @Primary
-//
-//
-//         public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
-//             return new JpaTransactionManager(em);
-//         }
+        @Bean(name = "chainedTransactionManager")
 
-        @Primary
-        @Bean
-        public PlatformTransactionManager chainedTransactionManager() {
-            return new DummyTransactionManager();
+        public ChainedTransactionManager chainedTransactionManager(PlatformTransactionManager transactionManager) {
+            return new ChainedTransactionManager(transactionManager);
         }
 
         @Bean(name = "transactionManager")
+        @Primary
 
 
+         public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
+             return new JpaTransactionManager(em);
+         }
 
-        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
-            return new JpaTransactionManager(em);
-        }
+//        @Primary
+//        @Bean
+//        public PlatformTransactionManager chainedTransactionManager() {
+//            return new DummyTransactionManager();
+//        }
+//
+//        @Bean(name = "transactionManager")
+//
+//
+//
+//        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+//            return new JpaTransactionManager(em);
+//        }
 
     }
 
@@ -1010,7 +1010,7 @@ public class MonitorManagementTest {
         // Create monitors which do have the labels we care about
         createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
-   //     entityManager.flush();
+        entityManager.flush();
 
         Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
         assertEquals(monitorsWithLabels, monitors.getTotalElements());
