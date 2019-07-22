@@ -21,6 +21,7 @@ package com.rackspace.salus.monitor_management.config;
 import javax.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.transaction.ChainedTransactionManager;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -80,7 +81,7 @@ public class TxnConfig {
 ////  }
 //
 @Bean(name = "transactionManager")
-
+@Primary
 public JpaTransactionManager transactionManager(EntityManagerFactory em) {
     return new JpaTransactionManager(em);
 }
@@ -88,6 +89,6 @@ public JpaTransactionManager transactionManager(EntityManagerFactory em) {
 @Bean(name = "chainedTransactionManager")
 public ChainedTransactionManager chainedTransactionManager(JpaTransactionManager transactionManager,
                                                            KafkaTransactionManager kafkaTransactionManager) {
-    return new ChainedTransactionManager(kafkaTransactionManager, transactionManager);
+    return new ChainedTransactionManager(transactionManager);
 }
 }
