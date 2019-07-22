@@ -145,58 +145,6 @@ public class MonitorManagementTest {
             return new ServicesProperties()
                 .setResourceManagementUrl("");
         }
-        // public static class DummyTransactionManager implements PlatformTransactionManager {
-
-        //     @Override
-        //     public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
-        //         return null;
-        //     }
-
-        //     @Override
-        //     public void commit(TransactionStatus status) throws TransactionException {
-
-        //     }
-
-        //     @Override
-        //     public void rollback(TransactionStatus status) throws TransactionException {
-
-        //     }
-
-        // }
-
-//        @Bean
-//        public PlatformTransactionManager chainedTransactionManager() {
-//            return new DummyTransactionManager();
-//        }
-
-        // gbjnote: assertion fails
-        // @Bean(name = "chainedTransactionManager")
-        // @Primary
-
-        // public ChainedTransactionManager chainedTransactionManager(PlatformTransactionManager transactionManager) {
-        //     return new ChainedTransactionManager(transactionManager);
-        // }
-
-        // @Bean(name = "transactionManager")
-        //  public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
-        //      return new JpaTransactionManager(em);
-        //  }
-
-         // gbjnote: passes without flush, but i think say no transaction with flush
-//        @Primary
-//        @Bean
-//        public PlatformTransactionManager chainedTransactionManager() {
-//            return new DummyTransactionManager();
-//        }
-//
-//        @Bean(name = "transactionManager")
-//
-//
-//
-//        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
-//            return new JpaTransactionManager(em);
-//        }
-
     }
 
     @Rule
@@ -225,13 +173,9 @@ public class MonitorManagementTest {
     @Autowired
     MonitorRepository monitorRepository;
     @Autowired
-    EntityManagerFactory entityManagerFactory;
+//gbj    EntityManagerFactory entityManagerFactory;
 
     EntityManager entityManager;
-
- //   @Autowired
-   // private final KafkaTemplate<String,Object> kafkaTemplate;
-
     @Autowired
     JdbcTemplate jdbcTemplate;
 
@@ -279,7 +223,7 @@ public class MonitorManagementTest {
         when(resourceApi.getResourcesWithLabels(any(), any()))
             .thenReturn(resourceList);
 
-        entityManager = entityManagerFactory.createEntityManager(SynchronizationType.SYNCHRONIZED);
+//gbj        entityManager = entityManagerFactory.createEntityManager(SynchronizationType.SYNCHRONIZED);
     }
 
     private void createMonitors(int count) {
@@ -1020,7 +964,7 @@ public class MonitorManagementTest {
         // Create monitors which do have the labels we care about
         createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
-  //      entityManager.flush();
+//        entityManager.flush();
 
         Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
         assertEquals(monitorsWithLabels, monitors.getTotalElements());

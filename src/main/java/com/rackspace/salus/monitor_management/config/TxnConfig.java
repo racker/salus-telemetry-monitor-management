@@ -28,58 +28,6 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 
 @Configuration
 public class TxnConfig {
-//  // @Bean
-//  // @Autowired
-//  // public HibernateTransactionManager transactionManager() {
-//
-//  //   return txManager;
-//  // }
-//
-//  @Autowired
-//  private EntityManagerFactory entityManagerFactory;
-//
-//  static class DummyTransactionManager implements PlatformTransactionManager {
-//    public TransactionStatus getTransaction(@Nullable TransactionDefinition var1)
-//    {return null;}
-//
-//    public void commit(TransactionStatus var1){}
-//
-//    public void rollback(TransactionStatus var1){}
-//  }
-//
-//// @Bean(name = "transactionManager")
-////     public ChainedKafkaTransactionManager transactionManager(
-////         @Qualifier("kafkaTransactionManager") PlatformTransactionManager ds2) {
-//
-////   if (entityManagerFactory.unwrap(SessionFactory.class) == null) {
-////     throw new NullPointerException("factory is not a hibernate factory");
-////   }
-//
-////   SessionFactory   sessionFactory = entityManagerFactory.unwrap(SessionFactory.class);
-//
-////   HibernateTransactionManager txManager = new HibernateTransactionManager();
-////   txManager.setSessionFactory(sessionFactory);
-//
-////   return new ChainedKafkaTransactionManager(txManager, ds2);
-////     }
-//
-//
-//// @Bean(name = "transactionManager")
-////     public PlatformTransactionManager transactionManager(@Qualifier("kafkaTransactionManager") KafkaTransactionManager ds1) {
-////       return ds1;
-//
-////     }
-//
-//  private KafkaTemplate<String,Object> kafkaTemplate;
-//
-////  @Bean(name = "oldtransactionManager2")
-////  public KafkaTransactionManager kafkaTransactionManager(
-////      ProducerFactory<Object, Object> kafkaProducerFactory) {
-////    KafkaTransactionManager ktm = new KafkaTransactionManager(kafkaProducerFactory);;
-////    ktm.setTransactionSynchronization(AbstractPlatformTransactionManager.SYNCHRONIZATION_ON_ACTUAL_TRANSACTION);
-////    return ktm;
-////  }
-//
 @Bean(name = "transactionManager")
 @Primary
 public JpaTransactionManager transactionManager(EntityManagerFactory em) {
@@ -89,6 +37,6 @@ public JpaTransactionManager transactionManager(EntityManagerFactory em) {
 @Bean(name = "chainedTransactionManager")
 public ChainedTransactionManager chainedTransactionManager(JpaTransactionManager transactionManager,
                                                            KafkaTransactionManager kafkaTransactionManager) {
-    return new ChainedTransactionManager(transactionManager);
+    return new ChainedTransactionManager(kafkaTransactionManager, transactionManager);
 }
 }
