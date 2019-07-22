@@ -44,7 +44,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
-import com.rackspace.salus.monitor_management.config.TxnConfig;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
@@ -84,6 +83,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
+import javax.persistence.SynchronizationType;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -105,19 +105,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.transaction.ChainedTransactionManager;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import uk.co.jemos.podam.api.PodamFactory;
-import uk.co.jemos.podam.api.PodamFactoryImpl;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
@@ -125,7 +122,6 @@ import org.springframework.transaction.TransactionStatus;
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class})
-@EnableTransactionManagement
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -161,23 +157,41 @@ public class MonitorManagementTest {
             }
 
         }
+
+//        @Bean
+//        public PlatformTransactionManager chainedTransactionManager() {
+//            return new DummyTransactionManager();
+//        }
+
+//        @Bean(name = "chainedTransactionManager")
+//
+//        public ChainedTransactionManager chainedTransactionManager(PlatformTransactionManager transactionManager) {
+//            return new ChainedTransactionManager(transactionManager);
+//        }
+//
+//        @Bean(name = "transactionManager")
+//        @Primary
+//
+//
+//         public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
+//             return new JpaTransactionManager(em);
+//         }
+
         @Primary
         @Bean
         public PlatformTransactionManager chainedTransactionManager() {
             return new DummyTransactionManager();
         }
 
-         @Bean(name = "transactionManager")
+        @Bean(name = "transactionManager")
 
 
 
-         public JpaTransactionManager transactionManager(EntityManagerFactory em) {
-             return new JpaTransactionManager(em);
-         }
+        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+            return new JpaTransactionManager(em);
+        }
+
     }
-
-
-
 
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
@@ -200,16 +214,13 @@ public class MonitorManagementTest {
     @MockBean
     ZoneManagement zoneManagement;
 
-    @MockBean
-    KafkaTransactionManager kafkaTransactionManager;
-
     @Autowired
     ObjectMapper objectMapper;
     @Autowired
     MonitorRepository monitorRepository;
-
-
     @Autowired
+    EntityManagerFactory entityManagerFactory;
+
     EntityManager entityManager;
     @Autowired
     JdbcTemplate jdbcTemplate;
@@ -257,6 +268,8 @@ public class MonitorManagementTest {
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
             .thenReturn(resourceList);
+
+        entityManager = entityManagerFactory.createEntityManager(SynchronizationType.SYNCHRONIZED);
     }
 
     private void createMonitors(int count) {
@@ -983,7 +996,7 @@ public class MonitorManagementTest {
     }
 
     @Test
- //   @Transactional
+    //Transactional
     public void testGetMonitorsFromLabels() {
         int monitorsWithLabels = new Random().nextInt(10) + 10;
         int monitorsWithoutLabels = new Random().nextInt(10) + 20;
@@ -997,7 +1010,7 @@ public class MonitorManagementTest {
         // Create monitors which do have the labels we care about
         createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
-        entityManager.flush();
+   //     entityManager.flush();
 
         Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
         assertEquals(monitorsWithLabels, monitors.getTotalElements());
