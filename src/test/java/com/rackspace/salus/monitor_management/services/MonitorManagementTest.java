@@ -143,26 +143,6 @@ public class MonitorManagementTest {
             return new ServicesProperties()
                 .setResourceManagementUrl("");
         }
-
-        public static class DummyTransactionManager implements PlatformTransactionManager {
-
-            @Override
-            public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
-                return null;
-            }
-
-            @Override
-            public void commit(TransactionStatus status) throws TransactionException {
-
-            }
-
-            @Override
-            public void rollback(TransactionStatus status) throws TransactionException {
-
-            }
-
-        }
-
         @Primary
         @Bean
         public PlatformTransactionManager chainedTransactionManager(EntityManagerFactory em) {
@@ -202,8 +182,6 @@ public class MonitorManagementTest {
     @Autowired
     MonitorRepository monitorRepository;
     @Autowired
-//gbj    EntityManagerFactory entityManagerFactory;
-
     EntityManager entityManager;
     @Autowired
     JdbcTemplate jdbcTemplate;
@@ -251,8 +229,6 @@ public class MonitorManagementTest {
 
         when(resourceApi.getResourcesWithLabels(any(), any()))
             .thenReturn(resourceList);
-
-//gbj        entityManager = entityManagerFactory.createEntityManager(SynchronizationType.SYNCHRONIZED);
     }
 
     private void createMonitors(int count) {
@@ -979,7 +955,6 @@ public class MonitorManagementTest {
     }
 
     @Test
-    //@Transactional
     public void testGetMonitorsFromLabels() {
         int monitorsWithLabels = new Random().nextInt(10) + 10;
         int monitorsWithoutLabels = new Random().nextInt(10) + 20;
