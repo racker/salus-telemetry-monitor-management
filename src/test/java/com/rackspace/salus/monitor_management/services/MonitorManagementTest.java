@@ -111,6 +111,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -163,20 +164,20 @@ public class MonitorManagementTest {
 //            return new DummyTransactionManager();
 //        }
 
+        // assertion fails
         @Bean(name = "chainedTransactionManager")
+        @Primary
 
         public ChainedTransactionManager chainedTransactionManager(PlatformTransactionManager transactionManager) {
             return new ChainedTransactionManager(transactionManager);
         }
 
         @Bean(name = "transactionManager")
-        @Primary
-
-
          public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
              return new JpaTransactionManager(em);
          }
 
+         // passes without flush, but i think say no transaction with flush
 //        @Primary
 //        @Bean
 //        public PlatformTransactionManager chainedTransactionManager() {
@@ -924,7 +925,7 @@ public class MonitorManagementTest {
     }
 
     @Test
-    //Transactional
+    //@Transactional
     public void testGetMonitorsFromLabels() {
         int monitorsWithLabels = new Random().nextInt(10) + 10;
         int monitorsWithoutLabels = new Random().nextInt(10) + 20;
