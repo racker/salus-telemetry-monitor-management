@@ -125,9 +125,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
-    MonitorContentProperties.class,
-    TxnConfig.class,
-    KafkaAutoConfiguration.class})
+    MonitorContentProperties.class})
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -145,6 +143,37 @@ public class MonitorManagementTest {
             return new ServicesProperties()
                 .setResourceManagementUrl("");
         }
+
+        public static class DummyTransactionManager implements PlatformTransactionManager {
+
+            @Override
+            public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+                return null;
+            }
+
+            @Override
+            public void commit(TransactionStatus status) throws TransactionException {
+
+            }
+
+            @Override
+            public void rollback(TransactionStatus status) throws TransactionException {
+
+            }
+
+        }
+
+        @Primary
+        @Bean
+        public PlatformTransactionManager chainedTransactionManager() {
+            return new DummyTransactionManager();
+        }
+
+        @Bean(name = "transactionManager")
+        public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+            return new JpaTransactionManager(em);
+        }
+        
     }
 
     @Rule
