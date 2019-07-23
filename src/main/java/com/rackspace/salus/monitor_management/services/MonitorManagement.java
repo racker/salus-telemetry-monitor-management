@@ -213,8 +213,6 @@ public class MonitorManagement {
     monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(monitor);
     sendMonitorBoundEvents(affectedEnvoys);
-    if (newMonitor.getMonitorName().equals("bad"))
-      throw new RuntimeException("george's dummy exception");
     return monitor;
   }
 

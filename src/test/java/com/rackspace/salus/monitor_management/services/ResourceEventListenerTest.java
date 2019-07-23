@@ -59,7 +59,7 @@ public class ResourceEventListenerTest {
   static {
     System.setProperty(
         EmbeddedKafkaBroker.BROKER_LIST_PROPERTY, "spring.kafka.bootstrap-servers");
-   }
+  }
 
   @Autowired
   private KafkaTemplate<String, Object> kafkaTemplate;
