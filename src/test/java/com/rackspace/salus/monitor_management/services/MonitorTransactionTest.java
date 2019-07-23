@@ -33,6 +33,7 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApiClient;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
+import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.util.Collections;
@@ -166,7 +167,7 @@ public class MonitorTransactionTest {
 
 
   @Test
-  @Transactional(value="chainedTransactionManager")
+  //  @Transactional(value="chainedTransactionManager")
   public void testMonitorTransaction() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
@@ -174,38 +175,52 @@ public class MonitorTransactionTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     monitorManagement.createMonitor(tenantId, create);
-    final Consumer<String, String> consumer = buildConsumer(
-        StringDeserializer.class,
-        JsonDeserializer.class
-    );
-
-    embeddedKafka.consumeFromEmbeddedTopics(consumer, "telemetry.monitors.json");
-    final ConsumerRecord<String, String> record = getSingleRecord(consumer, "telemetry.monitors.json", 500);
-System.out.println(record);
-
-    //verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
-  }
-
-
-
-  private <K,V> Consumer<K, V> buildConsumer(Class<? extends Deserializer> keyDeserializer,
-      Class<? extends Deserializer> valueDeserializer) {
-    // Use the procedure documented at https://docs.spring.io/spring-kafka/docs/2.2.4.RELEASE/reference/#embedded-kafka-annotation
 
     final Map<String, Object> consumerProps = KafkaTestUtils
         .consumerProps("testMonitorTransaction", "true", embeddedKafka);
-
+    // Since we're pre-sending the messages to test for, we need to read from start of topic
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     // We need to match the ser/deser used in expected application config
     consumerProps
-        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
+        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consumerProps
-        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
+        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
 
     consumerProps
         .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 
-    final DefaultKafkaConsumerFactory<K, V> consumerFactory =
-        new DefaultKafkaConsumerFactory<>(consumerProps);
-    return consumerFactory.createConsumer();
+    final DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory =
+        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
+            new JsonDeserializer<>(MonitorBoundEvent.class));
+
+    final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
+    embeddedKafka.consumeFromEmbeddedTopics(consumer, "telemetry.monitors.json");
+    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, "telemetry.monitors.json", 500);
+    System.out.println(record);
   }
+
+
+//
+//  private <K,V> Consumer<K, V> buildConsumer(Class<? extends Deserializer> keyDeserializer,
+//      Class<? extends Deserializer> valueDeserializer) {
+//    // Use the procedure documented at https://docs.spring.io/spring-kafka/docs/2.2.4.RELEASE/reference/#embedded-kafka-annotation
+//
+//    final Map<String, Object> consumerProps = KafkaTestUtils
+//        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
+//    // Since we're pre-sending the messages to test for, we need to read from start of topic
+//    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+//    // We need to match the ser/deser used in expected application config
+//    consumerProps
+//        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
+//    consumerProps
+//        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
+//
+//    consumerProps
+//        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+//
+//    final DefaultKafkaConsumerFactory<K, V> consumerFactory =
+//        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
+//            new JsonDeserializer<>(MonitorBoundEvent.class));
+//    return consumerFactory.createConsumer();
+//  }
 }
