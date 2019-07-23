@@ -16,8 +16,11 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getSingleRecord;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,18 +29,27 @@ import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.TxnConfig;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApiClient;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
+import edu.emory.mathcs.backport.java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -45,8 +57,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
@@ -73,22 +87,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
 
-//@SpringBootTest(
-//    classes = {
-//        TxnConfig.class,
-////        LocalContainerEntityManagerFactoryBean.class,
-//        KafkaTopicProperties.class
-//    },
-//    properties = {
-//        "salus.kafka.topics.resources=" + ResourceEventListenerTest.TOPIC,
-//        // override app default so that we can produce before consumer is ready
-//        "spring.kafka.consumer.auto-offset-reset=earliest"
-//    }
-//)
-
 @Import({TxnConfig.class,
     ObjectMapper.class,
-MonitorManagement.class,
+//MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
 //    MonitorRepository.class,
@@ -133,11 +134,8 @@ public class MonitorTransactionTest {
   @MockBean
   ZoneStorage zoneStorage;
 
-  @MockBean
+  @Autowired
   BoundMonitorRepository boundMonitorRepository;
-
-  @MockBean
-  ResourceApi resourceApi;
 
   @MockBean
   ZoneManagement zoneManagement;
@@ -151,11 +149,17 @@ public class MonitorTransactionTest {
   @Autowired
   JdbcTemplate jdbcTemplate;
 
+  @Mock
+  ResourceApi resourceApi;
 
+  MonitorManagement monitorManagement;
+
+  @Autowired
+  MonitorContentRenderer monitorContentRenderer;
 
 
   @Autowired
-  MonitorManagement monitorManagement;
+  MonitorEventProducer monitorEventProducer;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -167,25 +171,49 @@ public class MonitorTransactionTest {
 
 
   @Test
-  //  @Transactional(value="chainedTransactionManager")
   public void testMonitorTransaction() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-    // limit to local/agent monitors only
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+
+    ResourceDTO dummyResource = podamFactory.manufacturePojo(ResourceDTO.class);
+    dummyResource.setAssociatedWithEnvoy(true);
+    List<ResourceDTO> resources = new ArrayList<>();
+    resources.add(dummyResource);
+    when(resourceApi.getResourcesWithLabels(anyString(),any())).thenReturn(resources);
+
+    ResourceInfo resourceInfo = podamFactory.manufacturePojo(ResourceInfo.class);
+    resourceInfo.setEnvoyId("dummyEnvoy");
+    CompletableFuture<ResourceInfo> dummy = CompletableFuture.completedFuture(resourceInfo);
+    when(envoyResourceManagement.getOne(anyString(), anyString())).thenReturn(dummy);
+
+    monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
+        boundMonitorRepository, zoneStorage, monitorEventProducer, monitorContentRenderer, resourceApi,
+        zoneManagement, new ZonesProperties(), jdbcTemplate );
+
     monitorManagement.createMonitor(tenantId, create);
+
+
+    Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
+    Monitor monitor = monitorIterator.next();
+    Assert.assertEquals(monitor.getMonitorName(), create.getMonitorName());
+    Assert.assertEquals(monitor.getTenantId(), tenantId);
+    Assert.assertEquals(monitorIterator.hasNext(), false);
+
+    Iterator<BoundMonitor> boundMonitorIterator = boundMonitorRepository.findAll().iterator();
+    BoundMonitor b = boundMonitorIterator.next();
+    Assert.assertEquals(b.getMonitor().getMonitorName(), create.getMonitorName());
+    Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
+    Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
     final Map<String, Object> consumerProps = KafkaTestUtils
         .consumerProps("testMonitorTransaction", "true", embeddedKafka);
-    // Since we're pre-sending the messages to test for, we need to read from start of topic
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    // We need to match the ser/deser used in expected application config
     consumerProps
         .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     consumerProps
         .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
-
     consumerProps
         .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 
@@ -196,31 +224,6 @@ public class MonitorTransactionTest {
     final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
     embeddedKafka.consumeFromEmbeddedTopics(consumer, "telemetry.monitors.json");
     final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, "telemetry.monitors.json", 500);
-    System.out.println(record);
+
   }
-
-
-//
-//  private <K,V> Consumer<K, V> buildConsumer(Class<? extends Deserializer> keyDeserializer,
-//      Class<? extends Deserializer> valueDeserializer) {
-//    // Use the procedure documented at https://docs.spring.io/spring-kafka/docs/2.2.4.RELEASE/reference/#embedded-kafka-annotation
-//
-//    final Map<String, Object> consumerProps = KafkaTestUtils
-//        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
-//    // Since we're pre-sending the messages to test for, we need to read from start of topic
-//    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-//    // We need to match the ser/deser used in expected application config
-//    consumerProps
-//        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
-//    consumerProps
-//        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer.getName());
-//
-//    consumerProps
-//        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-//
-//    final DefaultKafkaConsumerFactory<K, V> consumerFactory =
-//        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
-//            new JsonDeserializer<>(MonitorBoundEvent.class));
-//    return consumerFactory.createConsumer();
-//  }
 }
