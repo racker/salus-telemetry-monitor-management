@@ -2545,20 +2545,19 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getByResourceId("t-1", "r-1");
 
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-1")
+        );
+
         verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
         verify(boundMonitorRepository).findAllByMonitor_IdIn(
             new HashSet<>(Collections.singletonList(monitor.getId()))
         );
 
-        verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> deletedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(deletedBoundMonitors, hasSize(1));
-        assertThat(deletedBoundMonitors.get(0).getMonitor().getId(), equalTo(monitor.getId()));
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-1")
+        verify(boundMonitorRepository).deleteAll(
+            Collections.singletonList(boundMonitor)
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
