@@ -135,12 +135,12 @@ public class MonitorManagementTest {
                 .setResourceManagementUrl("");
         }
 
-        @Primary  // when in doubt, chose this txnManager
         @Bean
         public PlatformTransactionManager chainedTransactionManager(EntityManagerFactory em) {
             return transactionManager(em);
         }
 
+        @Primary  // when in doubt, chose this txnManager
         @Bean
         public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
             return new JpaTransactionManager(em);
