@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.samskivert.mustache.Escapers;
 import com.samskivert.mustache.Mustache;
@@ -38,12 +39,11 @@ public class MonitorContentRenderer {
   @Autowired
   public MonitorContentRenderer(MonitorContentProperties properties) {
     mustacheCompiler = Mustache.compiler()
-        .defaultValue("")
         .withEscaper(Escapers.NONE)
         .withDelims(properties.getPlaceholderDelimiters());
   }
 
-  public String render(String rawContent, ResourceDTO resource) {
+  public String render(String rawContent, ResourceDTO resource) throws InvalidTemplateException {
     final Template template = mustacheCompiler.compile(rawContent);
 
     final Map<String, Object> context = new HashMap<>();
@@ -52,7 +52,7 @@ public class MonitorContentRenderer {
     try {
       return template.execute(context);
     } catch (MustacheException e) {
-      throw new IllegalArgumentException("Unable to render monitor content template", e);
+      throw new InvalidTemplateException("Unable to render monitor content template", e);
     }
   }
 }

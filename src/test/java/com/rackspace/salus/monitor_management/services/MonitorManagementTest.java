@@ -276,15 +276,9 @@ public class MonitorManagementTest {
     public void testCreateNewMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
-
-        @SuppressWarnings("unchecked")
-        List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
-        create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
+        create.setZones(null);
 
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-                .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
 
@@ -307,16 +301,10 @@ public class MonitorManagementTest {
     public void testCreateNewMonitor_EmptyLabelSelector() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
-
-        @SuppressWarnings("unchecked")
-        List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
-        create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
+        create.setZones(null);
         create.setLabelSelector(Collections.emptyMap());
 
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
 
@@ -337,9 +325,77 @@ public class MonitorManagementTest {
     }
 
     @Test
-    public void testCreateNewMonitorInvalidZone() {
+    public void testCreateNewMonitor_LocalWithZones() {
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+        // zones gets populated by podam
+        create.setSelectorScope(ConfigSelectorScope.LOCAL);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        exceptionRule.expect(IllegalArgumentException.class);
+        exceptionRule.expectMessage("Local monitors cannot have zones");
+        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+        verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository);
+    }
+
+    @Test
+    public void testCreateNewMonitor_InvalidTemplate_Local() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
+        create.setZones(Collections.emptyList());
+        create.setContent("value=${does_not_exist}");
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+        assertThat(returned.getId(), notNullValue());
+
+        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+        assertTrue(retrieved.isPresent());
+
+        verify(envoyResourceManagement).getOne(tenantId, DEFAULT_RESOURCE_ID);
+
+        verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+
+        // ...but no bindings created, verified by no interaction with boundMonitorRepository
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+            zoneManagement);
+    }
+
+    @Test
+    public void testCreateNewMonitor_InvalidTemplate_Remote() {
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+        create.setSelectorScope(ConfigSelectorScope.REMOTE);
+
+        create.setContent("value=${does_not_exist}");
+
+        List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
+        create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
+        create.setLabelSelector(Collections.emptyMap());
+
+        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+        assertThat(returned.getId(), notNullValue());
+
+        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+        assertTrue(retrieved.isPresent());
+
+        verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+
+        verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
+
+        // ...but no bindings created, verified by no interaction with boundMonitorRepository
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+            zoneManagement, zoneStorage);
+    }
+
+    @Test
+    public void testCreateNewMonitorInvalidZone() {
+        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+        create.setSelectorScope(ConfigSelectorScope.REMOTE);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         assertThat(create.getZones().size(), greaterThan(0));
@@ -2033,32 +2089,15 @@ public class MonitorManagementTest {
 
     @Test
     public void testhandleResourceEvent_newResource() {
-        final ResourceDTO resource = new ResourceDTO()
-            .setLabels(Collections.singletonMap("env", "prod"))
-            .setResourceId("r-1")
-            .setAssociatedWithEnvoy(true)
-            .setTenantId("t-1");
-        when(resourceApi.getByResourceId(any(), any()))
-            .thenReturn(resource);
-
-        ResourceInfo resourceInfo = new ResourceInfo()
-            .setResourceId("r-1")
-            .setEnvoyId("e-1");
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
-
-        final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setTenantId("t-1")
-            .setLabelSelector(Collections.singletonMap("env", "prod"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=${resource.labels.env}");
-        entityManager.persist(monitor);
-        entityManager.flush();
-        // ...but no BoundMonitor
-
-        when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
-            .thenReturn(Collections.emptyList());
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1",
+            "r-1",
+            Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.LOCAL,
+            Collections.singletonMap("env", "prod"),
+            "domain=${resource.labels.env}",
+            null
+        );
 
         // EXERCISE
 
@@ -2097,43 +2136,78 @@ public class MonitorManagementTest {
             zoneStorage, monitorEventProducer, resourceApi);
     }
 
-    @Test
-    public void testhandleResourceEvent_modifiedResource() {
+    /**
+     * Sets up mocking of a resource, stores a monitor, and optionally stores a bound monitor.
+     * @param resourceId if non-null, mock resourceApi retrieval and return one with given ID
+     * @param boundContent if non-null, creates a bound monitor and mocks the queries for that
+     * @return the newly stored monitor
+     */
+    private Monitor setupTestingOfHandleResourceEvent(String tenantId, String resourceId,
+                                                      Map<String, String> resourceLabels,
+                                                      ConfigSelectorScope monitorScope,
+                                                      Map<String, String> labelSelector,
+                                                      String monitorContent, String boundContent) {
+        if (resourceId != null && resourceLabels != null) {
+            final ResourceDTO resource = new ResourceDTO()
+                .setLabels(resourceLabels)
+                .setResourceId(resourceId)
+                .setTenantId(tenantId)
+                .setAssociatedWithEnvoy(true);
+            when(resourceApi.getByResourceId(any(), any()))
+                .thenReturn(resource);
 
-        final ResourceDTO resource = new ResourceDTO()
-            .setLabels(Collections.singletonMap("env", "prod"))
-            .setResourceId("r-1")
-            .setTenantId("t-1");
-        when(resourceApi.getByResourceId(any(), any()))
-            .thenReturn(resource);
-
-        ResourceInfo resourceInfo = new ResourceInfo()
-            .setResourceId("r-1")
-            .setEnvoyId("e-1");
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+            ResourceInfo resourceInfo = new ResourceInfo()
+                .setResourceId(resourceId)
+                .setEnvoyId("e-1");
+            when(envoyResourceManagement.getOne(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+        } else {
+            when(resourceApi.getByResourceId(any(), any()))
+                .thenReturn(null);
+        }
 
         final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setTenantId("t-1")
-            .setLabelSelector(Collections.singletonMap("env", "prod"))
+            .setSelectorScope(monitorScope)
+            .setTenantId(tenantId)
+            .setLabelSelector(labelSelector)
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=${resource.labels.env}");
+            .setContent(monitorContent);
         entityManager.persist(monitor);
         entityManager.flush();
 
-        final BoundMonitor boundMonitor = new BoundMonitor()
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setZoneName("")
-            .setRenderedContent("domain=some old value")
-            .setEnvoyId("e-1");
+        if (boundContent != null) {
+            final BoundMonitor boundMonitor = new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId(resourceId)
+                .setZoneName("")
+                .setRenderedContent(boundContent)
+                .setEnvoyId("e-1");
 
-        when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
-            .thenReturn(Collections.singletonList(monitor.getId()));
+            when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+                .thenReturn(Collections.singletonList(monitor.getId()));
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
+            when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+                .thenReturn(Collections.singletonList(boundMonitor));
+        } else {
+            when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+                .thenReturn(Collections.emptyList());
+
+            when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+                .thenReturn(Collections.emptyList());
+        }
+
+        return monitor;
+    }
+
+    @Test
+    public void testhandleResourceEvent_modifiedResource() {
+
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1", "r-1", Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
+            "domain=${resource.labels.env}",
+            "domain=some old value"
+        );
 
         // EXERCISE
 
@@ -2320,6 +2394,118 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testhandleResourceEvent_modifiedResource_invalidRendering_existingBindings() {
+
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1", "r-1",
+            // simulate the removal of an 'other' label that is referenced from monitor content
+            Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
+            "domain=${resource.labels.other}",
+            "domain=some old value"
+        );
+
+        // EXERCISE
+
+        monitorManagement.handleResourceChangeEvent(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId("e-new")
+        );
+
+        // VERIFY
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+        verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
+        final List<BoundMonitor> deletedBoundMonitors = captorOfBoundMonitorList.getValue();
+        assertThat(deletedBoundMonitors, hasSize(1));
+        assertThat(deletedBoundMonitors.get(0).getMonitor().getId(), equalTo(monitor.getId()));
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-1")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi);
+    }
+
+    @Test
+    public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_local() {
+
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1", "r-1",
+            // simulate the removal of an 'other' label that is referenced from monitor content
+            Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.LOCAL,
+            Collections.singletonMap("env", "prod"),
+            "domain=${resource.labels.other}",
+            null
+        );
+
+        // EXERCISE
+
+        monitorManagement.handleResourceChangeEvent(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId("e-new")
+        );
+
+        // VERIFY
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+        // nothing new bound and no affected envoy events
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi);
+    }
+
+    @Test
+    public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_remote() {
+
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1", "r-1",
+            // simulate the removal of an 'other' label that is referenced from monitor content
+            Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.REMOTE,
+            Collections.singletonMap("env", "prod"),
+            "domain=${resource.labels.other}",
+            null
+        );
+
+        // EXERCISE
+
+        monitorManagement.handleResourceChangeEvent(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId("e-new")
+        );
+
+        // VERIFY
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+        // nothing new bound and no affected envoy events
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi);
+    }
+
+    @Test
     public void testhandleResourceEvent_removedResource() {
         when(resourceApi.getByResourceId(any(), any()))
             .thenReturn(null);
@@ -2359,19 +2545,20 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getByResourceId("t-1", "r-1");
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-1")
-        );
-
         verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
         verify(boundMonitorRepository).findAllByMonitor_IdIn(
             new HashSet<>(Collections.singletonList(monitor.getId()))
         );
 
-        verify(boundMonitorRepository).deleteAll(
-            Collections.singletonList(boundMonitor)
+        verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
+        final List<BoundMonitor> deletedBoundMonitors = captorOfBoundMonitorList.getValue();
+        assertThat(deletedBoundMonitors, hasSize(1));
+        assertThat(deletedBoundMonitors.get(0).getMonitor().getId(), equalTo(monitor.getId()));
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-1")
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
