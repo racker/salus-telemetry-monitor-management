@@ -28,15 +28,18 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 
 @Configuration
 public class TxnConfig {
-@Bean(name = "transactionManager")
-@Primary
-public JpaTransactionManager transactionManager(EntityManagerFactory em) {
-    return new JpaTransactionManager(em);
-}
 
-@Bean(name = "chainedTransactionManager")
-public ChainedTransactionManager chainedTransactionManager(JpaTransactionManager transactionManager,
-                                                           KafkaTransactionManager kafkaTransactionManager) {
+  @Bean(name = "transactionManager")
+  @Primary
+  public JpaTransactionManager transactionManager(EntityManagerFactory em) {
+    return new JpaTransactionManager(em);
+  }
+
+  @Bean(name = "chainedTransactionManager")
+  //  Used for methods that have both kafka and jpa transactions
+  public ChainedTransactionManager chainedTransactionManager(
+      JpaTransactionManager transactionManager,
+      KafkaTransactionManager kafkaTransactionManager) {
     return new ChainedTransactionManager(kafkaTransactionManager, transactionManager);
-}
+  }
 }
