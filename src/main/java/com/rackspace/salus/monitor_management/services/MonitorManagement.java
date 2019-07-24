@@ -25,6 +25,7 @@ import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -177,6 +178,11 @@ public class MonitorManagement {
    * @return The newly created monitor.
    */
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
+    if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
+        newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
+      throw new IllegalArgumentException("Local monitors cannot have zones");
+    }
+
     log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
 
     validateMonitoringZones(tenantId, newMonitor.getZones());
@@ -249,10 +255,15 @@ public class MonitorManagement {
               .getOne(monitor.getTenantId(), resource.getResourceId())
               .join();
 
-          boundMonitors.add(
-              bindAgentMonitor(monitor, resource,
-                  resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-          );
+          try {
+            boundMonitors.add(
+                bindAgentMonitor(monitor, resource,
+                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+            );
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
+          }
         }
       }
 
@@ -261,9 +272,14 @@ public class MonitorManagement {
 
       for (ResourceDTO resource : resources) {
         for (String zone : zones) {
-          boundMonitors.add(
-              bindRemoteMonitor(monitor, resource, zone)
-          );
+          try {
+            boundMonitors.add(
+                bindRemoteMonitor(monitor, resource, zone)
+            );
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
+          }
         }
       }
 
@@ -299,16 +315,20 @@ public class MonitorManagement {
         .forEach(monitorEventProducer::sendMonitorEvent);
   }
 
-  private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId) {
+  private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
+      throws InvalidTemplateException {
     return new BoundMonitor()
         .setMonitor(monitor)
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
-        .setRenderedContent(renderMonitorContent(monitor, resource))
+        .setRenderedContent(monitorContentRenderer.render(monitor.getContent(), resource))
         .setZoneName("");
   }
 
-  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone) {
+  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
+      throws InvalidTemplateException {
+    final String renderedContent = monitorContentRenderer.render(monitor.getContent(), resource);
+
     final ResolvedZone resolvedZone = resolveZone(monitor.getTenantId(), zone);
 
     final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
@@ -328,7 +348,7 @@ public class MonitorManagement {
         .setMonitor(monitor)
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
-        .setRenderedContent(renderMonitorContent(monitor, resource));
+        .setRenderedContent(renderedContent);
   }
 
   private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
@@ -418,11 +438,6 @@ public class MonitorManagement {
     }
   }
 
-  private String renderMonitorContent(Monitor monitor,
-      ResourceDTO resource) {
-    return monitorContentRenderer.render(monitor.getContent(), resource);
-  }
-
   private ResolvedZone resolveZone(String tenantId, String zone) {
     if (zone.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
       return createPublicZone(zone);
@@ -455,6 +470,11 @@ public class MonitorManagement {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
+
+    if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
+        updatedValues.getZones() != null && !updatedValues.getZones().isEmpty()) {
+      throw new IllegalArgumentException("Local monitors cannot have zones");
+    }
 
     validateMonitoringZones(tenantId, updatedValues.getZones());
 
@@ -578,14 +598,20 @@ public class MonitorManagement {
           .getByResourceId(tenantId, resourceId);
 
       if (resource != null) {
-        final String newContent = monitorContentRenderer.render(updatedContent, resource);
+        try {
+          final String renderedContent = monitorContentRenderer.render(updatedContent, resource);
 
-        for (BoundMonitor boundMonitor : resourceEntry.getValue()) {
-          if (!newContent.equals(boundMonitor.getRenderedContent())) {
-            boundMonitor.setRenderedContent(newContent);
-            modified.add(boundMonitor);
+          for (BoundMonitor boundMonitor : resourceEntry.getValue()) {
+            if (!renderedContent.equals(boundMonitor.getRenderedContent())) {
+              boundMonitor.setRenderedContent(renderedContent);
+              modified.add(boundMonitor);
+            }
           }
+        } catch (InvalidTemplateException e) {
+          log.warn("Unable to render updatedContent='{}' of monitor={} for resource={}",
+              updatedContent, monitor, resource, e);
         }
+
       }
       else {
         log.warn("Failed to find resourceId={} during processing of monitor={}",
@@ -783,19 +809,29 @@ public class MonitorManagement {
 
           // but skip the resource if it doesn't have (or ever had) an envoy
           if (resource.isAssociatedWithEnvoy()) {
-            boundMonitors.add(
-                bindAgentMonitor(monitor, resource,
-                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-            );
+            try {
+              boundMonitors.add(
+                  bindAgentMonitor(monitor, resource,
+                      resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+              );
+            } catch (InvalidTemplateException e) {
+              log.warn("Unable to render monitor={} onto resource={}",
+                  monitor, resource, e);
+            }
           }
         } else {
           // remote monitor
-          final List<String> zones = determineMonitoringZones(monitor);
+          try {
+            final List<String> zones = determineMonitoringZones(monitor);
 
-          for (String zone : zones) {
-            boundMonitors.add(
-                bindRemoteMonitor(monitor, resource, zone)
-            );
+            for (String zone : zones) {
+              boundMonitors.add(
+                  bindRemoteMonitor(monitor, resource, zone)
+              );
+            }
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
           }
         }
       } else {
@@ -803,29 +839,41 @@ public class MonitorManagement {
         // - rendered content changes
         // - envoy re-attachment
 
-        final String newRenderedContent = renderMonitorContent(monitor, resource);
+        try {
+          final String newRenderedContent = monitorContentRenderer
+              .render(monitor.getContent(), resource);
 
-        for (BoundMonitor existingBind : existing) {
-          boolean updated = false;
+          for (BoundMonitor existingBind : existing) {
+            boolean updated = false;
 
-          if (!existingBind.getRenderedContent().equals(newRenderedContent)) {
-            existingBind.setRenderedContent(newRenderedContent);
-            updated = true;
+            if (!existingBind.getRenderedContent().equals(newRenderedContent)) {
+              existingBind.setRenderedContent(newRenderedContent);
+              updated = true;
+            }
+
+            if (reattachedEnvoyId != null &&
+                monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
+              // need to send an event to old Envoy just in case it's around, but
+              // probably won't be due to the re-attachment
+              affectedEnvoys.add(existingBind.getEnvoyId());
+
+              existingBind.setEnvoyId(reattachedEnvoyId);
+              updated = true;
+            }
+
+            if (updated) {
+              boundMonitors.add(existingBind);
+            }
           }
 
-          if (reattachedEnvoyId != null &&
-              monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
-            // need to send an event to old Envoy just in case it's around, but
-            // probably won't be due to the re-attachment
-            affectedEnvoys.add(existingBind.getEnvoyId());
+        } catch (InvalidTemplateException e) {
+          log.warn("Unable to render monitor={} onto resource={}, removing existing bindings={}",
+              monitor, resource, existing, e);
 
-            existingBind.setEnvoyId(reattachedEnvoyId);
-            updated = true;
-          }
-
-          if (updated) {
-            boundMonitors.add(existingBind);
-          }
+          boundMonitorRepository.deleteAll(existing);
+          affectedEnvoys.addAll(
+              extractEnvoyIds(existing)
+          );
         }
       }
     }

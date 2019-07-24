@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,7 @@ import org.junit.Test;
 public class MonitorContentRendererTest {
 
   @Test
-  public void testRenderTypical() {
+  public void testRenderTypical() throws InvalidTemplateException {
     Map<String, String> labels = new HashMap<>();
 
     final Map<String, String> metadata = new HashMap<>();
@@ -49,8 +50,8 @@ public class MonitorContentRendererTest {
     assertThat(rendered, equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
   }
 
-  @Test
-  public void testMetadataFieldNotPresent() {
+  @Test(expected = InvalidTemplateException.class)
+  public void testMetadataFieldNotPresent() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
@@ -62,12 +63,10 @@ public class MonitorContentRendererTest {
         "address=${resource.metadata.address}",
         resource
     );
-
-    assertThat(rendered, equalTo("address="));
   }
 
-  @Test
-  public void testMetadataFieldIsNull() {
+  @Test(expected = InvalidTemplateException.class)
+  public void testMetadataFieldIsNull() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.singletonMap("nullness", null));
@@ -79,12 +78,10 @@ public class MonitorContentRendererTest {
         "value=${resource.metadata.nullness}",
         resource
     );
-
-    assertThat(rendered, equalTo("value="));
   }
 
-  @Test
-  public void testTopLevelBadReference() {
+  @Test(expected = InvalidTemplateException.class)
+  public void testTopLevelBadReference() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
@@ -96,12 +93,10 @@ public class MonitorContentRendererTest {
         "value=${nothere.novalue}",
         resource
     );
-
-    assertThat(rendered, equalTo("value="));
   }
 
-  @Test
-  public void testResourceLevelBadReference() {
+  @Test(expected = InvalidTemplateException.class)
+  public void testResourceLevelBadReference() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.emptyMap())
         .setMetadata(Collections.emptyMap());
@@ -113,12 +108,10 @@ public class MonitorContentRendererTest {
         "value=${resource.wrong.reference}",
         resource
     );
-
-    assertThat(rendered, equalTo("value="));
   }
 
   @Test
-  public void testDottedLabelFields() {
+  public void testDottedLabelFields() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent.discovered.os", "linux"))
         .setMetadata(Collections.emptyMap());
@@ -140,7 +133,7 @@ public class MonitorContentRendererTest {
   }
 
   @Test
-  public void testUnderscoredLabelFields() {
+  public void testUnderscoredLabelFields() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent_discovered_os", "linux"))
         .setMetadata(Collections.emptyMap());
@@ -157,7 +150,7 @@ public class MonitorContentRendererTest {
   }
 
   @Test
-  public void testDashedLabelFields() {
+  public void testDashedLabelFields() throws InvalidTemplateException {
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(Collections.singletonMap("agent-discovered-os", "linux"))
         .setMetadata(Collections.emptyMap());
