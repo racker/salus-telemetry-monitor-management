@@ -70,6 +70,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -106,10 +107,12 @@ MonitorManagement.class,
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
-@EmbeddedKafka(topics = "telemetry.monitors.json",
+@EmbeddedKafka(topics = MonitorTransactionTest.TEST_TOPIC,
    brokerProperties = {"transaction.state.log.replication.factor=1", "transaction.state.log.min.isr=1"},
  partitions = 1)
 public class MonitorTransactionTest {
+public static final String TEST_TOPIC = "test.monitors.json";
+
 
   static {
     System.setProperty(
@@ -127,6 +130,14 @@ public class MonitorTransactionTest {
     public ServicesProperties servicesProperties() {
       return new ServicesProperties()
           .setResourceManagementUrl("");
+    }
+
+    @Primary
+    @Bean
+    public KafkaTopicProperties kafkaTopicProperties() {
+      final KafkaTopicProperties properties = new KafkaTopicProperties();
+      properties.setMonitors(TEST_TOPIC);
+      return properties;
     }
   }
   @MockBean
@@ -223,8 +234,8 @@ public class MonitorTransactionTest {
             new JsonDeserializer<>(MonitorBoundEvent.class));
 
     final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
-    embeddedKafka.consumeFromEmbeddedTopics(consumer, "telemetry.monitors.json");
-    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, "telemetry.monitors.json", 500);
+    embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
+    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
 
   }
 }
