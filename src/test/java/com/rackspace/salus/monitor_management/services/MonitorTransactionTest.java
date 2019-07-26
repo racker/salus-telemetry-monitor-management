@@ -58,6 +58,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -79,6 +80,8 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -91,28 +94,20 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({TxnConfig.class,
     ObjectMapper.class,
 MonitorManagement.class,
+MonitorEventProducer.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
-//    MonitorRepository.class,
-//    EnvoyResourceManagement.class,
-//    MonitorContentProperties.class,
-//   BoundMonitorRepository.class,
-//    ZoneStorage.class,
-    MonitorEventProducer.class,
-//    MonitorContentRenderer.class,
-//    ResourceApiClient.class,
-//    RestTemplate.class,
-//    ZoneManagement.class, ZonesProperties.class
 })
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
 @EmbeddedKafka(topics = MonitorTransactionTest.TEST_TOPIC,
-   brokerProperties = {"transaction.state.log.replication.factor=1", "transaction.state.log.min.isr=1"},
- partitions = 1)
+   brokerProperties = {"transaction.state.log.replication.factor=1",
+                       "transaction.state.log.min.isr=1"},
+   partitions = 1)
+@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
 public class MonitorTransactionTest {
-public static final String TEST_TOPIC = "test.monitors.json";
-
+  public static final String TEST_TOPIC = "test.monitors.json";
 
   static {
     System.setProperty(
@@ -180,12 +175,14 @@ public static final String TEST_TOPIC = "test.monitors.json";
   @Autowired
   private EmbeddedKafkaBroker embeddedKafka;
 
+  private String tenantId;
+  private MonitorCU create;
 
 
-  @Test
-  public void testMonitorTransaction() {
-    String tenantId = RandomStringUtils.randomAlphanumeric(10);
-    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+  @Before
+    public void setUp() {
+    tenantId = RandomStringUtils.randomAlphanumeric(10);
+    create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
 
@@ -199,14 +196,12 @@ public static final String TEST_TOPIC = "test.monitors.json";
     resourceInfo.setEnvoyId("dummyEnvoy");
     CompletableFuture<ResourceInfo> dummy = CompletableFuture.completedFuture(resourceInfo);
     when(envoyResourceManagement.getOne(anyString(), anyString())).thenReturn(dummy);
-
-    // monitorManagement = new MonitorManagement(monitorRepository, entityManager, envoyResourceManagement,
-    //     boundMonitorRepository, zoneStorage, monitorEventProducer, monitorContentRenderer, resourceApi,
-    //     zoneManagement, new ZonesProperties(), jdbcTemplate );
-
+  }
+    
+  @Test
+  public void testMonitorTransaction() {
+    
     monitorManagement.createMonitor(tenantId, create);
-
-
     Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
     Monitor monitor = monitorIterator.next();
     Assert.assertEquals(monitor.getMonitorName(), create.getMonitorName());
@@ -238,4 +233,41 @@ public static final String TEST_TOPIC = "test.monitors.json";
     final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
 
   }
+
+  @Test
+  public void testMonitorTransactionWithException() {
+    
+    monitorManagement.createMonitor(tenantId, create);
+    Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
+    Monitor monitor = monitorIterator.next();
+    Assert.assertEquals(monitor.getMonitorName(), create.getMonitorName());
+    Assert.assertEquals(monitor.getTenantId(), tenantId);
+    Assert.assertEquals(monitorIterator.hasNext(), false);
+
+    Iterator<BoundMonitor> boundMonitorIterator = boundMonitorRepository.findAll().iterator();
+    BoundMonitor b = boundMonitorIterator.next();
+    Assert.assertEquals(b.getMonitor().getMonitorName(), create.getMonitorName());
+    Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
+    Assert.assertEquals(boundMonitorIterator.hasNext(), false);
+
+    final Map<String, Object> consumerProps = KafkaTestUtils
+        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    consumerProps
+        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consumerProps
+        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
+    consumerProps
+        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+
+    final DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory =
+        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
+            new JsonDeserializer<>(MonitorBoundEvent.class));
+
+    final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
+    embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
+    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
+
+  }
+  
 }
