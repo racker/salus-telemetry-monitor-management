@@ -22,6 +22,7 @@ import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.kafka.test.utils.KafkaTestUtils.getRecords;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getSingleRecord;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +57,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Assert;
@@ -247,7 +249,7 @@ public class MonitorTransactionTest {
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
     embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
-    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
+    ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
     Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
 
   }
@@ -255,26 +257,31 @@ public class MonitorTransactionTest {
   @Test
   public void testMonitorTransactionWithException() {
 
+    RuntimeException runtimeException = new RuntimeException("very scary");
+
+    //  This throws the exception after both repo's are saved and the kafka event has been sent
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
-                            throw;})
+                            throw runtimeException;})
         .when(mockEventProducer).sendMonitorEvent(any());
-    monitorManagement.createMonitor(tenantId, create);
+    try {
+      monitorManagement.createMonitor(tenantId, create);
+    } catch(Exception e) {
+      Assert.assertEquals(e, runtimeException);
+    }
+
+
     Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
     Monitor monitor = monitorIterator.next();
     Assert.assertEquals(monitor.getMonitorName(), create.getMonitorName());
-    Assert.assertEquals(monitor.getTenantId(), tenantId);
     Assert.assertEquals(monitorIterator.hasNext(), false);
 
     Iterator<BoundMonitor> boundMonitorIterator = boundMonitorRepository.findAll().iterator();
-    BoundMonitor b = boundMonitorIterator.next();
-    Assert.assertEquals(b.getMonitor().getMonitorName(), create.getMonitorName());
-    Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
     embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
-    final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
-    Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
-
+    ConsumerRecords<String, MonitorBoundEvent> records = getRecords(consumer, 500);
+    Iterator<ConsumerRecord<String, MonitorBoundEvent>> consumerRecordIterator = records.iterator();
+    Assert.assertEquals(consumerRecordIterator.hasNext(), false);
   }
   
 }
