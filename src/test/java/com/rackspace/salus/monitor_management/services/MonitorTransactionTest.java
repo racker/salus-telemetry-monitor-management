@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getSingleRecord;
@@ -93,8 +94,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @Import({TxnConfig.class,
     ObjectMapper.class,
-MonitorManagement.class,
-MonitorEventProducer.class,
+    MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
 })
@@ -165,7 +165,9 @@ public class MonitorTransactionTest {
   MonitorContentRenderer monitorContentRenderer;
 
 
-  @Autowired
+  @MockBean
+  MonitorEventProducer mockEventProducer;
+
   MonitorEventProducer monitorEventProducer;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -174,6 +176,12 @@ public class MonitorTransactionTest {
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   private EmbeddedKafkaBroker embeddedKafka;
+
+  @Autowired
+  private KafkaTopicProperties kafkaTopicProperties;
+
+  @Autowired
+  private KafkaTemplate kafkaTemplate;
 
   private String tenantId;
   private MonitorCU create;
@@ -196,11 +204,16 @@ public class MonitorTransactionTest {
     resourceInfo.setEnvoyId("dummyEnvoy");
     CompletableFuture<ResourceInfo> dummy = CompletableFuture.completedFuture(resourceInfo);
     when(envoyResourceManagement.getOne(anyString(), anyString())).thenReturn(dummy);
+
+    monitorEventProducer = new MonitorEventProducer(kafkaTemplate, kafkaTopicProperties);
   }
     
   @Test
   public void testMonitorTransaction() {
-    
+
+    doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
+    return null;})
+        .when(mockEventProducer).sendMonitorEvent(any());
     monitorManagement.createMonitor(tenantId, create);
     Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
     Monitor monitor = monitorIterator.next();
