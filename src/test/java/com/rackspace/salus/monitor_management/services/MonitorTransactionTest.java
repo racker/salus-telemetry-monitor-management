@@ -186,6 +186,10 @@ public class MonitorTransactionTest {
   private String tenantId;
   private MonitorCU create;
 
+  private Consumer<String, MonitorBoundEvent> consumer;
+  private DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory;
+
+
 
   @Before
     public void setUp() {
@@ -206,13 +210,28 @@ public class MonitorTransactionTest {
     when(envoyResourceManagement.getOne(anyString(), anyString())).thenReturn(dummy);
 
     monitorEventProducer = new MonitorEventProducer(kafkaTemplate, kafkaTopicProperties);
+    final Map<String, Object> consumerProps = KafkaTestUtils
+        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    consumerProps
+        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+    consumerProps
+        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
+    consumerProps
+        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+
+
+    consumerFactory =     new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
+            new JsonDeserializer<>(MonitorBoundEvent.class));
+
+    consumer = consumerFactory.createConsumer();
   }
     
   @Test
   public void testMonitorTransaction() {
 
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
-    return null;})
+                            return null;})
         .when(mockEventProducer).sendMonitorEvent(any());
     monitorManagement.createMonitor(tenantId, create);
     Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
@@ -227,29 +246,18 @@ public class MonitorTransactionTest {
     Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
-    final Map<String, Object> consumerProps = KafkaTestUtils
-        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    consumerProps
-        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    consumerProps
-        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
-    consumerProps
-        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-
-    final DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory =
-        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
-            new JsonDeserializer<>(MonitorBoundEvent.class));
-
-    final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
     embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
     final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
+    Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
 
   }
 
   @Test
   public void testMonitorTransactionWithException() {
-    
+
+    doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
+                            throw;})
+        .when(mockEventProducer).sendMonitorEvent(any());
     monitorManagement.createMonitor(tenantId, create);
     Iterator<Monitor> monitorIterator = monitorRepository.findAll().iterator();
     Monitor monitor = monitorIterator.next();
@@ -263,23 +271,9 @@ public class MonitorTransactionTest {
     Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
-    final Map<String, Object> consumerProps = KafkaTestUtils
-        .consumerProps("testMonitorTransaction", "true", embeddedKafka);
-    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    consumerProps
-        .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-    consumerProps
-        .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
-    consumerProps
-        .put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-
-    final DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory =
-        new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(),
-            new JsonDeserializer<>(MonitorBoundEvent.class));
-
-    final Consumer<String, MonitorBoundEvent> consumer = consumerFactory.createConsumer();
     embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
     final ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
+    Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
 
   }
   
