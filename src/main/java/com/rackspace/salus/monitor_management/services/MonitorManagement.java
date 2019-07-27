@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
@@ -190,7 +191,7 @@ public class MonitorManagement {
    * @param newMonitor The monitor parameters to store.
    * @return The newly created monitor.
    */
-  @Transactional(value="chainedTransactionManager")
+  @Transactional(value="chainedTransactionManager", propagation=REQUIRES_NEW)
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
