@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.transaction.ChainedTransactionManager;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.orm.jpa.JpaTransactionManager;
-import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
 public class TxnConfig {
@@ -38,9 +37,9 @@ public class TxnConfig {
 
   @Bean(name = "chainedTransactionManager")
   //  Used for methods that have both kafka and jpa transactions
-  public PlatformTransactionManager chainedTransactionManager(
+  public ChainedTransactionManager chainedTransactionManager(
       JpaTransactionManager transactionManager,
       KafkaTransactionManager kafkaTransactionManager) {
-    return transactionManager;
+    return new ChainedTransactionManager(kafkaTransactionManager, transactionManager);
   }
 }

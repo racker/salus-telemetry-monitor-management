@@ -228,8 +228,8 @@ public class MonitorTransactionTest {
 
     consumer = consumerFactory.createConsumer();
   }
-    
-  //GBJFIX    @Test
+
+  @Test
   public void testMonitorTransaction() {
 
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
