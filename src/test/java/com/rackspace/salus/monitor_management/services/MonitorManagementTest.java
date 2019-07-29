@@ -104,6 +104,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.LinkedMultiValueMap;
@@ -117,6 +118,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class})
+@TestPropertySource(properties = "salus.kafka.chained.transaction.manager=false")
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -136,7 +138,7 @@ public class MonitorManagementTest {
         }
 
         @Bean
-        public PlatformTransactionManager chainedTransactionManager(EntityManagerFactory em) {
+        public PlatformTransactionManager jpaKafkaTransactionManager(EntityManagerFactory em) {
             return transactionManager(em);
         }
 
