@@ -64,6 +64,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -83,6 +84,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule;
+import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.test.annotation.DirtiesContext;
@@ -105,14 +108,15 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
-@EmbeddedKafka(topics = MonitorTransactionTest.TEST_TOPIC,
-   brokerProperties = {"transaction.state.log.replication.factor=1",
-                       "transaction.state.log.min.isr=1"},
-   partitions = 1)
+// @EmbeddedKafka(topics = {MonitorTransactionTest.TEST_TOPIC1, MonitorTransactionTest.TEST_TOPIC2},
+//    brokerProperties = {"transaction.state.log.replication.factor=1",
+//                        "transaction.state.log.min.isr=1"},
+//    partitions = 1)
 @DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
 //@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
 public class MonitorTransactionTest {
-  public static final String TEST_TOPIC = "test.monitors.json";
+  public static final String TEST_TOPIC1 = "test1.monitors.json";
+  public static final String TEST_TOPIC2 = "test2.monitors.json";
 
   static {
     System.setProperty(
@@ -132,13 +136,7 @@ public class MonitorTransactionTest {
           .setResourceManagementUrl("");
     }
 
-    @Primary
-    @Bean
-    public KafkaTopicProperties kafkaTopicProperties() {
-      final KafkaTopicProperties properties = new KafkaTopicProperties();
-      properties.setMonitors(TEST_TOPIC);
-      return properties;
-    }
+
   }
   @MockBean
   EnvoyResourceManagement envoyResourceManagement;
@@ -177,11 +175,20 @@ public class MonitorTransactionTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 
-  // IntelliJ gets confused finding this broker bean when @SpringBootTest is activated
-  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-  @Autowired
-  private EmbeddedKafkaBroker embeddedKafka;
+ // IntelliJ gets confused finding this broker bean when @SpringBootTest is activated
+ // @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+ // @Autowired
+ // private EmbeddedKafkaBroker embeddedKafka;
 
+  @ClassRule
+  public static EmbeddedKafkaRule embeddedKafkaRule = new EmbeddedKafkaRule(
+      1, true, 1, TEST_TOPIC1, TEST_TOPIC2)
+      .brokerProperty("transaction.state.log.replication.factor", (short)1)
+      .brokerProperty("transaction.state.log.min.isr", (int)1);
+  // static {
+  //   embeddedKafka.afterPropertiesSet();
+  // }
+  private EmbeddedKafkaBroker embeddedKafka;
   @Autowired
   private KafkaTopicProperties kafkaTopicProperties;
 
@@ -198,6 +205,7 @@ public class MonitorTransactionTest {
 
   @Before
     public void setUp() {
+    embeddedKafka = embeddedKafkaRule.getEmbeddedKafka();
     tenantId = RandomStringUtils.randomAlphanumeric(10);
     create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
@@ -214,7 +222,6 @@ public class MonitorTransactionTest {
     CompletableFuture<ResourceInfo> dummy = CompletableFuture.completedFuture(resourceInfo);
     when(envoyResourceManagement.getOne(anyString(), anyString())).thenReturn(dummy);
 
-    monitorEventProducer = new MonitorEventProducer(kafkaTemplate, kafkaTopicProperties);
     final Map<String, Object> consumerProps = KafkaTestUtils
         .consumerProps("testMonitorTransaction", "true", embeddedKafka);
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -241,6 +248,12 @@ public class MonitorTransactionTest {
   @Test
   @Transactional(propagation = NOT_SUPPORTED)
   public void testMonitorTransaction() {
+    String testTopic = TEST_TOPIC1;
+    KafkaTopicProperties properties = new KafkaTopicProperties();
+    properties.setMonitors(testTopic);
+    monitorEventProducer = new MonitorEventProducer(kafkaTemplate, properties);
+
+
 
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
                             return null;})
@@ -258,8 +271,8 @@ public class MonitorTransactionTest {
     Assert.assertEquals(b.getMonitor().getTenantId(), tenantId);
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
-    embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
-    ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, TEST_TOPIC, 500);
+    embeddedKafka.consumeFromEmbeddedTopics(consumer, testTopic);
+    ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, testTopic, 500);
     Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
 
   }
@@ -267,8 +280,12 @@ public class MonitorTransactionTest {
   @Test
   @Transactional(propagation = NOT_SUPPORTED)
   public void testMonitorTransactionWithException() {
+    String testTopic = TEST_TOPIC2;
 
     RuntimeException runtimeException = new RuntimeException("very scary");
+    KafkaTopicProperties properties = new KafkaTopicProperties();
+    properties.setMonitors(testTopic);
+    monitorEventProducer = new MonitorEventProducer(kafkaTemplate, properties);
 
     //  This throws the exception after both repo's are saved and the kafka event has been sent
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
@@ -287,7 +304,7 @@ public class MonitorTransactionTest {
     Iterator<BoundMonitor> boundMonitorIterator = boundMonitorRepository.findAll().iterator();
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
-    embeddedKafka.consumeFromEmbeddedTopics(consumer, TEST_TOPIC);
+    embeddedKafka.consumeFromEmbeddedTopics(consumer, testTopic);
     ConsumerRecords<String, MonitorBoundEvent> records = getRecords(consumer, 500);
     Iterator<ConsumerRecord<String, MonitorBoundEvent>> consumerRecordIterator = records.iterator();
     Assert.assertEquals(consumerRecordIterator.hasNext(), false);
