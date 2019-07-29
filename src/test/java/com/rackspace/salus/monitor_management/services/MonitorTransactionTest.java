@@ -108,12 +108,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
-// @EmbeddedKafka(topics = {MonitorTransactionTest.TEST_TOPIC1, MonitorTransactionTest.TEST_TOPIC2},
-//    brokerProperties = {"transaction.state.log.replication.factor=1",
-//                        "transaction.state.log.min.isr=1"},
-//    partitions = 1)
+
 @DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
-//@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
 public class MonitorTransactionTest {
   public static final String TEST_TOPIC1 = "test1.monitors.json";
   public static final String TEST_TOPIC2 = "test2.monitors.json";
@@ -135,8 +131,6 @@ public class MonitorTransactionTest {
       return new ServicesProperties()
           .setResourceManagementUrl("");
     }
-
-
   }
   @MockBean
   EnvoyResourceManagement envoyResourceManagement;
@@ -175,19 +169,13 @@ public class MonitorTransactionTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 
- // IntelliJ gets confused finding this broker bean when @SpringBootTest is activated
- // @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
- // @Autowired
- // private EmbeddedKafkaBroker embeddedKafka;
-
+  // Run the broker only one time with multiple topics for each test
   @ClassRule
   public static EmbeddedKafkaRule embeddedKafkaRule = new EmbeddedKafkaRule(
       1, true, 1, TEST_TOPIC1, TEST_TOPIC2)
       .brokerProperty("transaction.state.log.replication.factor", (short)1)
       .brokerProperty("transaction.state.log.min.isr", (int)1);
-  // static {
-  //   embeddedKafka.afterPropertiesSet();
-  // }
+
   private EmbeddedKafkaBroker embeddedKafka;
   @Autowired
   private KafkaTopicProperties kafkaTopicProperties;
@@ -200,8 +188,6 @@ public class MonitorTransactionTest {
 
   private Consumer<String, MonitorBoundEvent> consumer;
   private DefaultKafkaConsumerFactory<String, MonitorBoundEvent> consumerFactory;
-
-
 
   @Before
     public void setUp() {
@@ -237,7 +223,6 @@ public class MonitorTransactionTest {
             new JsonDeserializer<>(MonitorBoundEvent.class));
 
     consumer = consumerFactory.createConsumer();
-//    embeddedKafka.restart(0);
   }
 
   @After
@@ -252,8 +237,6 @@ public class MonitorTransactionTest {
     KafkaTopicProperties properties = new KafkaTopicProperties();
     properties.setMonitors(testTopic);
     monitorEventProducer = new MonitorEventProducer(kafkaTemplate, properties);
-
-
 
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
                             return null;})
@@ -272,7 +255,7 @@ public class MonitorTransactionTest {
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
     embeddedKafka.consumeFromEmbeddedTopics(consumer, testTopic);
-    ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, testTopic, 500);
+    ConsumerRecord<String, MonitorBoundEvent> record = getSingleRecord(consumer, testTopic, 5000);
     Assert.assertEquals(record.value().getEnvoyId(), "dummyEnvoy");
 
   }
@@ -305,7 +288,7 @@ public class MonitorTransactionTest {
     Assert.assertEquals(boundMonitorIterator.hasNext(), false);
 
     embeddedKafka.consumeFromEmbeddedTopics(consumer, testTopic);
-    ConsumerRecords<String, MonitorBoundEvent> records = getRecords(consumer, 500);
+    ConsumerRecords<String, MonitorBoundEvent> records = getRecords(consumer, 5000);
     Iterator<ConsumerRecord<String, MonitorBoundEvent>> consumerRecordIterator = records.iterator();
     Assert.assertEquals(consumerRecordIterator.hasNext(), false);
   }
