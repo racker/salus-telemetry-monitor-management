@@ -28,9 +28,9 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
+import com.rackspace.salus.common.transactions.EnableJpaKafkaTransactions;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
-import com.rackspace.salus.monitor_management.config.TxnConfig;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.entities.BoundMonitor;
 import com.rackspace.salus.monitor_management.entities.Monitor;
@@ -98,8 +98,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
-
-@Import({TxnConfig.class,
+@Import({
     ObjectMapper.class,
     MonitorManagement.class,
     MonitorContentRenderer.class,
@@ -122,6 +121,7 @@ public class MonitorTransactionTest {
         EmbeddedKafkaBroker.BROKER_LIST_PROPERTY, "spring.kafka.bootstrap-servers");
    }
   @TestConfiguration
+  @EnableJpaKafkaTransactions
   public static class Config {
 
     @Bean
@@ -176,9 +176,6 @@ public class MonitorTransactionTest {
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   private EmbeddedKafkaBroker embeddedKafka;
-
-  @Autowired
-  private KafkaTopicProperties kafkaTopicProperties;
 
   @Autowired
   private KafkaTemplate kafkaTemplate;
