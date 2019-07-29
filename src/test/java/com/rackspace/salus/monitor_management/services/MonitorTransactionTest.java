@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getRecords;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getSingleRecord;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
@@ -60,6 +61,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -107,7 +109,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
    brokerProperties = {"transaction.state.log.replication.factor=1",
                        "transaction.state.log.min.isr=1"},
    partitions = 1)
-@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
+@DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
+//@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
 public class MonitorTransactionTest {
   public static final String TEST_TOPIC = "test.monitors.json";
 
@@ -227,9 +230,16 @@ public class MonitorTransactionTest {
             new JsonDeserializer<>(MonitorBoundEvent.class));
 
     consumer = consumerFactory.createConsumer();
+//    embeddedKafka.restart(0);
+  }
+
+  @After
+  public void finish() {
+    consumer.close();
   }
 
   @Test
+  @Transactional(propagation = NOT_SUPPORTED)
   public void testMonitorTransaction() {
 
     doAnswer(invocation -> {monitorEventProducer.sendMonitorEvent(invocation.getArgument(0));
@@ -255,6 +265,7 @@ public class MonitorTransactionTest {
   }
 
   @Test
+  @Transactional(propagation = NOT_SUPPORTED)
   public void testMonitorTransactionWithException() {
 
     RuntimeException runtimeException = new RuntimeException("very scary");
