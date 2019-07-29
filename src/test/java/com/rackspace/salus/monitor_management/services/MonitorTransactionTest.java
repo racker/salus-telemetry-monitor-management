@@ -108,7 +108,10 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
-
+@EmbeddedKafka(topics = {MonitorTransactionTest.TEST_TOPIC1, MonitorTransactionTest.TEST_TOPIC2},
+   brokerProperties = {"transaction.state.log.replication.factor=1",
+                       "transaction.state.log.min.isr=1"},
+   partitions = 1)
 @DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
 public class MonitorTransactionTest {
   public static final String TEST_TOPIC1 = "test1.monitors.json";
@@ -169,14 +172,11 @@ public class MonitorTransactionTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 
-  // Run the broker only one time with multiple topics for each test
-  @ClassRule
-  public static EmbeddedKafkaRule embeddedKafkaRule = new EmbeddedKafkaRule(
-      1, true, 1, TEST_TOPIC1, TEST_TOPIC2)
-      .brokerProperty("transaction.state.log.replication.factor", (short)1)
-      .brokerProperty("transaction.state.log.min.isr", (int)1);
-
+  // IntelliJ gets confused finding this broker bean when @SpringBootTest is activated
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
   private EmbeddedKafkaBroker embeddedKafka;
+
   @Autowired
   private KafkaTopicProperties kafkaTopicProperties;
 
@@ -191,7 +191,6 @@ public class MonitorTransactionTest {
 
   @Before
     public void setUp() {
-    embeddedKafka = embeddedKafkaRule.getEmbeddedKafka();
     tenantId = RandomStringUtils.randomAlphanumeric(10);
     create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
