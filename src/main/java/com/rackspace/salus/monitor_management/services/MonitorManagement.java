@@ -96,6 +96,8 @@ public class MonitorManagement {
 
   private final EnvoyResourceManagement envoyResourceManagement;
 
+  public static final String POLICY_TENANT = "_POLICY_";
+
   JdbcTemplate jdbcTemplate;
 
   @Autowired
@@ -138,6 +140,16 @@ public class MonitorManagement {
    */
   public Optional<Monitor> getMonitor(String tenantId, UUID id) {
     return monitorRepository.findById(id).filter(m -> m.getTenantId().equals(tenantId));
+  }
+
+  /**
+   * Gets an individual policy monitor by id
+   * @param id The unique value representing the monitor.
+   * @return The monitor with the provided id.
+   * @throws NotFoundException If the monitor does not exist under the POLICY tenant.
+   */
+  public Optional<Monitor> getPolicyMonitor(UUID id) {
+    return getMonitor(POLICY_TENANT, id);
   }
 
   /**

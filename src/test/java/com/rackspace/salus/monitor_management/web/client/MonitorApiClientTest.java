@@ -17,51 +17,58 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestTemplate;
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @RestClientTest
 public class MonitorApiClientTest {
 
+  @TestConfiguration
+  public static class ExtraTestConfig {
+    @Bean
+    public MonitorApiClient monitorApiClient(RestTemplateBuilder restTemplateBuilder) {
+      return new MonitorApiClient(restTemplateBuilder.build());
+    }
+  }
+
+  private PodamFactory podamFactory = new PodamFactoryImpl();
+
   @Autowired
   MockRestServiceServer mockServer;
 
   @Autowired
-  RestTemplateBuilder restTemplateBuilder;
+  MonitorApiClient monitorApiClient;
 
   @Autowired
   ObjectMapper objectMapper;
-
-  private RestTemplate restTempate;
-  private MonitorApiClient monitorApiClient;
-
-  @Before
-  public void setUp() throws Exception {
-    restTempate = restTemplateBuilder.build();
-    monitorApiClient = new MonitorApiClient(restTempate);
-  }
 
   @Test
   public void getBoundMonitors() throws JsonProcessingException {
@@ -89,5 +96,25 @@ public class MonitorApiClientTest {
 
     final List<BoundMonitorDTO> boundMonitors = monitorApiClient.getBoundMonitors("e-1");
     assertThat(boundMonitors, equalTo(givenBoundMonitors));
+  }
+
+  @Test
+  public void testGetPolicyMonitor() throws JsonProcessingException {
+    DetailedMonitorOutput monitor = podamFactory.manufacturePojo(DetailedMonitorOutput.class);
+
+    mockServer.expect(requestTo(String.format("/api/admin/policy-monitors/%s", monitor.getId())))
+        .andRespond(withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
+
+    DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById(monitor.getId());
+    assertThat(result, equalTo(monitor));
+  }
+
+  @Test
+  public void testGetPolicyMonitor_doesntExist() throws JsonProcessingException {
+    mockServer.expect(requestTo("/api/admin/policy-monitors/id"))
+        .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+    DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById("id");
+    assertThat(result, nullValue());
   }
 }
