@@ -17,12 +17,14 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -76,5 +78,23 @@ public class MonitorApiClient implements MonitorApi {
         null,
         PAGE_OF_BOUND_MONITOR
       ).getBody()).getContent();
+  }
+
+  @Override
+  public DetailedMonitorOutput getPolicyMonitorById(String monitorId) {
+    try {
+      return restTemplate.getForObject(
+          "/api/admin/policy-monitors/{monitorId}",
+          DetailedMonitorOutput.class,
+          monitorId
+      );
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+        return null;
+      }
+      else {
+        throw new IllegalArgumentException(e);
+      }
+    }
   }
 }

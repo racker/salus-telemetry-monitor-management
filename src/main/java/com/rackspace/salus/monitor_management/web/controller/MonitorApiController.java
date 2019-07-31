@@ -106,6 +106,13 @@ public class MonitorApiController {
                         uuid, tenantId)));
         return monitorConversionService.convertToOutput(monitor);
     }
+    @GetMapping("/admin/policy-monitors/{uuid}")
+    public DetailedMonitorOutput getPolicyMonitorById(@PathVariable UUID uuid) throws NotFoundException {
+        Monitor monitor =  monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
+            new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
+
+        return monitorConversionService.convertToOutput(monitor);
+    }
 
     @GetMapping("/tenant/{tenantId}/bound-monitors")
     @JsonView(View.Public.class)

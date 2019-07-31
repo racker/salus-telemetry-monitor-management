@@ -273,6 +273,22 @@ public class MonitorManagementTest {
     }
 
     @Test
+    public void testGetPolicyMonitor() {
+        final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+        monitor.setTenantId(MonitorManagement.POLICY_TENANT);
+        Monitor saved = monitorRepository.save(monitor);
+
+        Optional<Monitor> m = monitorManagement.getPolicyMonitor(saved.getId());
+
+        assertTrue(m.isPresent());
+        assertThat(m.get().getTenantId(), equalTo(MonitorManagement.POLICY_TENANT));
+        assertThat(m.get().getId(), equalTo(saved.getId()));
+        assertThat(m.get().getLabelSelector(), equalTo(saved.getLabelSelector()));
+        assertThat(m.get().getContent(), equalTo(saved.getContent()));
+        assertThat(m.get().getAgentType(), equalTo(saved.getAgentType()));
+    }
+
+    @Test
     public void testCreateNewMonitor() {
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.LOCAL);

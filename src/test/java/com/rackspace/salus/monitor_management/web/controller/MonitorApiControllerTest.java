@@ -120,6 +120,46 @@ public class MonitorApiControllerTest {
   }
 
   @Test
+  public void testGetPolicyMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    monitor.setTenantId(MonitorManagement.POLICY_TENANT);
+
+    when(monitorManagement.getPolicyMonitor(any()))
+        .thenReturn(Optional.of(monitor));
+
+    String url = String.format("/api/admin/policy-monitors/%s", monitor.getId());
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
+
+    verify(monitorManagement).getPolicyMonitor(monitor.getId());
+    verifyNoMoreInteractions(monitorManagement);
+  }
+
+  @Test
+  public void testGetPolicyMonitor_doesntExist() throws Exception {
+    when(monitorManagement.getPolicyMonitor(any()))
+        .thenReturn(Optional.empty());
+
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/admin/policy-monitors/%s", id);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(monitorManagement).getPolicyMonitor(id);
+    verifyNoMoreInteractions(monitorManagement);
+  }
+
+  @Test
   public void testNoMonitorFound() throws Exception {
     when(monitorManagement.getMonitor(anyString(), any()))
         .thenReturn(Optional.empty());
