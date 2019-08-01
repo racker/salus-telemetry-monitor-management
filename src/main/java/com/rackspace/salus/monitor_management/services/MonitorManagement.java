@@ -298,7 +298,7 @@ public class MonitorManagement {
       }
 
     }
-    // Force a write to the boundMonitors table
+    // Force a dummy binding, even if one doesn't exist, for transaction test purposes
     boundMonitors.add(new BoundMonitor()
         .setZoneName("dummyZone")
         .setMonitor(monitor)
