@@ -213,7 +213,6 @@ public class MonitorManagement {
     monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(monitor);
     sendMonitorBoundEvents(affectedEnvoys);
-//    return monitor;
     throw new RuntimeException("Transaction Test Exception");
   }
 
