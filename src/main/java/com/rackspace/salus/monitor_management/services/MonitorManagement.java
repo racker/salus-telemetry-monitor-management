@@ -66,6 +66,8 @@ import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -84,6 +86,15 @@ import org.springframework.util.MultiValueMap;
 @Service
 @EnableJpaKafkaTransactions
 public class MonitorManagement {
+  @Configuration
+  public static class Config {
+    @Bean
+    public TxnInvoker txnInvoker(MonitorRepository monitorRepository,
+        BoundMonitorRepository boundMonitorRepository,
+        MonitorEventProducer monitorEventProducer) {
+      return new TxnInvoker(monitorRepository, boundMonitorRepository, monitorEventProducer);
+    }
+  }
 
   private final BoundMonitorRepository boundMonitorRepository;
   private final ZoneStorage zoneStorage;
@@ -105,6 +116,44 @@ public class MonitorManagement {
   JdbcTemplate jdbcTemplate;
 
   @Autowired
+  private final TxnInvoker txnInvoker;
+
+  public static class TxnInvoker{
+    private final BoundMonitorRepository boundMonitorRepository;
+    private final MonitorEventProducer monitorEventProducer;
+    private final MonitorRepository monitorRepository;
+    @Autowired
+    public TxnInvoker(MonitorRepository monitorRepository,
+        BoundMonitorRepository boundMonitorRepository,
+        MonitorEventProducer monitorEventProducer) {
+        this.monitorRepository = monitorRepository;
+        this.boundMonitorRepository = boundMonitorRepository;
+        this.monitorEventProducer = monitorEventProducer;
+
+    }
+    @Transactional(value="jpaKafkaTransactionManager")
+    public void invokeTransaction(Monitor saveMonitor, Monitor deleteMonitor, List<BoundMonitor> saveBoundMonitors,
+        List<BoundMonitor>deleteBoundMonitors, Set<String> envoyIds) {
+        if (saveMonitor != null){
+          monitorRepository.save(saveMonitor);
+        }
+        if (deleteMonitor != null) {
+          monitorRepository.delete(deleteMonitor);
+        }
+        if (saveBoundMonitors != null && !saveBoundMonitors.isEmpty()) {
+          boundMonitorRepository.saveAll(saveBoundMonitors);
+        }
+        if (deleteBoundMonitors != null && !deleteBoundMonitors.isEmpty()) {
+          boundMonitorRepository.deleteAll(deleteBoundMonitors);
+        }
+        envoyIds.stream()
+            .map(envoyId -> new MonitorBoundEvent().setEnvoyId(envoyId))
+            .forEach(monitorEventProducer::sendMonitorEvent);
+    }
+
+  }
+
+  @Autowired
   public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
       EnvoyResourceManagement envoyResourceManagement,
       BoundMonitorRepository boundMonitorRepository,
@@ -113,7 +162,8 @@ public class MonitorManagement {
       MonitorContentRenderer monitorContentRenderer,
       ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
-      JdbcTemplate jdbcTemplate) {
+      JdbcTemplate jdbcTemplate,
+      MonitorManagement.TxnInvoker txnInvoker) {
     this.monitorRepository = monitorRepository;
     this.entityManager = entityManager;
     this.envoyResourceManagement = envoyResourceManagement;
@@ -125,6 +175,7 @@ public class MonitorManagement {
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
     this.jdbcTemplate = jdbcTemplate;
+    this.txnInvoker = txnInvoker;
   }
 
   /**
@@ -193,7 +244,6 @@ public class MonitorManagement {
    * @param newMonitor The monitor parameters to store.
    * @return The newly created monitor.
    */
-  @Transactional(value="jpaKafkaTransactionManager")
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
@@ -213,9 +263,9 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    monitorRepository.save(monitor);
-    final Set<String> affectedEnvoys = bindNewMonitor(monitor);
-    sendMonitorBoundEvents(affectedEnvoys);
+    final List<BoundMonitor> boundMonitors = new ArrayList<>();
+    final Set<String> affectedEnvoys = bindNewMonitor(monitor, boundMonitors);
+    txnInvoker.invokeTransaction(monitor, null, boundMonitors, null, affectedEnvoys);
     return monitor;
   }
 
@@ -242,10 +292,64 @@ public class MonitorManagement {
    * Performs label selection of the given monitor to locate resources and zones for bindings.
    * @return affected envoy IDs
    */
-  Set<String> bindNewMonitor(Monitor monitor) {
-    return bindMonitor(monitor, determineMonitoringZones(monitor));
+  Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitor>boundMonitors) {
+    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitors);
   }
 
+  /**
+   * Performs label selection of the given monitor to locate resources for bindings.
+   * For remote monitors, this will only perform binding within the given zones.
+   * @return affected envoy IDs
+   */
+  Set<String> bindMonitorTest(Monitor monitor,
+      List<String> zones, List<BoundMonitor>boundMonitors) {
+    final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
+        monitor.getTenantId(), monitor.getLabelSelector());
+
+    log.debug("Distributing new monitor={} to resources={}", monitor, resources);
+
+
+    if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
+      // AGENT MONITOR
+
+      for (ResourceDTO resource : resources) {
+
+        // agent monitors can only bind to resources that have (or had) an envoy
+        if (resource.isAssociatedWithEnvoy()) {
+
+          final ResourceInfo resourceInfo = envoyResourceManagement
+              .getOne(monitor.getTenantId(), resource.getResourceId())
+              .join();
+
+          boundMonitors.add(
+              bindAgentMonitor(monitor, resource,
+                  resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+          );
+        }
+      }
+
+    } else {
+      // REMOTE MONITOR
+
+      for (ResourceDTO resource : resources) {
+        for (String zone : zones) {
+          boundMonitors.add(
+              bindRemoteMonitor(monitor, resource, zone)
+          );
+        }
+      }
+
+    }
+
+    if (!boundMonitors.isEmpty()) {
+      log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
+    }
+    else {
+      log.debug("No monitors were bound from monitor={}", monitor);
+    }
+
+    return extractEnvoyIds(boundMonitors);
+  }
   /**
    * Performs label selection of the given monitor to locate resources for bindings.
    * For remote monitors, this will only perform binding within the given zones.
@@ -483,7 +587,6 @@ public class MonitorManagement {
    * @param updatedValues The new monitor parameters to store.
    * @return The newly updated monitor.
    */
-  @Transactional(value="jpaKafkaTransactionManager")
   public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
@@ -695,7 +798,6 @@ public class MonitorManagement {
    * @param tenantId The tenant the monitor belongs to.
    * @param id       The id of the monitor.
    */
-  @Transactional(value="jpaKafkaTransactionManager")
   public void removeMonitor(String tenantId, UUID id) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
