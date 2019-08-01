@@ -72,6 +72,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -189,6 +190,7 @@ public class MonitorManagement {
    * @param newMonitor The monitor parameters to store.
    * @return The newly created monitor.
    */
+  @Transactional
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
@@ -211,7 +213,8 @@ public class MonitorManagement {
     monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(monitor);
     sendMonitorBoundEvents(affectedEnvoys);
-    return monitor;
+//    return monitor;
+    throw new RuntimeException("Transaction Test Exception");
   }
 
   private void validateMonitoringZones(String tenantId, List<String> providedZones) throws IllegalArgumentException {
@@ -296,6 +299,13 @@ public class MonitorManagement {
       }
 
     }
+    // Force a write to the boundMonitors table
+    boundMonitors.add(new BoundMonitor()
+        .setZoneName("dummyZone")
+        .setMonitor(monitor)
+        .setResourceId("dummyResource")
+        .setEnvoyId("dummyEnvoy")
+        .setRenderedContent("dummyContent"));
 
     if (!boundMonitors.isEmpty()) {
       log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
