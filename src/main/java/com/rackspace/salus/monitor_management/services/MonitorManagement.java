@@ -356,7 +356,7 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitorOperatorList>boundMonitorOperatorLists) {
-    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitorOperatorLists);
+    return bindMonitor(monitor, determineMonitoringZones(monitor), boundMonitorOperatorLists);
   }
 
   /**
@@ -364,7 +364,7 @@ public class MonitorManagement {
    * For remote monitors, this will only perform binding within the given zones.
    * @return affected envoy IDs
    */
-  Set<String> bindMonitorTest(Monitor monitor,
+  Set<String> bindMonitor(Monitor monitor,
       List<String> zones, List<BoundMonitorOperatorList> boundMonitorOperatorLists) {
     final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
         monitor.getTenantId(), monitor.getLabelSelector());
@@ -425,75 +425,6 @@ public class MonitorManagement {
 
     return extractEnvoyIds(boundMonitors);
   }
-
-  /**
-   * Performs label selection of the given monitor to locate resources for bindings.
-   * For remote monitors, this will only perform binding within the given zones.
-   * @return affected envoy IDs
-   */
-  Set<String> bindMonitor(Monitor monitor,
-      List<String> zones) {
-    final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
-        monitor.getTenantId(), monitor.getLabelSelector());
-
-    log.debug("Distributing new monitor={} to resources={}", monitor, resources);
-
-    final List<BoundMonitor> boundMonitors = new ArrayList<>();
-
-    if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
-      // AGENT MONITOR
-
-      for (ResourceDTO resource : resources) {
-
-        // agent monitors can only bind to resources that have (or had) an envoy
-        if (resource.isAssociatedWithEnvoy()) {
-
-          final ResourceInfo resourceInfo = envoyResourceManagement
-              .getOne(monitor.getTenantId(), resource.getResourceId())
-              .join();
-
-          try {
-            boundMonitors.add(
-                bindAgentMonitor(monitor, resource,
-                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-            );
-          } catch (InvalidTemplateException e) {
-            log.warn("Unable to render monitor={} onto resource={}",
-                monitor, resource, e);
-          }
-        }
-      }
-
-    } else {
-      // REMOTE MONITOR
-
-      for (ResourceDTO resource : resources) {
-        for (String zone : zones) {
-          try {
-            boundMonitors.add(
-                bindRemoteMonitor(monitor, resource, zone)
-            );
-          } catch (InvalidTemplateException e) {
-            log.warn("Unable to render monitor={} onto resource={}",
-                monitor, resource, e);
-          }
-        }
-      }
-
-    }
-
-    if (!boundMonitors.isEmpty()) {
-      log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
-      boundMonitorRepository.saveAll(boundMonitors);
-
-    }
-    else {
-      log.debug("No monitors were bound from monitor={}", monitor);
-    }
-
-    return extractEnvoyIds(boundMonitors);
-  }
-
   private void sendMonitorBoundEvent(String envoyId) {
     log.debug("Publishing MonitorBoundEvent for envoy={}", envoyId);
     monitorEventProducer.sendMonitorEvent(
@@ -533,8 +464,6 @@ public class MonitorManagement {
     final String envoyId;
     if (result.isPresent()) {
       envoyId = result.get().getEnvoyId();
-      zoneStorage.incrementBoundCount(resolvedZone, result.get().getResourceId())
-          .join();
     }
     else {
       envoyId = null;
@@ -673,6 +602,8 @@ public class MonitorManagement {
       throw new IllegalArgumentException("Local monitors cannot have zones");
     }
 
+    final List<BoundMonitorOperatorList> boundMonitorOperatorLists = new ArrayList<>();
+
     validateMonitoringZones(tenantId, updatedValues.getZones());
 
     final Set<String> affectedEnvoys = new HashSet<>();
@@ -683,7 +614,7 @@ public class MonitorManagement {
       // ...only need to process removed and new bindings
 
       affectedEnvoys.addAll(
-          processMonitorLabelSelectorModified(monitor, updatedValues.getLabelSelector())
+          processMonitorLabelSelectorModified(monitor, updatedValues.getLabelSelector(), boundMonitorOperatorLists)
       );
 
       monitor.setLabelSelector(updatedValues.getLabelSelector());
@@ -702,7 +633,7 @@ public class MonitorManagement {
       // ...only need to process changed bindings
 
       affectedEnvoys.addAll(
-          processMonitorContentModified(monitor, updatedValues.getContent())
+          processMonitorContentModified(monitor, updatedValues.getContent(), boundMonitorOperatorLists)
       );
 
       monitor.setContent(updatedValues.getContent());
@@ -712,7 +643,7 @@ public class MonitorManagement {
       // Process potential changes to bound zones
 
       affectedEnvoys.addAll(
-          processMonitorZonesModified(monitor, updatedValues.getZones())
+          processMonitorZonesModified(monitor, updatedValues.getZones(), boundMonitorOperatorLists)
       );
 
       // give JPA a modifiable copy of the given list
@@ -728,10 +659,8 @@ public class MonitorManagement {
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
         .to(monitor::setMonitorName);
-    monitorRepository.save(monitor);
 
-    sendMonitorBoundEvents(affectedEnvoys);
-
+    txnInvoker.invokeTransaction(monitor, Operator.SAVE, boundMonitorOperatorLists, affectedEnvoys);
     return monitor;
   }
 
@@ -830,7 +759,8 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   private Set<String> processMonitorLabelSelectorModified(Monitor monitor,
-      Map<String, String> updatedLabelSelector) {
+      Map<String, String> updatedLabelSelector,
+      List<BoundMonitorOperatorList> boundMonitorOperatorLists) {
 
     final Set<String> boundResourceIds =
         boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
@@ -847,7 +777,7 @@ public class MonitorManagement {
 
     // process un-bindings
     final Set<String> affectedEnvoys =
-        unbindByResourceId(monitor.getId(), resourceIdsToUnbind);
+        unbindByResourceId(monitor.getId(), resourceIdsToUnbind, boundMonitorOperatorLists);
 
     // process new bindings
     selectedResources.stream()
@@ -858,7 +788,8 @@ public class MonitorManagement {
               upsertBindingToResource(
                   Collections.singletonList(monitor),
                   resource,
-                  null
+                  null,
+                  boundMonitorOperatorLists
               )
           );
 
@@ -984,7 +915,8 @@ public class MonitorManagement {
    */
   Set<String> upsertBindingToResource(List<Monitor> monitors,
       ResourceDTO resource,
-      String reattachedEnvoyId) {
+      String reattachedEnvoyId,
+      List<BoundMonitorOperatorList> boundMonitorOperatorLists) {
 
     final ResourceInfo resourceInfo = envoyResourceManagement
         .getOne(resource.getTenantId(), resource.getResourceId())
@@ -1116,7 +1048,8 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   private Set<String> unbindByResourceId(UUID monitorId,
-      List<String> resourceIdsToUnbind) {
+      List<String> resourceIdsToUnbind,
+      List<BoundMonitorOperatorList> boundMonitorOperatorLists) {
     if (resourceIdsToUnbind.isEmpty()) {
       return new HashSet<>();
     }
@@ -1126,8 +1059,7 @@ public class MonitorManagement {
 
     log.debug("Unbinding {} from monitorId={} resourceIds={}", boundMonitors,
         monitorId, resourceIdsToUnbind);
-    boundMonitorRepository.deleteAll(boundMonitors);
-    decrementBoundCounts(boundMonitors);
+    boundMonitorOperatorLists.add(new BoundMonitorOperatorList(boundMonitors, Operator.DEL));
 
     return extractEnvoyIds(boundMonitors);
   }
