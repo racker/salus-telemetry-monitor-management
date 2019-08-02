@@ -121,11 +121,11 @@ public class MonitorManagement {
   @Autowired
   private final TxnInvoker txnInvoker;
 
-  enum Operand {SAVE, SAVE_AND_INC, SAVE_AND_DEC, DEL};
+  enum Operator {SAVE, SAVE_AND_INC, SAVE_AND_DEC, DEL};
   @Data
-  public static class BoundMonitorOperandList {
+  public static class BoundMonitorOperatorList {
     final List<BoundMonitor> boundMonitors;
-    final Operand operand;
+    final Operator operator;
   }
   
   public static class TxnInvoker{
@@ -147,31 +147,31 @@ public class MonitorManagement {
 
     }
     @Transactional(value="jpaKafkaTransactionManager")
-    public void invokeTransaction(Monitor monitor, Operand operand,
-        List<MonitorManagement.BoundMonitorOperandList> boundMonitorOperandLists,
+    public void invokeTransaction(Monitor monitor, Operator operator,
+        List<MonitorManagement.BoundMonitorOperatorList> boundMonitorOperatorLists,
         Set<String> envoyIds) {
 
-      Predicate<BoundMonitorOperandList> isDelete = b -> b.getOperand() == Operand.DEL;
+      Predicate<BoundMonitorOperatorList> isDelete = b -> b.getOperator() == Operator.DEL;
 
       if (monitor != null) {
-        if (operand != Operand.DEL) {
+        if (operator != Operator.DEL) {
           monitorRepository.save(monitor);
         } else {
           monitorRepository.delete(monitor);
         }
       }
-      boundMonitorOperandLists.stream().filter(isDelete).
+      boundMonitorOperatorLists.stream().filter(isDelete).
           forEach(b -> boundMonitorRepository.deleteAll(b.getBoundMonitors()));
-      boundMonitorOperandLists.stream().filter(isDelete.negate()).
+      boundMonitorOperatorLists.stream().filter(isDelete.negate()).
           forEach(b -> boundMonitorRepository.saveAll(b.getBoundMonitors()));
 
       envoyIds.stream()
           .map(envoyId -> new MonitorBoundEvent().setEnvoyId(envoyId))
           .forEach(monitorEventProducer::sendMonitorEvent);
-      boundMonitorOperandLists.stream().
+      boundMonitorOperatorLists.stream().
           forEach(b ->
           {
-            switch (b.getOperand()) {
+            switch (b.getOperator()) {
               case DEL:
               case SAVE_AND_DEC:
                 changeBoundCounts(b.getBoundMonitors(), zoneStorage::decrementBoundCount);
@@ -191,7 +191,7 @@ public class MonitorManagement {
      * monitors it is bound to.
      * @param needToChange A list of bound monitors to act on.
      */
-    private void changeBoundCounts(List<BoundMonitor> needToChange, BiConsumer<ResolvedZone, String> operator) {
+    private void changeBoundCounts(List<BoundMonitor> needToChange, BiConsumer<ResolvedZone, String> consumer) {
       Map<String, String> envoyToResource = new HashMap<>();
       for (BoundMonitor boundMonitor : needToChange) {
         if (boundMonitor.getEnvoyId() != null &&
@@ -207,7 +207,7 @@ public class MonitorManagement {
 
           // If the resourceId is still not known, the envoy must have disconnected, so skip
           if (resourceId != null) {
-            operator.accept(zone, resourceId);
+            consumer.accept(zone, resourceId);
           }
         }
       }
@@ -326,9 +326,9 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    final List<BoundMonitorOperandList> boundMonitorOperandLists = new ArrayList<>();
-    final Set<String> affectedEnvoys = bindNewMonitor(monitor, boundMonitorOperandLists);
-    txnInvoker.invokeTransaction(monitor, Operand.SAVE, boundMonitorOperandLists, affectedEnvoys);
+    final List<BoundMonitorOperatorList> boundMonitorOperatorLists = new ArrayList<>();
+    final Set<String> affectedEnvoys = bindNewMonitor(monitor, boundMonitorOperatorLists);
+    txnInvoker.invokeTransaction(monitor, Operator.SAVE, boundMonitorOperatorLists, affectedEnvoys);
     return monitor;
   }
 
@@ -355,8 +355,8 @@ public class MonitorManagement {
    * Performs label selection of the given monitor to locate resources and zones for bindings.
    * @return affected envoy IDs
    */
-  Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitorOperandList>boundMonitorOperandLists) {
-    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitorOperandLists);
+  Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitorOperatorList>boundMonitorOperatorLists) {
+    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitorOperatorLists);
   }
 
   /**
@@ -365,7 +365,7 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindMonitorTest(Monitor monitor,
-      List<String> zones, List<BoundMonitorOperandList> boundMonitorOperandLists) {
+      List<String> zones, List<BoundMonitorOperatorList> boundMonitorOperatorLists) {
     final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
         monitor.getTenantId(), monitor.getLabelSelector());
 
@@ -417,7 +417,7 @@ public class MonitorManagement {
 
     if (!boundMonitors.isEmpty()) {
       log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
-      boundMonitorOperandLists.add(new BoundMonitorOperandList(boundMonitors, Operand.SAVE_AND_INC));
+      boundMonitorOperatorLists.add(new BoundMonitorOperatorList(boundMonitors, Operator.SAVE_AND_INC));
     }
     else {
       log.debug("No monitors were bound from monitor={}", monitor);
