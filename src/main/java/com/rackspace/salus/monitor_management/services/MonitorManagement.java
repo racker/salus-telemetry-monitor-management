@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
-import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
@@ -57,12 +56,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -91,8 +93,9 @@ public class MonitorManagement {
     @Bean
     public TxnInvoker txnInvoker(MonitorRepository monitorRepository,
         BoundMonitorRepository boundMonitorRepository,
-        MonitorEventProducer monitorEventProducer) {
-      return new TxnInvoker(monitorRepository, boundMonitorRepository, monitorEventProducer);
+        MonitorEventProducer monitorEventProducer,
+        ZoneStorage zoneStorage) {
+      return new TxnInvoker(monitorRepository, boundMonitorRepository, monitorEventProducer, zoneStorage);
     }
   }
 
@@ -118,38 +121,98 @@ public class MonitorManagement {
   @Autowired
   private final TxnInvoker txnInvoker;
 
+  enum Operand {SAVE, SAVE_AND_INC, SAVE_AND_DEC, DEL};
+  @Data
+  public static class BoundMonitorOperandList {
+    final List<BoundMonitor> boundMonitors;
+    final Operand operand;
+  }
+  
   public static class TxnInvoker{
+
+    
     private final BoundMonitorRepository boundMonitorRepository;
     private final MonitorEventProducer monitorEventProducer;
     private final MonitorRepository monitorRepository;
+    private final ZoneStorage zoneStorage;
     @Autowired
     public TxnInvoker(MonitorRepository monitorRepository,
         BoundMonitorRepository boundMonitorRepository,
-        MonitorEventProducer monitorEventProducer) {
+        MonitorEventProducer monitorEventProducer,
+        ZoneStorage zoneStorage) {
         this.monitorRepository = monitorRepository;
         this.boundMonitorRepository = boundMonitorRepository;
         this.monitorEventProducer = monitorEventProducer;
+        this.zoneStorage = zoneStorage;
 
     }
     @Transactional(value="jpaKafkaTransactionManager")
-    public void invokeTransaction(Monitor saveMonitor, Monitor deleteMonitor, List<BoundMonitor> saveBoundMonitors,
-        List<BoundMonitor>deleteBoundMonitors, Set<String> envoyIds) {
-        if (saveMonitor != null){
-          monitorRepository.save(saveMonitor);
+    public void invokeTransaction(Monitor monitor, Operand operand,
+        List<MonitorManagement.BoundMonitorOperandList> boundMonitorOperandLists,
+        Set<String> envoyIds) {
+
+      Predicate<BoundMonitorOperandList> isDelete = b -> b.getOperand() == Operand.DEL;
+
+      if (monitor != null) {
+        if (operand != Operand.DEL) {
+          monitorRepository.save(monitor);
+        } else {
+          monitorRepository.delete(monitor);
         }
-        if (deleteMonitor != null) {
-          monitorRepository.delete(deleteMonitor);
-        }
-        if (saveBoundMonitors != null && !saveBoundMonitors.isEmpty()) {
-          boundMonitorRepository.saveAll(saveBoundMonitors);
-        }
-        if (deleteBoundMonitors != null && !deleteBoundMonitors.isEmpty()) {
-          boundMonitorRepository.deleteAll(deleteBoundMonitors);
-        }
-        envoyIds.stream()
-            .map(envoyId -> new MonitorBoundEvent().setEnvoyId(envoyId))
-            .forEach(monitorEventProducer::sendMonitorEvent);
+      }
+      boundMonitorOperandLists.stream().filter(isDelete).
+          forEach(b -> boundMonitorRepository.deleteAll(b.getBoundMonitors()));
+      boundMonitorOperandLists.stream().filter(isDelete.negate()).
+          forEach(b -> boundMonitorRepository.saveAll(b.getBoundMonitors()));
+
+      envoyIds.stream()
+          .map(envoyId -> new MonitorBoundEvent().setEnvoyId(envoyId))
+          .forEach(monitorEventProducer::sendMonitorEvent);
+      boundMonitorOperandLists.stream().
+          forEach(b ->
+          {
+            switch (b.getOperand()) {
+              case DEL:
+              case SAVE_AND_DEC:
+                changeBoundCounts(b.getBoundMonitors(), zoneStorage::decrementBoundCount);
+                break;
+              case SAVE_AND_INC:
+                changeBoundCounts(b.getBoundMonitors(), zoneStorage::incrementBoundCount);
+                break;
+              case SAVE:
+                // Already saved
+                break;
+            }
+          });
     }
+
+    /**
+     * Determines the resource id each monitor is bound to and changes the count of
+     * monitors it is bound to.
+     * @param needToChange A list of bound monitors to act on.
+     */
+    private void changeBoundCounts(List<BoundMonitor> needToChange, BiConsumer<ResolvedZone, String> operator) {
+      Map<String, String> envoyToResource = new HashMap<>();
+      for (BoundMonitor boundMonitor : needToChange) {
+        if (boundMonitor.getEnvoyId() != null &&
+            boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
+          ResolvedZone zone = getResolvedZoneOfBoundMonitor(boundMonitor);
+          String envoyId = boundMonitor.getEnvoyId();
+          String resourceId = envoyToResource.get(envoyId);
+          // If we don't know the resourceId yet, try look it up
+          if (resourceId == null) {
+            envoyToResource.putAll(zoneStorage.getEnvoyIdToResourceIdMap(zone).join());
+            resourceId = envoyToResource.get(envoyId);
+          }
+
+          // If the resourceId is still not known, the envoy must have disconnected, so skip
+          if (resourceId != null) {
+            operator.accept(zone, resourceId);
+          }
+        }
+      }
+    }
+
 
   }
 
@@ -263,9 +326,9 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    final List<BoundMonitor> boundMonitors = new ArrayList<>();
-    final Set<String> affectedEnvoys = bindNewMonitor(monitor, boundMonitors);
-    txnInvoker.invokeTransaction(monitor, null, boundMonitors, null, affectedEnvoys);
+    final List<BoundMonitorOperandList> boundMonitorOperandLists = new ArrayList<>();
+    final Set<String> affectedEnvoys = bindNewMonitor(monitor, boundMonitorOperandLists);
+    txnInvoker.invokeTransaction(monitor, Operand.SAVE, boundMonitorOperandLists, affectedEnvoys);
     return monitor;
   }
 
@@ -292,8 +355,8 @@ public class MonitorManagement {
    * Performs label selection of the given monitor to locate resources and zones for bindings.
    * @return affected envoy IDs
    */
-  Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitor>boundMonitors) {
-    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitors);
+  Set<String> bindNewMonitor(Monitor monitor, List<BoundMonitorOperandList>boundMonitorOperandLists) {
+    return bindMonitorTest(monitor, determineMonitoringZones(monitor), boundMonitorOperandLists);
   }
 
   /**
@@ -302,11 +365,13 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindMonitorTest(Monitor monitor,
-      List<String> zones, List<BoundMonitor> boundMonitors) {
+      List<String> zones, List<BoundMonitorOperandList> boundMonitorOperandLists) {
     final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
         monitor.getTenantId(), monitor.getLabelSelector());
 
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
+
+    final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
     if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
       // AGENT MONITOR
@@ -352,6 +417,7 @@ public class MonitorManagement {
 
     if (!boundMonitors.isEmpty()) {
       log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
+      boundMonitorOperandLists.add(new BoundMonitorOperandList(boundMonitors, Operand.SAVE_AND_INC));
     }
     else {
       log.debug("No monitors were bound from monitor={}", monitor);
