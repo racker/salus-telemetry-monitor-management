@@ -82,7 +82,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -97,16 +96,12 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.orm.jpa.JpaTransactionManager;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -118,7 +113,6 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class})
-@TestPropertySource(properties = "salus.kafka.chained.transaction.manager=false")
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";
@@ -136,18 +130,6 @@ public class MonitorManagementTest {
             return new ServicesProperties()
                 .setResourceManagementUrl("");
         }
-
-        @Bean
-        public PlatformTransactionManager jpaKafkaTransactionManager(EntityManagerFactory em) {
-            return transactionManager(em);
-        }
-
-        @Primary  // when in doubt, chose this txnManager
-        @Bean
-        public PlatformTransactionManager transactionManager(EntityManagerFactory em) {
-            return new JpaTransactionManager(em);
-        }
-        
     }
 
     @Rule

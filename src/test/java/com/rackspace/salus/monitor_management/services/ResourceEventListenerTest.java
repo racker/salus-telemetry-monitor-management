@@ -32,7 +32,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.transaction.annotation.Transactional;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(
@@ -49,9 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ImportAutoConfiguration({
     KafkaAutoConfiguration.class
 })
-@EmbeddedKafka(topics = ResourceEventListenerTest.TOPIC,
-    brokerProperties = {"transaction.state.log.replication.factor=1",
-    "transaction.state.log.min.isr=1"})
+@EmbeddedKafka(topics = ResourceEventListenerTest.TOPIC)
 public class ResourceEventListenerTest {
 
   static final String TOPIC = "resource_events";
@@ -61,7 +58,6 @@ public class ResourceEventListenerTest {
         EmbeddedKafkaBroker.BROKER_LIST_PROPERTY, "spring.kafka.bootstrap-servers");
   }
 
-  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   private KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -72,8 +68,7 @@ public class ResourceEventListenerTest {
   ResourceEventListener resourceEventListener;
 
   @Test
-  @Transactional(value="kafkaTransactionManager")
-  public void testReattachedEnvoyResourceEvent() {
+  public void testReattachedEnvoyResourceEvent() throws InterruptedException {
     final ResourceEvent event = new ResourceEvent()
         .setReattachedEnvoyId("e-1")
         .setLabelsChanged(false)
