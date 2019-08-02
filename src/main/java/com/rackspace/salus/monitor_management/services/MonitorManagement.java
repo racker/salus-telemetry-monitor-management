@@ -302,12 +302,11 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindMonitorTest(Monitor monitor,
-      List<String> zones, List<BoundMonitor>boundMonitors) {
+      List<String> zones, List<BoundMonitor> boundMonitors) {
     final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
         monitor.getTenantId(), monitor.getLabelSelector());
 
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
-
 
     if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
       // AGENT MONITOR
@@ -321,10 +320,15 @@ public class MonitorManagement {
               .getOne(monitor.getTenantId(), resource.getResourceId())
               .join();
 
-          boundMonitors.add(
-              bindAgentMonitor(monitor, resource,
-                  resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-          );
+          try {
+            boundMonitors.add(
+                bindAgentMonitor(monitor, resource,
+                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+            );
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
+          }
         }
       }
 
@@ -333,9 +337,14 @@ public class MonitorManagement {
 
       for (ResourceDTO resource : resources) {
         for (String zone : zones) {
-          boundMonitors.add(
-              bindRemoteMonitor(monitor, resource, zone)
-          );
+          try {
+            boundMonitors.add(
+                bindRemoteMonitor(monitor, resource, zone)
+            );
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
+          }
         }
       }
 
@@ -350,6 +359,7 @@ public class MonitorManagement {
 
     return extractEnvoyIds(boundMonitors);
   }
+
   /**
    * Performs label selection of the given monitor to locate resources for bindings.
    * For remote monitors, this will only perform binding within the given zones.
