@@ -122,8 +122,6 @@ public class MonitorManagement {
 
   @Autowired
   private final TxnInvoker txnInvoker;
-
-  enum Operator {SAVE, SAVE_AND_INC, SAVE_AND_DEC, DEL};
   @Data
   public static class MessageQEntry {
     final String entryMethodStr;
