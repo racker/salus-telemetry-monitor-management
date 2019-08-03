@@ -875,6 +875,16 @@ public class MonitorManagement {
    * @param event the new resource event.
    */
   void handleResourceChangeEvent(ResourceEvent event) {
+    txnInvoker.initMessageQ();
+    try {
+      handleResourceChangeEventInternal(event);
+      txnInvoker.invokeTransaction();
+    } finally {
+      txnInvoker.deleteMessageQ();
+    }
+  }
+
+  private void handleResourceChangeEventInternal(ResourceEvent event) {
     final String tenantId = event.getTenantId();
     final String resourceId = event.getResourceId();
 
