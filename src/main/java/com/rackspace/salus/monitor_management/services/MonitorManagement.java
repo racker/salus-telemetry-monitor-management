@@ -862,6 +862,9 @@ public class MonitorManagement {
       return;
     }
 
+        txnInvoker.initMessageQ();
+    try {
+
     final List<UUID> boundMonitorIds =
         boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
 
@@ -904,6 +907,10 @@ public class MonitorManagement {
     }
 
     sendMonitorBoundEvents(affectedEnvoys);
+      txnInvoker.invokeTransaction();
+    } finally {
+      txnInvoker.deleteMessageQ();
+    }
   }
 
   /**
@@ -926,6 +933,8 @@ public class MonitorManagement {
         boundMonitor.setEnvoyId(envoyId)
     );
 
+    txnInvoker.initMessageQ();
+    try {
     txnInvoker.publish("boundMonitorRepository.saveAll", bound);
 
     // now that the re-binding is saved
@@ -933,6 +942,10 @@ public class MonitorManagement {
     previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
     // ...and tell the attached envoy about the re-bindings
     sendMonitorBoundEvent(envoyId);
+      txnInvoker.invokeTransaction();
+    } finally {
+      txnInvoker.deleteMessageQ();
+    }
   }
 
   /**

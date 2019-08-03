@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.entities.Monitor;
 import com.rackspace.salus.monitor_management.entities.Zone;
 import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
 import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
+import com.rackspace.salus.monitor_management.services.MonitorManagement.TxnInvoker;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -183,6 +184,7 @@ public class MonitorManagementTest {
     @Autowired
     private MonitorManagement monitorManagement;
 
+    @Autowired MonitorManagement.TxnInvoker txnInvoker;
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
     private Monitor currentMonitor;
@@ -1238,7 +1240,10 @@ public class MonitorManagementTest {
 
     @Test
     public void testSendMonitorBoundEvents() {
+        txnInvoker.initMessageQ();
         monitorManagement.sendMonitorBoundEvents(Sets.newHashSet("e-3", "e-2", "e-1"));
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();
 
         ArgumentCaptor<MonitorBoundEvent> evtCaptor = ArgumentCaptor.forClass(MonitorBoundEvent.class);
 
@@ -1262,7 +1267,10 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         final List<BoundMonitor> expected = Collections.singletonList(
             new BoundMonitor()
@@ -1324,7 +1332,10 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         final List<BoundMonitor> expected = Arrays.asList(
             new BoundMonitor()
@@ -1387,7 +1398,10 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         verify(zoneStorage).findLeastLoadedEnvoy(zone1);
 
@@ -1726,7 +1740,10 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
+        txnInvoker.initMessageQ();
         Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         assertThat(result, hasSize(1));
         assertThat(result.toArray()[0], equalTo("e-1"));
@@ -1769,7 +1786,10 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(null));
 
+        txnInvoker.initMessageQ();
         Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         assertThat(result, hasSize(0));
 
@@ -1846,8 +1866,11 @@ public class MonitorManagementTest {
 
         // EXECUTE
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys = monitorManagement
             .unbindByMonitorId(Collections.singletonList(monitor.getId()));
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         // VERIFY
 
@@ -1953,8 +1976,11 @@ public class MonitorManagementTest {
 
         // EXERCISE
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys =
             monitorManagement.upsertBindingToResource(monitors, resource, null);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         // VERIFY
 
@@ -2043,9 +2069,11 @@ public class MonitorManagementTest {
             .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         // EXERCISE
-
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys =
             monitorManagement.upsertBindingToResource(monitors, resource, null);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         // VERIFY
 
@@ -2105,8 +2133,11 @@ public class MonitorManagementTest {
 
         // EXERCISE
 
+        txnInvoker.initMessageQ();
         final Set<String> affectedEnvoys =
             monitorManagement.upsertBindingToResource(monitors, resource, null);
+        txnInvoker.invokeTransaction();
+        txnInvoker.deleteMessageQ();        
 
         // VERIFY
 
