@@ -146,38 +146,14 @@ public class MonitorManagement {
         this.boundMonitorRepository = boundMonitorRepository;
         this.monitorEventProducer = monitorEventProducer;
         this.zoneStorage = zoneStorage;
-        methodTable.put("monitorRepository.save", a ->
-        {
-          monitorRepository.save((Monitor)a[0]);
-        });
-        methodTable.put("monitorRepository.delete", a ->
-        {
-          monitorRepository.delete((Monitor)a[0]);
-        });
-        methodTable.put("boundMonitorRepository.saveAll", a ->
-        {
-          boundMonitorRepository.saveAll((List<BoundMonitor>)a[0]);
-        });
-        methodTable.put("boundMonitorRepository.deleteAll", a ->
-        {
-          boundMonitorRepository.deleteAll((List<BoundMonitor>)a[0]);
-        });
-        methodTable.put("monitorEventProducer.sendMonitorEvent", a ->
-        {
-          monitorEventProducer.sendMonitorEvent((MonitorBoundEvent)a[0]);
-        });
-        methodTable.put("zoneStorage.decrementBoundCount", a ->
-        {
-          zoneStorage.decrementBoundCount((ResolvedZone)a[0], (String)a[1]);
-        });
-        methodTable.put("zoneStorage.incrementBoundCount", a ->
-        {
-          zoneStorage.incrementBoundCount((ResolvedZone)a[0], (String)a[1]);
-        });
-        methodTable.put("zoneStorage.changeBoundCount", a ->
-        {
-          zoneStorage.changeBoundCount((ResolvedZone)a[0], (String)a[1], (Integer)a[2]);
-        });
+        methodTable.put("monitorRepository.save", a -> {monitorRepository.save((Monitor)a[0]);});
+        methodTable.put("monitorRepository.delete", a -> {monitorRepository.delete((Monitor)a[0]);});
+        methodTable.put("boundMonitorRepository.saveAll", a -> {boundMonitorRepository.saveAll((List<BoundMonitor>)a[0]);});
+        methodTable.put("boundMonitorRepository.deleteAll", a -> {boundMonitorRepository.deleteAll((List<BoundMonitor>)a[0]);});
+        methodTable.put("monitorEventProducer.sendMonitorEvent", a -> {monitorEventProducer.sendMonitorEvent((MonitorBoundEvent)a[0]);});
+        methodTable.put("zoneStorage.decrementBoundCount", a -> {zoneStorage.decrementBoundCount((ResolvedZone)a[0], (String)a[1]);});
+        methodTable.put("zoneStorage.incrementBoundCount", a -> {zoneStorage.incrementBoundCount((ResolvedZone)a[0], (String)a[1]);});
+        methodTable.put("zoneStorage.changeBoundCount", a -> {zoneStorage.changeBoundCount((ResolvedZone)a[0], (String)a[1], (Integer)a[2]);});
     }
 
     void initMessageQ() {
