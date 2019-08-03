@@ -301,6 +301,17 @@ public class MonitorManagement {
    * @return The newly created monitor.
    */
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
+    txnInvoker.initMessageQ();
+    try {
+      Monitor monitor = createMonitorInternal(tenantId, newMonitor);
+      txnInvoker.invokeTransaction();
+      return monitor;
+    } finally {
+      txnInvoker.deleteMessageQ();
+    }
+
+  }
+  private Monitor createMonitorInternal(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
     if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
         newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
       throw new IllegalArgumentException("Local monitors cannot have zones");
@@ -319,15 +330,9 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    txnInvoker.initMessageQ();
-    try {
-      txnInvoker.publish("monitorRepository.save", monitor);
-      final Set<String> affectedEnvoys = bindNewMonitor(monitor);
-      sendMonitorBoundEvents(affectedEnvoys);
-      txnInvoker.invokeTransaction();
-    } finally {
-      txnInvoker.deleteMessageQ();
-    }
+    txnInvoker.publish("monitorRepository.save", monitor);
+    final Set<String> affectedEnvoys = bindNewMonitor(monitor);
+    sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
   }
 
@@ -547,38 +552,45 @@ public class MonitorManagement {
   public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
       String zoneName, String resourceId,
       String fromEnvoyId, String toEnvoyId) {
+        txnInvoker.initMessageQ();
+        try {
+          handleEnvoyResourceChangedInZoneInternal(tenantId, zoneName, resourceId, fromEnvoyId, toEnvoyId);
+          txnInvoker.invokeTransaction();
+        } finally {
+          txnInvoker.deleteMessageQ();
+        }
+      
+      }
+      
+  private void handleEnvoyResourceChangedInZoneInternal(@Nullable String tenantId,
+      String zoneName, String resourceId,
+      String fromEnvoyId, String toEnvoyId) {
     log.debug("Moving bound monitors to new envoy for same resource");
 
-    txnInvoker.initMessageQ();
-    try {
     final ResolvedZone resolvedZone = resolveZone(tenantId, zoneName);
-  
-      final List<BoundMonitor> boundToPrev = findBoundMonitorsWithEnvoy(
-          resolvedZone, fromEnvoyId, null);
-  
-      if (!boundToPrev.isEmpty()) {
-        log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
-        for (BoundMonitor boundMonitor : boundToPrev) {
-          boundMonitor.setEnvoyId(toEnvoyId);
-        }
-  
-        txnInvoker.publish("boundMonitorRepository.saveAll", boundToPrev);
-  
-  
-        txnInvoker.publish("zoneStorage.changeBoundCount", 
-            createPrivateZone(tenantId, zoneName),
-            resourceId,
-            boundToPrev.size()
-        );
-  
-        sendMonitorBoundEvent(toEnvoyId);
+
+    final List<BoundMonitor> boundToPrev = findBoundMonitorsWithEnvoy(
+        resolvedZone, fromEnvoyId, null);
+
+    if (!boundToPrev.isEmpty()) {
+      log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
+      for (BoundMonitor boundMonitor : boundToPrev) {
+        boundMonitor.setEnvoyId(toEnvoyId);
       }
-      else {
-        log.debug("No bound monitors were previously assigned to envoy={}", fromEnvoyId);
-      }
-      txnInvoker.invokeTransaction();
-    } finally {
-      txnInvoker.deleteMessageQ();
+
+      txnInvoker.publish("boundMonitorRepository.saveAll", boundToPrev);
+
+
+      txnInvoker.publish("zoneStorage.changeBoundCount", 
+          createPrivateZone(tenantId, zoneName),
+          resourceId,
+          boundToPrev.size()
+      );
+
+      sendMonitorBoundEvent(toEnvoyId);
+    }
+    else {
+      log.debug("No bound monitors were previously assigned to envoy={}", fromEnvoyId);
     }
   }
 
@@ -611,6 +623,17 @@ public class MonitorManagement {
    * @return The newly updated monitor.
    */
   public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
+    txnInvoker.initMessageQ();
+    try {
+      Monitor monitor = updateMonitorInternal(tenantId, id, updatedValues);
+      txnInvoker.invokeTransaction();
+      return monitor;
+    } finally {
+      txnInvoker.deleteMessageQ();
+    }
+
+  }
+  private Monitor updateMonitorInternal(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
@@ -623,67 +646,61 @@ public class MonitorManagement {
     validateMonitoringZones(tenantId, updatedValues.getZones());
 
     final Set<String> affectedEnvoys = new HashSet<>();
-    txnInvoker.initMessageQ();
-    try {
 
-      if (updatedValues.getLabelSelector() != null &&
-          !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
-        // Process potential changes to resource selection and therefore bindings
-        // ...only need to process removed and new bindings
-  
-        affectedEnvoys.addAll(
-            processMonitorLabelSelectorModified(monitor, updatedValues.getLabelSelector())
-        );
-  
-        monitor.setLabelSelector(updatedValues.getLabelSelector());
-      }
-      else if (monitor.getLabelSelector() != null) {
-        // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-        // that has a field of type Map. It wants to clear the loaded map value, which is
-        // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
-        // retrieved maps.
-        monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
-      }
-  
-      if (updatedValues.getContent() != null &&
-          !updatedValues.getContent().equals(monitor.getContent())) {
-        // Process potential changes to bound resource rendered content
-        // ...only need to process changed bindings
-  
-        affectedEnvoys.addAll(
-            processMonitorContentModified(monitor, updatedValues.getContent())
-        );
-  
-        monitor.setContent(updatedValues.getContent());
-      }
-  
-      if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
-        // Process potential changes to bound zones
-  
-        affectedEnvoys.addAll(
-            processMonitorZonesModified(monitor, updatedValues.getZones())
-        );
-  
-        // give JPA a modifiable copy of the given list
-        monitor.setZones(new ArrayList<>(updatedValues.getZones()));
-      }
-      else if (monitor.getZones() != null){
-        // See above regarding:
-        // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-        monitor.setZones(new ArrayList<>(monitor.getZones()));
-      }
-  
-      PropertyMapper map = PropertyMapper.get();
-      map.from(updatedValues.getMonitorName())
-          .whenNonNull()
-          .to(monitor::setMonitorName);
-      txnInvoker.publish("monitorRepository.save", monitor);
+    if (updatedValues.getLabelSelector() != null &&
+        !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
+      // Process potential changes to resource selection and therefore bindings
+      // ...only need to process removed and new bindings
 
-      sendMonitorBoundEvents(affectedEnvoys);
-      txnInvoker.invokeTransaction();
-    } finally {
-      txnInvoker.deleteMessageQ();
+      affectedEnvoys.addAll(
+          processMonitorLabelSelectorModified(monitor, updatedValues.getLabelSelector())
+      );
+
+      monitor.setLabelSelector(updatedValues.getLabelSelector());
     }
+    else if (monitor.getLabelSelector() != null) {
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      // that has a field of type Map. It wants to clear the loaded map value, which is
+      // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+      // retrieved maps.
+      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+    }
+
+    if (updatedValues.getContent() != null &&
+        !updatedValues.getContent().equals(monitor.getContent())) {
+      // Process potential changes to bound resource rendered content
+      // ...only need to process changed bindings
+
+      affectedEnvoys.addAll(
+          processMonitorContentModified(monitor, updatedValues.getContent())
+      );
+
+      monitor.setContent(updatedValues.getContent());
+    }
+
+    if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
+      // Process potential changes to bound zones
+
+      affectedEnvoys.addAll(
+          processMonitorZonesModified(monitor, updatedValues.getZones())
+      );
+
+      // give JPA a modifiable copy of the given list
+      monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+    }
+    else if (monitor.getZones() != null){
+      // See above regarding:
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      monitor.setZones(new ArrayList<>(monitor.getZones()));
+    }
+
+    PropertyMapper map = PropertyMapper.get();
+    map.from(updatedValues.getMonitorName())
+        .whenNonNull()
+        .to(monitor::setMonitorName);
+    txnInvoker.publish("monitorRepository.save", monitor);
+
+    sendMonitorBoundEvents(affectedEnvoys);
 
     return monitor;
   }
@@ -828,22 +845,26 @@ public class MonitorManagement {
    * @param id       The id of the monitor.
    */
   public void removeMonitor(String tenantId, UUID id) {
-    Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
-        new NotFoundException(String.format("No monitor found for %s on tenant %s",
-            id, tenantId)));
-
     txnInvoker.initMessageQ();
     try {
-      // need to unbind before deleting monitor since BoundMonitor references Monitor
-      final Set<String> affectedEnvoys = unbindByMonitorId(Collections.singletonList(id));
-
-      sendMonitorBoundEvents(affectedEnvoys);
-
-      txnInvoker.publish("monitorRepository.delete", monitor);
+      removeMonitorInternal(tenantId, id);
       txnInvoker.invokeTransaction();
     } finally {
       txnInvoker.deleteMessageQ();
     }
+    
+  }
+  private void removeMonitorInternal(String tenantId, UUID id) {
+    Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
+        new NotFoundException(String.format("No monitor found for %s on tenant %s",
+            id, tenantId)));
+
+    // need to unbind before deleting monitor since BoundMonitor references Monitor
+    final Set<String> affectedEnvoys = unbindByMonitorId(Collections.singletonList(id));
+
+    sendMonitorBoundEvents(affectedEnvoys);
+
+    txnInvoker.publish("monitorRepository.delete", monitor);
   }
 
   /**
@@ -861,9 +882,6 @@ public class MonitorManagement {
       handleReattachedEnvoy(tenantId, resourceId, event.getReattachedEnvoyId());
       return;
     }
-
-        txnInvoker.initMessageQ();
-    try {
 
     final List<UUID> boundMonitorIds =
         boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
@@ -907,10 +925,6 @@ public class MonitorManagement {
     }
 
     sendMonitorBoundEvents(affectedEnvoys);
-      txnInvoker.invokeTransaction();
-    } finally {
-      txnInvoker.deleteMessageQ();
-    }
   }
 
   /**
@@ -933,8 +947,6 @@ public class MonitorManagement {
         boundMonitor.setEnvoyId(envoyId)
     );
 
-    txnInvoker.initMessageQ();
-    try {
     txnInvoker.publish("boundMonitorRepository.saveAll", bound);
 
     // now that the re-binding is saved
@@ -942,10 +954,6 @@ public class MonitorManagement {
     previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
     // ...and tell the attached envoy about the re-bindings
     sendMonitorBoundEvent(envoyId);
-      txnInvoker.invokeTransaction();
-    } finally {
-      txnInvoker.deleteMessageQ();
-    }
   }
 
   /**
@@ -1228,24 +1236,28 @@ public class MonitorManagement {
    * @param envoyId The envoy id that has disconnected.
    */
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
-    log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
-        envoyId, zoneName, zoneTenantId);
     txnInvoker.initMessageQ();
     try {
-      List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId, Pageable.unpaged()).getContent();
-      if (boundMonitors.isEmpty()) {
-        return;
-      }
-      for (BoundMonitor boundMonitor : boundMonitors) {
-        boundMonitor.setEnvoyId(null);
-      }
-  
-      txnInvoker.publish("boundMonitorRepository.saveAll", boundMonitors);
-      handleNewEnvoyInZoneInternal(zoneTenantId, zoneName);
+      handleExpiredEnvoyInternal(zoneTenantId, zoneName, envoyId);
       txnInvoker.invokeTransaction();
     } finally {
       txnInvoker.deleteMessageQ();
     }
+
+  }
+  private void handleExpiredEnvoyInternal(@Nullable String zoneTenantId, String zoneName, String envoyId) {
+    log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
+        envoyId, zoneName, zoneTenantId);
+    List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId, Pageable.unpaged()).getContent();
+    if (boundMonitors.isEmpty()) {
+      return;
+    }
+    for (BoundMonitor boundMonitor : boundMonitors) {
+      boundMonitor.setEnvoyId(null);
+    }
+
+    txnInvoker.publish("boundMonitorRepository.saveAll", boundMonitors);
+    handleNewEnvoyInZoneInternal(zoneTenantId, zoneName);
   }
 
   public CompletableFuture<List<ZoneAssignmentCount>> getZoneAssignmentCounts(
@@ -1295,68 +1307,73 @@ public class MonitorManagement {
 
   private int rebalanceWithZoneBindingCounts(ResolvedZone zone,
       Map<EnvoyResourcePair, Integer> bindingCounts) {
+        txnInvoker.initMessageQ();
+        try {
+          int count = rebalanceWithZoneBindingCountsInternal(zone, bindingCounts);
+          txnInvoker.invokeTransaction();
+          return count;
+        } finally {
+          txnInvoker.deleteMessageQ();
+        }
+      }
+  private int rebalanceWithZoneBindingCountsInternal(ResolvedZone zone,
+      Map<EnvoyResourcePair, Integer> bindingCounts) {
     if (bindingCounts.size() <= 1) {
       // nothing to rebalance if only one or none envoys in zone
       return 0;
     }
 
-    txnInvoker.initMessageQ();
-    try {
-
     log.debug("Rebalancing zone={} given bindingCounts={}", zone, bindingCounts);
-  
-      final List<Integer> values = bindingCounts.values().stream()
-          .filter(value ->
-              zonesProperties.isRebalanceEvaluateZeroes() || value != 0)
-          .collect(Collectors.toList());
-  
-      @SuppressWarnings("UnstableApiUsage")
-      final Stats stats = Stats.of(values);
-  
-      final double stddev = stats.populationStandardDeviation();
-      final double avg = stats.mean();
-      final double threshold = avg + stddev * zonesProperties.getRebalanceStandardDeviations();
-      // round up to be lean towards slightly less reassignments
-      final int avgInt = (int) Math.ceil(avg);
-  
-      final List<BoundMonitor> overAssigned = new ArrayList<>();
-  
-      for (Entry<EnvoyResourcePair, Integer> entry : bindingCounts.entrySet()) {
-        if (entry.getValue() > threshold) {
-  
-          // pick off enough bound monitors to bring this one down to average
-          final int amountToUnassign = entry.getValue() - avgInt;
-          final PageRequest limit = PageRequest.of(0, amountToUnassign);
-  
-          final List<BoundMonitor> boundMonitors = findBoundMonitorsWithEnvoy(
-              zone, entry.getKey().getEnvoyId(), limit);
-  
-          overAssigned.addAll(boundMonitors);
-  
-          // decrease the assignment count of bound monitors
-          txnInvoker.publish("zoneStorage.changeBoundCount", 
-              zone, entry.getKey().getResourceId(), -amountToUnassign
-          );
-        }
+
+    final List<Integer> values = bindingCounts.values().stream()
+        .filter(value ->
+            zonesProperties.isRebalanceEvaluateZeroes() || value != 0)
+        .collect(Collectors.toList());
+
+    @SuppressWarnings("UnstableApiUsage")
+    final Stats stats = Stats.of(values);
+
+    final double stddev = stats.populationStandardDeviation();
+    final double avg = stats.mean();
+    final double threshold = avg + stddev * zonesProperties.getRebalanceStandardDeviations();
+    // round up to be lean towards slightly less reassignments
+    final int avgInt = (int) Math.ceil(avg);
+
+    final List<BoundMonitor> overAssigned = new ArrayList<>();
+
+    for (Entry<EnvoyResourcePair, Integer> entry : bindingCounts.entrySet()) {
+      if (entry.getValue() > threshold) {
+
+        // pick off enough bound monitors to bring this one down to average
+        final int amountToUnassign = entry.getValue() - avgInt;
+        final PageRequest limit = PageRequest.of(0, amountToUnassign);
+
+        final List<BoundMonitor> boundMonitors = findBoundMonitorsWithEnvoy(
+            zone, entry.getKey().getEnvoyId(), limit);
+
+        overAssigned.addAll(boundMonitors);
+
+        // decrease the assignment count of bound monitors
+        txnInvoker.publish("zoneStorage.changeBoundCount", 
+            zone, entry.getKey().getResourceId(), -amountToUnassign
+        );
       }
-  
-      log.debug("Rebalancing boundMonitors={} in zone={}", overAssigned, zone);
-  
-      final Set<String> overassignedEnvoyIds = extractEnvoyIds(overAssigned);
-  
-      // "unassign" the bound monitors
-      overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
-      txnInvoker.publish("boundMonitorRepository.saveAll", overAssigned);
-  
-      // tell previous envoys to stop unassigned monitors
-      sendMonitorBoundEvents(overassignedEnvoyIds);
-      // ...and then this will "re-assign" the bound monitors and send out new bound events
-      handleNewEnvoyInZoneInternal(zone.getTenantId(), zone.getName());
-      txnInvoker.invokeTransaction();
-      return overAssigned.size();
-    } finally {
-      txnInvoker.deleteMessageQ();
     }
+
+    log.debug("Rebalancing boundMonitors={} in zone={}", overAssigned, zone);
+
+    final Set<String> overassignedEnvoyIds = extractEnvoyIds(overAssigned);
+
+    // "unassign" the bound monitors
+    overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
+    txnInvoker.publish("boundMonitorRepository.saveAll", overAssigned);
+
+    // tell previous envoys to stop unassigned monitors
+    sendMonitorBoundEvents(overassignedEnvoyIds);
+    // ...and then this will "re-assign" the bound monitors and send out new bound events
+    handleNewEnvoyInZoneInternal(zone.getTenantId(), zone.getName());
+
+    return overAssigned.size();
   }
 
   private List<BoundMonitor> findBoundMonitorsWithEnvoy(ResolvedZone zone, String envoyId,
