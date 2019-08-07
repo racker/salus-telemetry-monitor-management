@@ -16,11 +16,16 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.model.View;
+import com.rackspace.salus.telemetry.model.ZoneState;
+import java.time.format.DateTimeFormatter;
 import lombok.Data;
 import java.util.List;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 public class ZoneDTO {
     String name;
     long pollerTimeout;
@@ -33,4 +38,16 @@ public class ZoneDTO {
 
     @JsonView(View.Internal.class)
     ZoneState state;
+
+    public ZoneDTO(Zone zone) {
+        this.name = zone.getName();
+        this.pollerTimeout = zone.getPollerTimeout().getSeconds();
+        this.provider = zone.getProvider();
+        this.providerRegion = zone.getProviderRegion();
+        this.isPublic = zone.isPublic();
+        this.sourceIpAddresses = zone.getSourceIpAddresses();
+        this.state = zone.getState();
+        this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(zone.getCreatedTimestamp());
+        this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(zone.getUpdatedTimestamp());
+    }
 }

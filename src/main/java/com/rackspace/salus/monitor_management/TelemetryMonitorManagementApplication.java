@@ -22,15 +22,10 @@ import com.rackspace.salus.common.web.ExtendedErrorAttributesConfig;
 import com.rackspace.salus.telemetry.etcd.EnableEtcd;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
 @EnableSalusKafkaMessaging
-@EntityScan({
-    "com.rackspace.salus.telemetry.model",
-    "com.rackspace.salus.monitor_management.entities"
-})
 @EnableEtcd
 @Import(ExtendedErrorAttributesConfig.class)
 public class TelemetryMonitorManagementApplication {

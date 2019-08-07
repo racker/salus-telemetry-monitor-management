@@ -18,10 +18,13 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Conveys the binding of a monitor to a resource and for remote monitors,
@@ -29,6 +32,7 @@ import lombok.Data;
  * it also conveys the binding to a zone.
  */
 @Data
+@NoArgsConstructor
 public class BoundMonitorDTO {
   UUID monitorId;
   @JsonInclude(Include.NON_EMPTY)
@@ -41,4 +45,17 @@ public class BoundMonitorDTO {
   String envoyId;
   String createdTimestamp;
   String updatedTimestamp;
+
+  public BoundMonitorDTO(BoundMonitor boundMonitor) {
+    this.monitorId = boundMonitor.getMonitor().getId();
+    this.zoneName = boundMonitor.getZoneName();
+    this.resourceTenant = boundMonitor.getMonitor().getTenantId();
+    this.resourceId = boundMonitor.getResourceId();
+    this.selectorScope = boundMonitor.getMonitor().getSelectorScope();
+    this.agentType = boundMonitor.getMonitor().getAgentType();
+    this.renderedContent = boundMonitor.getRenderedContent();
+    this.envoyId = boundMonitor.getEnvoyId();
+    this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(boundMonitor.getCreatedTimestamp());
+    this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(boundMonitor.getUpdatedTimestamp());
+  }
 }

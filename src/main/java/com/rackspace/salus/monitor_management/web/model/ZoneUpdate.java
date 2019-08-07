@@ -16,6 +16,7 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import java.util.List;
 import lombok.Data;
 

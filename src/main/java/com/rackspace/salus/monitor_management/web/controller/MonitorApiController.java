@@ -17,9 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
@@ -67,15 +65,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MonitorApiController {
 
     private MonitorManagement monitorManagement;
-    private final BoundMonitorRepository boundMonitorRepository;
     private MonitorConversionService monitorConversionService;
 
     @Autowired
     public MonitorApiController(MonitorManagement monitorManagement,
-                                BoundMonitorRepository boundMonitorRepository,
                                 MonitorConversionService monitorConversionService) {
         this.monitorManagement = monitorManagement;
-        this.boundMonitorRepository = boundMonitorRepository;
         this.monitorConversionService = monitorConversionService;
     }
 
@@ -92,8 +87,8 @@ public class MonitorApiController {
     @ApiOperation(value = "Gets all BoundMonitors attached to a particular Envoy")
     @JsonView(View.Admin.class)
     public PagedContent<BoundMonitorDTO> getBoundMonitors(@PathVariable String envoyId, Pageable pageable) {
-        return PagedContent.fromPage(boundMonitorRepository.findAllByEnvoyId(envoyId, pageable)
-            .map(BoundMonitor::toDTO));
+        return PagedContent.fromPage(monitorManagement.getAllBoundMonitorsByEnvoyId(envoyId, pageable)
+            .map(BoundMonitorDTO::new));
     }
 
     @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
@@ -119,8 +114,8 @@ public class MonitorApiController {
     public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
                                                            Pageable pageable) {
         return PagedContent.fromPage(
-            boundMonitorRepository.findAllByMonitor_TenantId(tenantId, pageable)
-            .map(BoundMonitor::toDTO)
+            monitorManagement.getAllBoundMonitorsByTenantId(tenantId, pageable)
+                .map(BoundMonitorDTO::new)
         );
     }
 

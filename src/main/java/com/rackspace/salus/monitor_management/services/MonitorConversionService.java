@@ -18,7 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;

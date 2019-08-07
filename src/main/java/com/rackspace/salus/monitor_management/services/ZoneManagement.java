@@ -15,11 +15,11 @@
  */
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
-import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
-import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;

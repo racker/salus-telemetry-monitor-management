@@ -35,14 +35,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
-import com.rackspace.salus.monitor_management.web.model.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.io.IOException;
@@ -58,6 +59,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,6 +68,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -183,7 +186,7 @@ public class ZoneApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO()), true));
+            .andExpect(content().json(objectMapper.writeValueAsString(new ZoneDTO(expectedZone)), true));
     }
 
     @Test
