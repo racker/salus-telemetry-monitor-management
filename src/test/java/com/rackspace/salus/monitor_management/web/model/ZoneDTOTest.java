@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.model.View;
 import org.junit.Test;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -37,7 +37,7 @@ public class ZoneDTOTest {
   public void testFieldsCovered() throws Exception {
     final Zone zone = podamFactory.manufacturePojo(Zone.class);
 
-    final ZoneDTO dto = zone.toDTO();
+    final ZoneDTO dto = new ZoneDTO(zone);
 
     assertThat(dto.getName(), notNullValue());
     assertThat(dto.getPollerTimeout(), notNullValue());

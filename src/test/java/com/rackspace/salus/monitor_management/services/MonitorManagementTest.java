@@ -42,14 +42,15 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
-import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
-import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
+import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -112,7 +113,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
-    MonitorContentProperties.class})
+    MonitorContentProperties.class,
+    DatabaseConfig.class})
 public class MonitorManagementTest {
 
     private static final String DEFAULT_ENVOY_ID = "env1";

@@ -16,14 +16,18 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 public class MonitorDTO {
   UUID id;
 
@@ -44,4 +48,17 @@ public class MonitorDTO {
   String createdTimestamp;
 
   String updatedTimestamp;
+
+  public MonitorDTO(Monitor monitor) {
+    this.id = monitor.getId();
+    this.monitorName = monitor.getMonitorName();
+    this.labelSelector = monitor.getLabelSelector();
+    this.tenantId = monitor.getMonitorName();
+    this.content = monitor.getContent();
+    this.agentType = monitor.getAgentType();
+    this.selectorScope = monitor.getSelectorScope();
+    this.zones = monitor.getZones();
+    this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp());
+    this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp());
+  }
 }

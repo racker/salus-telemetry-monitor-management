@@ -8,12 +8,13 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.any;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.monitor_management.config.DatabaseConfig;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
-import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
-import com.rackspace.salus.monitor_management.repositories.ZoneRepository;
-import com.rackspace.salus.monitor_management.web.model.ZoneState;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
@@ -43,7 +44,7 @@ import java.util.Random;
 
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
-@Import({ZoneManagement.class, ObjectMapper.class})
+@Import({ZoneManagement.class, ObjectMapper.class, DatabaseConfig.class})
 public class ZoneManagementTest {
 
     @MockBean

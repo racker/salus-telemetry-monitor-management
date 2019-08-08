@@ -35,14 +35,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.ZoneDeletionNotAllowed;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
-import com.rackspace.salus.monitor_management.web.model.ZoneState;
+import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.io.IOException;
@@ -183,7 +184,7 @@ public class ZoneApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(content().json(objectMapper.writeValueAsString(expectedZone.toDTO()), true));
+            .andExpect(content().json(objectMapper.writeValueAsString(new ZoneDTO(expectedZone)), true));
     }
 
     @Test

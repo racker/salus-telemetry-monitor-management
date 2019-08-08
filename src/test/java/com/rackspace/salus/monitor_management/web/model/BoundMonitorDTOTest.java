@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import java.lang.reflect.Field;
 import org.junit.Test;
 import org.springframework.util.ReflectionUtils;
@@ -36,7 +36,7 @@ public class BoundMonitorDTOTest {
   public void testFieldsCovered() {
     final BoundMonitor boundMonitor = podamFactory.manufacturePojo(BoundMonitor.class);
 
-    final BoundMonitorDTO dto = boundMonitor.toDTO();
+    final BoundMonitorDTO dto = new BoundMonitorDTO(boundMonitor);
 
     // First verification approach is to check that all fields are populated with something.
     // This approach makes sure that the verification further down doesn't miss a new field.

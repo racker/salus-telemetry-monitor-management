@@ -2,7 +2,6 @@ package com.rackspace.salus.monitor_management.web.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.web.client.ZoneApiClient;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import org.junit.Test;
 import org.junit.runner.RunWith;

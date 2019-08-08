@@ -13,10 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.rackspace.salus.monitor_management.web.model;
 
-public enum ZoneState {
-    ACTIVE, // running and accepting new checks
-    INACTIVE, // not running
-    MAINTENANCE // running but not accepting new checks
+package com.rackspace.salus.monitor_management.config;
+
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
+@EntityScan("com.rackspace.salus.telemetry.entities")
+@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
+@Configuration
+public class DatabaseConfig {
+
 }

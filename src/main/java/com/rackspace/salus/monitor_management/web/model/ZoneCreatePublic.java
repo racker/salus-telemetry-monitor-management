@@ -17,6 +17,7 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
 import com.rackspace.salus.telemetry.etcd.types.PublicZoneName;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import java.io.Serializable;
 import java.util.List;
 import javax.validation.constraints.Max;

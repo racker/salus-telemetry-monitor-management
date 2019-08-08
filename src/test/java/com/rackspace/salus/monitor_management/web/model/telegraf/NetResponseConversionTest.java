@@ -19,7 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.rackspace.salus.monitor_management.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;

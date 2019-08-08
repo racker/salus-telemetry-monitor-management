@@ -16,8 +16,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
@@ -93,9 +92,8 @@ public class ZoneApiController {
     } else {
       zone = zoneManagement.getPrivateZone(tenantId, name);
     }
-    return zone
-        .orElseThrow(() -> new NotFoundException(String.format("No zone found named %s", name)))
-        .toDTO();
+    return new ZoneDTO(zone
+        .orElseThrow(() -> new NotFoundException(String.format("No zone found named %s", name))));
   }
 
   @GetMapping("/admin/zones/**")
@@ -172,7 +170,7 @@ public class ZoneApiController {
   @JsonView(View.Public.class)
   public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreatePrivate zone)
           throws AlreadyExistsException {
-    return zoneManagement.createPrivateZone(tenantId, zone).toDTO();
+    return new ZoneDTO(zoneManagement.createPrivateZone(tenantId, zone));
   }
 
   @PostMapping("/admin/zones")
@@ -181,14 +179,14 @@ public class ZoneApiController {
   @JsonView(View.Admin.class)
   public ZoneDTO create(@Valid @RequestBody ZoneCreatePublic zone)
       throws AlreadyExistsException {
-    return zoneManagement.createPublicZone(zone).toDTO();
+    return new ZoneDTO(zoneManagement.createPublicZone(zone));
   }
 
   @PutMapping("/tenant/{tenantId}/zones/{name}")
   @ApiOperation(value = "Updates a specific private zone for the tenant")
   @JsonView(View.Public.class)
   public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
-    return zoneManagement.updatePrivateZone(tenantId, name, zone).toDTO();
+    return new ZoneDTO(zoneManagement.updatePrivateZone(tenantId, name, zone));
   }
 
   @PutMapping("/admin/zones/**")
@@ -196,7 +194,7 @@ public class ZoneApiController {
   @JsonView(View.Admin.class)
   public ZoneDTO update(HttpServletRequest request, @Valid @RequestBody ZoneUpdate zone) {
     String name = extractPublicZoneNameFromUri(request);
-    return zoneManagement.updatePublicZone(name, zone).toDTO();
+    return new ZoneDTO(zoneManagement.updatePublicZone(name, zone));
   }
 
   @PostMapping("/tenant/{tenantId}/rebalance-zone/{name}")
@@ -250,7 +248,7 @@ public class ZoneApiController {
   public PagedContent<ZoneDTO> getAvailableZones(@PathVariable String tenantId, Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getAvailableZonesForTenant(tenantId, pageable)
-        .map(Zone::toDTO));
+        .map(ZoneDTO::new));
   }
 
   @GetMapping("/admin/zones")
@@ -259,7 +257,7 @@ public class ZoneApiController {
   public PagedContent<ZoneDTO> getAllPublicZones(Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getAllPublicZones(pageable)
-        .map(Zone::toDTO));
+        .map(ZoneDTO::new));
   }
 
   @GetMapping("/tenant/{tenantId}/monitors-by-zone/{zone}")
@@ -268,6 +266,6 @@ public class ZoneApiController {
   public PagedContent<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone, Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getMonitorsForZone(tenantId, zone, pageable)
-        .map(Monitor::toDTO));
+        .map(MonitorDTO::new));
   }
 }

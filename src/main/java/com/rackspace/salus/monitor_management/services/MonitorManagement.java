@@ -22,12 +22,12 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
-import com.rackspace.salus.monitor_management.entities.BoundMonitor;
-import com.rackspace.salus.monitor_management.entities.Monitor;
-import com.rackspace.salus.monitor_management.entities.Zone;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
-import com.rackspace.salus.monitor_management.repositories.BoundMonitorRepository;
-import com.rackspace.salus.monitor_management.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -1073,7 +1073,7 @@ public class MonitorManagement {
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
     log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
         envoyId, zoneName, zoneTenantId);
-    List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByEnvoyId(envoyId, Pageable.unpaged()).getContent();
+    List<BoundMonitor> boundMonitors = getAllBoundMonitorsByEnvoyId(envoyId, Pageable.unpaged()).getContent();
     if (boundMonitors.isEmpty()) {
       return;
     }
@@ -1203,5 +1203,13 @@ public class MonitorManagement {
       );
     }
     return boundMonitors;
+  }
+
+  public Page<BoundMonitor> getAllBoundMonitorsByEnvoyId(String envoyId, Pageable page) {
+    return boundMonitorRepository.findAllByEnvoyId(envoyId, page);
+  }
+
+  public Page<BoundMonitor> getAllBoundMonitorsByTenantId(String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByMonitor_TenantId(tenantId, page);
   }
 }
