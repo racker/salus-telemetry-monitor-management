@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
@@ -123,7 +124,7 @@ public class MonitorApiControllerTest {
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
     monitor.setContent("{\"type\":\"mem\"}");
-    monitor.setTenantId(MonitorManagement.POLICY_TENANT);
+    monitor.setTenantId(POLICY_TENANT);
 
     when(monitorManagement.getPolicyMonitor(any()))
         .thenReturn(Optional.of(monitor));

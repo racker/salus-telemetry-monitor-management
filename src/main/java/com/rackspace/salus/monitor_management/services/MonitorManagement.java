@@ -16,12 +16,14 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowed;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -38,10 +40,13 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -81,6 +86,8 @@ import org.springframework.util.MultiValueMap;
 @Service
 public class MonitorManagement {
 
+  private final ResourceRepository resourceRepository;
+  private final MonitorPolicyRepository monitorPolicyRepository;
   private final BoundMonitorRepository boundMonitorRepository;
   private final ZoneStorage zoneStorage;
   private final MonitorEventProducer monitorEventProducer;
@@ -96,12 +103,13 @@ public class MonitorManagement {
 
   private final EnvoyResourceManagement envoyResourceManagement;
 
-  public static final String POLICY_TENANT = "_POLICY_";
-
   JdbcTemplate jdbcTemplate;
 
   @Autowired
-  public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
+  public MonitorManagement(
+      ResourceRepository resourceRepository,
+      MonitorPolicyRepository monitorPolicyRepository,
+      MonitorRepository monitorRepository, EntityManager entityManager,
       EnvoyResourceManagement envoyResourceManagement,
       BoundMonitorRepository boundMonitorRepository,
       ZoneStorage zoneStorage,
@@ -110,6 +118,8 @@ public class MonitorManagement {
       ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
       JdbcTemplate jdbcTemplate) {
+    this.resourceRepository = resourceRepository;
+    this.monitorPolicyRepository = monitorPolicyRepository;
     this.monitorRepository = monitorRepository;
     this.entityManager = entityManager;
     this.envoyResourceManagement = envoyResourceManagement;
@@ -139,7 +149,7 @@ public class MonitorManagement {
    * @return The monitor object.
    */
   public Optional<Monitor> getMonitor(String tenantId, UUID id) {
-    return monitorRepository.findById(id).filter(m -> m.getTenantId().equals(tenantId));
+    return monitorRepository.findByIdAndTenantId(id, tenantId);
   }
 
   /**
@@ -190,14 +200,9 @@ public class MonitorManagement {
    * @return The newly created monitor.
    */
   public Monitor createMonitor(String tenantId, @Valid MonitorCU newMonitor) throws IllegalArgumentException, AlreadyExistsException {
-    if (newMonitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
-        newMonitor.getZones() != null && !newMonitor.getZones().isEmpty()) {
-      throw new IllegalArgumentException("Local monitors cannot have zones");
-    }
-
     log.debug("Creating monitor={} for tenant={}", newMonitor, tenantId);
 
-    validateMonitoringZones(tenantId, newMonitor.getZones());
+    validateMonitoringZones(tenantId, null, newMonitor);
 
     Monitor monitor = new Monitor()
         .setTenantId(tenantId)
@@ -214,7 +219,49 @@ public class MonitorManagement {
     return monitor;
   }
 
-  private void validateMonitoringZones(String tenantId, List<String> providedZones) throws IllegalArgumentException {
+  /**
+   * Creates a new monitor under the _POLICY_ tenant.
+   *
+   * @param newMonitor The monitor parameters to store.
+   * @return The newly created monitor.
+   */
+  public Monitor createPolicyMonitor(@Valid MonitorCU newMonitor) {
+    log.debug("Creating policy monitor={}", newMonitor);
+
+    validateMonitoringZones(POLICY_TENANT, null, newMonitor);
+
+    Monitor monitor = new Monitor()
+        .setTenantId(POLICY_TENANT)
+        .setMonitorName(newMonitor.getMonitorName())
+        .setLabelSelector(newMonitor.getLabelSelector())
+        .setContent(newMonitor.getContent())
+        .setAgentType(newMonitor.getAgentType())
+        .setSelectorScope(newMonitor.getSelectorScope())
+        .setZones(newMonitor.getZones());
+
+    monitorRepository.save(monitor);
+    return monitor;
+  }
+
+  public void bindPolicyMonitorToTenant() {
+
+  }
+
+  private void validateMonitoringZones(String tenantId, Monitor monitor, MonitorCU update) throws IllegalArgumentException {
+    List<String> providedZones = update.getZones();
+
+    ConfigSelectorScope monitorScope;
+    if (monitor != null) {
+      monitorScope = monitor.getSelectorScope();
+    } else {
+      monitorScope = update.getSelectorScope();
+    }
+
+    if (monitorScope == ConfigSelectorScope.LOCAL &&
+        providedZones != null && !providedZones.isEmpty()) {
+      throw new IllegalArgumentException("Local monitors cannot have zones");
+    }
+
     if (providedZones == null || providedZones.isEmpty()) {
       return;
     }
@@ -331,6 +378,7 @@ public class MonitorManagement {
       throws InvalidTemplateException {
     return new BoundMonitor()
         .setMonitor(monitor)
+        .setTenantId(monitor.getTenantId())
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
         .setRenderedContent(monitorContentRenderer.render(monitor.getContent(), resource))
@@ -358,6 +406,7 @@ public class MonitorManagement {
     return new BoundMonitor()
         .setZoneName(zone)
         .setMonitor(monitor)
+        .setTenantId(monitor.getTenantId())
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
         .setRenderedContent(renderedContent);
@@ -483,12 +532,7 @@ public class MonitorManagement {
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
 
-    if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL &&
-        updatedValues.getZones() != null && !updatedValues.getZones().isEmpty()) {
-      throw new IllegalArgumentException("Local monitors cannot have zones");
-    }
-
-    validateMonitoringZones(tenantId, updatedValues.getZones());
+    validateMonitoringZones(tenantId, monitor, updatedValues);
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
@@ -700,6 +744,31 @@ public class MonitorManagement {
     sendMonitorBoundEvents(affectedEnvoys);
 
     monitorRepository.delete(monitor);
+  }
+
+  /**
+   * Delete a policy monitor.
+   *
+   * @param id The id of the monitor.
+   */
+  public void removePolicyMonitor(UUID id) {
+    Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
+        new NotFoundException(String.format("No policy monitor found for %s", id)));
+
+    if (monitorPolicyRepository.existsByMonitorId(id)) {
+      throw new DeletionNotAllowed("Cannot remove monitor that is in use by a policy");
+    }
+
+    // need to unbind before deleting monitor since BoundMonitor references Monitor
+    final Set<String> affectedEnvoys = unbindByMonitorId(Collections.singletonList(id));
+
+    sendMonitorBoundEvents(affectedEnvoys);
+
+    monitorRepository.delete(monitor);
+  }
+
+  void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
+
   }
 
   /**
@@ -1210,6 +1279,14 @@ public class MonitorManagement {
   }
 
   public Page<BoundMonitor> getAllBoundMonitorsByTenantId(String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByTenantId(tenantId, page);
+  }
+
+  public Page<BoundMonitor> getAllBoundAccountMonitorsByTenantId(String tenantId, Pageable page) {
     return boundMonitorRepository.findAllByMonitor_TenantId(tenantId, page);
+  }
+
+  public Page<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT, page);
   }
 }

@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.client;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import java.util.List;
+import java.util.UUID;
 
 public interface MonitorApi {
 
