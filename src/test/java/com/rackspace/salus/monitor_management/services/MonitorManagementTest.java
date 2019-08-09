@@ -86,7 +86,6 @@ import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -592,7 +591,6 @@ public class MonitorManagementTest {
     }
 
     @Test
-    @Ignore // failing due to update timestmaps... not sure why it is happening now??
     public void testUpdateExistingMonitor_contentChanged() {
         reset(envoyResourceManagement, resourceApi);
 
@@ -669,32 +667,31 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        assertNotNull(updatedMonitor.getCreatedTimestamp());
-        assertNotNull(updatedMonitor.getUpdatedTimestamp());
-
-        assertThat(updatedMonitor, equalTo(
-            new Monitor()
-                .setId(monitor.getId())
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("address=${resource.metadata.address}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setLabelSelector(Collections.singletonMap("os", "linux"))
-        ));
+        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+            .containsExactly(
+                new Monitor()
+                    .setId(monitor.getId())
+                    .setAgentType(AgentType.TELEGRAF)
+                    .setContent("address=${resource.metadata.address}")
+                    .setTenantId("t-1")
+                    .setSelectorScope(ConfigSelectorScope.REMOTE)
+                    .setLabelSelector(Collections.singletonMap("os", "linux")));
 
         verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
 
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setEnvoyId("e-1")
-                .setZoneName("z-1")
-                .setRenderedContent("address=localhost")
-                .setCreatedTimestamp(updatedMonitor.getCreatedTimestamp())
-                .setUpdatedTimestamp(updatedMonitor.getUpdatedTimestamp())
-        ));
+        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+        org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+            .containsExactly(
+                new BoundMonitor()
+                    .setMonitor(monitor)
+                    .setTenantId("t-1")
+                    .setResourceId("r-1")
+                    .setEnvoyId("e-1")
+                    .setZoneName("z-1")
+                    .setRenderedContent("address=localhost")
+            );
 
         verify(resourceApi).getByResourceId("t-1", "r-1");
         // even though two bindings for r-2, the queries were grouped by resource and only one call here
@@ -709,7 +706,6 @@ public class MonitorManagementTest {
     }
 
     @Test
-    @Ignore // failing due to update timestmaps... not sure why it is happening now??
     public void testUpdateExistingMonitor_zonesChanged() {
         reset(envoyResourceManagement, resourceApi);
 
@@ -780,21 +776,17 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        assertNotNull(updatedMonitor.getCreatedTimestamp());
-        assertNotNull(updatedMonitor.getUpdatedTimestamp());
-
-        assertThat(updatedMonitor, equalTo(
-            new Monitor()
-                .setId(monitor.getId())
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setZones(Arrays.asList("z-2", "z-3"))
-                .setLabelSelector(Collections.singletonMap("os", "linux"))
-                .setCreatedTimestamp(updatedMonitor.getCreatedTimestamp())
-                .setUpdatedTimestamp(updatedMonitor.getUpdatedTimestamp())
-        ));
+        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+            .containsExactly(
+                new Monitor()
+                    .setId(monitor.getId())
+                    .setAgentType(AgentType.TELEGRAF)
+                    .setContent("{}")
+                    .setTenantId("t-1")
+                    .setSelectorScope(ConfigSelectorScope.REMOTE)
+                    .setZones(Arrays.asList("z-2", "z-3"))
+                    .setLabelSelector(Collections.singletonMap("os", "linux")));
 
         verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
 
@@ -809,17 +801,17 @@ public class MonitorManagementTest {
 
         verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundZ1));
 
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setZoneName("z-3")
-                .setResourceId("r-1")
-                .setRenderedContent("{}")
-                .setEnvoyId("e-new")
-                .setCreatedTimestamp(updatedMonitor.getCreatedTimestamp())
-                .setUpdatedTimestamp(updatedMonitor.getUpdatedTimestamp())
-        ));
+        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+        org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+            .containsExactly(
+                new BoundMonitor()
+                    .setMonitor(monitor)
+                    .setTenantId("t-1")
+                    .setZoneName("z-3")
+                    .setResourceId("r-1")
+                    .setRenderedContent("{}")
+                    .setEnvoyId("e-new"));
 
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent().setEnvoyId("e-existing")
@@ -865,21 +857,17 @@ public class MonitorManagementTest {
 
         // VERIFY
 
-        assertNotNull(updatedMonitor.getCreatedTimestamp());
-        assertNotNull(updatedMonitor.getUpdatedTimestamp());
-
-        assertThat(updatedMonitor, equalTo(
-            new Monitor()
-                .setId(monitor.getId())
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setZones(Arrays.asList("z-1", "z-2"))
-                .setLabelSelector(Collections.singletonMap("os", "linux"))
-                .setCreatedTimestamp(updatedMonitor.getCreatedTimestamp())
-                .setUpdatedTimestamp(updatedMonitor.getUpdatedTimestamp())
-        ));
+        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+            .containsExactly(
+                new Monitor()
+                    .setId(monitor.getId())
+                    .setAgentType(AgentType.TELEGRAF)
+                    .setContent("{}")
+                    .setTenantId("t-1")
+                    .setSelectorScope(ConfigSelectorScope.REMOTE)
+                    .setZones(Arrays.asList("z-1", "z-2"))
+                    .setLabelSelector(Collections.singletonMap("os", "linux")));
 
         verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
 

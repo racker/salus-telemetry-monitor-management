@@ -213,7 +213,7 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    monitorRepository.save(monitor);
+    monitor = monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(monitor);
     sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
@@ -239,7 +239,7 @@ public class MonitorManagement {
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
 
-    monitorRepository.save(monitor);
+    monitor = monitorRepository.save(monitor);
     return monitor;
   }
 
@@ -587,7 +587,7 @@ public class MonitorManagement {
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
         .to(monitor::setMonitorName);
-    monitorRepository.save(monitor);
+    monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
 
