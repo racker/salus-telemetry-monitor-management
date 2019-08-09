@@ -149,7 +149,9 @@ public class MonitorManagement {
    * @return The monitor object.
    */
   public Optional<Monitor> getMonitor(String tenantId, UUID id) {
+//    return monitorRepository.findById(id).filter(m -> m.getTenantId().equals(tenantId));
     return monitorRepository.findByIdAndTenantId(id, tenantId);
+
   }
 
   /**
