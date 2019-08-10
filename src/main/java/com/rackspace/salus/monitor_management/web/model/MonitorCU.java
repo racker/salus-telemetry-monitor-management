@@ -48,4 +48,6 @@ public class MonitorCU implements Serializable {
     ConfigSelectorScope selectorScope = ConfigSelectorScope.LOCAL;
 
     List<String> zones;
+
+    String resourceId;
 }

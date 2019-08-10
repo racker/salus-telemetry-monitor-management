@@ -45,6 +45,8 @@ public class MonitorDTO {
 
   List<String> zones;
 
+  String resourceId;
+
   String createdTimestamp;
 
   String updatedTimestamp;

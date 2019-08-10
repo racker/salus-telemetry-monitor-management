@@ -35,6 +35,8 @@ public class DetailedMonitorInput {
   @NotNull(groups = ValidationGroups.Create.class)
   Map<String,String> labelSelector;
 
+  String resourceId;
+
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
   @NotNull(groups = ValidationGroups.Create.class)
   @Valid

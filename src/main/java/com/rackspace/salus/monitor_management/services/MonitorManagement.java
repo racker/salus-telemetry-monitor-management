@@ -248,9 +248,15 @@ public class MonitorManagement {
    */
   Set<String> bindMonitor(Monitor monitor,
       List<String> zones) {
-    final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
-        monitor.getTenantId(), monitor.getLabelSelector());
-
+    final List<ResourceDTO> resources;
+    String resourceId = monitor.getResourceId();
+    if (resourceId != null && !resourceId.equals("")) {
+      resources = new ArrayList<>();
+      resources.add(resourceApi.getByResourceId(monitor.getTenantId(), resourceId));
+    } else {
+      resources = resourceApi.getResourcesWithLabels(
+          monitor.getTenantId(), monitor.getLabelSelector());
+    }
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
     final List<BoundMonitor> boundMonitors = new ArrayList<>();
@@ -492,6 +498,13 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
+    String resourceId = monitor.getResourceId();
+    if ((resourceId == null && updatedValues.getResourceId() != null) ||
+       (resourceId != null && !resourceId.equals(updatedValues.getResourceId()))) {
+      processMonitorResourceIdModified(monitor, updatedValues.getResourceId());
+      monitor.setResourceId(updatedValues.getResourceId());
+    }
+
     if (updatedValues.getLabelSelector() != null &&
         !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
       // Process potential changes to resource selection and therefore bindings
@@ -638,6 +651,42 @@ public class MonitorManagement {
 
     return extractEnvoyIds(modified);
   }
+
+  /**
+   * Reconciles bindings to the resources selected by the given resourceId. It
+   * creates new bindings and unbinds are necessary.
+   * @return affected envoy IDs
+   */
+  private Set<String> processMonitorResourceIdModified(Monitor monitor,
+      String updatedResourceId) {
+
+    String resourceId = monitor.getResourceId();
+    final Set<String> affectedEnvoys = new HashSet<>();
+
+    // If one was bound before, unbind it
+    if (resourceId != null && !resourceId.equals("")) {
+      final List<BoundMonitor> boundMonitors =
+          boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
+      final List<String> resourceIdsToUnbind = boundMonitors.stream().map(b -> b.getResourceId()).collect(
+          Collectors.toList());
+      affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), resourceIdsToUnbind));
+    }
+
+    // If a new one is to be bound, bind it
+    if (updatedResourceId != null && !updatedResourceId.equals("")) {
+      ResourceDTO resource  = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
+      affectedEnvoys.addAll(
+          upsertBindingToResource(
+              Collections.singletonList(monitor),
+              resource,
+              null
+          ));
+    }
+
+  return affectedEnvoys;
+  }
+
+
 
   /**
    * Reconciles bindings to the resources selected by the given updated label selector. It
