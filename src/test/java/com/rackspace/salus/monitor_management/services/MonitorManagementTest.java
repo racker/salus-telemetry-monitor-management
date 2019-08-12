@@ -1264,7 +1264,7 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
 
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
 
         final List<BoundMonitor> expected = Collections.singletonList(
             new BoundMonitor()
@@ -1329,7 +1329,7 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
 
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
 
         final List<BoundMonitor> expected = Arrays.asList(
             new BoundMonitor()
@@ -1396,7 +1396,7 @@ public class MonitorManagementTest {
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}");
 
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor(monitor);
+        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
 
         verify(zoneStorage).findLeastLoadedEnvoy(zone1);
 
@@ -1736,14 +1736,14 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
-        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
         assertThat(result, hasSize(1));
         assertThat(result.toArray()[0], equalTo("e-1"));
 
         verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
         verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+        verify(boundMonitorRepository).saveAll(Collections.singleton(
             new BoundMonitor()
                 .setMonitor(monitor)
                 .setTenantId("t-1")
@@ -1780,13 +1780,13 @@ public class MonitorManagementTest {
         when(envoyResourceManagement.getOne(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(null));
 
-        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
         assertThat(result, hasSize(0));
 
         verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
         verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+        verify(boundMonitorRepository).saveAll(Collections.singleton(
             new BoundMonitor()
                 .setMonitor(monitor)
                 .setTenantId("t-1")
@@ -1819,7 +1819,7 @@ public class MonitorManagementTest {
         when(resourceApi.getResourcesWithLabels(any(), any()))
             .thenReturn(resourceList);
 
-        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
         assertThat(result, hasSize(0));
 
@@ -1859,7 +1859,7 @@ public class MonitorManagementTest {
         // EXECUTE
 
         final Set<String> affectedEnvoys = monitorManagement
-            .unbindByMonitorId(Collections.singletonList(monitor.getId()));
+            .unbindByTenantAndMonitorId("t-1", Collections.singletonList(monitor.getId()));
 
         // VERIFY
 

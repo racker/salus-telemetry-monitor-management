@@ -109,6 +109,20 @@ public class MonitorApiController {
         return monitorConversionService.convertToOutput(monitor);
     }
 
+    @PostMapping("/admin/policy-monitors")
+    @ResponseStatus(HttpStatus.CREATED)
+    @ApiOperation(value = "Creates new Policy Monitor")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Policy Monitor")})
+    @JsonView(View.Admin.class)
+    public DetailedMonitorOutput createPolicyMonitor(
+        @Validated(ValidationGroups.Create.class)
+        @RequestBody final DetailedMonitorInput input)
+        throws IllegalArgumentException {
+        return monitorConversionService.convertToOutput(
+            monitorManagement.createPolicyMonitor(
+                monitorConversionService.convertFromInput(input)));
+    }
+
     @GetMapping("/tenant/{tenantId}/bound-monitors")
     @JsonView(View.Public.class)
     public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,

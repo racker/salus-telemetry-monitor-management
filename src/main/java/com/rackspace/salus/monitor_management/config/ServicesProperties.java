@@ -25,4 +25,5 @@ import org.springframework.stereotype.Component;
 @Data
 public class ServicesProperties {
     String resourceManagementUrl;
+    String policyManagementUrl;
 }
