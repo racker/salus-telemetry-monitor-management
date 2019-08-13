@@ -203,6 +203,7 @@ public class MonitorManagement {
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
+        .setResourceId(newMonitor.getResourceId())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
@@ -251,8 +252,11 @@ public class MonitorManagement {
     final List<ResourceDTO> resources;
     String resourceId = monitor.getResourceId();
     if (resourceId != null && !resourceId.equals("")) {
+      ResourceDTO r = resourceApi.getByResourceId(monitor.getTenantId(), resourceId);
       resources = new ArrayList<>();
-      resources.add(resourceApi.getByResourceId(monitor.getTenantId(), resourceId));
+      if (r != null) {
+        resources.add(r);
+      }
     } else {
       resources = resourceApi.getResourcesWithLabels(
           monitor.getTenantId(), monitor.getLabelSelector());
@@ -761,8 +765,10 @@ public class MonitorManagement {
   void handleResourceChangeEvent(ResourceEvent event) {
     final String tenantId = event.getTenantId();
     final String resourceId = event.getResourceId();
+    final Monitor monitorWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
-    if (!event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
+
+    if ((monitorWithResourceId == null) && !event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
       handleReattachedEnvoy(tenantId, resourceId, event.getReattachedEnvoyId());
       return;
     }
@@ -784,7 +790,13 @@ public class MonitorManagement {
         // continue with normal processing, assuming it got revived concurrently
       }
 
-      selectedMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
+      List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
+      selectedMonitors = new ArrayList<>();
+      selectedMonitors.addAll(labelMonitors);
+      if (monitorWithResourceId != null) {
+        selectedMonitors.add(monitorWithResourceId);
+      }
+
 
       final List<UUID> selectedMonitorIds = selectedMonitors.stream()
           .map(Monitor::getId)

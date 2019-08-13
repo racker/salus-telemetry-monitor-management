@@ -55,6 +55,7 @@ public class MonitorDTO {
     this.id = monitor.getId();
     this.monitorName = monitor.getMonitorName();
     this.labelSelector = monitor.getLabelSelector();
+    this.resourceId = monitor.getResourceId();
     this.tenantId = monitor.getMonitorName();
     this.content = monitor.getContent();
     this.agentType = monitor.getAgentType();

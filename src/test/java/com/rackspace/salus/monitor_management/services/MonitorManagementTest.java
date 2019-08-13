@@ -362,6 +362,7 @@ public class MonitorManagementTest {
         create.setSelectorScope(ConfigSelectorScope.LOCAL);
         create.setZones(Collections.emptyList());
         create.setContent("value=${does_not_exist}");
+        create.setResourceId("");
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
         Monitor returned = monitorManagement.createMonitor(tenantId, create);
@@ -385,6 +386,7 @@ public class MonitorManagementTest {
 
         MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
         create.setSelectorScope(ConfigSelectorScope.REMOTE);
+        create.setResourceId("");
 
         create.setContent("value=${does_not_exist}");
 
