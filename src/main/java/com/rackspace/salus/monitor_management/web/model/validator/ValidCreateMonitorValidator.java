@@ -39,6 +39,11 @@ public class ValidMonitorValidator implements ConstraintValidator<ValidMonitor, 
             return false;
          }
       }
+      if (labelSelector == null) {
+         if (resourceId != null || resourceId.equals("")) {
+            return false;
+         }
+      }
       return true;
    }
 
