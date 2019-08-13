@@ -23,8 +23,8 @@ import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCreateMonitor, DetailedMonitorInput> {
-   public void initialize(ValidCreateMonitor constraint) {
+public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpdateMonitor, DetailedMonitorInput> {
+   public void initialize(ValidUpdateMonitor constraint) {
    }
 
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
@@ -32,11 +32,6 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
       String resourceId = monitorInput.getResourceId();
       if (resourceId != null && !resourceId.equals("")) {
          if (labelSelector != null && labelSelector.size() > 0) {
-            return false;
-         }
-      }
-      if (labelSelector == null) {
-         if (resourceId != null || resourceId.equals("")) {
             return false;
          }
       }
