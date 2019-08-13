@@ -36,7 +36,7 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
          }
       }
       if (labelSelector == null) {
-         if (resourceId != null || resourceId.equals("")) {
+         if (resourceId == null || resourceId.equals("")) {
             return false;
          }
       }

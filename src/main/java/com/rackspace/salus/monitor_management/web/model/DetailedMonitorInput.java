@@ -27,7 +27,7 @@ import lombok.Data;
 
 @Data
 @ValidCreateMonitor(groups = {ValidationGroups.Create.class})
-@ValidUpdateMonitor(groups = {ValidationGroups.Create.class})
+@ValidUpdateMonitor(groups = {ValidationGroups.Update.class})
 public class DetailedMonitorInput {
   String name;
 
