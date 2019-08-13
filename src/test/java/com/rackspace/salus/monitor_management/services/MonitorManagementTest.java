@@ -313,6 +313,7 @@ public class MonitorManagementTest {
         assertTrue(retrieved.isPresent());
         assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
         assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+        assertThat(retrieved.get().getResourceId(), equalTo(create.getResourceId()));
     }
 
     @Test
@@ -1799,6 +1800,47 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
 
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+    }
+
+    @Test
+    public void testBindMonitor_ResourceId() {
+        reset(resourceApi, envoyResourceManagement);
+
+        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        final Monitor monitor = new Monitor()
+            .setId(m0)
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("static content")
+            .setZones(Collections.emptyList());
+
+        ResourceDTO resource = new ResourceDTO()
+            .setResourceId("r-1")
+            .setLabels(Collections.emptyMap())
+            .setAssociatedWithEnvoy(true);
+
+        when(resourceApi.getByResourceId(any(), any()))
+            .thenReturn(resource);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+
+        Set<String> result = monitorManagement.bindMonitor(monitor, monitor.getZones());
+
+        assertThat(result, hasSize(0));
+
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+        verify(boundMonitorRepository).saveAll(Arrays.asList(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("static content")
+                .setZoneName("")
+        ));
         verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
     }
 
