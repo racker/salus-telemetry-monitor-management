@@ -269,7 +269,8 @@ public class MonitorApiControllerTest {
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -342,7 +343,8 @@ public class MonitorApiControllerTest {
     create.setDetails(new RemoteMonitorDetails()
         .setMonitoringZones(monitor.getZones())
         .setPlugin(new Ping()
-            .setUrls(Collections.singletonList("my.test.url.com"))));
+            .setUrls(Collections.singletonList("my.test.url.com"))))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -362,7 +364,8 @@ public class MonitorApiControllerTest {
         .setMonitoringZones(Collections.singletonList("myzone"))
         .setPlugin(new Ping()
             // If no urls are set validation should fail
-            .setUrls(Collections.emptyList())));
+            .setUrls(Collections.emptyList())))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -408,7 +411,8 @@ public class MonitorApiControllerTest {
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
     DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setResourceId("");
 
     mockMvc.perform(put(url)
         .content(objectMapper.writeValueAsString(update))

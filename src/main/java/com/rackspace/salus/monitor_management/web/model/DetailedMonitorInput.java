@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.monitor_management.web.model.validator.ValidMonitor;
 import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
@@ -24,6 +25,7 @@ import javax.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
+@ValidMonitor
 public class DetailedMonitorInput {
   String name;
 
