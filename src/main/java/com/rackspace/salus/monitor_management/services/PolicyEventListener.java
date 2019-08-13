@@ -18,14 +18,18 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
+import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import com.rackspace.salus.telemetry.messaging.TenantChangeEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@KafkaListener(topics = "#{__listener.topic}")
 public class PolicyEventListener {
 
   private final KafkaTopicProperties properties;
@@ -52,10 +56,33 @@ public class PolicyEventListener {
    * @param policyEvent The MonitorPolicyEvent read from Kafka.
    * @throws Exception
    */
-  @KafkaListener(topics = "#{__listener.topic}")
-  public void consumeResourceEvents(MonitorPolicyEvent policyEvent) {
+  @KafkaHandler
+  public void consumeMonitorPolicyEvents(MonitorPolicyEvent policyEvent) {
     log.debug("Processing monitor policy event: {}", policyEvent);
 
     monitorManagement.handleMonitorPolicyEvent(policyEvent);
+  }
+
+  @KafkaHandler
+  public void consumePolicyMonitorUpdateEvents(PolicyMonitorUpdateEvent updateEvent) {
+    // Ignore null tenant events.  These will be handled by policy management.
+    if (updateEvent.getTenantId() != null) {
+      monitorManagement.processPolicyMonitorUpdate(updateEvent.getTenantId(), updateEvent.getMonitorId());
+    }
+  }
+
+  @KafkaHandler
+  public void consumeTenantChangeEvents(TenantChangeEvent tenantEvent) {
+    monitorManagement.handleTenantChangeEvent(tenantEvent);
+  }
+
+  /**
+   * The policy topic contains multiple event types.
+   * This service does not have to act on them all, so we just ignore them if seen.
+   * @param event The event we will be ignoring.
+   */
+  @KafkaHandler(isDefault = true)
+  public void ignoreUnhandledEvents(Object event) {
+    log.trace("Ignoring event={} with no handler", event);
   }
 }

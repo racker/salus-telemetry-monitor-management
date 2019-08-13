@@ -30,6 +30,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
+import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
+import com.rackspace.salus.telemetry.messaging.TenantChangeEvent;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -245,10 +247,6 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
     return monitor;
-  }
-
-  public void bindPolicyMonitorToTenant() {
-
   }
 
   private void validateMonitoringZones(String tenantId, Monitor monitor, MonitorCU update) throws IllegalArgumentException {
@@ -527,7 +525,7 @@ public class MonitorManagement {
   /**
    * Update an existing monitor.
    *
-   * @param tenantId      The tenant to create the entity for.
+   * @param tenantId      The tenant to update the monitor for.
    * @param id            The id of the existing monitor.
    * @param updatedValues The new monitor parameters to store.
    * @return The newly updated monitor.
@@ -597,6 +595,92 @@ public class MonitorManagement {
     sendMonitorBoundEvents(affectedEnvoys);
 
     return monitor;
+  }
+
+  /**
+   * Stores the newly provided values for an existing monitor then sends an
+   * event to be consumed by PolicyMgmt which will lead to individual update events being sent for
+   * each relevant tenant.  Those tenant-scoped events will be handled by MonitorMgmt.
+   *
+   * @param id The id of the monitor to update.
+   * @param updatedValues The new values to store.
+   * @return The newly updated monitor.
+   */
+  public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues) {
+    Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
+        new NotFoundException(String.format("No policy monitor found for %s", id)));
+
+    validateMonitoringZones(POLICY_TENANT, monitor, updatedValues);
+
+    log.info("Updating policy monitor={} with new values={}", id, updatedValues);
+
+    PropertyMapper map = PropertyMapper.get();
+    map.from(updatedValues.getMonitorName())
+        .whenNonNull()
+        .to(monitor::setMonitorName);
+    map.from(updatedValues.getLabelSelector())
+        .whenNonNull()
+        .to(monitor::setLabelSelector);
+    map.from(updatedValues.getContent())
+        .whenNonNull()
+        .to(monitor::setContent);
+    map.from(updatedValues.getAgentType())
+        .whenNonNull()
+        .to(monitor::setAgentType);
+    map.from(updatedValues.getSelectorScope())
+        .whenNonNull()
+        .to(monitor::setSelectorScope);
+    map.from(updatedValues.getZones())
+        .whenNonNull()
+        .to(monitor::setZones);
+
+    monitor = monitorRepository.save(monitor);
+    log.info("Policy monitor={} stored with new values={}", id, monitor);
+
+    monitorEventProducer.sendPolicyMonitorUpdateEvent(
+        new PolicyMonitorUpdateEvent().setMonitorId(id));
+
+    return monitor;
+  }
+
+  /**
+   * For the provided tenant, this unbinds all existing BoundMonitors relating to the
+   * given monitorId, then rebinds them to any resource that matches the new monitor values.
+   * @param tenantId The tenant to perform the binding update operations on.
+   * @param monitorId Only bound monitors relating to this monitor id will be acted on.
+   */
+  public void processPolicyMonitorUpdate(String tenantId, UUID monitorId) {
+    log.info("Handling policy monitor={} update for tenant={}", monitorId, tenantId);
+    final Set<String> affectedEnvoys = new HashSet<>();
+    Optional<Monitor> monitor = monitorRepository.findById(monitorId);
+
+    if (monitor.isEmpty()) {
+      // This should never happen.
+      log.error("Failed to bind policy to tenant={} due to non-existent monitor={}", tenantId, monitorId);
+      return;
+    }
+    try {
+      validateMonitoringZones(tenantId, monitor.get(),
+          new MonitorCU().setZones(monitor.get().getZones()));
+    } catch(IllegalArgumentException e) {
+      log.error("Cannot apply policy monitor to tenant={}. Provided zones are not valid={}",
+          tenantId, monitor.get().getZones());
+      return;
+    }
+
+    // remove existing bound monitors
+    Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, Collections.singleton(monitorId));
+    affectedEnvoys.addAll(unbinding);
+    log.info("Removing {} bound monitors due to policy monitor={} update for tenant={}",
+        unbinding.size(), monitorId, tenantId);
+
+    // Then add new bindings
+    Set<String> newBindings = bindNewMonitor(tenantId, monitor.get());
+    affectedEnvoys.addAll(newBindings);
+    log.info("Binding policy monitor={} to {} envoys on tenant={}",
+        monitor.get(), newBindings.size(), tenantId);
+
+    sendMonitorBoundEvents(affectedEnvoys);
   }
 
   private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones) {
@@ -769,7 +853,56 @@ public class MonitorManagement {
   }
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
+    log.info("Handling monitor policy event={}", event);
+    refreshBoundPolicyMonitorsForTenant(event.getTenantId());
+  }
 
+  void handleTenantChangeEvent(TenantChangeEvent event) {
+    log.info("Handling tenant change event={}", event);
+    refreshBoundPolicyMonitorsForTenant(event.getTenantId());
+  }
+
+  private void refreshBoundPolicyMonitorsForTenant(String tenantId) {
+    final Set<String> affectedEnvoys = new HashSet<>();
+        // Get effective monitors
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> boundPolicyMonitorIds = getAllBoundPolicyMonitorsByTenantId(tenantId)
+        .stream().map(b -> b.getMonitor().getId()).collect(Collectors.toList());
+
+    // Find the new monitors to bind.
+    // In theory, this should not be more than one, but in practice it could be
+    // if an account's resources do not match any of the policy monitor's labels.
+    // In that scenario the monitor will always try to be re-bound each time this runs.
+    Set<UUID> monitorsToBind = new HashSet<>(policyMonitorIds);
+    monitorsToBind.removeAll(boundPolicyMonitorIds);
+
+    // Find the monitors to unbind
+    // This could be due to a policy removal or a new policy overriding the previously effective one.
+    Set<UUID> monitorsToUnbind = new HashSet<>(boundPolicyMonitorIds);
+    monitorsToUnbind.removeAll(policyMonitorIds);
+
+    // Handle new bindings
+    for (UUID id : monitorsToBind) {
+      Optional<Monitor> monitor = monitorRepository.findById(id);
+      if (monitor.isEmpty()) {
+        // This should never happen.
+        log.error("Failed to bind policy to tenant={} due to non-existent monitor={}", tenantId, id);
+        continue;
+      }
+      Set<String> newBindings = bindNewMonitor(tenantId, monitor.get());
+      affectedEnvoys.addAll(newBindings);
+      log.info("Binding policy monitor={} to {} envoys on tenant={}",
+          monitor.get(), newBindings.size(), tenantId);
+    }
+
+    // Handle unbinding of old policies
+    Set<String> unbinds = unbindByTenantAndMonitorId(tenantId, monitorsToUnbind);
+    affectedEnvoys.addAll(unbinds);
+    log.info("Unbound policy monitors={} from {} envoys on tenant={}",
+        unbinds, affectedEnvoys.size(), tenantId);
+
+    sendMonitorBoundEvents(affectedEnvoys);
+    log.info("Finished bound policy monitor refresh for tenant={}", tenantId);
   }
 
   /**
@@ -992,7 +1125,7 @@ public class MonitorManagement {
     }
 
     final List<BoundMonitor> boundMonitors =
-        boundMonitorRepository.findAllByMonitor_TenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
+        boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
 
     log.debug("Unbinding {} from monitorIds={}",
         boundMonitors, monitorIdsToUnbind);
@@ -1293,15 +1426,24 @@ public class MonitorManagement {
     return boundMonitorRepository.findAllByMonitor_TenantId(tenantId, page);
   }
 
+  public List<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId) {
+    return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
+  }
+
   public Page<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId, Pageable page) {
     return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT, page);
   }
 
+  /**
+   * Retrieves a list of policy monitors that are relevant to the provided resource.
+   * @param resource The resource to get the policy monitors for.
+   * @return A list of monitors.
+   */
   private List<Monitor> getPolicyMonitorsForResource(Resource resource) {
     String tenantId = resource.getTenantId();
-    List<UUID> tenantPolicies = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
 
-    List<Monitor> resourcePolicies = tenantPolicies
+    List<Monitor> resourcePolicies = policyMonitorIds
         .stream()
         .map(monitorRepository::findById)
         .filter(Optional::isPresent).map(Optional::get)
@@ -1311,7 +1453,7 @@ public class MonitorManagement {
     log.info("Found {} monitor policies for resource={} from {} total policies for tenant={}",
         resourcePolicies.size(),
         resource.getId(),
-        tenantPolicies.size(),
+        policyMonitorIds.size(),
         tenantId);
 
     return resourcePolicies;
