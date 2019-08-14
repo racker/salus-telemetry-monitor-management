@@ -525,8 +525,13 @@ public class MonitorConversionServiceTest {
 
   @Test
   public void testConvertTo_ResourceId() {
+    final UUID monitorId = UUID.randomUUID();
+
     Monitor monitor = new Monitor()
-        .setResourceId("r-1");
+        .setResourceId("r-1")
+        .setId(monitorId)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
     assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
   }
