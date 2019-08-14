@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.web.model.validator;
 
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -26,16 +25,13 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import javax.validation.ConstraintViolation;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-public class ValidCreateMonitorValidatorTest {
+public class ValidUpdateMonitorValidatorTest {
 
   private LocalValidatorFactoryBean validatorFactoryBean;
 
@@ -61,7 +57,7 @@ public class ValidCreateMonitorValidatorTest {
         .setResourceId("r-1");
 
     final Set<ConstraintViolation<DetailedMonitorInput>> errors = validatorFactoryBean.validate(input,
-        ValidationGroups.Create.class);
+        ValidationGroups.Update.class);
 
     assertThat(errors, hasSize(0));
   }
@@ -81,7 +77,7 @@ public class ValidCreateMonitorValidatorTest {
         .setDetails(details);
 
     final Set<ConstraintViolation<DetailedMonitorInput>> errors = validatorFactoryBean.validate(input,
-        ValidationGroups.Create.class);
+        ValidationGroups.Update.class);
 
     assertThat(errors, hasSize(0));
   }
@@ -102,13 +98,13 @@ public class ValidCreateMonitorValidatorTest {
         .setResourceId("r-1");
 
     final Set<ConstraintViolation<DetailedMonitorInput>> errors = validatorFactoryBean.validate(input,
-        ValidationGroups.Create.class);
+        ValidationGroups.Update.class);
 
     assertThat(errors, hasSize(1));
   }
 
   @Test
-  public void testInvalid_NeitherSelected() throws Exception {
+  public void testValid_NeitherSelected() throws Exception {
 
     final String content = readContent("/MonitorConversionServiceTest_mem.json");
 
@@ -122,9 +118,9 @@ public class ValidCreateMonitorValidatorTest {
         .setDetails(details);
 
     final Set<ConstraintViolation<DetailedMonitorInput>> errors = validatorFactoryBean.validate(input,
-        ValidationGroups.Create.class);
+        ValidationGroups.Update.class);
 
-    assertThat(errors, hasSize(1));
+    assertThat(errors, hasSize(0));
   }
 
 
