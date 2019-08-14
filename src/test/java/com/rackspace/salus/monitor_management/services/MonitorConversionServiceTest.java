@@ -58,6 +58,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import uk.co.jemos.podam.api.PodamFactory;
+import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @JsonTest
@@ -512,4 +514,22 @@ public class MonitorConversionServiceTest {
     assertThat(procstatPlugin.getPidFile()).contains("/path/to/file");
     assertThat(procstatPlugin.getProcessName()).contains("thisIsAProcess");
   }
+
+  @Test
+  public void testConvertFrom_ResourceId() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setResourceId("r-1");
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getResourceId()).isEqualTo(input.getResourceId());
+  }
+
+  @Test
+  public void testConvertTo_ResourceId() {
+    Monitor monitor = new Monitor()
+        .setResourceId("r-1");
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
+  }
+
+
 }
