@@ -2293,6 +2293,60 @@ public class MonitorManagementTest {
             zoneStorage, monitorEventProducer, resourceApi);
     }
 
+
+    @Test
+    public void testhandleResourceEvent_monitorWithResourceId() {
+        final Monitor monitor = setupTestingOfHandleResourceEvent(
+            "t-1",
+            "r-1",
+            Collections.singletonMap("env", "prod"),
+            ConfigSelectorScope.LOCAL,
+            null,
+            "static content",
+            null
+        );
+
+        monitor.setResourceId("r-1");
+        entityManager.merge(monitor);
+        entityManager.flush();
+
+        // EXERCISE
+
+        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+            .setTenantId("t-1")
+            .setResourceId("r-1"));
+
+        // VERIFY
+
+        verify(resourceApi).getByResourceId("t-1", "r-1");
+
+        verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+        assertThat(savedBoundMonitors, hasSize(1));
+        assertThat(savedBoundMonitors, contains(
+            new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setRenderedContent("static content")
+            .setZoneName("")
+        ));
+
+        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+            zoneStorage, monitorEventProducer, resourceApi);
+    }
+
     /**
      * Sets up mocking of a resource, stores a monitor, and optionally stores a bound monitor.
      * @param resourceId if non-null, mock resourceApi retrieval and return one with given ID
