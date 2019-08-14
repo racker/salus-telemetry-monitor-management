@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -67,6 +68,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -279,6 +281,56 @@ public class MonitorApiControllerTest {
         .andExpect(status().isCreated())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateMonitor_ResourceId() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setLabelSelector(null);
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateMonitor_BothResourceIdAndLabels() throws Exception {
+    final String expectedErrorMsg = "Either the label selector field or resourceId field must be set, but not both.";
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+
+
+    String errorMsg = mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andReturn().getResolvedException().getMessage();
+
+    assertThat(errorMsg, containsString(expectedErrorMsg));
   }
 
   @Test
