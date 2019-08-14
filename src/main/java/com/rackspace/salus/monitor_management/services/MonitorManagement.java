@@ -505,7 +505,7 @@ public class MonitorManagement {
     String resourceId = monitor.getResourceId();
     if ((resourceId == null && updatedValues.getResourceId() != null) ||
        (resourceId != null && !resourceId.equals(updatedValues.getResourceId()))) {
-      processMonitorResourceIdModified(monitor, updatedValues.getResourceId());
+      affectedEnvoys.addAll(processMonitorResourceIdModified(monitor, updatedValues.getResourceId()));
       monitor.setResourceId(updatedValues.getResourceId());
     }
 
