@@ -122,6 +122,6 @@ public class ValidUpdateMonitorValidatorTest {
 
     assertThat(errors, hasSize(0));
   }
-
+  
 
 }
