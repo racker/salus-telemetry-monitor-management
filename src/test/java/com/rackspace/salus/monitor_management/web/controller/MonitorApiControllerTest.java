@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
+import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -323,14 +324,12 @@ public class MonitorApiControllerTest {
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
 
-    String errorMsg = mockMvc.perform(post(url)
+    mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andReturn().getResolvedException().getMessage();
-
-    assertThat(errorMsg, containsString(expectedErrorMsg));
+        .andExpect(classValidationError(expectedErrorMsg));
   }
 
   @Test
