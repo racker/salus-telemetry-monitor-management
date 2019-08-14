@@ -47,6 +47,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -152,6 +153,9 @@ public class MonitorManagementTest {
 
     @MockBean
     ResourceApi resourceApi;
+
+    @MockBean
+    PolicyApi policyApi;
 
     @MockBean
     ZoneManagement zoneManagement;
@@ -314,6 +318,12 @@ public class MonitorManagementTest {
         assertTrue(retrieved.isPresent());
         assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
         assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent().setEnvoyId(DEFAULT_ENVOY_ID)
+        );
+
+        verifyNoMoreInteractions(monitorEventProducer);
     }
 
     @Test

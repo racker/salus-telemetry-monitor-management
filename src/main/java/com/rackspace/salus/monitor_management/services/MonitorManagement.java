@@ -862,9 +862,10 @@ public class MonitorManagement {
     refreshBoundPolicyMonitorsForTenant(event.getTenantId());
   }
 
-  private void refreshBoundPolicyMonitorsForTenant(String tenantId) {
+  void refreshBoundPolicyMonitorsForTenant(String tenantId) {
     final Set<String> affectedEnvoys = new HashSet<>();
-        // Get effective monitors
+
+    // Get effective monitors
     List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
     List<UUID> boundPolicyMonitorIds = getAllBoundPolicyMonitorsByTenantId(tenantId)
         .stream().map(b -> b.getMonitor().getId()).collect(Collectors.toList());
