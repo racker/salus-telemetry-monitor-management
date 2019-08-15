@@ -98,7 +98,7 @@ public class MonitorManagement {
 
   public static final String POLICY_TENANT = "_POLICY_";
 
-  JdbcTemplate jdbcTemplate;
+  private JdbcTemplate jdbcTemplate;
 
   @Autowired
   public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
@@ -178,7 +178,9 @@ public class MonitorManagement {
    *
    * @return Stream of monitors.
    */
+  @SuppressWarnings("WeakerAccess")
   public Stream<Monitor> getMonitorsAsStream() {
+    //noinspection UnstableApiUsage
     return Streams.stream(monitorRepository.findAll());
   }
 
@@ -391,6 +393,7 @@ public class MonitorManagement {
    * @param zoneTenantId for private zones, the tenant owning the zone, or <code>null</code> for public zones
    * @param zoneName the zone name
    */
+  @SuppressWarnings("WeakerAccess")
   public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneName) {
     log.debug("Locating bound monitors without assigned envoy with zoneName={} and zoneTenantId={}",
         zoneName, zoneTenantId);
@@ -428,6 +431,7 @@ public class MonitorManagement {
     }
   }
 
+  @SuppressWarnings("WeakerAccess")
   public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
       String zoneName, String resourceId,
       String fromEnvoyId, String toEnvoyId) {
@@ -720,17 +724,15 @@ public class MonitorManagement {
     // process new bindings
     selectedResources.stream()
         .filter(resource -> !boundResourceIds.contains(resource.getResourceId()))
-        .forEach(resource -> {
-
+        .forEach(resource ->
           affectedEnvoys.addAll(
               upsertBindingToResource(
                   Collections.singletonList(monitor),
                   resource,
                   null
               )
-          );
-
-        });
+          )
+        );
 
     return affectedEnvoys;
   }
@@ -829,6 +831,7 @@ public class MonitorManagement {
    * @param resourceId
    * @param envoyId
    */
+  @SuppressWarnings("JavaDoc")
   private void handleReattachedEnvoy(String tenantId, String resourceId, String envoyId) {
     final List<BoundMonitor> bound = boundMonitorRepository
         .findAllLocalByTenantResource(
@@ -1084,6 +1087,7 @@ public class MonitorManagement {
       if(i > 0) {
         builder.append(" OR ");
       }
+      //noinspection StringConcatenationInsideStringBufferAppend
       builder.append("(label_selector = :label"+ i +" AND label_selector_key = :labelKey" + i + ")");
       paramSource.addValue("label"+i, entry.getValue());
       paramSource.addValue("labelKey"+i, entry.getKey());
@@ -1094,6 +1098,7 @@ public class MonitorManagement {
     builder.append(") ORDER BY monitors.id");
     paramSource.addValue("i", i);
 
+    //noinspection ConstantConditions
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
     final List<UUID> monitorIds = namedParameterTemplate.query(builder.toString(), paramSource,
         (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
@@ -1130,6 +1135,7 @@ public class MonitorManagement {
    * @param zoneName The name of the resolved zone.
    * @param envoyId The envoy id that has disconnected.
    */
+  @SuppressWarnings("WeakerAccess")
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
     log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
         envoyId, zoneName, zoneTenantId);
@@ -1178,11 +1184,14 @@ public class MonitorManagement {
   }
 
   public MultiValueMap<String, String> getTenantMonitorLabelSelectors(String tenantId) {
+    //noinspection JpaQueryApiInspection
     final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(
         "Monitor.getDistinctLabelSelectors", Map.Entry.class)
         .setParameter("tenantId", tenantId)
         .getResultList();
 
+
+    @SuppressWarnings("Duplicates")
     final MultiValueMap<String,String> combined = new LinkedMultiValueMap<>();
     for (Entry entry : distinctLabelTuples) {
       combined.add((String)entry.getKey(), (String)entry.getValue());
