@@ -101,7 +101,8 @@ public class MonitorApiControllerTest {
   @Autowired
   MonitorConversionService monitorConversionService;
 
-  private final String expectedClassErrorMsg = "Either the label selector field or resourceId field must be set, but not both.";
+  private final String expectedClassErrorMsg = "Exactly one of the label selector field or resourceId field must be set, but not both.";
+
 
   @Test
   public void testGetMonitor() throws Exception {

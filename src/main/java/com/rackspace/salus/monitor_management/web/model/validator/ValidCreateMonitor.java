@@ -32,7 +32,7 @@ import javax.validation.Payload;
 @Documented
 @Constraint(validatedBy = ValidCreateMonitorValidator.class)
 public @interface ValidCreateMonitor {
-  String message() default "Either the label selector field or resourceId field must be set, but not both.";
+  String message() default "Exactly one of the label selector field or resourceId field must be set, but not both.";
   Class<?>[] groups() default {};
   Class<? extends Payload>[] payload() default {};
 }
