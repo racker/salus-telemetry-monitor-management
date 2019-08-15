@@ -671,7 +671,7 @@ public class MonitorManagement {
     if (resourceId != null && !resourceId.equals("")) {
       final List<BoundMonitor> boundMonitors =
           boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
-      final List<String> resourceIdsToUnbind = boundMonitors.stream().map(b -> b.getResourceId()).collect(
+      final List<String> resourceIdsToUnbind = boundMonitors.stream().map(BoundMonitor::getResourceId).collect(
           Collectors.toList());
       affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), resourceIdsToUnbind));
     }
@@ -791,8 +791,7 @@ public class MonitorManagement {
       }
 
       List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
-      selectedMonitors = new ArrayList<>();
-      selectedMonitors.addAll(labelMonitors);
+      selectedMonitors = new ArrayList<>(labelMonitors);
       if (monitorWithResourceId != null) {
         selectedMonitors.add(monitorWithResourceId);
       }
