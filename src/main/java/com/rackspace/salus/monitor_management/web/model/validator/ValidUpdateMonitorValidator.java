@@ -27,8 +27,7 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
    public void initialize(ValidUpdateMonitor constraint) {
    }
 
-   static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput,
-       @SuppressWarnings("unused") ConstraintValidatorContext context) {
+   static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput) {
       Map<String, String > labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
       if (resourceId != null && !resourceId.equals("")) {
@@ -40,7 +39,7 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
       return false;
    }
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
-      return !bothResourceAndLabelsSet(monitorInput, context);
+      return !bothResourceAndLabelsSet(monitorInput);
    }
 
 }

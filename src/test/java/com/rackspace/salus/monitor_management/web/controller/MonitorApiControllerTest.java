@@ -494,9 +494,22 @@ public class MonitorApiControllerTest {
     verifyNoMoreInteractions(monitorManagement);
   }
 
+  private DetailedMonitorInput setupCreateMonitorTest() {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    return create;
+  }
+
   @Test
   public void testCreateMonitor_ResourceId() throws Exception {
-    DetailedMonitorInput create = createMonitorTestSetup();
+    DetailedMonitorInput create = setupCreateMonitorTest();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
@@ -513,7 +526,7 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testCreateMonitor_BothResourceIdAndLabels() throws Exception {
-    DetailedMonitorInput create = createMonitorTestSetup();
+    DetailedMonitorInput create = setupCreateMonitorTest();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
@@ -528,7 +541,7 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
-    DetailedMonitorInput create = createMonitorTestSetup();
+    DetailedMonitorInput create = setupCreateMonitorTest();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
@@ -588,19 +601,6 @@ public class MonitorApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
         .andExpect(classValidationError(ValidUpdateMonitor.DEFAULT_MESSAGE));
-  }
-
-    private DetailedMonitorInput createMonitorTestSetup() {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.createMonitor(anyString(), any()))
-        .thenReturn(monitor);
-
-    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-    return create;
   }
 
 

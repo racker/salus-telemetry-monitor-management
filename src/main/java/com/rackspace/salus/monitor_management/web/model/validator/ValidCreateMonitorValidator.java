@@ -30,7 +30,7 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
       Map<String, String> labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
-      if (ValidUpdateMonitorValidator.bothResourceAndLabelsSet(monitorInput, context)) {
+      if (ValidUpdateMonitorValidator.bothResourceAndLabelsSet(monitorInput)) {
          return false;
       }
       // Error if neither resourceId nor labelSelector exists
