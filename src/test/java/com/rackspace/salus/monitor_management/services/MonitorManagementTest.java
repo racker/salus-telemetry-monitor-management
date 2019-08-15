@@ -109,6 +109,7 @@ import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
+@SuppressWarnings("SameParameterValue")
 @RunWith(SpringRunner.class)
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
@@ -352,7 +353,7 @@ public class MonitorManagementTest {
 
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("Local monitors cannot have zones");
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
+        monitorManagement.createMonitor(tenantId, create);
 
         verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository);
     }
@@ -391,6 +392,7 @@ public class MonitorManagementTest {
 
         create.setContent("value=${does_not_exist}");
 
+        //noinspection unchecked
         List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
         create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
         create.setLabelSelector(Collections.emptyMap());
@@ -743,10 +745,10 @@ public class MonitorManagementTest {
         entityManager.persist(bound1);
 
         when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
-            .thenReturn(Arrays.asList(bound1));
+            .thenReturn(Collections.singletonList(bound1));
 
         when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
-            .thenReturn(Arrays.asList(bound1));
+            .thenReturn(Collections.singletonList(bound1));
 
         // EXECUTE
 
@@ -1820,7 +1822,7 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
         verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
             new BoundMonitor()
                 .setMonitor(monitor)
                 .setResourceId("r-1")
@@ -1862,7 +1864,7 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
         verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
             new BoundMonitor()
                 .setMonitor(monitor)
                 .setResourceId("r-1")
@@ -1933,7 +1935,7 @@ public class MonitorManagementTest {
 
         verify(resourceApi).getByResourceId("t-1", "r-1");
         verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+        verify(boundMonitorRepository).saveAll(Collections.singletonList(
             new BoundMonitor()
                 .setMonitor(monitor)
                 .setResourceId("r-1")
