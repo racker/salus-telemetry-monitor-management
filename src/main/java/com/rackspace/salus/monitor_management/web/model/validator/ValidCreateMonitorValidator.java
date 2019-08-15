@@ -28,14 +28,18 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
    }
 
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
-      Map<String, String > labelSelector = monitorInput.getLabelSelector();
+      @SuppressWarnings("Duplicates")
+      Map<String, String> labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
+      // Error if both resourceId and labelSelector exists
       if (resourceId != null && !resourceId.equals("")) {
          if (labelSelector != null && labelSelector.size() > 0) {
             return false;
          }
       }
+      // Error if neither resourceId nor labelSelector exists
       if (labelSelector == null) {
+         //noinspection RedundantIfStatement
          if (resourceId == null || resourceId.equals("")) {
             return false;
          }
