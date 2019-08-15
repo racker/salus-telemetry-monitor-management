@@ -32,8 +32,9 @@ import javax.validation.Payload;
 @Documented
 @Constraint(validatedBy = ValidUpdateMonitorValidator.class)
 public @interface ValidUpdateMonitor {
-  static final String DEFAULT_MESSAGE = "The label selector field and resourceId field should not both be set.";
+  String DEFAULT_MESSAGE = "The label selector field and resourceId field should not both be set.";
   String message() default DEFAULT_MESSAGE;
   Class<?>[] groups() default {};
+  @SuppressWarnings("unused")
   Class<? extends Payload>[] payload() default {};
 }

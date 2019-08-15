@@ -27,15 +27,20 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
    public void initialize(ValidUpdateMonitor constraint) {
    }
 
-   public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
+   static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput,
+       @SuppressWarnings("unused") ConstraintValidatorContext context) {
       Map<String, String > labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
       if (resourceId != null && !resourceId.equals("")) {
+         //noinspection RedundantIfStatement
          if (labelSelector != null && labelSelector.size() > 0) {
-            return false;
+            return true;
          }
       }
-      return true;
+      return false;
+   }
+   public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
+      return !bothResourceAndLabelsSet(monitorInput, context);
    }
 
 }

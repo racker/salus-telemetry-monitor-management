@@ -35,7 +35,6 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 public class ValidCreateMonitorValidatorTest {
 
   private LocalValidatorFactoryBean validatorFactoryBean;
-  private String expectedString = "Exactly one of the label selector field or resourceId field must be set, but not both.";
 
   @Before
   public void setup() {

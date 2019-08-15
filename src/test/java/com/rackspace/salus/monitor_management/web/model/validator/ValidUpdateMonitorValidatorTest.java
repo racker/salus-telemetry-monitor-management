@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model.validator;
 
-import static com.rackspace.salus.test.JsonTestUtils.readContent;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -24,6 +24,7 @@ import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Set;
 import javax.validation.ConstraintViolation;
@@ -42,13 +43,9 @@ public class ValidUpdateMonitorValidatorTest {
   }
 
   @Test
-  public void testValid_ResourceId() throws Exception {
-
-    final String content = readContent("/MonitorConversionServiceTest_mem.json");
+  public void testValid_ResourceId() {
 
     final Mem plugin = new Mem();
-    // no config to set
-
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
 
@@ -62,13 +59,9 @@ public class ValidUpdateMonitorValidatorTest {
     assertThat(errors, hasSize(0));
   }
   @Test
-  public void testValid_Labels() throws Exception {
-
-    final String content = readContent("/MonitorConversionServiceTest_mem.json");
+  public void testValid_Labels() {
 
     final Mem plugin = new Mem();
-    // no config to set
-
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
 
@@ -82,13 +75,9 @@ public class ValidUpdateMonitorValidatorTest {
     assertThat(errors, hasSize(0));
   }
   @Test
-  public void testInvalid_BothSelected() throws Exception {
-
-    final String content = readContent("/MonitorConversionServiceTest_mem.json");
+  public void testInvalid_BothSelected() {
 
     final Mem plugin = new Mem();
-    // no config to set
-
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
 
@@ -101,16 +90,14 @@ public class ValidUpdateMonitorValidatorTest {
         ValidationGroups.Update.class);
 
     assertThat(errors, hasSize(1));
+    assertThat(new ArrayList<>(errors).get(0).getMessage(), containsString(ValidUpdateMonitor.DEFAULT_MESSAGE));
+
   }
 
   @Test
-  public void testValid_NeitherSelected() throws Exception {
-
-    final String content = readContent("/MonitorConversionServiceTest_mem.json");
+  public void testValid_NeitherSelected() {
 
     final Mem plugin = new Mem();
-    // no config to set
-
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
 
