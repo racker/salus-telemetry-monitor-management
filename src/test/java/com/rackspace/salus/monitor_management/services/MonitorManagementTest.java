@@ -700,6 +700,9 @@ public class MonitorManagementTest {
 
     @Test
     public void testUpdateExistingMonitor_resourceIdChanged() {
+    // Starts with one monitor-with-resource-id bound to one resource
+    // updates it to point to another resource
+    // confirms monitor is updated, old binding is removed, new binding is added
         reset(envoyResourceManagement, resourceApi);
         final ResourceDTO r1 = new ResourceDTO()
             .setLabels(Collections.singletonMap("os", "linux"))
@@ -752,7 +755,7 @@ public class MonitorManagementTest {
         final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
 
         // VERIFY
-
+        // confirm monitor is updated
         assertThat(updatedMonitor, equalTo(
             new Monitor()
                 .setId(monitor.getId())
@@ -767,7 +770,7 @@ public class MonitorManagementTest {
         verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-2");
         verify(boundMonitorRepository).findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
 
-
+        // confirm new binding saved
         verify(boundMonitorRepository).saveAll(Collections.singletonList(
             new BoundMonitor()
                 .setMonitor(monitor)
@@ -777,10 +780,12 @@ public class MonitorManagementTest {
                 .setRenderedContent("static content")
         ));
 
+        // confirm old binding deleted
         verify(boundMonitorRepository).deleteAll(Collections.singletonList(bound1));
 
         verify(resourceApi).getByResourceId("t-1", "r-2");
 
+        // confirm event sent for both old and new binding
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent().setEnvoyId("e-1")
         );
@@ -2296,6 +2301,7 @@ public class MonitorManagementTest {
 
     @Test
     public void testhandleResourceEvent_monitorWithResourceId() {
+    // Confirm that newly created resource binds with existing monitor-with-resourceId
         final Monitor monitor = setupTestingOfHandleResourceEvent(
             "t-1",
             "r-1",
