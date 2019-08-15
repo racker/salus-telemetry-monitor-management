@@ -19,7 +19,6 @@ package com.rackspace.salus.monitor_management.web.controller;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -71,7 +70,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -498,16 +496,9 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testCreateMonitor_ResourceId() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.createMonitor(anyString(), any()))
-        .thenReturn(monitor);
-
+    DetailedMonitorInput create = createMonitorTestSetup();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
-    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setLabelSelector(null);
 
@@ -522,18 +513,10 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testCreateMonitor_BothResourceIdAndLabels() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.createMonitor(anyString(), any()))
-        .thenReturn(monitor);
-
+    DetailedMonitorInput create = createMonitorTestSetup();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
-    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -545,20 +528,12 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.createMonitor(anyString(), any()))
-        .thenReturn(monitor);
-
+    DetailedMonitorInput create = createMonitorTestSetup();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
-    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setLabelSelector(null)
         .setResourceId("");
-
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -570,20 +545,10 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testUpdateMonitor_WithLabelsOnly() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.updateMonitor(anyString(), any(), any()))
-        .thenReturn(monitor);
-
-    String tenantId = monitor.getTenantId();
-    UUID id = monitor.getId();
-    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
-
-    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
     update.setResourceId("");
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
     mockMvc.perform(put(url)
         .content(objectMapper.writeValueAsString(update))
@@ -597,21 +562,11 @@ public class MonitorApiControllerTest {
 
   @Test
   public void testUpdateMonitor_NeitherLabelsNorResourceId() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.updateMonitor(anyString(), any(), any()))
-        .thenReturn(monitor);
-
-    String tenantId = monitor.getTenantId();
-    UUID id = monitor.getId();
-    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
-
-    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
     update.setResourceId("");
     update.setLabelSelector(null);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
     mockMvc.perform(put(url)
         .content(objectMapper.writeValueAsString(update))
@@ -623,19 +578,9 @@ public class MonitorApiControllerTest {
   }
   @Test
   public void testUpdateMonitor_BothLabelsAndResourceId() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.updateMonitor(anyString(), any(), any()))
-        .thenReturn(monitor);
-
-    String tenantId = monitor.getTenantId();
-    UUID id = monitor.getId();
-    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
-
-    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
 
     mockMvc.perform(put(url)
         .content(objectMapper.writeValueAsString(update))
@@ -643,5 +588,50 @@ public class MonitorApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
         .andExpect(classValidationError(ValidUpdateMonitor.DEFAULT_MESSAGE));
+  }
+
+    private DetailedMonitorInput createMonitorTestSetup() {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    return create;
+  }
+
+
+  private class UpdateMonitorTestSetup {
+
+    private String url;
+    private DetailedMonitorInput update;
+
+    String getUrl() {
+      return url;
+    }
+
+    DetailedMonitorInput getUpdate() {
+      return update;
+    }
+
+    UpdateMonitorTestSetup invoke() {
+      Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+      monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+      monitor.setAgentType(AgentType.TELEGRAF);
+      monitor.setContent("{\"type\":\"mem\"}");
+      when(monitorManagement.updateMonitor(anyString(), any(), any()))
+          .thenReturn(monitor);
+
+      String tenantId = monitor.getTenantId();
+      UUID id = monitor.getId();
+      url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+      update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+      update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+      return this;
+    }
   }
 }
