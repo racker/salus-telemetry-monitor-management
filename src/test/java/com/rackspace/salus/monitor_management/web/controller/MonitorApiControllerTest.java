@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
@@ -100,9 +101,6 @@ public class MonitorApiControllerTest {
 
   @Autowired
   MonitorConversionService monitorConversionService;
-
-  private final String expectedClassErrorMsg = "Exactly one of the label selector field or resourceId field must be set, but not both.";
-
 
   @Test
   public void testGetMonitor() throws Exception {
@@ -542,7 +540,7 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(classValidationError(expectedClassErrorMsg));
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
 
   @Test
@@ -567,7 +565,7 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(classValidationError(expectedClassErrorMsg));
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
 
   @Test
@@ -625,7 +623,6 @@ public class MonitorApiControllerTest {
   }
   @Test
   public void testUpdateMonitor_BothLabelsAndResourceId() throws Exception {
-    final String expectedErrorMsg = "The label selector field and resourceId field should not both be set.";
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
@@ -645,6 +642,6 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(classValidationError(expectedErrorMsg));
+        .andExpect(classValidationError(ValidUpdateMonitor.DEFAULT_MESSAGE));
   }
 }
