@@ -415,18 +415,6 @@ public class MonitorManagement {
         .setRenderedContent(renderedContent);
   }
 
-  private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
-    final String zoneTenantId = boundMonitor.getMonitor().getZones(); // this feels wrong??
-    final String zoneName = boundMonitor.getZoneName();
-
-    if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
-      return ResolvedZone.createPublicZone(zoneName);
-    }
-    else {
-      return ResolvedZone.createPrivateZone(zoneTenantId, zoneName);
-    }
-  }
-
   /**
    * Evaluates unassigned {@link BoundMonitor}s in the given zone and assigns those to
    * least-bound envoys.
@@ -1194,7 +1182,7 @@ public class MonitorManagement {
     for (BoundMonitor boundMonitor : needToDelete) {
       if (boundMonitor.getEnvoyId() != null &&
           boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
-        ResolvedZone zone = getResolvedZoneOfBoundMonitor(boundMonitor);
+        ResolvedZone zone = resolveZone(boundMonitor.getMonitor().getTenantId(), boundMonitor.getZoneName());
         String envoyId = boundMonitor.getEnvoyId();
         String resourceId = envoyToResource.get(envoyId);
         // If we don't know the resourceId yet, try look it up
