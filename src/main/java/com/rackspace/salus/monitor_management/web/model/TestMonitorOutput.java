@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import java.util.List;
 import lombok.Data;
 
@@ -24,10 +24,6 @@ import lombok.Data;
 public class TestMonitorOutput {
 
   List<String> errors;
-  /**
-   * Contains the Avro-JSON encoding of <code>ExternalMetric</code>
-   */
-  @JsonRawValue
-  String metrics;
+  List<SimpleNameTagValueMetric> metrics;
 
 }
