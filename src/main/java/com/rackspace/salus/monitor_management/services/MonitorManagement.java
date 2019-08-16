@@ -24,6 +24,7 @@ import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
@@ -42,6 +43,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -82,6 +84,7 @@ import org.springframework.util.MultiValueMap;
 @Service
 public class MonitorManagement {
 
+  private final ResourceRepository resourceRepository;
   private final BoundMonitorRepository boundMonitorRepository;
   private final ZoneStorage zoneStorage;
   private final MonitorEventProducer monitorEventProducer;
@@ -102,7 +105,9 @@ public class MonitorManagement {
   private JdbcTemplate jdbcTemplate;
 
   @Autowired
-  public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
+  public MonitorManagement(
+      ResourceRepository resourceRepository,
+      MonitorRepository monitorRepository, EntityManager entityManager,
       EnvoyResourceManagement envoyResourceManagement,
       BoundMonitorRepository boundMonitorRepository,
       ZoneStorage zoneStorage,
@@ -111,6 +116,7 @@ public class MonitorManagement {
       ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
       JdbcTemplate jdbcTemplate) {
+    this.resourceRepository = resourceRepository;
     this.monitorRepository = monitorRepository;
     this.entityManager = entityManager;
     this.envoyResourceManagement = envoyResourceManagement;
@@ -374,18 +380,6 @@ public class MonitorManagement {
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
         .setRenderedContent(renderedContent);
-  }
-
-  private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
-    final String zoneTenantId = boundMonitor.getMonitor().getTenantId();
-    final String zoneName = boundMonitor.getZoneName();
-
-    if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
-      return ResolvedZone.createPublicZone(zoneName);
-    }
-    else {
-      return ResolvedZone.createPrivateZone(zoneTenantId, zoneName);
-    }
   }
 
   /**
@@ -1053,7 +1047,7 @@ public class MonitorManagement {
     for (BoundMonitor boundMonitor : needToDelete) {
       if (boundMonitor.getEnvoyId() != null &&
           boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
-        ResolvedZone zone = getResolvedZoneOfBoundMonitor(boundMonitor);
+        ResolvedZone zone = resolveZone(boundMonitor.getMonitor().getTenantId(), boundMonitor.getZoneName());
         String envoyId = boundMonitor.getEnvoyId();
         String resourceId = envoyToResource.get(envoyId);
         // If we don't know the resourceId yet, try look it up
