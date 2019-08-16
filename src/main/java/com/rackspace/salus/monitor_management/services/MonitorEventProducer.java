@@ -37,6 +37,6 @@ public class MonitorEventProducer {
         final String topic = properties.getPolicies();
 
         log.debug("Sending policyMonitorUpdateEvent={} on topic={}", event, topic);
-        kafkaTemplate.send(topic, buildMessageKey(event), event); // will this work or will a null value break the key? could just tell it to use monitorId
+        kafkaTemplate.send(topic, buildMessageKey(event), event);
     }
 }
