@@ -16,15 +16,24 @@
 
 package com.rackspace.salus.monitor_management.config;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import javax.validation.constraints.NotNull;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DurationUnit;
+import org.springframework.stereotype.Component;
 
-@Configuration
-@EnableAsync
-public class AsyncConfig {
+@ConfigurationProperties("salus.test-monitor")
+@Component
+@Data
+public class TestMonitorProperties {
 
-  // Otherwise, leverage Spring Boot auto-configured task executors
-  // There's some specific setup they do to ensure proper MVC async handling:
-  // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-task-execution-scheduling.html#boot-features-task-execution-scheduling
-
+  /**
+   * If a test-monitor does not get results back within this duration, then the original request
+   * will be timed out.
+   */
+  @DurationUnit(ChronoUnit.SECONDS)
+  @NotNull
+  Duration resultsTimeout = Duration.ofSeconds(120);
 }

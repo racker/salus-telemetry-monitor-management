@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
+import com.fasterxml.jackson.annotation.JsonRawValue;
+import java.util.List;
+import lombok.Data;
 
-@Configuration
-@EnableAsync
-public class AsyncConfig {
+@Data
+public class TestMonitorOutput {
 
-  // Otherwise, leverage Spring Boot auto-configured task executors
-  // There's some specific setup they do to ensure proper MVC async handling:
-  // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-task-execution-scheduling.html#boot-features-task-execution-scheduling
+  List<String> errors;
+  /**
+   * Contains the Avro-JSON encoding of <code>ExternalMetric</code>
+   */
+  @JsonRawValue
+  String metrics;
 
 }

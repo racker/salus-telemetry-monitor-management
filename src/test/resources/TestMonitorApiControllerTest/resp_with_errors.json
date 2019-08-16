@@ -1,0 +1,4 @@
+{
+  "errors": ["error-1"],
+  "metrics": [{"timestamp":"2018-10-08T20:30:13.123Z","accountType":"RCN","account":"t1","device":"r-1","deviceLabel":"","deviceMetadata":{"hostname":"host1","os":"linux"},"monitoringSystem":"SALUS","systemMetadata":{"envoyId":"envoy-1"},"collectionName":"cpu","collectionLabel":"","collectionTarget":"","collectionMetadata":{"cpu":"cpu1"},"ivalues":{},"fvalues":{"usage":1.45},"svalues":{"status":"enabled"},"units":{}}]
+}
