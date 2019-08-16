@@ -509,8 +509,7 @@ public class MonitorManagement {
     final Set<String> affectedEnvoys = new HashSet<>();
 
     String resourceId = monitor.getResourceId();
-    if ((resourceId == null && updatedValues.getResourceId() != null) ||
-       (resourceId != null && !resourceId.equals(updatedValues.getResourceId()))) {
+    if(!Objects.equals(resourceId, updatedValues.getResourceId())) {
       affectedEnvoys.addAll(processMonitorResourceIdModified(monitor, updatedValues.getResourceId()));
       monitor.setResourceId(updatedValues.getResourceId());
     }
@@ -674,7 +673,7 @@ public class MonitorManagement {
     final Set<String> affectedEnvoys = new HashSet<>();
 
     // If one was bound before, unbind it
-    if (resourceId != null && !resourceId.equals("")) {
+    if (StringUtils.isNotBlank(resourceId)) {
       final List<BoundMonitor> boundMonitors =
           boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
       final List<String> resourceIdsToUnbind = boundMonitors.stream()
@@ -684,7 +683,7 @@ public class MonitorManagement {
     }
 
     // If a new one is to be bound, bind it
-    if (updatedResourceId != null && !updatedResourceId.equals("")) {
+    if (StringUtils.isNotBlank(updatedResourceId)) {
       ResourceDTO resource  = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
       affectedEnvoys.addAll(
           upsertBindingToResource(
