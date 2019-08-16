@@ -512,4 +512,27 @@ public class MonitorConversionServiceTest {
     assertThat(procstatPlugin.getPidFile()).contains("/path/to/file");
     assertThat(procstatPlugin.getProcessName()).contains("thisIsAProcess");
   }
+
+  @Test
+  public void testConvertFrom_ResourceId() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setResourceId("r-1");
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getResourceId()).isEqualTo(input.getResourceId());
+  }
+
+  @Test
+  public void testConvertTo_ResourceId() {
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setResourceId("r-1")
+        .setId(monitorId)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
+  }
+
+
 }

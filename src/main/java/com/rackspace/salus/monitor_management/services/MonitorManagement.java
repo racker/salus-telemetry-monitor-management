@@ -62,6 +62,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
@@ -98,7 +99,7 @@ public class MonitorManagement {
 
   public static final String POLICY_TENANT = "_POLICY_";
 
-  JdbcTemplate jdbcTemplate;
+  private JdbcTemplate jdbcTemplate;
 
   @Autowired
   public MonitorManagement(MonitorRepository monitorRepository, EntityManager entityManager,
@@ -178,7 +179,9 @@ public class MonitorManagement {
    *
    * @return Stream of monitors.
    */
+  @SuppressWarnings("WeakerAccess")
   public Stream<Monitor> getMonitorsAsStream() {
+    //noinspection UnstableApiUsage
     return Streams.stream(monitorRepository.findAll());
   }
 
@@ -203,6 +206,7 @@ public class MonitorManagement {
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
+        .setResourceId(newMonitor.getResourceId())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
@@ -248,9 +252,18 @@ public class MonitorManagement {
    */
   Set<String> bindMonitor(Monitor monitor,
       List<String> zones) {
-    final List<ResourceDTO> resources = resourceApi.getResourcesWithLabels(
-        monitor.getTenantId(), monitor.getLabelSelector());
-
+    final List<ResourceDTO> resources;
+    String resourceId = monitor.getResourceId();
+    if (!StringUtils.isBlank(resourceId)) {
+      ResourceDTO r = resourceApi.getByResourceId(monitor.getTenantId(), resourceId);
+      resources = new ArrayList<>();
+      if (r != null) {
+        resources.add(r);
+      }
+    } else {
+      resources = resourceApi.getResourcesWithLabels(
+          monitor.getTenantId(), monitor.getLabelSelector());
+    }
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
     final List<BoundMonitor> boundMonitors = new ArrayList<>();
@@ -381,6 +394,7 @@ public class MonitorManagement {
    * @param zoneTenantId for private zones, the tenant owning the zone, or <code>null</code> for public zones
    * @param zoneName the zone name
    */
+  @SuppressWarnings("WeakerAccess")
   public void handleNewEnvoyInZone(@Nullable String zoneTenantId, String zoneName) {
     log.debug("Locating bound monitors without assigned envoy with zoneName={} and zoneTenantId={}",
         zoneName, zoneTenantId);
@@ -418,6 +432,7 @@ public class MonitorManagement {
     }
   }
 
+  @SuppressWarnings("WeakerAccess")
   public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
       String zoneName, String resourceId,
       String fromEnvoyId, String toEnvoyId) {
@@ -491,6 +506,12 @@ public class MonitorManagement {
     validateMonitoringZones(tenantId, updatedValues.getZones());
 
     final Set<String> affectedEnvoys = new HashSet<>();
+
+    String resourceId = monitor.getResourceId();
+    if(!Objects.equals(resourceId, updatedValues.getResourceId())) {
+      affectedEnvoys.addAll(processMonitorResourceIdModified(monitor, updatedValues.getResourceId()));
+      monitor.setResourceId(updatedValues.getResourceId());
+    }
 
     if (updatedValues.getLabelSelector() != null &&
         !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
@@ -640,6 +661,44 @@ public class MonitorManagement {
   }
 
   /**
+   * Reconciles bindings to the resources selected by the given resourceId. It
+   * creates new bindings and unbinds are necessary.
+   * @return affected envoy IDs
+   */
+  private Set<String> processMonitorResourceIdModified(Monitor monitor,
+      String updatedResourceId) {
+
+    String resourceId = monitor.getResourceId();
+    final Set<String> affectedEnvoys = new HashSet<>();
+
+    // If one was bound before, unbind it
+    if (StringUtils.isNotBlank(resourceId)) {
+      // The envoy ids returned could correspond to this particular resource or any poller envoy.
+      final List<BoundMonitor> boundMonitors =
+          boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
+      final List<String> resourceIdsToUnbind = boundMonitors.stream()
+          .map(BoundMonitor::getResourceId)
+          .collect(Collectors.toList());
+      affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), resourceIdsToUnbind));
+    }
+
+    // If a new one is to be bound, bind it
+    if (StringUtils.isNotBlank(updatedResourceId)) {
+      ResourceDTO resource  = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
+      affectedEnvoys.addAll(
+          upsertBindingToResource(
+              Collections.singletonList(monitor),
+              resource,
+              null
+          ));
+    }
+
+  return affectedEnvoys;
+  }
+
+
+
+  /**
    * Reconciles bindings to the resources selected by the given updated label selector. It
    * creates new bindings and unbinds are necessary.
    * @return affected envoy IDs
@@ -667,17 +726,15 @@ public class MonitorManagement {
     // process new bindings
     selectedResources.stream()
         .filter(resource -> !boundResourceIds.contains(resource.getResourceId()))
-        .forEach(resource -> {
-
+        .forEach(resource ->
           affectedEnvoys.addAll(
               upsertBindingToResource(
                   Collections.singletonList(monitor),
                   resource,
                   null
               )
-          );
-
-        });
+          )
+        );
 
     return affectedEnvoys;
   }
@@ -714,9 +771,16 @@ public class MonitorManagement {
     final String resourceId = event.getResourceId();
 
     if (!event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
+
+      // This is an optimization for the case where just the envoy has been reattached
+      // The code after the return statement handles the case where both the labels change and
+      // the envoy reattaches.  This code is never reached if a new resource is created,
+      // which is why we don't have to check for monitorWithResourceId until afterwards
       handleReattachedEnvoy(tenantId, resourceId, event.getReattachedEnvoyId());
       return;
     }
+
+    final List<Monitor> monitorsWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
     final List<UUID> boundMonitorIds =
         boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
@@ -735,7 +799,11 @@ public class MonitorManagement {
         // continue with normal processing, assuming it got revived concurrently
       }
 
-      selectedMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
+      List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
+      selectedMonitors = new ArrayList<>(labelMonitors);
+      selectedMonitors.addAll(monitorsWithResourceId);
+
+
 
       final List<UUID> selectedMonitorIds = selectedMonitors.stream()
           .map(Monitor::getId)
@@ -769,6 +837,7 @@ public class MonitorManagement {
    * @param resourceId
    * @param envoyId
    */
+  @SuppressWarnings("JavaDoc")
   private void handleReattachedEnvoy(String tenantId, String resourceId, String envoyId) {
     final List<BoundMonitor> bound = boundMonitorRepository
         .findAllLocalByTenantResource(
@@ -1024,6 +1093,7 @@ public class MonitorManagement {
       if(i > 0) {
         builder.append(" OR ");
       }
+      //noinspection StringConcatenationInsideStringBufferAppend
       builder.append("(label_selector = :label"+ i +" AND label_selector_key = :labelKey" + i + ")");
       paramSource.addValue("label"+i, entry.getValue());
       paramSource.addValue("labelKey"+i, entry.getKey());
@@ -1034,6 +1104,7 @@ public class MonitorManagement {
     builder.append(") ORDER BY monitors.id");
     paramSource.addValue("i", i);
 
+    //noinspection ConstantConditions
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
     final List<UUID> monitorIds = namedParameterTemplate.query(builder.toString(), paramSource,
         (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
@@ -1070,6 +1141,7 @@ public class MonitorManagement {
    * @param zoneName The name of the resolved zone.
    * @param envoyId The envoy id that has disconnected.
    */
+  @SuppressWarnings("WeakerAccess")
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
     log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
         envoyId, zoneName, zoneTenantId);
@@ -1123,6 +1195,8 @@ public class MonitorManagement {
         .setParameter("tenantId", tenantId)
         .getResultList();
 
+
+    @SuppressWarnings("Duplicates")
     final MultiValueMap<String,String> combined = new LinkedMultiValueMap<>();
     for (Entry entry : distinctLabelTuples) {
       combined.add((String)entry.getKey(), (String)entry.getValue());
