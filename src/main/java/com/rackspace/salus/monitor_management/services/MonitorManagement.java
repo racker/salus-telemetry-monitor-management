@@ -416,7 +416,7 @@ public class MonitorManagement {
   }
 
   private static ResolvedZone getResolvedZoneOfBoundMonitor(BoundMonitor boundMonitor) {
-    final String zoneTenantId = boundMonitor.getTenantId();
+    final String zoneTenantId = boundMonitor.getMonitor().getZones(); // this feels wrong??
     final String zoneName = boundMonitor.getZoneName();
 
     if (zoneTenantId.equals(ResolvedZone.PUBLIC)) {
