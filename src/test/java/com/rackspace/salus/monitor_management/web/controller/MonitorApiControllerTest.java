@@ -285,7 +285,7 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testCreateMonitor_EmptyLabelSelector() throws Exception {
+  public void testCreateMonitor_NullLabelSelector() throws Exception {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
@@ -297,7 +297,7 @@ public class MonitorApiControllerTest {
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-    create.setLabelSelector(Collections.emptyMap());
+    create.setLabelSelector(null);
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -539,6 +539,21 @@ public class MonitorApiControllerTest {
         .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
 
+  @Test
+  public void testCreateMonitor_BothResourceIdAndEmptyLabels() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setLabelSelector(Collections.emptyMap());
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
+  }
   @Test
   public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
     DetailedMonitorInput create = setupCreateMonitorTest();

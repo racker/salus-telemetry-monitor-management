@@ -21,6 +21,8 @@ import java.util.Map;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
 public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpdateMonitor, DetailedMonitorInput> {
@@ -30,14 +32,9 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
    static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput) {
       Map<String, String > labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
-      if (resourceId != null && !resourceId.equals("")) {
-         //noinspection RedundantIfStatement
-         if (labelSelector != null && labelSelector.size() > 0) {
-            return true;
-         }
-      }
-      return false;
+      return (StringUtils.isNotBlank(resourceId) && labelSelector != null);
    }
+
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
       return !bothResourceAndLabelsSet(monitorInput);
    }

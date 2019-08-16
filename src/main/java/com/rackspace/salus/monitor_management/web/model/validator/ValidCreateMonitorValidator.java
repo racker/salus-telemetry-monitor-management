@@ -21,6 +21,7 @@ import java.util.Map;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
 public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCreateMonitor, DetailedMonitorInput> {
@@ -33,14 +34,8 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
       if (ValidUpdateMonitorValidator.bothResourceAndLabelsSet(monitorInput)) {
          return false;
       }
-      // Error if neither resourceId nor labelSelector exists
-      if (labelSelector == null) {
-         //noinspection RedundantIfStatement
-         if (resourceId == null || resourceId.equals("")) {
-            return false;
-         }
-      }
-      return true;
+      // Valid if either resourceId or labelSelector exists
+      return (labelSelector != null || StringUtils.isNotBlank(resourceId));
    }
 
 }

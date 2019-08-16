@@ -62,6 +62,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
@@ -73,6 +74,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -675,8 +677,9 @@ public class MonitorManagement {
     if (resourceId != null && !resourceId.equals("")) {
       final List<BoundMonitor> boundMonitors =
           boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
-      final List<String> resourceIdsToUnbind = boundMonitors.stream().map(BoundMonitor::getResourceId).collect(
-          Collectors.toList());
+      final List<String> resourceIdsToUnbind = boundMonitors.stream()
+          .map(BoundMonitor::getResourceId)
+          .collect(Collectors.toList());
       affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), resourceIdsToUnbind));
     }
 
@@ -767,10 +770,10 @@ public class MonitorManagement {
   void handleResourceChangeEvent(ResourceEvent event) {
     final String tenantId = event.getTenantId();
     final String resourceId = event.getResourceId();
-    final Monitor monitorWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    final List<Monitor> monitorWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
 
-    if ((monitorWithResourceId == null) && !event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
+    if (CollectionUtils.isEmpty(monitorWithResourceId) && !event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
       handleReattachedEnvoy(tenantId, resourceId, event.getReattachedEnvoyId());
       return;
     }
@@ -795,7 +798,7 @@ public class MonitorManagement {
       List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
       selectedMonitors = new ArrayList<>(labelMonitors);
       if (monitorWithResourceId != null) {
-        selectedMonitors.add(monitorWithResourceId);
+        selectedMonitors.addAll(monitorWithResourceId);
       }
 
 
@@ -1184,7 +1187,6 @@ public class MonitorManagement {
   }
 
   public MultiValueMap<String, String> getTenantMonitorLabelSelectors(String tenantId) {
-    //noinspection JpaQueryApiInspection
     final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(
         "Monitor.getDistinctLabelSelectors", Map.Entry.class)
         .setParameter("tenantId", tenantId)
