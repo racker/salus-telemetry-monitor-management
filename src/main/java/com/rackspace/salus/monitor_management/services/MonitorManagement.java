@@ -253,7 +253,7 @@ public class MonitorManagement {
       List<String> zones) {
     final List<ResourceDTO> resources;
     String resourceId = monitor.getResourceId();
-    if (resourceId != null && !resourceId.equals("")) {
+    if (!StringUtils.isBlank(resourceId)) {
       ResourceDTO r = resourceApi.getByResourceId(monitor.getTenantId(), resourceId);
       resources = new ArrayList<>();
       if (r != null) {
