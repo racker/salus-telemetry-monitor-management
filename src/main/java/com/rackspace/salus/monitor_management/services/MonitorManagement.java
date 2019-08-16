@@ -74,7 +74,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -769,13 +768,18 @@ public class MonitorManagement {
   void handleResourceChangeEvent(ResourceEvent event) {
     final String tenantId = event.getTenantId();
     final String resourceId = event.getResourceId();
-    final List<Monitor> monitorWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
+    if (!event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
 
-    if (CollectionUtils.isEmpty(monitorWithResourceId) && !event.isLabelsChanged() && event.getReattachedEnvoyId() != null) {
+      // This is an optimization for the case where just the envoy has been reattached
+      // The code after the return statement handles the case where both the labels change and
+      // the envoy reattaches.  This code is never reached if a new resource is created,
+      // which is why we don't have to check for monitorWithResourceId until afterwards
       handleReattachedEnvoy(tenantId, resourceId, event.getReattachedEnvoyId());
       return;
     }
+
+    final List<Monitor> monitorsWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
     final List<UUID> boundMonitorIds =
         boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
@@ -796,8 +800,8 @@ public class MonitorManagement {
 
       List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
       selectedMonitors = new ArrayList<>(labelMonitors);
-      if (monitorWithResourceId != null) {
-        selectedMonitors.addAll(monitorWithResourceId);
+      if (monitorsWithResourceId != null) {
+        selectedMonitors.addAll(monitorsWithResourceId);
       }
 
 
