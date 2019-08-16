@@ -673,6 +673,7 @@ public class MonitorManagement {
 
     // If one was bound before, unbind it
     if (StringUtils.isNotBlank(resourceId)) {
+      // The envoy ids returned could correspond to this particular resource or any poller envoy.
       final List<BoundMonitor> boundMonitors =
           boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId);
       final List<String> resourceIdsToUnbind = boundMonitors.stream()
@@ -800,9 +801,8 @@ public class MonitorManagement {
 
       List<Monitor> labelMonitors = getMonitorsFromLabels(resource.getLabels(), tenantId, Pageable.unpaged()).getContent();
       selectedMonitors = new ArrayList<>(labelMonitors);
-      if (monitorsWithResourceId != null) {
-        selectedMonitors.addAll(monitorsWithResourceId);
-      }
+      selectedMonitors.addAll(monitorsWithResourceId);
+
 
 
       final List<UUID> selectedMonitorIds = selectedMonitors.stream()
