@@ -137,21 +137,24 @@ public class TestMonitorService {
 
     pending.put(correlationId, future);
 
+    final CompletableFuture<TestMonitorOutput> interceptedFuture = future
+        .handle((testMonitorOutput, throwable) -> {
+          removeCompletedRequest(correlationId);
+
+          if (throwable instanceof TimeoutException) {
+            return buildTimedOutResult();
+          } else if (throwable != null) {
+            return new TestMonitorOutput()
+                .setErrors(List.of(String
+                    .format("An unexpected internal error occurred: %s", throwable.getMessage())));
+          } else {
+            return testMonitorOutput;
+          }
+        });
+
     testMonitorEventProducer.send(event);
 
-    return future.handle((testMonitorOutput, throwable) -> {
-      removeCompletedRequest(correlationId);
-
-      if (throwable instanceof TimeoutException) {
-        return buildTimedOutResult();
-      } else if (throwable != null) {
-        return new TestMonitorOutput()
-            .setErrors(List.of(String
-                .format("An unexpected internal error occurred: %s", throwable.getMessage())));
-      } else {
-        return testMonitorOutput;
-      }
-    });
+    return interceptedFuture;
   }
 
   void handleTestMonitorResultsEvent(TestMonitorResultsEvent event) {
