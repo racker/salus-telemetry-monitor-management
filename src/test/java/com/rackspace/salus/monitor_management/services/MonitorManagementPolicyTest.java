@@ -43,10 +43,12 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -78,6 +80,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -222,6 +226,64 @@ public class MonitorManagementPolicyTest {
     assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector())
         .areEqual());
 
+    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+  }
+
+  @Test
+  public void testUpdatePolicyMonitor() {
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("original content")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+    MonitorCU update = new MonitorCU()
+        .setContent("new content")
+        .setZones(Collections.singletonList("z-2"));
+
+
+
+    // make sure the zones we're setting are allowed to be used
+    List<Zone> zones = Arrays.asList(
+        new Zone().setName("z-1"),
+        new Zone().setName("z-2")
+    );
+    when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    // EXECUTE
+
+    final Monitor updatedMonitor = monitorManagement.updatePolicyMonitor(monitor.getId(), update);
+
+    // VERIFY
+
+    // The returned monitor should match the original with zone and content fields changed
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("new content")
+                .setTenantId(POLICY_TENANT)
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setLabelSelector(monitor.getLabelSelector())
+                .setZones(Collections.singletonList("z-2")));
+
+    // Event is sent with no tenant set (to be consumed by policy mgmt)
+    verify(monitorEventProducer).sendPolicyMonitorUpdateEvent(
+        new PolicyMonitorUpdateEvent()
+        .setMonitorId(monitor.getId())
+        .setTenantId(null)
+    );
+
+    // specified zones were verified
+    verify(zoneManagement).getAvailableZonesForTenant(POLICY_TENANT, Pageable.unpaged());
+
+    // No bound monitors will be altered yet.
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
   }
 

@@ -606,21 +606,28 @@ public class MonitorManagement {
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
         .to(monitor::setMonitorName);
-    map.from(updatedValues.getLabelSelector())
-        .whenNonNull()
-        .to(monitor::setLabelSelector);
     map.from(updatedValues.getContent())
         .whenNonNull()
         .to(monitor::setContent);
-    map.from(updatedValues.getAgentType())
-        .whenNonNull()
-        .to(monitor::setAgentType);
-    map.from(updatedValues.getSelectorScope())
-        .whenNonNull()
-        .to(monitor::setSelectorScope);
-    map.from(updatedValues.getZones())
-        .whenNonNull()
-        .to(monitor::setZones);
+
+    // PropertyMapper cannot efficiently handle these two fields.
+    if (updatedValues.getLabelSelector() != null &&
+        !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
+      monitor.setLabelSelector(new HashMap<>(updatedValues.getLabelSelector()));
+    } else if (monitor.getLabelSelector() != null) {
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      // that has a field of type Map. It wants to clear the loaded map value, which is
+      // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+      // retrieved maps.
+      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+    }
+    if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
+      // See above regarding:
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+    } else if (monitor.getZones() != null){
+      monitor.setZones(new ArrayList<>(monitor.getZones()));
+    }
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
