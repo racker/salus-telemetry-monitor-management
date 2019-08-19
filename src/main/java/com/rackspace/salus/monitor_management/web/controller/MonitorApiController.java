@@ -112,7 +112,7 @@ public class MonitorApiController {
     @PutMapping("/admin/policy-monitors/{uuid}")
     @ApiOperation(value = "Updates specific Policy Monitor")
     @JsonView(View.Admin.class)
-    public DetailedMonitorOutput update(@PathVariable UUID uuid,
+    public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
         @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(

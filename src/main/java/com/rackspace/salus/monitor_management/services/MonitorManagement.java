@@ -1255,7 +1255,7 @@ public class MonitorManagement {
     for (BoundMonitor boundMonitor : needToDelete) {
       if (boundMonitor.getEnvoyId() != null &&
           boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
-        ResolvedZone zone = resolveZone(boundMonitor.getMonitor().getTenantId(), boundMonitor.getZoneName());
+        ResolvedZone zone = resolveZone(boundMonitor.getTenantId(), boundMonitor.getZoneName());
         String envoyId = boundMonitor.getEnvoyId();
         String resourceId = envoyToResource.get(envoyId);
         // If we don't know the resourceId yet, try look it up
