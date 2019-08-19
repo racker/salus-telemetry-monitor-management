@@ -34,7 +34,7 @@ public class TestMonitorListener {
   @Autowired
   public TestMonitorListener(TestMonitorService testMonitorService,
                              KafkaTopicProperties kafkaTopicProperties,
-                             @Value("${spring.application.name") String appName,
+                             @Value("${spring.application.name}") String appName,
                              @Value("${localhost.name}") String ourHostName) {
     this.testMonitorService = testMonitorService;
     this.kafkaTopicProperties = kafkaTopicProperties;
