@@ -48,11 +48,11 @@ public class TestMonitorListener {
   }
 
   @SuppressWarnings("unused") // used in @KafkaListener
-  public String getResultsGroupdId() {
+  public String getResultsGroupId() {
     return String.join("-", appName, "testMonitorResults", ourHostName);
   }
 
-  @KafkaListener(topics = "#{__listener.resultsTopic", groupId = "#{__listener.resultsGroupId}")
+  @KafkaListener(topics = "#{__listener.resultsTopic}", groupId = "#{__listener.resultsGroupId}")
   public void consumeTestMonitorResultsEvent(TestMonitorResultsEvent event) {
     // let the service determine if the event is relevant or not by correlation ID
     testMonitorService.handleTestMonitorResultsEvent(event);
