@@ -17,7 +17,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.DeletionNotAllowed;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
@@ -199,7 +199,7 @@ public class ZoneManagement {
     long activeEnvoys = getActiveEnvoyCountForZone(zone);
     log.debug("Found {} active envoys for zone {}", activeEnvoys, zone.getName());
     if (activeEnvoys > 0) {
-        throw new DeletionNotAllowed(
+        throw new DeletionNotAllowedException(
                 String.format("Cannot remove zone with connected pollers. Found %d.", activeEnvoys));
     }
 
@@ -214,17 +214,17 @@ public class ZoneManagement {
      * @param tenantId The tenantId the zone is stored under.
      * @param name The name field of the zone.
      * @throws NotFoundException
-     * @throws DeletionNotAllowed
+     * @throws DeletionNotAllowedException
      */
     public void removePrivateZone(String tenantId, String name)
-        throws NotFoundException, DeletionNotAllowed {
+        throws NotFoundException, DeletionNotAllowedException {
       Zone zone = getPrivateZone(tenantId, name).orElseThrow(() ->
           new NotFoundException(String.format("No zone found named %s on tenant %s",
               name, tenantId)));
 
       int monitors = getMonitorCountForPrivateZone(tenantId, name);
       if(monitors > 0) {
-        throw new DeletionNotAllowed(
+        throw new DeletionNotAllowedException(
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);
@@ -234,16 +234,16 @@ public class ZoneManagement {
      * Helper method to remove public zones by zone name.
      * @param name The name of the zone.
      * @throws NotFoundException
-     * @throws DeletionNotAllowed
+     * @throws DeletionNotAllowedException
      */
     public void removePublicZone(String name)
-        throws NotFoundException, DeletionNotAllowed {
+        throws NotFoundException, DeletionNotAllowedException {
       Zone zone = getPublicZone(name).orElseThrow(() ->
           new NotFoundException(String.format("No public zone found named %s", name)));
 
       int monitors = getMonitorCountForPublicZone(name);
       if(monitors > 0) {
-        throw new DeletionNotAllowed(
+        throw new DeletionNotAllowedException(
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);

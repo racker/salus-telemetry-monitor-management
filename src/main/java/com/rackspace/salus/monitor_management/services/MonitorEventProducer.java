@@ -5,8 +5,6 @@ import static com.rackspace.salus.common.messaging.KafkaMessageKeyBuilder.buildM
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
-import java.util.List;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;

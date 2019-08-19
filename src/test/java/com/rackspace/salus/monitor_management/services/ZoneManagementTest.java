@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.DeletionNotAllowed;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.telemetry.model.ZoneState;
@@ -289,7 +289,7 @@ public class ZoneManagementTest {
         assertTrue(!zone.isPresent());
     }
 
-    @Test(expected = DeletionNotAllowed.class)
+    @Test(expected = DeletionNotAllowedException.class)
     public void testDeleteNonEmptyPrivateZone() {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         Zone newZone = createPrivateZoneForTenant(tenantId);
@@ -319,7 +319,7 @@ public class ZoneManagementTest {
         assertTrue(!zone.isPresent());
     }
 
-    @Test(expected = DeletionNotAllowed.class)
+    @Test(expected = DeletionNotAllowedException.class)
     public void testDeleteNonEmptyPublicZone() {
         Zone newZone = createPublicZone();
         when(zoneStorage.getActiveEnvoyCountForZone(any()))

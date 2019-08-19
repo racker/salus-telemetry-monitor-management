@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.telemetry.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.DeletionNotAllowed;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
@@ -423,7 +423,7 @@ public class ZoneApiControllerTest {
     @Test
     public void testDeletePrivateZoneWithMonitors() throws Exception {
         String error = "Cannot remove zone with configured monitors. Found 2.";
-        doThrow(new DeletionNotAllowed(error))
+        doThrow(new DeletionNotAllowedException(error))
             .when(zoneManagement).removePrivateZone(any(), any());
 
         ZoneCreatePrivate create = newZoneCreatePrivate();

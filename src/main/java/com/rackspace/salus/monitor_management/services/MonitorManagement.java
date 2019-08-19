@@ -23,7 +23,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
-import com.rackspace.salus.monitor_management.errors.DeletionNotAllowed;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
@@ -892,14 +892,14 @@ public class MonitorManagement {
    *
    * @param id The id of the monitor.
    * @throws NotFoundException If the monitor does not exist.
-   * @throws DeletionNotAllowed If the monitor is used by an active policy.
+   * @throws DeletionNotAllowedException If the monitor is used by an active policy.
    */
   public void removePolicyMonitor(UUID id) {
     Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
         new NotFoundException(String.format("No policy monitor found for %s", id)));
 
     if (monitorPolicyRepository.existsByMonitorId(id)) {
-      throw new DeletionNotAllowed("Cannot remove monitor that is in use by a policy");
+      throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.delete(monitor);
   }
