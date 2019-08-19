@@ -16,8 +16,6 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import static java.util.Collections.singletonList;
-
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -195,7 +193,7 @@ public class TestMonitorService {
   private TestMonitorOutput buildTimedOutResult() {
     return new TestMonitorOutput()
         .setErrors(
-            singletonList(String.format(
+            List.of(String.format(
                 "Test-monitor did not receive results within the expected duration of %ds",
                 testMonitorProperties.getResultsTimeout().getSeconds()
             ))

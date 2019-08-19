@@ -51,7 +51,7 @@ public class RestExceptionHandler extends
   }
 
   @ExceptionHandler({AlreadyExistsException.class, MissingRequirementException.class})
-  public ResponseEntity<?> handleAlreadyExists(
+  public ResponseEntity<?> handleUnprocessable(
       HttpServletRequest request) {
     return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
   }
