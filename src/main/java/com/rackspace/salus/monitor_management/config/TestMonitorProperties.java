@@ -35,5 +35,5 @@ public class TestMonitorProperties {
    */
   @DurationUnit(ChronoUnit.SECONDS)
   @NotNull
-  Duration resultsTimeout = Duration.ofSeconds(120);
+  Duration resultsTimeout = Duration.ofSeconds(60);
 }

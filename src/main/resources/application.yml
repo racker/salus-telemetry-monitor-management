@@ -1,5 +1,7 @@
 salus:
   environment: local
+  test-monitor:
+    results-timeout: 60s
 spring:
   kafka:
     producer:
@@ -18,3 +20,7 @@ spring:
       default-view-inclusion: true
   application:
     name: salus-telemetry-monitor-management
+  mvc:
+    async:
+      # async request timeout should be set to some duration larger than salus.test-monitor.results-timeout
+      request-timeout: 70s
