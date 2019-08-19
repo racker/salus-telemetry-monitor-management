@@ -23,14 +23,15 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
-import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -54,7 +55,7 @@ public class TestMonitorService {
   private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set.of(AgentType.TELEGRAF);
 
   private final MonitorConversionService monitorConversionService;
-  private final ResourceApi resourceApi;
+  private final ResourceRepository resourceRepository;
   private final EnvoyResourceManagement envoyResourceManagement;
   private final MonitorContentRenderer monitorContentRenderer;
   private final TestMonitorEventProducer testMonitorEventProducer;
@@ -64,13 +65,13 @@ public class TestMonitorService {
 
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
-                            ResourceApi resourceApi,
+                            ResourceRepository resourceRepository,
                             EnvoyResourceManagement envoyResourceManagement,
                             MonitorContentRenderer monitorContentRenderer,
                             TestMonitorProperties testMonitorProperties,
                             TestMonitorEventProducer testMonitorEventProducer) {
     this.monitorConversionService = monitorConversionService;
-    this.resourceApi = resourceApi;
+    this.resourceRepository = resourceRepository;
     this.envoyResourceManagement = envoyResourceManagement;
     this.monitorContentRenderer = monitorContentRenderer;
     this.testMonitorEventProducer = testMonitorEventProducer;
@@ -103,10 +104,8 @@ public class TestMonitorService {
         .setTenantId(tenantId)
         .setResourceId(resourceId);
 
-    final ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
-    if (resource == null) {
-      throw new MissingRequirementException("Unable to locate the resource for the test-monitor");
-    }
+    final Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
+        .orElseThrow(() -> new MissingRequirementException("Unable to locate the resource for the test-monitor"));
 
     final ResourceInfo resourceInfo;
     try {
@@ -124,7 +123,7 @@ public class TestMonitorService {
 
     try {
       event.setRenderedContent(
-          monitorContentRenderer.render(monitorCU.getContent(), resource)
+          monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource))
       );
     } catch (InvalidTemplateException e) {
       throw new IllegalArgumentException("Failed to render monitor configuration content", e);

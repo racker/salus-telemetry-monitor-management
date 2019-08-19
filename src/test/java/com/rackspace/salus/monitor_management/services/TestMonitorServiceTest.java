@@ -17,7 +17,10 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -29,17 +32,20 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
-import com.rackspace.salus.resource_management.web.client.ResourceApi;
-import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.entities.Resource;
+import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +88,7 @@ public class TestMonitorServiceTest {
   MonitorContentRenderer monitorContentRenderer;
 
   @MockBean
-  ResourceApi resourceApi;
+  ResourceRepository resourceRepository;
 
   @MockBean
   EnvoyResourceManagement envoyResourceManagement;
@@ -106,11 +112,13 @@ public class TestMonitorServiceTest {
     when(monitorConversionService.convertFromInput(any()))
         .thenReturn(monitorCU);
 
-    ResourceDTO resource = new ResourceDTO()
+    Resource resource = new Resource()
         .setResourceId("r-1")
-        .setLabels(Map.of("key-1", "value-1"));
-    when(resourceApi.getByResourceId(any(), any()))
-        .thenReturn(resource);
+        .setLabels(Map.of("key-1", "value-1"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
 
     ResourceInfo resourceInfo = new ResourceInfo()
         .setResourceId("r-1")
@@ -173,14 +181,59 @@ public class TestMonitorServiceTest {
           return true;
         }));
 
-    verify(resourceApi).getByResourceId("t-1", "r-1");
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(monitorContentRenderer).render("content-1", resource);
+    verify(monitorContentRenderer).render(eq("content-1"), argThat(resourceDTO -> {
+      assertThat(resourceDTO.getResourceId()).isEqualTo(resource.getResourceId());
+      assertThat(resourceDTO.getLabels()).isEqualTo(resource.getLabels());
+      return true;
+    }));
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
     verifyNoMoreInteractions(
-        monitorConversionService, monitorContentRenderer, resourceApi, testMonitorEventProducer);
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer
+    );
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_resourceNotFound() {
+
+    MonitorCU monitorCU = new MonitorCU()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("content-1");
+    when(monitorConversionService.convertFromInput(any()))
+        .thenReturn(monitorCU);
+
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.empty());
+
+    // EXECUTE
+
+    MonitorDetails monitorDetails = new LocalMonitorDetails()
+        .setPlugin(new Cpu());
+
+    assertThatThrownBy(() ->
+        testMonitorService
+            .performTestMonitorOnResource("t-1", "r-1", monitorDetails))
+        .isInstanceOf(MissingRequirementException.class)
+        .hasMessage("Unable to locate the resource for the test-monitor");
+
+    verify(monitorConversionService)
+        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
+          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+          assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+              .isInstanceOf(Cpu.class);
+          return true;
+        }));
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verifyNoMoreInteractions(
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer
+    );
   }
 
   @Test
@@ -192,11 +245,13 @@ public class TestMonitorServiceTest {
     when(monitorConversionService.convertFromInput(any()))
         .thenReturn(monitorCU);
 
-    ResourceDTO resource = new ResourceDTO()
+    Resource resource = new Resource()
         .setResourceId("r-1")
-        .setLabels(Map.of("key-1", "value-1"));
-    when(resourceApi.getByResourceId(any(), any()))
-        .thenReturn(resource);
+        .setLabels(Map.of("key-1", "value-1"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
 
     ResourceInfo resourceInfo = new ResourceInfo()
         .setResourceId("r-1")
@@ -247,14 +302,19 @@ public class TestMonitorServiceTest {
           return true;
         }));
 
-    verify(resourceApi).getByResourceId("t-1", "r-1");
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(monitorContentRenderer).render("content-1", resource);
+    verify(monitorContentRenderer).render(eq("content-1"), argThat(resourceDTO -> {
+      assertThat(resourceDTO.getResourceId()).isEqualTo(resource.getResourceId());
+      assertThat(resourceDTO.getLabels()).isEqualTo(resource.getLabels());
+      return true;
+    }));
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-
     verifyNoMoreInteractions(
-        monitorConversionService, monitorContentRenderer, resourceApi, testMonitorEventProducer);
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer
+    );
   }
 }
