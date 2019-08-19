@@ -36,6 +36,7 @@ import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -143,17 +144,23 @@ public class TestMonitorServiceTest {
 
     // Simulate a results event getting consumed
 
+    final List<SimpleNameTagValueMetric> expectedMetrics = List.of(
+        new SimpleNameTagValueMetric()
+            .setName("cpu")
+            .setTags(Map.of("cpu", "cpu1"))
+            .setFvalues(Map.of("usage", 1.45))
+    );
     TestMonitorResultsEvent resultsEvent = new TestMonitorResultsEvent()
         .setCorrelationId(correlationId)
         .setErrors(List.of("error-1"))
-        .setMetrics("metrics-1");
+        .setMetrics(expectedMetrics);
     testMonitorService.handleTestMonitorResultsEvent(resultsEvent);
 
     assertThat(future.isDone()).isTrue();
     final TestMonitorOutput output = future.get();
     assertThat(output).isNotNull();
     assertThat(output.getErrors()).containsExactly("error-1");
-    assertThat(output.getMetrics()).isEqualTo("metrics-1");
+    assertThat(output.getMetrics()).isEqualTo(expectedMetrics);
 
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 

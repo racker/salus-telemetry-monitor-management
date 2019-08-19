@@ -27,8 +27,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import com.rackspace.salus.test.JsonTestUtils;
 import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +61,14 @@ public class TestMonitorApiControllerTest {
         .thenReturn(completedFuture(
             new TestMonitorOutput()
                 .setErrors(List.of())
-                .setMetrics(encodedMetricsJson)
+                .setMetrics(
+                    List.of(
+                        new SimpleNameTagValueMetric()
+                        .setName("cpu")
+                        .setTags(Map.of("cpu", "cpu1"))
+                        .setFvalues(Map.of("usage", 1.45))
+                    )
+                )
         ));
 
     final MvcResult mvcResult = mvc.perform(
@@ -91,7 +100,14 @@ public class TestMonitorApiControllerTest {
             new TestMonitorOutput()
                 // include an error
                 .setErrors(List.of("error-1"))
-                .setMetrics(encodedMetricsJson)
+                .setMetrics(
+                    List.of(
+                        new SimpleNameTagValueMetric()
+                            .setName("cpu")
+                            .setTags(Map.of("cpu", "cpu1"))
+                            .setFvalues(Map.of("usage", 1.45))
+                    )
+                )
         ));
 
     final MvcResult mvcResult = mvc.perform(
