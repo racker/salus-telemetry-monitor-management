@@ -304,14 +304,14 @@ public class MonitorManagement {
     final List<ResourceDTO> resources;
     String resourceId = monitor.getResourceId();
     if (!StringUtils.isBlank(resourceId)) {
-      ResourceDTO r = resourceApi.getByResourceId(monitor.getTenantId(), resourceId);
+      Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
       resources = new ArrayList<>();
-      if (r != null) {
-        resources.add(r);
+      if (r.isPresent()) {
+        resources.add(new ResourceDTO(r.get()));
       }
     } else {
       resources = resourceApi.getResourcesWithLabels(
-          monitor.getTenantId(), monitor.getLabelSelector());
+          tenantId, monitor.getLabelSelector());
     }
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
