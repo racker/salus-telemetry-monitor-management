@@ -22,16 +22,14 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
-import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
-import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -42,6 +40,8 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -776,19 +776,21 @@ public class MonitorManagement {
             resourceId
         );
 
-    final Set<String> previousEnvoyIds = extractEnvoyIds(bound);
+    if (!bound.isEmpty()) {
+      final Set<String> previousEnvoyIds = extractEnvoyIds(bound);
 
-    bound.forEach(boundMonitor ->
-        boundMonitor.setEnvoyId(envoyId)
-    );
+      bound.forEach(boundMonitor ->
+          boundMonitor.setEnvoyId(envoyId)
+      );
 
-    boundMonitorRepository.saveAll(bound);
+      boundMonitorRepository.saveAll(bound);
 
-    // now that the re-binding is saved
-    // ...tell any previous envoys about loss of binding
-    previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
-    // ...and tell the attached envoy about the re-bindings
-    sendMonitorBoundEvent(envoyId);
+      // now that the re-binding is saved
+      // ...tell any previous envoys about loss of binding
+      previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
+      // ...and tell the attached envoy about the re-bindings
+      sendMonitorBoundEvent(envoyId);
+    }
   }
 
   /**
