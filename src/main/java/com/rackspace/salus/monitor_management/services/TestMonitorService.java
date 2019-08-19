@@ -173,7 +173,7 @@ public class TestMonitorService {
         .setMetrics(event.getMetrics());
 
     future.complete(result);
-    log.debug("Set result of request correlationId={} to result={}", correlationId, result);
+    log.info("Resolving request correlationId={} with result={}", correlationId, result);
   }
 
   // for unit test validation
