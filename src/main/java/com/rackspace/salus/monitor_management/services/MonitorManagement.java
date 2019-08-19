@@ -1510,10 +1510,8 @@ public class MonitorManagement {
     String tenantId = resource.getTenantId();
     List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
 
-    List<Monitor> resourcePolicies = policyMonitorIds
+    List<Monitor> resourcePolicies = monitorRepository.findByIdIn(policyMonitorIds)
         .stream()
-        .map(monitorRepository::findById)
-        .filter(Optional::isPresent).map(Optional::get)
         .filter(m -> resource.getLabels().entrySet().containsAll(m.getLabelSelector().entrySet()))
         .collect(Collectors.toList());
 
