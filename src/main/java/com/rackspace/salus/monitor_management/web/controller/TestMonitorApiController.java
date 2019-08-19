@@ -20,6 +20,9 @@ import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,12 @@ public class TestMonitorApiController {
   }
 
   @PostMapping("/tenant/{tenantId}/test-monitor")
+  @ApiOperation("Initiates a test-monitor operation and blocks until the results are available")
+  @ApiResponses({
+      @ApiResponse(code = 200, message = "Results contain metrics of the tested monitor and no errors occurred"),
+      @ApiResponse(code = 206, message = "Results contain metrics of the tested monitor, but some errors also occurred"),
+      @ApiResponse(code = 422, message = "Metrics could not be gathered due to missing conditions or a timeout")
+  })
   public CompletableFuture<ResponseEntity<?>> performTestMonitor(
       @PathVariable String tenantId,
       @RequestBody @Valid TestMonitorInput input) {
