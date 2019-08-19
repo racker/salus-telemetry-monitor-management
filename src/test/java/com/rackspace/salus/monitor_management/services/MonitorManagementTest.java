@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC_PREFIX;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static junit.framework.TestCase.assertEquals;
@@ -1022,6 +1023,58 @@ public class MonitorManagementTest {
         verify(monitorEventProducer).sendMonitorEvent(
             new MonitorBoundEvent()
             .setEnvoyId("e-goner")
+        );
+
+        verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
+    }
+
+    @Test
+    public void testRemoveMonitor_publicZone() {
+        String zoneName = PUBLIC_PREFIX + "z-1";
+        final Monitor monitor =
+            monitorRepository.save(new Monitor()
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Collections.singletonList(zoneName))
+                .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+        final BoundMonitor boundMonitor = new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setZoneName(zoneName)
+            .setRenderedContent("{}")
+            .setEnvoyId("e-goner");
+
+        when(boundMonitorRepository.findAllByMonitor_IdIn(any()))
+            .thenReturn(Collections.singletonList(boundMonitor));
+
+        when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+
+        // EXECUTE
+
+        monitorManagement.removeMonitor("t-1", monitor.getId());
+
+        // VERIFY
+
+        final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
+        assertThat(retrieved.isPresent(), equalTo(false));
+
+        verify(boundMonitorRepository).findAllByMonitor_IdIn(Collections.singletonList(monitor.getId()));
+
+        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
+
+        verify(zoneStorage).decrementBoundCount(
+            ResolvedZone.createPublicZone(zoneName),
+            "r-gone"
+        );
+        verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPublicZone(zoneName));
+
+        verify(monitorEventProducer).sendMonitorEvent(
+            new MonitorBoundEvent()
+                .setEnvoyId("e-goner")
         );
 
         verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
