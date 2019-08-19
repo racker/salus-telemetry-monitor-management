@@ -19,8 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
-import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.messaging.TenantChangeEvent;
+import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaHandler;
@@ -72,7 +71,7 @@ public class PolicyEventListener {
   }
 
   @KafkaHandler
-  public void consumeTenantChangeEvents(TenantChangeEvent tenantEvent) {
+  public void consumeTenantChangeEvents(TenantPolicyChangeEvent tenantEvent) {
     monitorManagement.handleTenantChangeEvent(tenantEvent);
   }
 

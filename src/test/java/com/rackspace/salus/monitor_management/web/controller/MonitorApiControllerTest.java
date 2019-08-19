@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
+import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -36,6 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -270,31 +273,8 @@ public class MonitorApiControllerTest {
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
     DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-
-    mockMvc.perform(post(url)
-        .content(objectMapper.writeValueAsString(create))
-        .contentType(MediaType.APPLICATION_JSON)
-        .characterEncoding(StandardCharsets.UTF_8.name()))
-        .andExpect(status().isCreated())
-        .andExpect(content()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-  }
-
-  @Test
-  public void testCreateMonitor_EmptyLabelSelector() throws Exception {
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    when(monitorManagement.createMonitor(anyString(), any()))
-        .thenReturn(monitor);
-
-    String tenantId = RandomStringUtils.randomAlphabetic(8);
-    String url = String.format("/api/tenant/%s/monitors", tenantId);
-    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-    create.setLabelSelector(Collections.emptyMap());
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -324,8 +304,9 @@ public class MonitorApiControllerTest {
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
-        .andExpect(status().isBadRequest())
-        .andExpect(validationError("labelSelector", "must not be null"));
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }
 
   @Test
@@ -343,7 +324,8 @@ public class MonitorApiControllerTest {
     create.setDetails(new RemoteMonitorDetails()
         .setMonitoringZones(monitor.getZones())
         .setPlugin(new Ping()
-            .setUrls(Collections.singletonList("my.test.url.com"))));
+            .setUrls(Collections.singletonList("my.test.url.com"))))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -363,7 +345,8 @@ public class MonitorApiControllerTest {
         .setMonitoringZones(Collections.singletonList("myzone"))
         .setPlugin(new Ping()
             // If no urls are set validation should fail
-            .setUrls(Collections.emptyList())));
+            .setUrls(Collections.emptyList())))
+        .setResourceId("");
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -409,7 +392,8 @@ public class MonitorApiControllerTest {
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
     DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setResourceId("");
 
     mockMvc.perform(put(url)
         .content(objectMapper.writeValueAsString(update))
@@ -509,5 +493,161 @@ public class MonitorApiControllerTest {
     verify(monitorManagement).getTenantMonitorLabelSelectors("t-1");
 
     verifyNoMoreInteractions(monitorManagement);
+  }
+
+  private DetailedMonitorInput setupCreateMonitorTest() {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    when(monitorManagement.createMonitor(anyString(), any()))
+        .thenReturn(monitor);
+
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    return create;
+  }
+
+  @Test
+  public void testCreateMonitor_ResourceId() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setLabelSelector(null);
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateMonitor_BothResourceIdAndLabels() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
+  }
+
+  @Test
+  public void testCreateMonitor_BothResourceIdAndEmptyLabels() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setLabelSelector(Collections.emptyMap());
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
+  }
+  @Test
+  public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setLabelSelector(null)
+        .setResourceId("");
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
+  }
+
+  @Test
+  public void testUpdateMonitor_WithLabelsOnly() throws Exception {
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
+    update.setResourceId("");
+
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+
+  @Test
+  public void testUpdateMonitor_NeitherLabelsNorResourceId() throws Exception {
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
+    update.setResourceId("");
+    update.setLabelSelector(null);
+
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+  @Test
+  public void testUpdateMonitor_BothLabelsAndResourceId() throws Exception {
+    UpdateMonitorTestSetup updateMonitorTestSetup = new UpdateMonitorTestSetup().invoke();
+    String url = updateMonitorTestSetup.getUrl();
+    DetailedMonitorInput update = updateMonitorTestSetup.getUpdate();
+
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidUpdateMonitor.DEFAULT_MESSAGE));
+  }
+
+
+  private class UpdateMonitorTestSetup {
+
+    private String url;
+    private DetailedMonitorInput update;
+
+    String getUrl() {
+      return url;
+    }
+
+    DetailedMonitorInput getUpdate() {
+      return update;
+    }
+
+    UpdateMonitorTestSetup invoke() {
+      Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+      monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+      monitor.setAgentType(AgentType.TELEGRAF);
+      monitor.setContent("{\"type\":\"mem\"}");
+      when(monitorManagement.updateMonitor(anyString(), any(), any()))
+          .thenReturn(monitor);
+
+      String tenantId = monitor.getTenantId();
+      UUID id = monitor.getId();
+      url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+      update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+      update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+      return this;
+    }
   }
 }

@@ -185,7 +185,8 @@ public class MonitorApiController {
     @JsonView(View.Public.class)
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
-                          @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
+                          @Validated(ValidationGroups.Update.class)
+                          @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(
                 monitorManagement.updateMonitor(
