@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
@@ -49,23 +50,20 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
-import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,7 +80,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
@@ -243,8 +240,6 @@ public class MonitorManagementPolicyTest {
     MonitorCU update = new MonitorCU()
         .setContent("new content")
         .setZones(Collections.singletonList("z-2"));
-
-
 
     // make sure the zones we're setting are allowed to be used
     List<Zone> zones = Arrays.asList(
@@ -684,7 +679,7 @@ public class MonitorManagementPolicyTest {
 
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(
-        tenantId, new HashSet<UUID>(Collections.singletonList(savedMonitors.get(1).getId())));
+        tenantId, Set.of(savedMonitors.get(1).getId()));
 
     verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
 
@@ -699,5 +694,137 @@ public class MonitorManagementPolicyTest {
 
     // no bound monitor saves or event producer sends should happen.
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+  }
+
+  /**
+   * This test ensures that when we process a policy monitor update for an individual tenant
+   * that we unbind all the existing monitors related to it, and then rebind them for
+   * any resources matching the label selector.
+   */
+  @Test
+  public void testProcessPolicyMonitorUpdate() {
+    final String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    // store the updated monitor in the db
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("original content")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+    // make sure the zone we're setting is allowed to be used by this tenant
+    List<Zone> zones = Collections.singletonList(new Zone().setName("public/z-1"));
+    when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    // Define the resources the policy will be applied to
+    List<ResourceDTO> resourceList = new ArrayList<>();
+    resourceList.add(new ResourceDTO()
+        .setTenantId(tenantId)
+        .setResourceId(RandomStringUtils.randomAlphabetic(10))
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setAssociatedWithEnvoy(true)
+    );
+    resourceList.add(new ResourceDTO()
+        .setTenantId(tenantId)
+        .setResourceId(RandomStringUtils.randomAlphabetic(10))
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setAssociatedWithEnvoy(true)
+    );
+    // both resources are relevant to the policy
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+
+    // Define the bound monitors that will be removed
+    List<BoundMonitor> existingBound = new ArrayList<>();
+    for (ResourceDTO resource: resourceList) {
+      BoundMonitor bound = new BoundMonitor()
+          .setZoneName("public/z-1")
+          .setMonitor(monitor)
+          .setTenantId(tenantId)
+          .setResourceId(resource.getResourceId())
+          .setEnvoyId("e-1")
+          .setRenderedContent(monitor.getContent());
+
+      existingBound.add(bound);
+    }
+
+    // All bound monitors will be found during the update
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+        .thenReturn(existingBound);
+
+    // All resources will be returned when rebinding
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+
+    // Various calls involved in finding the envoys to detach/attach to.
+    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-1", "r-1")));
+    EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
+    when(zoneStorage.incrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneStorage.decrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
+
+    // EXECUTE
+
+    monitorManagement.processPolicyMonitorUpdate(tenantId, monitor.getId());
+
+    // VERIFY
+
+    // get all existing bound monitors relatin to the update
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId,
+        Set.of(monitor.getId()));
+
+    // both existing bound monitors were removed
+    verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
+    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+        .containsExactlyInAnyOrderElementsOf(existingBound);
+
+    // get the envoys/resources for the provided zone and lower their bound count
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(createPublicZone(zones.get(0).getName()));
+    verify(zoneStorage, times(2)).decrementBoundCount(
+        createPublicZone("public/z-1"), "r-1");
+
+    // two new bound monitors should be created using the details of the least loaded envoy
+    List<BoundMonitor> expectedBound = new ArrayList<>();
+    for (ResourceDTO resource: resourceList) {
+      expectedBound.add(
+          new BoundMonitor()
+              .setZoneName("public/z-1")
+              .setMonitor(monitor)
+              .setTenantId(tenantId)
+              .setResourceId(resource.getResourceId())
+              .setEnvoyId("e-new")
+              .setRenderedContent(monitor.getContent())
+      );
+    }
+
+    // operations involved in binding the monitor to the two relevant resources
+    verify(resourceApi).getResourcesWithLabels(tenantId, monitor.getLabelSelector());
+    verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+        .containsExactlyInAnyOrderElementsOf(expectedBound);
+
+    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(createPublicZone("public/z-1"));
+    verify(zoneStorage, times(2)).incrementBoundCount(
+        createPublicZone("public/z-1"), "r-new-1");
+
+    // Verify events were sent out (to be consumed by ambassador)
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer,
+        resourceApi, zoneStorage, zoneManagement);
   }
 }

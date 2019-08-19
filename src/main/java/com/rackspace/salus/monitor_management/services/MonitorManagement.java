@@ -646,12 +646,12 @@ public class MonitorManagement {
    */
   public void processPolicyMonitorUpdate(String tenantId, UUID monitorId) {
     log.info("Handling policy monitor={} update for tenant={}", monitorId, tenantId);
-    final Set<String> affectedEnvoys = new HashSet<>();
     Optional<Monitor> monitor = monitorRepository.findById(monitorId);
 
     if (monitor.isEmpty()) {
       // This should never happen.
-      log.error("Failed to bind policy to tenant={} due to non-existent monitor={}", tenantId, monitorId);
+      log.error("Attempt to update policy monitor failed for tenant={} due to non-existent monitor={}",
+          tenantId, monitorId);
       return;
     }
     try {
@@ -665,7 +665,7 @@ public class MonitorManagement {
 
     // remove existing bound monitors
     Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, Collections.singleton(monitorId));
-    affectedEnvoys.addAll(unbinding);
+    final Set<String> affectedEnvoys = new HashSet<>(unbinding);
     log.info("Removing {} bound monitors due to policy monitor={} update for tenant={}",
         unbinding.size(), monitorId, tenantId);
 
