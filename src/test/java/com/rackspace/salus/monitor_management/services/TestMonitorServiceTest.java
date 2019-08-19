@@ -141,6 +141,7 @@ public class TestMonitorServiceTest {
 
     final String correlationId = reqEventCaptor.getValue().getCorrelationId();
     assertThat(correlationId).isNotBlank();
+    assertThat(testMonitorService.containsCorrelationId(correlationId)).isTrue();
 
     // Simulate a results event getting consumed
 
@@ -223,6 +224,7 @@ public class TestMonitorServiceTest {
     assertThat(reqEventCaptor.getValue().getTenantId()).isEqualTo("t-1");
     final String correlationId = reqEventCaptor.getValue().getCorrelationId();
     assertThat(correlationId).isNotBlank();
+    assertThat(testMonitorService.containsCorrelationId(correlationId)).isTrue();
 
     // Purposely don't pass a results event to the service and just let timeout happen
 
