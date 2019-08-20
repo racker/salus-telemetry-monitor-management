@@ -18,9 +18,11 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -52,6 +54,7 @@ import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -59,7 +62,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +83,9 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -197,6 +204,146 @@ public class MonitorManagementPolicyTest {
     assertThat(m.get().getAgentType(), equalTo(currentMonitor.getAgentType()));
 
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+  }
+
+  @Test
+  public void testGetAllPolicyMonitor() {
+    Random random = new Random();
+    int totalMonitors = random.nextInt(150 - 50) + 50;
+    int pageSize = 10;
+
+    Pageable page = PageRequest.of(0, pageSize);
+    Page<Monitor> result = monitorManagement.getAllPolicyMonitors(page);
+
+    // There is already one monitor created as default
+    assertThat(result.getTotalElements(), equalTo(1L));
+
+    // Create a bunch of policy monitors (one less to account for the default one)
+    createMonitorsForTenant(totalMonitors - 1, POLICY_TENANT);
+    // and a few more account level monitors
+    createMonitors(10);
+
+    page = PageRequest.of(0, 10);
+    result = monitorManagement.getAllPolicyMonitors(page);
+
+    assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
+    assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
+  }
+
+  @Test
+  public void testGetPolicyMonitorForTenant() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    Monitor monitor = monitorRepository.save(
+        new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("content0")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+    // Use the two saved monitors
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+        .thenReturn(List.of(monitor.getId()));
+
+    Monitor returned = monitorManagement.getPolicyMonitorForTenant(tenantId, monitor.getId());
+
+    assertThat(returned, notNullValue());
+    assertThat(returned, equalTo(monitor));
+
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetPolicyMonitorForTenant_doesntExist() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    Monitor monitor = monitorRepository.save(
+        new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("content0")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+    exceptionRule.expect(NotFoundException.class);
+    exceptionRule.expectMessage(
+        String.format("No policy monitor found for %s on tenant %s", monitor.getId(), tenantId));
+
+    monitorManagement.getPolicyMonitorForTenant(tenantId, monitor.getId());
+
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetPolicyMonitorForTenant_notApplicableToTenant() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID monitorId = UUID.randomUUID();
+
+    // Use the two saved monitors
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+        .thenReturn(Collections.emptyList());
+
+    exceptionRule.expect(NotFoundException.class);
+    exceptionRule.expectMessage(
+        String.format("No policy monitor found for %s on tenant %s", monitorId, tenantId));
+
+    monitorManagement.getPolicyMonitorForTenant(tenantId, monitorId);
+
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetAllPolicyMonitorsForTenant() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    // save one monitor that isn't used by the tenant
+    monitorRepository.save(
+        new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("content0")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")));
+
+    // save two monitors that are in use by the tenant
+    List<Monitor> monitors = Arrays.asList(
+        new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("content0")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux")),
+        new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("content1")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.emptyMap())
+    );
+
+    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
+    List<UUID> monitorIds = savedMonitors.stream()
+        .map(Monitor::getId).collect(Collectors.toList());
+
+    // Use two of the three saved monitors
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+        .thenReturn(monitorIds);
+
+    Page<Monitor> results = monitorManagement.getAllPolicyMonitorsForTenant(tenantId,
+        PageRequest.of(0, 10));
+
+    assertThat(results, notNullValue());
+    assertThat(results.getTotalElements(), equalTo(2L));
+    assertThat(results.getContent(), containsInAnyOrder(monitors.toArray()));
+
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verifyNoMoreInteractions(policyApi);
   }
 
   @Test
@@ -826,5 +973,25 @@ public class MonitorManagementPolicyTest {
 
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer,
         resourceApi, zoneStorage, zoneManagement);
+  }
+
+  private void createMonitors(int count) {
+    for (int i = 0; i < count; i++) {
+      String tenantId = RandomStringUtils.randomAlphanumeric(10);
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      // limit to local/agent monitors only
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      monitorManagement.createMonitor(tenantId, create);
+    }
+  }
+
+  private void createMonitorsForTenant(int count, String tenantId) {
+    for (int i = 0; i < count; i++) {
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      monitorManagement.createMonitor(tenantId, create);
+    }
   }
 }

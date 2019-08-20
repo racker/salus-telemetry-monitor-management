@@ -183,6 +183,16 @@ public class MonitorManagement {
   }
 
   /**
+   * Get a selection of monitor objects associated to the policy tenant.
+   *
+   * @param page The slice of results to be returned.
+   * @return The policy monitors found that match the page criteria.
+   */
+  public Page<Monitor> getAllPolicyMonitors(Pageable page) {
+    return getMonitors(POLICY_TENANT, page);
+  }
+
+  /**
    * Same as {@link #getAllMonitors(Pageable page) getAllMonitors} except restricted to a single tenant.
    *
    * @param tenantId The tenant to select monitors from.
@@ -1504,6 +1514,34 @@ public class MonitorManagement {
 
   public Page<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId, Pageable page) {
     return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT, page);
+  }
+
+  public Monitor getPolicyMonitorForTenant(String tenantId, UUID monitorId) {
+    Monitor monitor = getPolicyMonitor(monitorId).orElseThrow(() ->
+        new NotFoundException(String.format("No policy monitor found for %s on tenant %s",
+            monitorId, tenantId)));
+
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+
+    // If the policy monitor exists but is not in use by this account, do not return it.
+    if (!policyMonitorIds.contains(monitorId)) {
+      throw new NotFoundException(String.format("No policy monitor found for %s on tenant %s",
+          monitorId, tenantId));
+    }
+
+    return monitor;
+
+  }
+
+  /**
+   * Retrieves a list of policy monitors that are relevant to the provided tenant.
+   * @param tenantId The tenant to get the policy monitors for.
+   * @return A list of monitors.
+   */
+  public Page<Monitor> getAllPolicyMonitorsForTenant(String tenantId, Pageable page) {
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+
+    return monitorRepository.findByIdIn(policyMonitorIds, page);
   }
 
   /**
