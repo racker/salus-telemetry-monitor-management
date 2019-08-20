@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC_PREFIX;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
@@ -289,22 +288,6 @@ public class MonitorManagementTest {
         String unauthorizedTenantId = RandomStringUtils.randomAlphanumeric(10);
         Optional<Monitor> monitor = monitorManagement.getMonitor(unauthorizedTenantId, currentMonitor.getId());
         assertFalse(monitor.isPresent());
-    }
-
-    @Test
-    public void testGetPolicyMonitor() {
-        final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setTenantId(POLICY_TENANT);
-        Monitor saved = monitorRepository.save(monitor);
-
-        Optional<Monitor> m = monitorManagement.getPolicyMonitor(saved.getId());
-
-        assertTrue(m.isPresent());
-        assertThat(m.get().getTenantId(), equalTo(POLICY_TENANT));
-        assertThat(m.get().getId(), equalTo(saved.getId()));
-        assertThat(m.get().getLabelSelector(), equalTo(saved.getLabelSelector()));
-        assertThat(m.get().getContent(), equalTo(saved.getContent()));
-        assertThat(m.get().getAgentType(), equalTo(saved.getAgentType()));
     }
 
     @Test

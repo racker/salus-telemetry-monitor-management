@@ -101,7 +101,39 @@ public class MonitorApiController {
                         uuid, tenantId)));
         return monitorConversionService.convertToOutput(monitor);
     }
+
+    @GetMapping("/tenant/{tenantId}/policy-monitors")
+    @ApiOperation(value = "Gets all Policy Monitors for Tenant")
+    @JsonView(View.Public.class)
+    public PagedContent<DetailedMonitorOutput> getAllPolicyMonitorsForTenant(
+        @PathVariable String tenantId, Pageable pageable)
+        throws NotFoundException {
+
+        return PagedContent.fromPage(monitorManagement.getAllPolicyMonitorsForTenant(tenantId, pageable)
+            .map(monitorConversionService::convertToOutput));
+    }
+
+    @GetMapping("/tenant/{tenantId}/policy-monitors/{uuid}")
+    @ApiOperation(value = "Gets specific Policy Monitor for Tenant")
+    @JsonView(View.Public.class)
+    public DetailedMonitorOutput getPolicyMonitorForTenant(
+        @PathVariable String tenantId, @PathVariable UUID uuid)
+        throws NotFoundException {
+        Monitor monitor = monitorManagement.getPolicyMonitorForTenant(tenantId, uuid);
+        return monitorConversionService.convertToOutput(monitor);
+    }
+
+    @GetMapping("/admin/policy-monitors")
+    @ApiOperation(value = "Gets all Policy Monitors")
+    @JsonView(View.Admin.class)
+    public PagedContent<DetailedMonitorOutput> getAllPolicyMonitors(Pageable pageable) {
+        return PagedContent.fromPage(monitorManagement.getAllPolicyMonitors(pageable)
+            .map(monitorConversionService::convertToOutput));
+    }
+
     @GetMapping("/admin/policy-monitors/{uuid}")
+    @ApiOperation(value = "Get specific Policy Monitor by Id")
+    @JsonView(View.Admin.class)
     public DetailedMonitorOutput getPolicyMonitorById(@PathVariable UUID uuid) throws NotFoundException {
         Monitor monitor =  monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
             new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
