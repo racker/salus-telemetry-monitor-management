@@ -40,7 +40,7 @@ public class TestMonitorEventProducer {
   public void send(TestMonitorRequestEvent event) {
     final String topic = kafkaTopicProperties.getTestMonitorRequests();
 
-    log.info("Sending test-monitor request event={} on topic={}", event, topic);
+    log.debug("Sending test-monitor request event={} on topic={}", event, topic);
     //noinspection unchecked
     kafkaTemplate.send(topic, event);
   }

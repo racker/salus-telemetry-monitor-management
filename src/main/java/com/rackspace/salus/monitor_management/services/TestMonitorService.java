@@ -149,6 +149,8 @@ public class TestMonitorService {
           }
         });
 
+    log.info("Sending test-monitor request for tenant={} with correlationId={}",
+        tenantId, correlationId);
     testMonitorEventProducer.send(event);
 
     return interceptedFuture;
@@ -172,7 +174,12 @@ public class TestMonitorService {
         .setMetrics(event.getMetrics());
 
     future.complete(result);
-    log.info("Resolving request correlationId={} with result={}", correlationId, result);
+    if (log.isDebugEnabled()) {
+      log.debug("Resolved test-monitor request with correlationId={} with result={}", correlationId, result);
+    }
+    else {
+      log.info("Resolved test-monitor request with correlationId={}", correlationId);
+    }
   }
 
   // for unit test validation
