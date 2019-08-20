@@ -1,6 +1,6 @@
 {
   "monitorId": "00000000-0000-0000-0001-000000000000",
-  "resourceTenant": "t-1",
+  "tenantId": "t-1",
   "resourceId": "r-1",
   "selectorScope": "LOCAL",
   "agentType": "TELEGRAF",

@@ -6,6 +6,8 @@ salus:
   services:
     resourceManagementUrl:
       http://localhost:8085
+    policyManagementUrl:
+      http://localhost:8091
 spring:
   jpa:
     hibernate:
@@ -14,7 +16,7 @@ spring:
     properties:
       hibernate:
         generate_statistics: false
-    show-sql: true
+    show-sql: false
   datasource:
     username: dev
     password: pass
