@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.model;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
+import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
+import java.util.List;
+import lombok.Data;
 
-@Configuration
-@EnableAsync
-public class AsyncConfig {
+@Data
+public class TestMonitorOutput {
 
-  // Otherwise, leverage Spring Boot auto-configured task executors
-  // There's some specific setup they do to ensure proper MVC async handling:
-  // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-task-execution-scheduling.html#boot-features-task-execution-scheduling
+  List<String> errors;
+  List<SimpleNameTagValueMetric> metrics;
 
 }

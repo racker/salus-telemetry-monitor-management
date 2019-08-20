@@ -38,6 +38,9 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -1047,19 +1050,21 @@ public class MonitorManagement {
             resourceId
         );
 
-    final Set<String> previousEnvoyIds = extractEnvoyIds(bound);
+    if (!bound.isEmpty()) {
+      final Set<String> previousEnvoyIds = extractEnvoyIds(bound);
 
-    bound.forEach(boundMonitor ->
-        boundMonitor.setEnvoyId(envoyId)
-    );
+      bound.forEach(boundMonitor ->
+          boundMonitor.setEnvoyId(envoyId)
+      );
 
-    boundMonitorRepository.saveAll(bound);
+      boundMonitorRepository.saveAll(bound);
 
-    // now that the re-binding is saved
-    // ...tell any previous envoys about loss of binding
-    previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
-    // ...and tell the attached envoy about the re-bindings
-    sendMonitorBoundEvent(envoyId);
+      // now that the re-binding is saved
+      // ...tell any previous envoys about loss of binding
+      previousEnvoyIds.forEach(this::sendMonitorBoundEvent);
+      // ...and tell the attached envoy about the re-bindings
+      sendMonitorBoundEvent(envoyId);
+    }
   }
 
   /**
