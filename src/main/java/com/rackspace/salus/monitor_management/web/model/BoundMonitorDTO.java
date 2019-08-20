@@ -22,6 +22,8 @@ import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.time.format.DateTimeFormatter;
+import com.fasterxml.jackson.annotation.JsonView;
+import com.rackspace.salus.telemetry.model.View;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,9 +37,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class BoundMonitorDTO {
   UUID monitorId;
+  @JsonView(View.Admin.class)
+  String tenantId;
   @JsonInclude(Include.NON_EMPTY)
   String zoneName;
-  String resourceTenant;
   String resourceId;
   ConfigSelectorScope selectorScope;
   AgentType agentType;
@@ -48,8 +51,8 @@ public class BoundMonitorDTO {
 
   public BoundMonitorDTO(BoundMonitor boundMonitor) {
     this.monitorId = boundMonitor.getMonitor().getId();
+    this.tenantId = boundMonitor.getTenantId();
     this.zoneName = boundMonitor.getZoneName();
-    this.resourceTenant = boundMonitor.getMonitor().getTenantId();
     this.resourceId = boundMonitor.getResourceId();
     this.selectorScope = boundMonitor.getMonitor().getSelectorScope();
     this.agentType = boundMonitor.getMonitor().getAgentType();

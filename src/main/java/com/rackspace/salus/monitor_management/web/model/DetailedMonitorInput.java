@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
@@ -24,6 +26,8 @@ import javax.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
+@ValidCreateMonitor(groups = {ValidationGroups.Create.class})
+@ValidUpdateMonitor(groups = {ValidationGroups.Update.class})
 public class DetailedMonitorInput {
   String name;
 
@@ -32,8 +36,9 @@ public class DetailedMonitorInput {
    * For a resource to be selected, it must contain at least all of the labels given here.
    */
   @ValidLabelKeys
-  @NotNull(groups = ValidationGroups.Create.class)
   Map<String,String> labelSelector;
+
+  String resourceId;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
   @NotNull(groups = ValidationGroups.Create.class)

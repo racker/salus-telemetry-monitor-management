@@ -109,6 +109,41 @@ public class MonitorApiController {
         return monitorConversionService.convertToOutput(monitor);
     }
 
+    @PutMapping("/admin/policy-monitors/{uuid}")
+    @ApiOperation(value = "Updates specific Policy Monitor")
+    @JsonView(View.Admin.class)
+    public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
+        @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
+
+        return monitorConversionService.convertToOutput(
+            monitorManagement.updatePolicyMonitor(
+                uuid,
+                monitorConversionService.convertFromInput(input)));
+    }
+
+    @PostMapping("/admin/policy-monitors")
+    @ResponseStatus(HttpStatus.CREATED)
+    @ApiOperation(value = "Creates new Policy Monitor")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Policy Monitor")})
+    @JsonView(View.Admin.class)
+    public DetailedMonitorOutput createPolicyMonitor(
+        @Validated(ValidationGroups.Create.class)
+        @RequestBody final DetailedMonitorInput input)
+        throws IllegalArgumentException {
+        return monitorConversionService.convertToOutput(
+            monitorManagement.createPolicyMonitor(
+                monitorConversionService.convertFromInput(input)));
+    }
+
+    @DeleteMapping("/admin/policy-monitors/{uuid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiOperation(value = "Deletes specific Policy Monitor")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Policy Monitor Deleted")})
+    @JsonView(View.Admin.class)
+    public void deletePolicyMonitor(@PathVariable UUID uuid) {
+        monitorManagement.removePolicyMonitor(uuid);
+    }
+
     @GetMapping("/tenant/{tenantId}/bound-monitors")
     @JsonView(View.Public.class)
     public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
@@ -150,7 +185,8 @@ public class MonitorApiController {
     @JsonView(View.Public.class)
     public DetailedMonitorOutput update(@PathVariable String tenantId,
                           @PathVariable UUID uuid,
-                          @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
+                          @Validated(ValidationGroups.Update.class)
+                          @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
 
         return monitorConversionService.convertToOutput(
                 monitorManagement.updateMonitor(

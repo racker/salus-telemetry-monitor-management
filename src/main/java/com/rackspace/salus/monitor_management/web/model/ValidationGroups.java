@@ -31,4 +31,6 @@ public class ValidationGroups {
    * Used for validations that are activated during create operations
    */
   public interface Create extends Default { }
+  public interface Update extends Default { }
+
 }
