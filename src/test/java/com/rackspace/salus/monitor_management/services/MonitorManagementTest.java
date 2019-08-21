@@ -53,6 +53,7 @@ import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -124,3160 +125,3282 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     DatabaseConfig.class})
 public class MonitorManagementTest {
 
-    private static final String DEFAULT_ENVOY_ID = "env1";
-    private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
-    // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
-    private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
+  private static final String DEFAULT_ENVOY_ID = "env1";
+  private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
+  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
+  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
-    @TestConfiguration
-    public static class Config {
-        @Bean
-        public ZonesProperties zonesProperties() {
-            return new ZonesProperties();
-        }
-
-        @Bean
-        public ServicesProperties servicesProperties() {
-            return new ServicesProperties()
-                .setResourceManagementUrl("");
-        }
+  @TestConfiguration
+  public static class Config {
+    @Bean
+    public ZonesProperties zonesProperties() {
+      return new ZonesProperties();
     }
 
-    @Rule
-    public ExpectedException exceptionRule = ExpectedException.none();
-
-    @MockBean
-    MonitorEventProducer monitorEventProducer;
-
-    @MockBean
-    EnvoyResourceManagement envoyResourceManagement;
-
-    @MockBean
-    ZoneStorage zoneStorage;
-
-    @MockBean
-    BoundMonitorRepository boundMonitorRepository;
-
-    @MockBean
-    ResourceRepository resourceRepository;
-
-    @MockBean
-    ResourceApi resourceApi;
-
-    @MockBean
-    PolicyApi policyApi;
-
-    @MockBean
-    ZoneManagement zoneManagement;
-
-    @Autowired
-    ObjectMapper objectMapper;
-    @Autowired
-    MonitorRepository monitorRepository;
-    @Autowired
-    EntityManager entityManager;
-    @Autowired
-    JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private MonitorManagement monitorManagement;
-
-    private PodamFactory podamFactory = new PodamFactoryImpl();
-
-    private Monitor currentMonitor;
-
-    @Captor
-    private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
-
-    @Before
-    public void setUp() {
-        Monitor monitor = new Monitor()
-                .setTenantId("abcde")
-                .setMonitorName("mon1")
-                .setLabelSelector(Collections.singletonMap("os", "LINUX"))
-                .setContent("content1")
-                .setAgentType(AgentType.FILEBEAT);
-        monitorRepository.save(monitor);
-        currentMonitor = monitor;
-
-        ResourceEvent resourceEvent = new ResourceEvent()
-            .setTenantId("abcde")
-            .setResourceId(DEFAULT_RESOURCE_ID);
-
-        ResourceInfo resourceInfo = new ResourceInfo()
-            .setTenantId("abcde")
-            .setResourceId(DEFAULT_RESOURCE_ID)
-            .setLabels(Collections.singletonMap("os", "LINUX"))
-            .setEnvoyId(DEFAULT_ENVOY_ID);
-
-        when(envoyResourceManagement.getOne(anyString(), anyString()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
-
-        List<ResourceDTO> resourceList = new ArrayList<>();
-        resourceList.add(new ResourceDTO()
-            .setResourceId(resourceEvent.getResourceId())
-            .setLabels(resourceInfo.getLabels())
-            .setAssociatedWithEnvoy(true)
-            .setTenantId("t-1")
-        );
-
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(resourceList);
+    @Bean
+    public ServicesProperties servicesProperties() {
+      return new ServicesProperties()
+          .setResourceManagementUrl("");
     }
+  }
 
-    private void createMonitors(int count) {
-        for (int i = 0; i < count; i++) {
-            String tenantId = RandomStringUtils.randomAlphanumeric(10);
-            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-            // limit to local/agent monitors only
-            create.setSelectorScope(ConfigSelectorScope.LOCAL);
-            create.setZones(Collections.emptyList());
-            monitorManagement.createMonitor(tenantId, create);
-        }
+  @Rule
+  public ExpectedException exceptionRule = ExpectedException.none();
+
+  @MockBean
+  MonitorEventProducer monitorEventProducer;
+
+  @MockBean
+  EnvoyResourceManagement envoyResourceManagement;
+
+  @MockBean
+  ZoneStorage zoneStorage;
+
+  @MockBean
+  BoundMonitorRepository boundMonitorRepository;
+
+  @MockBean
+  ResourceRepository resourceRepository;
+
+  @MockBean
+  ResourceApi resourceApi;
+
+  @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
+  ZoneManagement zoneManagement;
+
+  @Autowired
+  ObjectMapper objectMapper;
+  @Autowired
+  MonitorRepository monitorRepository;
+  @Autowired
+  EntityManager entityManager;
+  @Autowired
+  JdbcTemplate jdbcTemplate;
+
+  @Autowired
+  private MonitorManagement monitorManagement;
+
+  private PodamFactory podamFactory = new PodamFactoryImpl();
+
+  private Monitor currentMonitor;
+
+  @Captor
+  private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
+
+  @Before
+  public void setUp() {
+    Monitor monitor = new Monitor()
+        .setTenantId("abcde")
+        .setMonitorName("mon1")
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT);
+    monitorRepository.save(monitor);
+    currentMonitor = monitor;
+
+    ResourceEvent resourceEvent = new ResourceEvent()
+        .setTenantId("abcde")
+        .setResourceId(DEFAULT_RESOURCE_ID);
+
+    ResourceInfo resourceInfo = new ResourceInfo()
+        .setTenantId("abcde")
+        .setResourceId(DEFAULT_RESOURCE_ID)
+        .setLabels(Collections.singletonMap("os", "LINUX"))
+        .setEnvoyId(DEFAULT_ENVOY_ID);
+
+    when(envoyResourceManagement.getOne(anyString(), anyString()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+
+    List<ResourceDTO> resourceList = new ArrayList<>();
+    resourceList.add(new ResourceDTO()
+        .setResourceId(resourceEvent.getResourceId())
+        .setLabels(resourceInfo.getLabels())
+        .setAssociatedWithEnvoy(true)
+        .setTenantId("t-1")
+    );
+
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+  }
+
+  private void createMonitors(int count) {
+    for (int i = 0; i < count; i++) {
+      String tenantId = RandomStringUtils.randomAlphanumeric(10);
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      // limit to local/agent monitors only
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      monitorManagement.createMonitor(tenantId, create);
     }
+  }
 
-    private void createMonitorsForTenant(int count, String tenantId) {
-        for (int i = 0; i < count; i++) {
-            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-            create.setSelectorScope(ConfigSelectorScope.LOCAL);
-            create.setZones(Collections.emptyList());
-            monitorManagement.createMonitor(tenantId, create);
-        }
+  private void createMonitorsForTenant(int count, String tenantId) {
+    for (int i = 0; i < count; i++) {
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      monitorManagement.createMonitor(tenantId, create);
     }
+  }
 
-    private void createMonitorsForTenant(int count, String tenantId, Map<String, String> labels) {
-        for (int i = 0; i < count; i++) {
-            MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-            create.setSelectorScope(ConfigSelectorScope.LOCAL);
-            create.setZones(Collections.emptyList());
-            create.setLabelSelector(labels);
-            monitorManagement.createMonitor(tenantId, create);
-        }
+  private void createMonitorsForTenant(int count, String tenantId, Map<String, String> labels) {
+    for (int i = 0; i < count; i++) {
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      create.setLabelSelector(labels);
+      monitorManagement.createMonitor(tenantId, create);
     }
-
-    private Monitor persistNewMonitor(String tenantId) {
-        return persistNewMonitor(tenantId, Collections.singletonMap("os", "LINUX"));
-    }
-
-    private Monitor persistNewMonitor(
-        String tenantId, Map<String, String> labelSelector) {
-        return monitorRepository.save(
-            new Monitor()
-                .setTenantId(tenantId)
-                .setAgentType(AgentType.TELEGRAF)
-                .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setLabelSelector(labelSelector)
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-        );
-    }
-
-    @Test
-    public void testGetMonitor() {
-        Optional<Monitor> m = monitorManagement.getMonitor("abcde", currentMonitor.getId());
-
-        assertTrue(m.isPresent());
-        assertThat(m.get().getId(), notNullValue());
-        assertThat(m.get().getLabelSelector(), hasEntry("os", "LINUX"));
-        assertThat(m.get().getContent(), equalTo(currentMonitor.getContent()));
-        assertThat(m.get().getAgentType(), equalTo(currentMonitor.getAgentType()));
-    }
-
-    @Test
-    public void testGetMonitorForUnauthorizedTenant() {
-        String unauthorizedTenantId = RandomStringUtils.randomAlphanumeric(10);
-        Optional<Monitor> monitor = monitorManagement.getMonitor(unauthorizedTenantId, currentMonitor.getId());
-        assertFalse(monitor.isPresent());
-    }
-
-    @Test
-    public void testCreateNewMonitor_usingLabelSelector() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(null);
-        create.setResourceId(null);
-
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        final ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
-        when(resourceApi.getResourcesWithLabels(anyString(), any()))
-            .thenReturn(List.of(resource));
-        when(envoyResourceManagement.getOne(anyString(), anyString()))
-            .thenReturn(
-                CompletableFuture.completedFuture(
-                    new ResourceInfo()
-                        .setResourceId(resource.getResourceId())
-                        .setEnvoyId("e-1")));
-
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
-
-        assertThat(returned.getId(), notNullValue());
-        assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
-        assertThat(returned.getContent(), equalTo(create.getContent()));
-        assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
-
-        assertThat(returned.getLabelSelector().size(), greaterThan(0));
-        assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
-
-        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
-
-        assertTrue(retrieved.isPresent());
-        assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
-        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
-        assertThat(retrieved.get().getResourceId(), nullValue());
-
-
-        verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
-        verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-1")
-        );
-
-        verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
-            resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testCreateNewMonitor_usingResourceId() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(null);
-        create.setLabelSelector(null);
-
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        final Resource resource = podamFactory.manufacturePojo(Resource.class);
-        when(resourceRepository.findByTenantIdAndResourceId(anyString(), any()))
-            .thenReturn(Optional.of(resource));
-        when(envoyResourceManagement.getOne(anyString(), anyString()))
-            .thenReturn(
-                CompletableFuture.completedFuture(
-                    new ResourceInfo()
-                        .setResourceId(resource.getResourceId())
-                        .setEnvoyId("e-1")));
-
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
-
-        assertThat(returned.getId(), notNullValue());
-        assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
-        assertThat(returned.getContent(), equalTo(create.getContent()));
-        assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
-        assertThat(returned.getResourceId(), equalTo(create.getResourceId()));
-        assertThat(returned.getLabelSelector(), equalTo(create.getLabelSelector()));
-
-        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
-
-        assertTrue(retrieved.isPresent());
-        assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
-        assertThat(retrieved.get().getLabelSelector(), nullValue());
-        assertThat(retrieved.get().getResourceId(), equalTo(returned.getResourceId()));
-
-        verify(resourceRepository).findByTenantIdAndResourceId(tenantId, create.getResourceId());
-        verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-1")
-        );
-
-        verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
-            resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testCreateNewMonitor_EmptyLabelSelector() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(null);
-        create.setLabelSelector(Collections.emptyMap());
-
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
-
-        assertThat(returned.getId(), notNullValue());
-        assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
-        assertThat(returned.getContent(), equalTo(create.getContent()));
-        assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
-
-        assertThat(returned.getLabelSelector(), notNullValue());
-        assertThat(returned.getLabelSelector().size(), equalTo(0));
-        assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
-
-        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
-
-        assertTrue(retrieved.isPresent());
-        assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
-        assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
-    }
-
-    @Test
-    public void testCreateNewMonitor_LocalWithZones() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        // zones gets populated by podam
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        exceptionRule.expect(IllegalArgumentException.class);
-        exceptionRule.expectMessage("Local monitors cannot have zones");
-        monitorManagement.createMonitor(tenantId, create);
-
-        verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository);
-    }
-
-    @Test
-    public void testCreateNewMonitor_InvalidTemplate_Local() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        create.setContent("value=${does_not_exist}");
-        create.setResourceId("");
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
-        assertThat(returned.getId(), notNullValue());
-
-        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
-        assertTrue(retrieved.isPresent());
-
-        verify(envoyResourceManagement).getOne(tenantId, DEFAULT_RESOURCE_ID);
-
-        verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
-
-        // ...but no bindings created, verified by no interaction with boundMonitorRepository
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneManagement);
-    }
-
-    @Test
-    public void testCreateNewMonitor_InvalidTemplate_Remote() {
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.REMOTE);
-        create.setResourceId("");
-
-        create.setContent("value=${does_not_exist}");
-
-        //noinspection unchecked
-        List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
-        create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
-        create.setLabelSelector(Collections.emptyMap());
-
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
-
-        Monitor returned = monitorManagement.createMonitor(tenantId, create);
-        assertThat(returned.getId(), notNullValue());
-
-        Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
-        assertTrue(retrieved.isPresent());
-
-        verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
-
-        verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
-
-        // ...but no bindings created, verified by no interaction with boundMonitorRepository
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneManagement, zoneStorage);
-    }
-
-    @Test
-    public void testCreateNewMonitorInvalidZone() {
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setSelectorScope(ConfigSelectorScope.REMOTE);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        assertThat(create.getZones().size(), greaterThan(0));
-
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-                .thenReturn(Page.empty());
-
-        exceptionRule.expect(IllegalArgumentException.class);
-        exceptionRule.expectMessage("Invalid zone(s) provided:");
-        monitorManagement.createMonitor(tenantId, create);
-    }
-
-    @Test
-    public void testGetAll() {
-        Random random = new Random();
-        int totalMonitors = random.nextInt(150 - 50) + 50;
-        int pageSize = 10;
-
-        Pageable page = PageRequest.of(0, pageSize);
-        Page<Monitor> result = monitorManagement.getAllMonitors(page);
-
-        assertThat(result.getTotalElements(), equalTo(1L));
-
-        // There is already one monitor created as default
-        createMonitors(totalMonitors - 1);
-
-        page = PageRequest.of(0, 10);
-        result = monitorManagement.getAllMonitors(page);
-
-        assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
-        assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
-    }
-
-    @Test
-    public void testGetAllForTenant_paged() {
-        Random random = new Random();
-        int totalMonitors = random.nextInt(150 - 50) + 50;
-        int pageSize = 10;
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        Pageable page = PageRequest.of(0, pageSize);
-        Page<Monitor> result = monitorManagement.getAllMonitors(page);
-
-        assertThat(result.getTotalElements(), equalTo(1L));
-
-        createMonitorsForTenant(totalMonitors, tenantId);
-
-        page = PageRequest.of(0, 10);
-        result = monitorManagement.getMonitors(tenantId, page);
-
-        assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
-        assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
-    }
-
-    @Test
-    public void testGetMonitorsAsStream() {
-        int totalMonitors = 100;
-
-        // There is already one monitor created as default
-        createMonitors(totalMonitors - 1);
-
-        Stream s = monitorManagement.getMonitorsAsStream();
-        assertThat(s.count(), equalTo((long) totalMonitors));
-    }
-
-    @Test
-    public void testUpdateExistingMonitor_labelsChanged() {
-        reset(envoyResourceManagement, resourceApi);
-
-        // r2 will be the one that remains throughout the label change
-        Map<String, String> r2labels = new HashMap<>();
-        r2labels.put("old", "yes");
-        r2labels.put("new", "yes");
-        final ResourceDTO r2 = new ResourceDTO()
-            .setLabels(r2labels)
-            .setResourceId("r-2")
-            .setAssociatedWithEnvoy(true)
-            .setTenantId("t-1");
-
-        Map<String, String> r3labels = new HashMap<>();
-        r3labels.put("new", "yes");
-        final ResourceDTO r3 = new ResourceDTO()
-            .setLabels(r3labels)
-            .setResourceId("r-3")
-            .setAssociatedWithEnvoy(true)
-            .setTenantId("t-1");
-        when(envoyResourceManagement.getOne("t-1", "r-3"))
-            .thenReturn(
-                CompletableFuture.completedFuture(
-                    new ResourceInfo().setResourceId("r-3").setEnvoyId("e-3")
-                )
-            );
-
-        when(resourceApi.getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes")))
-            .thenReturn(Arrays.asList(r2, r3));
-
-        final Map<String, String> oldLabelSelector = new HashMap<>();
-        oldLabelSelector.put("old", "yes");
-        final Monitor monitor = new Monitor()
+  }
+
+  private Monitor persistNewMonitor(String tenantId) {
+    return persistNewMonitor(tenantId, Collections.singletonMap("os", "LINUX"));
+  }
+
+  private Monitor persistNewMonitor(
+      String tenantId, Map<String, String> labelSelector) {
+    return monitorRepository.save(
+        new Monitor()
+            .setTenantId(tenantId)
+            .setAgentType(AgentType.TELEGRAF)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setLabelSelector(labelSelector)
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}")
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setLabelSelector(oldLabelSelector);
-        entityManager.persist(monitor);
-        entityManager.flush();
+    );
+  }
 
-        // simulate that r1 and r2 are already bound to monitor due to selector old=yes
-        final BoundMonitor bound1 = new BoundMonitor()
+  @Test
+  public void testGetMonitor() {
+    Optional<Monitor> m = monitorManagement.getMonitor("abcde", currentMonitor.getId());
+
+    assertTrue(m.isPresent());
+    assertThat(m.get().getId(), notNullValue());
+    assertThat(m.get().getLabelSelector(), hasEntry("os", "LINUX"));
+    assertThat(m.get().getContent(), equalTo(currentMonitor.getContent()));
+    assertThat(m.get().getAgentType(), equalTo(currentMonitor.getAgentType()));
+  }
+
+  @Test
+  public void testGetMonitorForUnauthorizedTenant() {
+    String unauthorizedTenantId = RandomStringUtils.randomAlphanumeric(10);
+    Optional<Monitor> monitor = monitorManagement.getMonitor(unauthorizedTenantId, currentMonitor.getId());
+    assertFalse(monitor.isPresent());
+  }
+
+  @Test
+  public void testCreateNewMonitor_usingLabelSelector() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setResourceId(null);
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    final ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
+    when(resourceApi.getResourcesWithLabels(anyString(), any()))
+        .thenReturn(List.of(resource));
+    when(envoyResourceManagement.getOne(anyString(), anyString()))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo()
+                    .setResourceId(resource.getResourceId())
+                    .setEnvoyId("e-1")));
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(returned.getId(), notNullValue());
+    assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+    assertThat(returned.getContent(), equalTo(create.getContent()));
+    assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
+    assertThat(returned.getLabelSelector().size(), greaterThan(0));
+    assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+    assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+    assertThat(retrieved.get().getResourceId(), nullValue());
+
+
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+    verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+
+    verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
+        resourceApi, resourceRepository);
+  }
+
+  @Test
+  public void testCreateNewMonitor_usingResourceId() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setLabelSelector(null);
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    final Resource resource = podamFactory.manufacturePojo(Resource.class);
+    when(resourceRepository.findByTenantIdAndResourceId(anyString(), any()))
+        .thenReturn(Optional.of(resource));
+    when(envoyResourceManagement.getOne(anyString(), anyString()))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo()
+                    .setResourceId(resource.getResourceId())
+                    .setEnvoyId("e-1")));
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(returned.getId(), notNullValue());
+    assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+    assertThat(returned.getContent(), equalTo(create.getContent()));
+    assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+    assertThat(returned.getResourceId(), equalTo(create.getResourceId()));
+    assertThat(returned.getLabelSelector(), equalTo(create.getLabelSelector()));
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+    assertThat(retrieved.get().getLabelSelector(), nullValue());
+    assertThat(retrieved.get().getResourceId(), equalTo(returned.getResourceId()));
+
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, create.getResourceId());
+    verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+
+    verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
+        resourceApi, resourceRepository);
+  }
+
+  @Test
+  public void testCreateNewMonitor_EmptyLabelSelector() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setLabelSelector(Collections.emptyMap());
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(returned.getId(), notNullValue());
+    assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+    assertThat(returned.getContent(), equalTo(create.getContent()));
+    assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
+    assertThat(returned.getLabelSelector(), notNullValue());
+    assertThat(returned.getLabelSelector().size(), equalTo(0));
+    assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+    assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+  }
+
+  @Test
+  public void testCreateNewMonitor_LocalWithZones() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    // zones gets populated by podam
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("Local monitors cannot have zones");
+    monitorManagement.createMonitor(tenantId, create);
+
+    verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository);
+  }
+
+  @Test
+  public void testCreateNewMonitor_InvalidTemplate_Local() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    create.setContent("value=${does_not_exist}");
+    create.setResourceId("");
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+    assertThat(returned.getId(), notNullValue());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+    assertTrue(retrieved.isPresent());
+
+    verify(envoyResourceManagement).getOne(tenantId, DEFAULT_RESOURCE_ID);
+
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+
+    // ...but no bindings created, verified by no interaction with boundMonitorRepository
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneManagement);
+  }
+
+  @Test
+  public void testCreateNewMonitor_InvalidTemplate_Remote() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.REMOTE);
+    create.setResourceId("");
+
+    create.setContent("value=${does_not_exist}");
+
+    //noinspection unchecked
+    List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
+    create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
+    create.setLabelSelector(Collections.emptyMap());
+
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+    assertThat(returned.getId(), notNullValue());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+    assertTrue(retrieved.isPresent());
+
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+
+    verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
+
+    // ...but no bindings created, verified by no interaction with boundMonitorRepository
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneManagement, zoneStorage);
+  }
+
+  @Test
+  public void testCreateNewMonitorInvalidZone() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.REMOTE);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    assertThat(create.getZones().size(), greaterThan(0));
+
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(Page.empty());
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("Invalid zone(s) provided:");
+    monitorManagement.createMonitor(tenantId, create);
+  }
+
+  @Test
+  public void testGetAll() {
+    Random random = new Random();
+    int totalMonitors = random.nextInt(150 - 50) + 50;
+    int pageSize = 10;
+
+    Pageable page = PageRequest.of(0, pageSize);
+    Page<Monitor> result = monitorManagement.getAllMonitors(page);
+
+    assertThat(result.getTotalElements(), equalTo(1L));
+
+    // There is already one monitor created as default
+    createMonitors(totalMonitors - 1);
+
+    page = PageRequest.of(0, 10);
+    result = monitorManagement.getAllMonitors(page);
+
+    assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
+    assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
+  }
+
+  @Test
+  public void testGetAllForTenant_paged() {
+    Random random = new Random();
+    int totalMonitors = random.nextInt(150 - 50) + 50;
+    int pageSize = 10;
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Pageable page = PageRequest.of(0, pageSize);
+    Page<Monitor> result = monitorManagement.getAllMonitors(page);
+
+    assertThat(result.getTotalElements(), equalTo(1L));
+
+    createMonitorsForTenant(totalMonitors, tenantId);
+
+    page = PageRequest.of(0, 10);
+    result = monitorManagement.getMonitors(tenantId, page);
+
+    assertThat(result.getTotalElements(), equalTo((long) totalMonitors));
+    assertThat(result.getTotalPages(), equalTo((totalMonitors + pageSize - 1) / pageSize));
+  }
+
+  @Test
+  public void testGetMonitorsAsStream() {
+    int totalMonitors = 100;
+
+    // There is already one monitor created as default
+    createMonitors(totalMonitors - 1);
+
+    Stream s = monitorManagement.getMonitorsAsStream();
+    assertThat(s.count(), equalTo((long) totalMonitors));
+  }
+
+  @Test
+  public void testUpdateExistingMonitor_labelsChanged() {
+    reset(envoyResourceManagement, resourceApi);
+
+    // r2 will be the one that remains throughout the label change
+    Map<String, String> r2labels = new HashMap<>();
+    r2labels.put("old", "yes");
+    r2labels.put("new", "yes");
+    final ResourceDTO r2 = new ResourceDTO()
+        .setLabels(r2labels)
+        .setResourceId("r-2")
+        .setAssociatedWithEnvoy(true)
+        .setTenantId("t-1");
+
+    Map<String, String> r3labels = new HashMap<>();
+    r3labels.put("new", "yes");
+    final ResourceDTO r3 = new ResourceDTO()
+        .setLabels(r3labels)
+        .setResourceId("r-3")
+        .setAssociatedWithEnvoy(true)
+        .setTenantId("t-1");
+    when(envoyResourceManagement.getOne("t-1", "r-3"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-3").setEnvoyId("e-3")
+            )
+        );
+
+    when(resourceApi.getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes")))
+        .thenReturn(Arrays.asList(r2, r3));
+
+    final Map<String, String> oldLabelSelector = new HashMap<>();
+    oldLabelSelector.put("old", "yes");
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}")
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(oldLabelSelector)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR);
+    entityManager.persist(monitor);
+    entityManager.flush();
+
+    // simulate that r1 and r2 are already bound to monitor due to selector old=yes
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setRenderedContent("{}");
+    when(boundMonitorRepository
+        .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
+        .thenReturn(Collections.singletonList(bound1));
+
+    when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
+        .thenReturn(new HashSet<>(Arrays.asList("r-1", "r-2")));
+
+    // EXECUTE
+
+    final Map<String, String> newLabelSelector = new HashMap<>();
+    newLabelSelector.put("new", "yes");
+    MonitorCU update = new MonitorCU()
+        .setLabelSelector(newLabelSelector);
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+    // VERIFY
+
+    assertThat(updatedMonitor.getId(), equalTo(monitor.getId()));
+    assertThat(updatedMonitor.getAgentType(), equalTo(monitor.getAgentType()));
+    assertThat(updatedMonitor.getContent(), equalTo("{}"));
+    assertThat(updatedMonitor.getTenantId(), equalTo("t-1"));
+    assertThat(updatedMonitor.getSelectorScope(), equalTo(ConfigSelectorScope.LOCAL));
+    assertThat(updatedMonitor.getLabelSelector(), equalTo(newLabelSelector));
+    // The method was not specified so the existing one should remain instead of being set back to the default.
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.OR));
+
+    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"));
+
+    verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
+
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setResourceId("r-3")
+            .setEnvoyId("e-3")
+            .setZoneName("")
+            .setRenderedContent("{}")
+    ));
+
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(
+        new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
             .setZoneName("")
-            .setRenderedContent("{}");
-        when(boundMonitorRepository
-            .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
-            .thenReturn(Collections.singletonList(bound1));
+            .setRenderedContent("{}")
+    ));
 
-        when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
-            .thenReturn(new HashSet<>(Arrays.asList("r-1", "r-2")));
+    verify(boundMonitorRepository)
+        .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
+    verify(boundMonitorRepository)
+        .findAllByMonitor_IdAndResourceId(monitor.getId(), "r-3");
 
-        // EXECUTE
+    verify(envoyResourceManagement).getOne("t-1", "r-3");
 
-        final Map<String, String> newLabelSelector = new HashMap<>();
-        newLabelSelector.put("new", "yes");
-        MonitorCU update = new MonitorCU()
-            .setLabelSelector(newLabelSelector);
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
 
-        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer);
+  }
 
-        // VERIFY
+  @Test
+  public void testUpdateExistingMonitor_labelSelectorMethodChanged() {
+    reset(envoyResourceManagement, resourceApi);
 
-        assertThat(updatedMonitor.getId(), equalTo(monitor.getId()));
-        assertThat(updatedMonitor.getAgentType(), equalTo(monitor.getAgentType()));
-        assertThat(updatedMonitor.getContent(), equalTo("{}"));
-        assertThat(updatedMonitor.getTenantId(), equalTo("t-1"));
-        assertThat(updatedMonitor.getSelectorScope(), equalTo(ConfigSelectorScope.LOCAL));
-        assertThat(updatedMonitor.getLabelSelector(), equalTo(newLabelSelector));
+    // The labels to set on the monitor
+    Map<String, String> labels = Map.of("os", "linux", "env", "dev");
 
-        verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"));
+    final ResourceDTO windowsResource = new ResourceDTO()
+        .setLabels(Map.of("os", "windows", "env", "dev"))
+        .setResourceId("r-1")
+        .setAssociatedWithEnvoy(true)
+        .setTenantId("t-1");
 
-        verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
+    final ResourceDTO linuxResource = new ResourceDTO()
+        .setLabels(labels)
+        .setResourceId("r-2")
+        .setAssociatedWithEnvoy(true)
+        .setTenantId("t-1");
 
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setResourceId("r-3")
-                .setEnvoyId("e-3")
-                .setZoneName("")
-                .setRenderedContent("{}")
-        ));
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}")
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+    entityManager.persist(monitor);
+    entityManager.flush();
 
-        verify(boundMonitorRepository).deleteAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId("r-1")
-                .setZoneName("")
-                .setRenderedContent("{}")
-        ));
+    // Both resources will be relevant when method is changed to OR
+    when(resourceApi.getResourcesWithLabels("t-1", labels))
+        .thenReturn(List.of(linuxResource, windowsResource));
 
-        verify(boundMonitorRepository)
-            .findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
-        verify(boundMonitorRepository)
-            .findAllByMonitor_IdAndResourceId(monitor.getId(), "r-3");
-
-        verify(envoyResourceManagement).getOne("t-1", "r-3");
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-3")
+    // An envoy will have to be found for the windows resource when method is changed to OR
+    when(envoyResourceManagement.getOne("t-1", "r-1"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-1").setEnvoyId("e-1")
+            )
         );
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneStorage, monitorEventProducer);
-    }
+    when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
+        .thenReturn(Set.of("r-2"));
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), anyString()))
+        .thenReturn(Collections.emptyList());
 
-    @Test
-    public void testUpdateExistingMonitor_contentChanged() {
-        reset(envoyResourceManagement, resourceApi);
+    // EXECUTE
 
-        // This resource will result in a change to rendered content
-        final Map<String, String> r1metadata = new HashMap<>();
-        r1metadata.put("ping_ip", "something_else");
-        r1metadata.put("address", "localhost");
-        final ResourceDTO r1 = new ResourceDTO()
-            .setLabels(Collections.singletonMap("os", "linux"))
-            .setMetadata(r1metadata)
-            .setResourceId("r-1")
-            .setTenantId("t-1");
+    MonitorCU update = new MonitorCU()
+        .setLabelSelectorMethod(LabelSelectorMethod.OR);
 
-        when(resourceApi.getByResourceId("t-1", "r-1"))
-            .thenReturn(r1);
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
 
-        // ...and this resource will NOT since both metadata values are the same
-        final Map<String, String> r2metadata = new HashMap<>();
-        r2metadata.put("ping_ip", "localhost");
-        r2metadata.put("address", "localhost");
-        final ResourceDTO r2 = new ResourceDTO()
-            .setLabels(Collections.singletonMap("os", "linux"))
-            .setMetadata(r2metadata)
-            .setResourceId("r-2")
-            .setTenantId("t-1");
+    // VERIFY
 
-        when(resourceApi.getByResourceId("t-1", "r-2"))
-            .thenReturn(r2);
+    assertThat(updatedMonitor.getId(), equalTo(monitor.getId()));
+    assertThat(updatedMonitor.getAgentType(), equalTo(monitor.getAgentType()));
+    assertThat(updatedMonitor.getContent(), equalTo("{}"));
+    assertThat(updatedMonitor.getTenantId(), equalTo("t-1"));
+    assertThat(updatedMonitor.getSelectorScope(), equalTo(ConfigSelectorScope.LOCAL));
+    assertThat(updatedMonitor.getLabelSelector(), equalTo(labels));
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.OR));
 
-        final Monitor monitor = new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("address=${resource.metadata.ping_ip}")
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setLabelSelector(Collections.singletonMap("os", "linux"));
-        entityManager.persist(monitor);
+    verify(resourceApi).getResourcesWithLabels("t-1", labels);
 
-        final BoundMonitor bound1 = new BoundMonitor()
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
             .setMonitor(monitor)
             .setTenantId("t-1")
             .setResourceId("r-1")
             .setEnvoyId("e-1")
-            .setZoneName("z-1")
-            .setRenderedContent("address=something_else");
-        entityManager.persist(bound1);
+            .setZoneName("")
+            .setRenderedContent("{}")
+    ));
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-        final BoundMonitor bound2 = new BoundMonitor()
-            .setMonitor(monitor)
-            .setTenantId("t-1")
-            .setResourceId("r-2")
-            .setEnvoyId("e-2")
-            .setZoneName("z-1")
-            .setRenderedContent("address=localhost");
-        entityManager.persist(bound2);
+    verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
 
-        // same resource r-2, but different zone to ensure query-by-resource is normalize to one query each
-        final BoundMonitor bound3 = new BoundMonitor()
-            .setMonitor(monitor)
-            .setTenantId("t-1")
-            .setResourceId("r-2")
-            .setEnvoyId("e-3")
-            .setZoneName("z-2")
-            .setRenderedContent("address=localhost");
-        entityManager.persist(bound3);
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer);
+  }
 
-        when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
-            .thenReturn(Arrays.asList(bound1, bound2, bound3));
+  @Test
+  public void testUpdateExistingMonitor_contentChanged() {
+    reset(envoyResourceManagement, resourceApi);
 
-        // EXECUTE
+    // This resource will result in a change to rendered content
+    final Map<String, String> r1metadata = new HashMap<>();
+    r1metadata.put("ping_ip", "something_else");
+    r1metadata.put("address", "localhost");
+    final ResourceDTO r1 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setMetadata(r1metadata)
+        .setResourceId("r-1")
+        .setTenantId("t-1");
 
-        final MonitorCU update = new MonitorCU()
-            .setContent("address=${resource.metadata.address}");
-        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    when(resourceApi.getByResourceId("t-1", "r-1"))
+        .thenReturn(r1);
 
-        // VERIFY
+    // ...and this resource will NOT since both metadata values are the same
+    final Map<String, String> r2metadata = new HashMap<>();
+    r2metadata.put("ping_ip", "localhost");
+    r2metadata.put("address", "localhost");
+    final ResourceDTO r2 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setMetadata(r2metadata)
+        .setResourceId("r-2")
+        .setTenantId("t-1");
 
-        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new Monitor()
-                    .setId(monitor.getId())
-                    .setAgentType(AgentType.TELEGRAF)
-                    .setContent("address=${resource.metadata.address}")
-                    .setTenantId("t-1")
-                    .setSelectorScope(ConfigSelectorScope.REMOTE)
-                    .setLabelSelector(Collections.singletonMap("os", "linux")));
+    when(resourceApi.getByResourceId("t-1", "r-2"))
+        .thenReturn(r2);
 
-        verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("address=${resource.metadata.ping_ip}")
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelector(Collections.singletonMap("os", "linux"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+    entityManager.persist(monitor);
 
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new BoundMonitor()
-                    .setMonitor(monitor)
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId("e-1")
-                    .setZoneName("z-1")
-                    .setRenderedContent("address=localhost")
-            );
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setEnvoyId("e-1")
+        .setZoneName("z-1")
+        .setRenderedContent("address=something_else");
+    entityManager.persist(bound1);
 
-        verify(resourceApi).getByResourceId("t-1", "r-1");
-        // even though two bindings for r-2, the queries were grouped by resource and only one call here
-        verify(resourceApi).getByResourceId("t-1", "r-2");
+    final BoundMonitor bound2 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId("t-1")
+        .setResourceId("r-2")
+        .setEnvoyId("e-2")
+        .setZoneName("z-1")
+        .setRenderedContent("address=localhost");
+    entityManager.persist(bound2);
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-1")
+    // same resource r-2, but different zone to ensure query-by-resource is normalize to one query each
+    final BoundMonitor bound3 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId("t-1")
+        .setResourceId("r-2")
+        .setEnvoyId("e-3")
+        .setZoneName("z-2")
+        .setRenderedContent("address=localhost");
+    entityManager.persist(bound3);
+
+    when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
+        .thenReturn(Arrays.asList(bound1, bound2, bound3));
+
+    // EXECUTE
+
+    final MonitorCU update = new MonitorCU()
+        .setContent("address=${resource.metadata.address}");
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+    // VERIFY
+
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("address=${resource.metadata.address}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+
+    verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId("e-1")
+                .setZoneName("z-1")
+                .setRenderedContent("address=localhost")
         );
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneStorage, monitorEventProducer, resourceRepository);
-    }
+    verify(resourceApi).getByResourceId("t-1", "r-1");
+    // even though two bindings for r-2, the queries were grouped by resource and only one call here
+    verify(resourceApi).getByResourceId("t-1", "r-2");
 
-    @Test
-    public void testUpdateExistingMonitor_resourceIdChanged() {
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer, resourceRepository);
+  }
+
+  @Test
+  public void testUpdateExistingMonitor_resourceIdChanged() {
     // Starts with one monitor-with-resource-id bound to one resource
     // updates it to point to another resource
     // confirms monitor is updated, old binding is removed, new binding is added
-        reset(envoyResourceManagement, resourceApi);
-        final ResourceDTO r1 = new ResourceDTO()
-            .setLabels(Collections.singletonMap("os", "linux"))
-            .setResourceId("r-1")
-            .setTenantId("t-1");
+    reset(envoyResourceManagement, resourceApi);
+    final ResourceDTO r1 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setResourceId("r-1")
+        .setTenantId("t-1");
 
-        when(resourceApi.getByResourceId("t-1", "r-1"))
-            .thenReturn(r1);
-        when(envoyResourceManagement.getOne("t-1", "r-2"))
-            .thenReturn(
-                CompletableFuture.completedFuture(
-                    new ResourceInfo().setResourceId("r-2").setEnvoyId("e-2")
-                )
-            );
+    when(resourceApi.getByResourceId("t-1", "r-1"))
+        .thenReturn(r1);
+    when(envoyResourceManagement.getOne("t-1", "r-2"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-2").setEnvoyId("e-2")
+            )
+        );
 
-        final ResourceDTO r2 = new ResourceDTO()
-            .setLabels(Collections.singletonMap("os", "linux"))
-            .setResourceId("r-2")
-            .setTenantId("t-1")
-            .setAssociatedWithEnvoy(true);
+    final ResourceDTO r2 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setResourceId("r-2")
+        .setTenantId("t-1")
+        .setAssociatedWithEnvoy(true);
 
-        when(resourceApi.getByResourceId("t-1", "r-2"))
-            .thenReturn(r2);
+    when(resourceApi.getByResourceId("t-1", "r-2"))
+        .thenReturn(r2);
 
-        final Monitor monitor = new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("static content")
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL);
-        entityManager.persist(monitor);
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("static content")
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+    entityManager.persist(monitor);
 
-        final BoundMonitor bound1 = new BoundMonitor()
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setTenantId("t-1")
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setEnvoyId("e-1");
+    entityManager.persist(bound1);
+
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
+        .thenReturn(Collections.singletonList(bound1));
+
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
+        .thenReturn(Collections.singletonList(bound1));
+
+    // EXECUTE
+
+    final MonitorCU update = new MonitorCU()
+        .setResourceId("r-2");
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+    // VERIFY
+    // confirm monitor is updated
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("static content")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setResourceId("r-2")
+                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-2");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
+
+    // confirm new binding saved
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
             .setTenantId("t-1")
             .setMonitor(monitor)
-            .setResourceId("r-1")
+            .setResourceId("r-2")
             .setZoneName("")
-            .setEnvoyId("e-1");
-        entityManager.persist(bound1);
+            .setEnvoyId("e-2")
+            .setRenderedContent("static content")
+    ));
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
-            .thenReturn(Collections.singletonList(bound1));
+    // confirm old binding deleted
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(bound1));
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
-            .thenReturn(Collections.singletonList(bound1));
+    verify(resourceApi).getByResourceId("t-1", "r-2");
 
-        // EXECUTE
+    // confirm event sent for both old and new binding
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
 
-        final MonitorCU update = new MonitorCU()
-            .setResourceId("r-2");
-        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-2")
+    );
+    verify(envoyResourceManagement).getOne("t-1", "r-2");
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer);
+  }
 
-        // VERIFY
-        // confirm monitor is updated
-        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new Monitor()
-                    .setId(monitor.getId())
-                    .setAgentType(AgentType.TELEGRAF)
-                    .setContent("static content")
-                    .setTenantId("t-1")
-                    .setSelectorScope(ConfigSelectorScope.LOCAL)
-                    .setResourceId("r-2"));
+  @Test
+  public void testUpdateExistingMonitor_zonesChanged() {
+    reset(envoyResourceManagement, resourceApi);
 
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-2");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
-
-        // confirm new binding saved
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(Collections.singletonList(
+            new ResourceDTO()
                 .setTenantId("t-1")
-                .setMonitor(monitor)
-                .setResourceId("r-2")
-                .setZoneName("")
-                .setEnvoyId("e-2")
-                .setRenderedContent("static content")
+                .setResourceId("r-1")
         ));
 
-        // confirm old binding deleted
-        verify(boundMonitorRepository).deleteAll(Collections.singletonList(bound1));
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}")
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Arrays.asList("z-1", "z-2"))
+        .setLabelSelector(Collections.singletonMap("os", "linux"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+    entityManager.persist(monitor);
 
-        verify(resourceApi).getByResourceId("t-1", "r-2");
+    EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
 
-        // confirm event sent for both old and new binding
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-1")
-        );
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
+    when(zoneStorage.incrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-2")
-        );
-        verify(envoyResourceManagement).getOne("t-1", "r-2");
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneStorage, monitorEventProducer);
-    }
-
-    @Test
-    public void testUpdateExistingMonitor_zonesChanged() {
-        reset(envoyResourceManagement, resourceApi);
-
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(Collections.singletonList(
-                new ResourceDTO()
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-            ));
-
-        final Monitor monitor = new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("{}")
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Arrays.asList("z-1", "z-2"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"));
-        entityManager.persist(monitor);
-
-        EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
-
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-        when(zoneStorage.incrementBoundCount(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(1));
-
-        final BoundMonitor boundZ1 = new BoundMonitor()
-            .setMonitor(monitor)
-            .setTenantId("t-1")
-            .setZoneName("z-1")
-            .setResourceId("r-1")
-            .setRenderedContent("{}")
-            .setEnvoyId("e-existing");
-        entityManager.persist(boundZ1);
-        when(boundMonitorRepository.findAllByMonitor_IdAndZoneNameIn(
-            monitor.getId(), Collections.singletonList("z-1")
-        ))
+    final BoundMonitor boundZ1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId("t-1")
+        .setZoneName("z-1")
+        .setResourceId("r-1")
+        .setRenderedContent("{}")
+        .setEnvoyId("e-existing");
+    entityManager.persist(boundZ1);
+    when(boundMonitorRepository.findAllByMonitor_IdAndZoneNameIn(
+        monitor.getId(), Collections.singletonList("z-1")
+    ))
         .thenReturn(Collections.singletonList(
             boundZ1
         ));
 
-        final BoundMonitor boundZ2 = new BoundMonitor()
-            .setMonitor(monitor)
-            .setTenantId("t-1")
-            .setZoneName("z-2")
-            .setResourceId("r-1")
-            .setRenderedContent("{}")
-            .setEnvoyId("e-existing");
-        entityManager.persist(boundZ2);
+    final BoundMonitor boundZ2 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId("t-1")
+        .setZoneName("z-2")
+        .setResourceId("r-1")
+        .setRenderedContent("{}")
+        .setEnvoyId("e-existing");
+    entityManager.persist(boundZ2);
 
-        List<Zone> zones = Arrays.asList(
-            new Zone().setName("z-1"),
-            new Zone().setName("z-2"),
-            new Zone().setName("z-3")
-        );
+    List<Zone> zones = Arrays.asList(
+        new Zone().setName("z-1"),
+        new Zone().setName("z-2"),
+        new Zone().setName("z-3")
+    );
 
-        when(zoneManagement.getAvailableZonesForTenant("t-1", Pageable.unpaged()))
-            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+    when(zoneManagement.getAvailableZonesForTenant("t-1", Pageable.unpaged()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
 
-        when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-existing", "r-exist")));
+    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-existing", "r-exist")));
 
-        // EXECUTE
+    // EXECUTE
 
-        final MonitorCU update = new MonitorCU()
-            .setZones(Arrays.asList("z-2", "z-3"));
+    final MonitorCU update = new MonitorCU()
+        .setZones(Arrays.asList("z-2", "z-3"));
 
-        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
 
-        // VERIFY
+    // VERIFY
 
-        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new Monitor()
-                    .setId(monitor.getId())
-                    .setAgentType(AgentType.TELEGRAF)
-                    .setContent("{}")
-                    .setTenantId("t-1")
-                    .setSelectorScope(ConfigSelectorScope.REMOTE)
-                    .setZones(Arrays.asList("z-2", "z-3"))
-                    .setLabelSelector(Collections.singletonMap("os", "linux")));
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Arrays.asList("z-2", "z-3"))
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+                .setLabelSelectorMethod(LabelSelectorMethod.AND));
 
-        verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
+    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
 
-        final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
-        verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
-        verify(zoneStorage).incrementBoundCount(resolvedZ3, "r-new-1");
-        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "r-exist");
-        verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-1"));
+    final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
+    verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
+    verify(zoneStorage).incrementBoundCount(resolvedZ3, "r-new-1");
+    verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "r-exist");
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-1"));
 
-        verify(boundMonitorRepository)
-            .findAllByMonitor_IdAndZoneNameIn(monitor.getId(), Collections.singletonList("z-1"));
+    verify(boundMonitorRepository)
+        .findAllByMonitor_IdAndZoneNameIn(monitor.getId(), Collections.singletonList("z-1"));
 
-        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundZ1));
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundZ1));
 
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new BoundMonitor()
-                    .setMonitor(monitor)
-                    .setTenantId("t-1")
-                    .setZoneName("z-3")
-                    .setResourceId("r-1")
-                    .setRenderedContent("{}")
-                    .setEnvoyId("e-new"));
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new BoundMonitor()
+                .setMonitor(monitor)
+                .setTenantId("t-1")
+                .setZoneName("z-3")
+                .setResourceId("r-1")
+                .setRenderedContent("{}")
+                .setEnvoyId("e-new"));
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-existing")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-new")
-        );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-existing")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
 
-        verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
+    verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneStorage, monitorEventProducer, zoneManagement);
-    }
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer, zoneManagement);
+  }
 
-    @Test
-    public void testUpdateExistingMonitor_zonesOnlyChangedOrder() {
-        reset(envoyResourceManagement, resourceApi);
+  @Test
+  public void testUpdateExistingMonitor_zonesOnlyChangedOrder() {
+    reset(envoyResourceManagement, resourceApi);
 
-        final Monitor monitor = new Monitor()
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}")
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Arrays.asList("z-1", "z-2"))
+        .setLabelSelector(Collections.singletonMap("os", "linux"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+    entityManager.persist(monitor);
+
+    List<Zone> zones = Arrays.asList(
+        new Zone().setName("z-1"),
+        new Zone().setName("z-2")
+    );
+
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    // EXECUTE
+
+    final MonitorCU update = new MonitorCU()
+        .setZones(Arrays.asList("z-2", "z-1"));
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
+
+    // VERIFY
+
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent("{}")
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.REMOTE)
+                .setZones(Arrays.asList("z-1", "z-2"))
+                .setLabelSelector(Collections.singletonMap("os", "linux"))
+                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+
+    verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
+        zoneStorage, monitorEventProducer, zoneManagement);
+  }
+
+  @Test
+  public void testUpdateNonExistentMonitor() {
+    String tenant = RandomStringUtils.randomAlphanumeric(10);
+    UUID uuid = UUID.randomUUID();
+
+    Map<String, String> newLabels = Collections.singletonMap("newLabel", "newValue");
+    MonitorCU update = new MonitorCU();
+    update.setLabelSelector(newLabels).setContent("newContent");
+
+    exceptionRule.expect(NotFoundException.class);
+    exceptionRule.expectMessage("No monitor found for");
+    monitorManagement.updateMonitor(tenant, uuid, update);
+  }
+
+  @Test
+  public void testRemoveMonitor() {
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setContent("{}")
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Arrays.asList("z-1", "z-2"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"));
-        entityManager.persist(monitor);
+            .setZones(Collections.singletonList("z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND));
 
-        List<Zone> zones = Arrays.asList(
-            new Zone().setName("z-1"),
-            new Zone().setName("z-2")
-        );
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setTenantId("t-1")
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("z-1")
+        .setRenderedContent("{}")
+        .setEnvoyId("e-goner");
 
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-            .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
 
-        // EXECUTE
+    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
 
-        final MonitorCU update = new MonitorCU()
-            .setZones(Arrays.asList("z-2", "z-1"));
+    // EXECUTE
 
-        final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    monitorManagement.removeMonitor("t-1", monitor.getId());
 
+    // VERIFY
 
-        // VERIFY
+    final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
+    assertThat(retrieved.isPresent(), equalTo(false));
 
-        org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-            .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
-            .containsExactly(
-                new Monitor()
-                    .setId(monitor.getId())
-                    .setAgentType(AgentType.TELEGRAF)
-                    .setContent("{}")
-                    .setTenantId("t-1")
-                    .setSelectorScope(ConfigSelectorScope.REMOTE)
-                    .setZones(Arrays.asList("z-1", "z-2"))
-                    .setLabelSelector(Collections.singletonMap("os", "linux")));
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
 
-        verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-            zoneStorage, monitorEventProducer, zoneManagement);
-    }
+    verify(zoneStorage).decrementBoundCount(
+        ResolvedZone.createPrivateZone("t-1", "z-1"),
+        "r-gone"
+    );
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPrivateZone("t-1", "z-1"));
 
-    @Test
-    public void testUpdateNonExistentMonitor() {
-        String tenant = RandomStringUtils.randomAlphanumeric(10);
-        UUID uuid = UUID.randomUUID();
-
-        Map<String, String> newLabels = Collections.singletonMap("newLabel", "newValue");
-        MonitorCU update = new MonitorCU();
-        update.setLabelSelector(newLabels).setContent("newContent");
-
-        exceptionRule.expect(NotFoundException.class);
-        exceptionRule.expectMessage("No monitor found for");
-        monitorManagement.updateMonitor(tenant, uuid, update);
-    }
-
-    @Test
-    public void testRemoveMonitor() {
-        final Monitor monitor =
-            monitorRepository.save(new Monitor()
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setZones(Collections.singletonList("z-1"))
-                .setLabelSelector(Collections.singletonMap("os", "linux")));
-
-        final BoundMonitor boundMonitor = new BoundMonitor()
-            .setTenantId("t-1")
-            .setMonitor(monitor)
-            .setResourceId("r-1")
-            .setZoneName("z-1")
-            .setRenderedContent("{}")
-            .setEnvoyId("e-goner");
-
-        when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
-
-        when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
-
-        // EXECUTE
-
-        monitorManagement.removeMonitor("t-1", monitor.getId());
-
-        // VERIFY
-
-        final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
-        assertThat(retrieved.isPresent(), equalTo(false));
-
-        verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
-
-        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
-
-        verify(zoneStorage).decrementBoundCount(
-            ResolvedZone.createPrivateZone("t-1", "z-1"),
-            "r-gone"
-        );
-        verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPrivateZone("t-1", "z-1"));
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
             .setEnvoyId("e-goner")
-        );
+    );
 
-        verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
-    }
+    verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
+  }
 
-    @Test
-    public void testRemoveMonitor_publicZone() {
-        String zoneName = PUBLIC_PREFIX + "z-1";
-        final Monitor monitor =
-            monitorRepository.save(new Monitor()
-                .setAgentType(AgentType.TELEGRAF)
-                .setContent("{}")
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setZones(Collections.singletonList(zoneName))
-                .setLabelSelector(Collections.singletonMap("os", "linux")));
+  @Test
+  public void testRemoveMonitor_publicZone() {
+    String zoneName = PUBLIC_PREFIX + "z-1";
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{}")
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList(zoneName))
+            .setLabelSelector(Collections.singletonMap("os", "linux"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND));
 
-        final BoundMonitor boundMonitor = new BoundMonitor()
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName(zoneName)
+        .setRenderedContent("{}")
+        .setEnvoyId("e-goner");
+
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
+
+    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+
+    // EXECUTE
+
+    monitorManagement.removeMonitor("t-1", monitor.getId());
+
+    // VERIFY
+
+    final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
+    assertThat(retrieved.isPresent(), equalTo(false));
+
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1",
+        Collections.singletonList(monitor.getId()));
+
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
+
+    verify(zoneStorage).decrementBoundCount(
+        ResolvedZone.createPublicZone(zoneName),
+        "r-gone"
+    );
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPublicZone(zoneName));
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-goner")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
+  }
+
+  @Test
+  public void testRemoveNonExistentMonitor() {
+    String tenant = RandomStringUtils.randomAlphanumeric(10);
+    UUID uuid = UUID.randomUUID();
+
+    exceptionRule.expect(NotFoundException.class);
+    exceptionRule.expectMessage("No monitor found for");
+    monitorManagement.removeMonitor(tenant, uuid);
+  }
+
+  @Test
+  public void testGetMonitorsFromLabels() {
+    int monitorsWithLabels = new Random().nextInt(10) + 10;
+    int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
+
+    // Create monitors which don't have the labels we care about
+    createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+
+    // Create monitors which do have the labels we care about
+    createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
+
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(monitorsWithLabels, monitors.getTotalElements());
+    assertNotNull(monitors);
+  }
+
+  @Test
+  public void testGetMonitorsFromLabelsPaginated() {
+    int monitorsWithLabels = new Random().nextInt(10) + 10;
+    int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
+
+    // Create monitors which don't have the labels we care about
+    createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+
+    // Create monitors which do have the labels we care about
+    createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
+
+    entityManager.flush();
+
+    int page = 3;
+    int size = 2;
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, PageRequest.of(page, size));
+    assertThat(monitors.getTotalElements(), equalTo((long) monitorsWithLabels));
+    int totalPages = (monitorsWithLabels  + size  -1 ) / size;
+    assertThat(monitors.getTotalPages(), equalTo(totalPages));
+    assertThat(monitors.getContent(), hasSize(size));
+  }
+
+  @Test
+  public void testSpecificCreate() {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements());
+    assertNotNull(monitors);
+  }
+
+  @Test
+  public void testMisMatchSpecificCreate() {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    final Map<String, String> queryLabels = new HashMap<>();
+    queryLabels.put("os", "linux");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
+    assertEquals(0L, monitors.getTotalElements());
+  }
+
+  @Test
+  public void testEmptyLabelsException() {
+    final Map<String, String> labels = new HashMap<>();
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(Page.empty());
+
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("Labels must be provided for search");
+    monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+  }
+
+  @Test
+  public void testMonitorWithSameLabelsAndDifferentTenants() {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("key", "value");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    monitorManagement.createMonitor(tenantId2, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
+  }
+
+  @Test
+  public void testMatchMonitorWithMultipleLabels() {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "test");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
+  }
+
+  @Test
+  public void testMisMatchMonitorWithMultipleLabels() {
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "test");
+
+    final Map<String, String> queryLabels = new HashMap<>();
+    queryLabels.put("os", "linux");
+    queryLabels.put("env", "test");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(labels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
+    assertEquals(0L, monitors.getTotalElements());
+  }
+
+  @Test
+  public void testMatchMonitorWithSupersetOfLabels() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    monitorLabels.put("architecture", "x86");
+    monitorLabels.put("region", "DFW");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "test");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
+  }
+
+  @Test
+  public void testMisMatchMonitorWithSupersetOfLabels() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    monitorLabels.put("architecture", "x86");
+    monitorLabels.put("region", "DFW");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "Windows");
+    labels.put("env", "test");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(0L, monitors.getTotalElements());
+  }
+
+  @Test
+  public void testMatchMonitorWithSubsetOfLabels() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "test");
+    labels.put("architecture", "x86");
+    labels.put("region", "DFW");
+
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
+  }
+
+  public void testMisMatchResourceWithSubsetOfLabels() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "Windows");
+    labels.put("env", "test");
+    labels.put("architecture", "x86");
+    labels.put("region", "DFW");
+
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(0L, resources.getTotalElements());
+  }
+
+  @Test
+  public void testExtractEnvoyIds() {
+
+    final List<BoundMonitor> input = Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-1"),
+        new BoundMonitor().setEnvoyId("e-2"),
+        new BoundMonitor().setEnvoyId(null),
+        new BoundMonitor().setEnvoyId("e-1"),
+        new BoundMonitor().setEnvoyId("e-3")
+    );
+
+    final Set<String> result = MonitorManagement.extractEnvoyIds(input);
+
+    assertThat(result, containsInAnyOrder("e-1", "e-2", "e-3"));
+
+  }
+
+  @Test
+  public void testSendMonitorBoundEvents() {
+    monitorManagement.sendMonitorBoundEvents(Sets.newHashSet("e-3", "e-2", "e-1"));
+
+    ArgumentCaptor<MonitorBoundEvent> evtCaptor = ArgumentCaptor.forClass(MonitorBoundEvent.class);
+
+    verify(monitorEventProducer, times(3)).sendMonitorEvent(evtCaptor.capture());
+
+    assertThat(evtCaptor.getAllValues(), containsInAnyOrder(
+        new MonitorBoundEvent().setEnvoyId("e-1"),
+        new MonitorBoundEvent().setEnvoyId("e-2"),
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    ));
+  }
+
+  @Test
+  public void testDistributeNewMonitor_agent() {
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setTenantId("t-1")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}");
+
+    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+
+    final List<BoundMonitor> expected = Collections.singletonList(
+        new BoundMonitor()
+            .setResourceId(DEFAULT_RESOURCE_ID)
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setEnvoyId(DEFAULT_ENVOY_ID)
+            .setRenderedContent("{}")
+            .setZoneName("")
+    );
+    verify(boundMonitorRepository).saveAll(
+        expected
+    );
+
+    assertThat(affectedEnvoys, contains(DEFAULT_ENVOY_ID));
+
+    verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository, resourceRepository);
+  }
+
+  @Test
+  public void testDistributeNewMonitor_remote() {
+    final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
+    final ResolvedZone zoneWest = createPublicZone("public/west");
+
+
+    when(zoneStorage.findLeastLoadedEnvoy(zone1))
+        .thenReturn(CompletableFuture.completedFuture(
+            Optional.of(
+                new EnvoyResourcePair().setEnvoyId("zone1-e-1").setResourceId("r-e-1"))
+        ));
+    when(zoneStorage.findLeastLoadedEnvoy(zoneWest))
+        .thenReturn(CompletableFuture.completedFuture(
+            Optional.of(new EnvoyResourcePair().setEnvoyId("zoneWest-e-2").setResourceId("r-e-2"))
+        ));
+    when(zoneStorage.incrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
+
+    final List<ResourceDTO> tenantResources = new ArrayList<>();
+    tenantResources.add(
+        new ResourceDTO().setResourceId("r-1")
+            .setTenantId("t-1")
+            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setMetadata(Collections.singletonMap("public_ip", "151.1.1.1"))
+    );
+    tenantResources.add(
+        new ResourceDTO().setResourceId("r-2")
+            .setTenantId("t-1")
+            .setLabels(Collections.singletonMap("os", "LINUX"))
+            .setMetadata(Collections.singletonMap("public_ip", "151.2.2.2"))
+    );
+    reset(resourceApi);
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(tenantResources);
+
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setTenantId("t-1")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setZones(Arrays.asList("zone1", "public/west"))
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
+
+    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+
+    final List<BoundMonitor> expected = Arrays.asList(
+        new BoundMonitor()
+            .setResourceId("r-1")
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setEnvoyId("zone1-e-1")
+            .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
+            .setZoneName("zone1"),
+        new BoundMonitor()
+            .setResourceId("r-1")
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setEnvoyId("zoneWest-e-2")
+            .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
+            .setZoneName("public/west"),
+        new BoundMonitor()
+            .setResourceId("r-2")
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setEnvoyId("zone1-e-1")
+            .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
+            .setZoneName("zone1"),
+        new BoundMonitor()
+            .setResourceId("r-2")
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setEnvoyId("zoneWest-e-2")
+            .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
+            .setZoneName("public/west")
+    );
+    verify(boundMonitorRepository).saveAll(expected);
+
+    assertThat(affectedEnvoys, containsInAnyOrder("zone1-e-1", "zoneWest-e-2"));
+
+    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
+    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zoneWest);
+
+    verify(zoneStorage, times(2)).incrementBoundCount(zone1, "r-e-1");
+    verify(zoneStorage, times(2)).incrementBoundCount(zoneWest, "r-e-2");
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testDistributeNewMonitor_remote_emptyZone() {
+    final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
+
+    when(zoneStorage.findLeastLoadedEnvoy(zone1))
+        .thenReturn(CompletableFuture.completedFuture(
+            Optional.empty()
+        ));
+    when(zoneStorage.incrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
+
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setTenantId("t-1")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        // NOTE only one zone used in this test
+        .setZones(Collections.singletonList("zone1"))
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{}");
+
+    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+
+    verify(zoneStorage).findLeastLoadedEnvoy(zone1);
+
+    // Verify the envoy ID was NOT be set for this
+    final List<BoundMonitor> expected = Collections.singletonList(
+        new BoundMonitor()
+            .setResourceId(DEFAULT_RESOURCE_ID)
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setRenderedContent("{}")
+            .setZoneName("zone1")
+    );
+    verify(boundMonitorRepository).saveAll(expected);
+
+    assertThat(affectedEnvoys, hasSize(0));
+
+    // ...and no MonitorBoundEvent was sent
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testHandleNewEnvoyInZone_privateZone() {
+    // simulate that three in zone are needing envoys
+    List<BoundMonitor> unassignedOnes = Arrays.asList(
+        new BoundMonitor()
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setResourceId("r-3")
+    );
+
+    // but only one envoy is available
+    Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
+    availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
+    // ...same envoy again to verify de-duping
+    availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
+
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .then(invocationOnMock -> {
+          final Optional<EnvoyResourcePair> result;
+          if (availableEnvoys.isEmpty()) {
+            result = Optional.empty();
+          } else {
+            result = Optional.of(availableEnvoys.remove());
+          }
+          return CompletableFuture.completedFuture(result);
+        });
+
+    when(boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(any(), any()))
+        .thenReturn(unassignedOnes);
+
+    // EXECUTE
+
+    monitorManagement.handleNewEnvoyInZone("t-1", "z-1");
+
+    // VERIFY
+
+    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+        createPrivateZone("t-1", "z-1")
+    );
+
+    verify(zoneStorage, times(2)).incrementBoundCount(
+        createPrivateZone("t-1", "z-1"),
+        "r-e-1"
+    );
+
+    // two assignments to same envoy, but verify only one event
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-1"));
+
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setResourceId("r-1")
+            .setEnvoyId("e-1"),
+        new BoundMonitor()
+            .setResourceId("r-2")
+            .setEnvoyId("e-1")
+    ));
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testHandleNewEnvoyInZone_publicZone() {
+    // simulate that three in zone are needing envoys
+    List<BoundMonitor> unassignedOnes = Arrays.asList(
+        new BoundMonitor()
+            .setResourceId("r-1")
+            .setZoneName("public/west"),
+        new BoundMonitor()
+            .setResourceId("r-2")
+            .setZoneName("public/west"),
+        new BoundMonitor()
+            .setResourceId("r-3")
+            .setZoneName("public/west")
+    );
+
+    // but only one envoy is available
+    Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
+    availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
+    // ...same envoy again to verify de-duping
+    availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
+
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .then(invocationOnMock -> {
+          final Optional<EnvoyResourcePair> result;
+          if (availableEnvoys.isEmpty()) {
+            result = Optional.empty();
+          } else {
+            result = Optional.of(availableEnvoys.remove());
+          }
+          return CompletableFuture.completedFuture(result);
+        });
+
+    when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
+        .thenReturn(unassignedOnes);
+
+    // EXECUTE
+
+    // Main difference from testHandleNewEnvoyInZone_privateZone is that the
+    // tenantId is null from the event
+
+    monitorManagement.handleNewEnvoyInZone(null, "public/west");
+
+    // VERIFY
+
+    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+        createPublicZone("public/west")
+    );
+
+    verify(zoneStorage, times(2)).incrementBoundCount(
+        createPublicZone("public/west"),
+        "r-e-1"
+    );
+
+    // two assignments to same envoy, but verify only one event
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-1"));
+
+    // verify query argument normalized to non-null
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setZoneName("public/west"),
+        new BoundMonitor()
+            .setResourceId("r-2")
+            .setEnvoyId("e-1")
+            .setZoneName("public/west")
+    ));
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testHandleZoneResourceChanged_privateZone() {
+    List<BoundMonitor> boundMonitors = Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-3")
+    );
+
+    when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), any()))
+        .thenReturn(boundMonitors);
+
+    // EXECUTE
+
+    monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "r-1", "e-1", "e-2");
+
+    // VERIFY
+
+    verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
+        "t-1", "z-1", "e-1", null);
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-3")
+    ));
+
+    verify(zoneStorage).changeBoundCount(
+        createPrivateZone("t-1", "z-1"),
+        "r-1",
+        3
+    );
+
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-2"));
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testHandleZoneResourceChanged_publicZone() {
+    List<BoundMonitor> boundMonitors = Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-3")
+    );
+
+    when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), any()))
+        .thenReturn(boundMonitors);
+
+    // EXECUTE
+
+    // The main thing being tested is that a null zone tenant ID
+    monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "r-1", "e-1", "e-2");
+
+    // VERIFY
+
+    // ...gets normalized into an empty string for the query
+    verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+        "public/1", "e-1", null);
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-3")
+    ));
+
+    verify(zoneStorage).changeBoundCount(
+        createPublicZone("public/1"),
+        "r-1",
+        3
+    );
+
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-2"));
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testHandleReattachedEnvoy() {
+
+    when(boundMonitorRepository.findAllLocalByTenantResource("t-1", "r-1"))
+        .thenReturn(Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-old-1")
+                .setRenderedContent("content-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-old-2")
+                .setRenderedContent("content-2")
+        ));
+
+    // EXECUTE
+
+    final ResourceEvent event = new ResourceEvent()
+        .setReattachedEnvoyId("e-new")
+        .setLabelsChanged(false)
+        .setTenantId("t-1")
+        .setResourceId("r-1");
+
+    monitorManagement.handleResourceChangeEvent(event);
+
+    // VERIFY
+
+    verify(boundMonitorRepository)
+        .findAllLocalByTenantResource("t-1", "r-1");
+    verify(boundMonitorRepository).saveAll(
+        Arrays.asList(
+            new BoundMonitor()
+                .setEnvoyId("e-new")
+                .setRenderedContent("content-1"),
+            new BoundMonitor()
+                .setEnvoyId("e-new")
+                .setRenderedContent("content-2")
+        )
+    );
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-old-1")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-old-2")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+
+    verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
+  }
+
+  @Test
+  public void testBindMonitor_AgentWithEnvoy() {
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final Monitor monitor = new Monitor()
+        .setId(m0)
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setContent("static content")
+        .setZones(Collections.emptyList())
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+
+    List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        .setAssociatedWithEnvoy(true)
+    );
+
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+
+    final ResourceInfo resourceInfo = new ResourceInfo()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
+
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+
+    Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
+
+    assertThat(result, hasSize(1));
+    assertThat(result.toArray()[0], equalTo("e-1"));
+
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setRenderedContent("static content")
+            .setZoneName("")
+    ));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+  }
+
+  @Test
+  public void testBindMonitor_AgentWithNoEnvoy() {
+    reset(resourceApi, envoyResourceManagement);
+
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final Monitor monitor = new Monitor()
+        .setId(m0)
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setContent("static content")
+        .setZones(Collections.emptyList())
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+
+    List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        // doesn't have envoy at the moment, but did before
+        .setAssociatedWithEnvoy(true)
+    );
+
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(null));
+
+    Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
+
+    assertThat(result, hasSize(0));
+
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setEnvoyId(null)
+            .setRenderedContent("static content")
+            .setZoneName("")
+    ));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+  }
+
+  @Test
+  public void testBindMonitor_AgentWithNoPriorEnvoy() {
+    reset(resourceApi, envoyResourceManagement);
+
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final Monitor monitor = new Monitor()
+        .setId(m0)
+        .setTenantId("t-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setContent("static content")
+        .setZones(Collections.emptyList())
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+
+    List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        .setAssociatedWithEnvoy(false)
+    );
+
+    when(resourceApi.getResourcesWithLabels(any(), any()))
+        .thenReturn(resourceList);
+
+    Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
+
+    assertThat(result, hasSize(0));
+
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+  }
+
+  @Test
+  public void testBindMonitor_ResourceId() {
+    reset(resourceApi, envoyResourceManagement);
+
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final Monitor monitor = new Monitor()
+        .setId(m0)
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setContent("static content")
+        .setZones(Collections.emptyList())
+        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+
+    Resource resource = new Resource()
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        .setAssociatedWithEnvoy(true)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
+
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(null));
+
+    Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
+
+    assertThat(result, hasSize(0));
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
-            .setZoneName(zoneName)
-            .setRenderedContent("{}")
-            .setEnvoyId("e-goner");
-
-        when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
-
-        when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
-
-        // EXECUTE
-
-        monitorManagement.removeMonitor("t-1", monitor.getId());
-
-        // VERIFY
-
-        final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
-        assertThat(retrieved.isPresent(), equalTo(false));
-
-        verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1",
-            Collections.singletonList(monitor.getId()));
-
-        verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
-
-        verify(zoneStorage).decrementBoundCount(
-            ResolvedZone.createPublicZone(zoneName),
-            "r-gone"
-        );
-        verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPublicZone(zoneName));
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-goner")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
-    }
-
-    @Test
-    public void testRemoveNonExistentMonitor() {
-        String tenant = RandomStringUtils.randomAlphanumeric(10);
-        UUID uuid = UUID.randomUUID();
-
-        exceptionRule.expect(NotFoundException.class);
-        exceptionRule.expectMessage("No monitor found for");
-        monitorManagement.removeMonitor(tenant, uuid);
-    }
-
-    @Test
-    public void testGetMonitorsFromLabels() {
-        int monitorsWithLabels = new Random().nextInt(10) + 10;
-        int monitorsWithoutLabels = new Random().nextInt(10) + 20;
-        String tenantId = RandomStringUtils.randomAlphabetic(10);
-
-        Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
-
-        // Create monitors which don't have the labels we care about
-        createMonitorsForTenant(monitorsWithoutLabels, tenantId);
-
-        // Create monitors which do have the labels we care about
-        createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
-
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(monitorsWithLabels, monitors.getTotalElements());
-        assertNotNull(monitors);
-    }
-
-    @Test
-    public void testGetMonitorsFromLabelsPaginated() {
-        int monitorsWithLabels = new Random().nextInt(10) + 10;
-        int monitorsWithoutLabels = new Random().nextInt(10) + 20;
-        String tenantId = RandomStringUtils.randomAlphabetic(10);
-
-        Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
-
-        // Create monitors which don't have the labels we care about
-        createMonitorsForTenant(monitorsWithoutLabels, tenantId);
-
-        // Create monitors which do have the labels we care about
-        createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
-
-        entityManager.flush();
-
-        int page = 3;
-        int size = 2;
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, PageRequest.of(page, size));
-        assertThat(monitors.getTotalElements(), equalTo((long) monitorsWithLabels));
-        int totalPages = (monitorsWithLabels  + size  -1 ) / size;
-        assertThat(monitors.getTotalPages(), equalTo(totalPages));
-        assertThat(monitors.getContent(), hasSize(size));
-    }
-
-    @Test
-    public void testSpecificCreate() {
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(1L, monitors.getTotalElements());
-        assertNotNull(monitors);
-    }
-
-    @Test
-    public void testMisMatchSpecificCreate() {
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        final Map<String, String> queryLabels = new HashMap<>();
-        queryLabels.put("os", "linux");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
-        assertEquals(0L, monitors.getTotalElements());
-    }
-
-    @Test
-    public void testEmptyLabelsException() {
-        final Map<String, String> labels = new HashMap<>();
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setZones(Collections.emptyList());
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-        when(zoneManagement.getAvailableZonesForTenant(any(), any()))
-            .thenReturn(Page.empty());
-
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        exceptionRule.expect(IllegalArgumentException.class);
-        exceptionRule.expectMessage("Labels must be provided for search");
-        monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    }
-
-    @Test
-    public void testMonitorWithSameLabelsAndDifferentTenants() {
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("key", "value");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        monitorManagement.createMonitor(tenantId2, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
-    }
-
-    @Test
-    public void testMatchMonitorWithMultipleLabels() {
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        labels.put("env", "test");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
-    }
-
-    @Test
-    public void testMisMatchMonitorWithMultipleLabels() {
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        labels.put("env", "test");
-
-        final Map<String, String> queryLabels = new HashMap<>();
-        queryLabels.put("os", "linux");
-        queryLabels.put("env", "test");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(labels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(queryLabels, tenantId, Pageable.unpaged());
-        assertEquals(0L, monitors.getTotalElements());
-    }
-
-    @Test
-    public void testMatchMonitorWithSupersetOfLabels() {
-        final Map<String, String> monitorLabels = new HashMap<>();
-        monitorLabels.put("os", "DARWIN");
-        monitorLabels.put("env", "test");
-        monitorLabels.put("architecture", "x86");
-        monitorLabels.put("region", "DFW");
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        labels.put("env", "test");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
-    }
-
-    @Test
-    public void testMisMatchMonitorWithSupersetOfLabels() {
-        final Map<String, String> monitorLabels = new HashMap<>();
-        monitorLabels.put("os", "DARWIN");
-        monitorLabels.put("env", "test");
-        monitorLabels.put("architecture", "x86");
-        monitorLabels.put("region", "DFW");
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "Windows");
-        labels.put("env", "test");
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(0L, monitors.getTotalElements());
-    }
-
-    @Test
-    public void testMatchMonitorWithSubsetOfLabels() {
-        final Map<String, String> monitorLabels = new HashMap<>();
-        monitorLabels.put("os", "DARWIN");
-        monitorLabels.put("env", "test");
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        labels.put("env", "test");
-        labels.put("architecture", "x86");
-        labels.put("region", "DFW");
-
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        create.setZones(Collections.emptyList());
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
-        assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
-        assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
-        assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
-        assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
-        assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
-        assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
-    }
-
-    public void testMisMatchResourceWithSubsetOfLabels() {
-        final Map<String, String> monitorLabels = new HashMap<>();
-        monitorLabels.put("os", "DARWIN");
-        monitorLabels.put("env", "test");
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "Windows");
-        labels.put("env", "test");
-        labels.put("architecture", "x86");
-        labels.put("region", "DFW");
-
-
-        MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-        create.setLabelSelector(monitorLabels);
-        create.setSelectorScope(ConfigSelectorScope.LOCAL);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        monitorManagement.createMonitor(tenantId, create);
-        entityManager.flush();
-
-        Page<Monitor> resources = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-        assertEquals(0L, resources.getTotalElements());
-    }
-
-    @Test
-    public void testExtractEnvoyIds() {
-
-        final List<BoundMonitor> input = Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-1"),
-            new BoundMonitor().setEnvoyId("e-2"),
-            new BoundMonitor().setEnvoyId(null),
-            new BoundMonitor().setEnvoyId("e-1"),
-            new BoundMonitor().setEnvoyId("e-3")
-        );
-
-        final Set<String> result = MonitorManagement.extractEnvoyIds(input);
-
-        assertThat(result, containsInAnyOrder("e-1", "e-2", "e-3"));
-
-    }
-
-    @Test
-    public void testSendMonitorBoundEvents() {
-        monitorManagement.sendMonitorBoundEvents(Sets.newHashSet("e-3", "e-2", "e-1"));
-
-        ArgumentCaptor<MonitorBoundEvent> evtCaptor = ArgumentCaptor.forClass(MonitorBoundEvent.class);
-
-        verify(monitorEventProducer, times(3)).sendMonitorEvent(evtCaptor.capture());
-
-        assertThat(evtCaptor.getAllValues(), containsInAnyOrder(
-            new MonitorBoundEvent().setEnvoyId("e-1"),
-            new MonitorBoundEvent().setEnvoyId("e-2"),
-            new MonitorBoundEvent().setEnvoyId("e-3")
-        ));
-    }
-
-    @Test
-    public void testDistributeNewMonitor_agent() {
-        Monitor monitor = new Monitor()
-            .setId(UUID.randomUUID())
+            .setEnvoyId(null)
+            .setRenderedContent("static content")
+            .setZoneName("")
+    ));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
+  }
+
+  @Test
+  public void testUnbindByMonitorId_remote() {
+    final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setId(null);
+    monitor.setTenantId("t-1");
+    monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
+    entityManager.persist(monitor);
+    entityManager.flush();
+
+    final List<BoundMonitor> bound = Arrays.asList(
+        new BoundMonitor()
             .setTenantId("t-1")
-            .setAgentType(AgentType.TELEGRAF)
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("{}");
-
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
-
-        final List<BoundMonitor> expected = Collections.singletonList(
-            new BoundMonitor()
-                .setResourceId(DEFAULT_RESOURCE_ID)
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setEnvoyId(DEFAULT_ENVOY_ID)
-                .setRenderedContent("{}")
-                .setZoneName("")
-        );
-        verify(boundMonitorRepository).saveAll(
-            expected
-        );
-
-        assertThat(affectedEnvoys, contains(DEFAULT_ENVOY_ID));
-
-        verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository, resourceRepository);
-    }
-
-    @Test
-    public void testDistributeNewMonitor_remote() {
-        final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
-        final ResolvedZone zoneWest = createPublicZone("public/west");
-
-
-        when(zoneStorage.findLeastLoadedEnvoy(zone1))
-            .thenReturn(CompletableFuture.completedFuture(
-                Optional.of(
-                    new EnvoyResourcePair().setEnvoyId("zone1-e-1").setResourceId("r-e-1"))
-            ));
-        when(zoneStorage.findLeastLoadedEnvoy(zoneWest))
-            .thenReturn(CompletableFuture.completedFuture(
-                Optional.of(new EnvoyResourcePair().setEnvoyId("zoneWest-e-2").setResourceId("r-e-2"))
-            ));
-        when(zoneStorage.incrementBoundCount(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(1));
-
-        final List<ResourceDTO> tenantResources = new ArrayList<>();
-        tenantResources.add(
-            new ResourceDTO().setResourceId("r-1")
-                .setTenantId("t-1")
-                .setLabels(Collections.singletonMap("os", "LINUX"))
-                .setMetadata(Collections.singletonMap("public_ip", "151.1.1.1"))
-        );
-        tenantResources.add(
-            new ResourceDTO().setResourceId("r-2")
-                .setTenantId("t-1")
-                .setLabels(Collections.singletonMap("os", "LINUX"))
-                .setMetadata(Collections.singletonMap("public_ip", "151.2.2.2"))
-        );
-        reset(resourceApi);
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(tenantResources);
-
-        Monitor monitor = new Monitor()
-            .setId(UUID.randomUUID())
+            .setMonitor(monitor)
+            .setResourceId("r-0")
+            .setEnvoyId("e-1")
+            .setZoneName("z-1"),
+        new BoundMonitor()
             .setTenantId("t-1")
-            .setAgentType(AgentType.TELEGRAF)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
-            .setZones(Arrays.asList("zone1", "public/west"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
+            .setMonitor(monitor)
+            .setResourceId("r-0")
+            .setEnvoyId("e-2")
+            .setZoneName("z-2")
+    );
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+        .thenReturn(bound);
 
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-1", "r-e-1")))
+        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-2", "r-e-2")));
 
-        final List<BoundMonitor> expected = Arrays.asList(
-            new BoundMonitor()
-                .setResourceId("r-1")
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setEnvoyId("zone1-e-1")
-                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZoneName("zone1"),
-            new BoundMonitor()
-                .setResourceId("r-1")
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setEnvoyId("zoneWest-e-2")
-                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.1.1.1\"]}")
-                .setZoneName("public/west"),
-            new BoundMonitor()
-                .setResourceId("r-2")
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setEnvoyId("zone1-e-1")
-                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZoneName("zone1"),
-            new BoundMonitor()
-                .setResourceId("r-2")
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setEnvoyId("zoneWest-e-2")
-                .setRenderedContent("{\"type\": \"ping\", \"urls\": [\"151.2.2.2\"]}")
-                .setZoneName("public/west")
-        );
-        verify(boundMonitorRepository).saveAll(expected);
+    // EXECUTE
 
-        assertThat(affectedEnvoys, containsInAnyOrder("zone1-e-1", "zoneWest-e-2"));
+    final Set<String> affectedEnvoys = monitorManagement
+        .unbindByTenantAndMonitorId("t-1", Collections.singletonList(monitor.getId()));
 
-        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
-        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zoneWest);
+    // VERIFY
 
-        verify(zoneStorage, times(2)).incrementBoundCount(zone1, "r-e-1");
-        verify(zoneStorage, times(2)).incrementBoundCount(zoneWest, "r-e-2");
+    assertThat(affectedEnvoys, contains("e-1", "e-2"));
 
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
+    verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "r-e-1");
+    verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-2"), "r-e-2");
 
-    @Test
-    public void testDistributeNewMonitor_remote_emptyZone() {
-        final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-1"));
+    verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-2"));
 
-        when(zoneStorage.findLeastLoadedEnvoy(zone1))
-            .thenReturn(CompletableFuture.completedFuture(
-                Optional.empty()
-            ));
-        when(zoneStorage.incrementBoundCount(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(1));
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
 
-        Monitor monitor = new Monitor()
-            .setId(UUID.randomUUID())
-            .setTenantId("t-1")
-            .setAgentType(AgentType.TELEGRAF)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setLabelSelector(Collections.singletonMap("os", "LINUX"))
-            // NOTE only one zone used in this test
-            .setZones(Collections.singletonList("zone1"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("{}");
+    verify(boundMonitorRepository).deleteAll(bound);
 
-        final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+    verifyNoMoreInteractions(boundMonitorRepository);
+  }
 
-        verify(zoneStorage).findLeastLoadedEnvoy(zone1);
+  @Test
+  public void testUpsertBindingToResource() {
 
-        // Verify the envoy ID was NOT be set for this
-        final List<BoundMonitor> expected = Collections.singletonList(
-            new BoundMonitor()
-                .setResourceId(DEFAULT_RESOURCE_ID)
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setRenderedContent("{}")
-                .setZoneName("zone1")
-        );
-        verify(boundMonitorRepository).saveAll(expected);
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final UUID m1 = UUID.fromString("00000000-0000-0000-0001-000000000000");
+    final UUID m2 = UUID.fromString("00000000-0000-0000-0002-000000000000");
+    final UUID m3 = UUID.fromString("00000000-0000-0000-0003-000000000000");
 
-        assertThat(affectedEnvoys, hasSize(0));
-
-        // ...and no MonitorBoundEvent was sent
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testHandleNewEnvoyInZone_privateZone() {
-        // simulate that three in zone are needing envoys
-        List<BoundMonitor> unassignedOnes = Arrays.asList(
-            new BoundMonitor()
-                .setResourceId("r-1"),
-            new BoundMonitor()
-                .setResourceId("r-2"),
-            new BoundMonitor()
-                .setResourceId("r-3")
-        );
-
-        // but only one envoy is available
-        Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
-        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
-        // ...same envoy again to verify de-duping
-        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
-
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .then(invocationOnMock -> {
-                final Optional<EnvoyResourcePair> result;
-                if (availableEnvoys.isEmpty()) {
-                    result = Optional.empty();
-                } else {
-                    result = Optional.of(availableEnvoys.remove());
-                }
-                return CompletableFuture.completedFuture(result);
-            });
-
-        when(boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(any(), any()))
-            .thenReturn(unassignedOnes);
-
-        // EXECUTE
-
-        monitorManagement.handleNewEnvoyInZone("t-1", "z-1");
-
-        // VERIFY
-
-        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
-            createPrivateZone("t-1", "z-1")
-        );
-
-        verify(zoneStorage, times(2)).incrementBoundCount(
-            createPrivateZone("t-1", "z-1"),
-            "r-e-1"
-        );
-
-        // two assignments to same envoy, but verify only one event
-        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setEnvoyId("e-1"));
-
-        verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
-
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor()
-                .setResourceId("r-1")
-                .setEnvoyId("e-1"),
-            new BoundMonitor()
-                .setResourceId("r-2")
-                .setEnvoyId("e-1")
-        ));
-
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testHandleNewEnvoyInZone_publicZone() {
-        // simulate that three in zone are needing envoys
-        List<BoundMonitor> unassignedOnes = Arrays.asList(
-            new BoundMonitor()
-                .setResourceId("r-1")
-                .setZoneName("public/west"),
-            new BoundMonitor()
-                .setResourceId("r-2")
-                .setZoneName("public/west"),
-            new BoundMonitor()
-                .setResourceId("r-3")
-                .setZoneName("public/west")
-        );
-
-        // but only one envoy is available
-        Queue<EnvoyResourcePair> availableEnvoys = new LinkedList<>();
-        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
-        // ...same envoy again to verify de-duping
-        availableEnvoys.add(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"));
-
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .then(invocationOnMock -> {
-                final Optional<EnvoyResourcePair> result;
-                if (availableEnvoys.isEmpty()) {
-                    result = Optional.empty();
-                } else {
-                    result = Optional.of(availableEnvoys.remove());
-                }
-                return CompletableFuture.completedFuture(result);
-            });
-
-        when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
-            .thenReturn(unassignedOnes);
-
-        // EXECUTE
-
-        // Main difference from testHandleNewEnvoyInZone_privateZone is that the
-        // tenantId is null from the event
-
-        monitorManagement.handleNewEnvoyInZone(null, "public/west");
-
-        // VERIFY
-
-        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
-            createPublicZone("public/west")
-        );
-
-        verify(zoneStorage, times(2)).incrementBoundCount(
-            createPublicZone("public/west"),
-            "r-e-1"
-        );
-
-        // two assignments to same envoy, but verify only one event
-        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setEnvoyId("e-1"));
-
-        // verify query argument normalized to non-null
-        verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
-
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor()
-                .setResourceId("r-1")
-                .setEnvoyId("e-1")
-                .setZoneName("public/west"),
-            new BoundMonitor()
-                .setResourceId("r-2")
-                .setEnvoyId("e-1")
-                .setZoneName("public/west")
-        ));
-
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testHandleZoneResourceChanged_privateZone() {
-        List<BoundMonitor> boundMonitors = Arrays.asList(
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-1"),
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-2"),
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-3")
-        );
-
-        when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), any()))
-            .thenReturn(boundMonitors);
-
-        // EXECUTE
-
-        monitorManagement.handleEnvoyResourceChangedInZone("t-1", "z-1", "r-1", "e-1", "e-2");
-
-        // VERIFY
-
-        verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
-            "t-1", "z-1", "e-1", null);
-
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-1"),
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-2"),
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-3")
-        ));
-
-        verify(zoneStorage).changeBoundCount(
-            createPrivateZone("t-1", "z-1"),
-            "r-1",
-            3
-        );
-
-        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setEnvoyId("e-2"));
-
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testHandleZoneResourceChanged_publicZone() {
-        List<BoundMonitor> boundMonitors = Arrays.asList(
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-1"),
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-2"),
-            new BoundMonitor()
-                .setEnvoyId("e-1")
-                .setResourceId("r-3")
-        );
-
-        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), any()))
-            .thenReturn(boundMonitors);
-
-        // EXECUTE
-
-        // The main thing being tested is that a null zone tenant ID
-        monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "r-1", "e-1", "e-2");
-
-        // VERIFY
-
-        // ...gets normalized into an empty string for the query
-        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
-            "public/1", "e-1", null);
-
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-1"),
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-2"),
-            new BoundMonitor()
-                .setEnvoyId("e-2")
-                .setResourceId("r-3")
-        ));
-
-        verify(zoneStorage).changeBoundCount(
-            createPublicZone("public/1"),
-            "r-1",
-            3
-        );
-
-        verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-            .setEnvoyId("e-2"));
-
-        verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testHandleReattachedEnvoy() {
-
-        when(boundMonitorRepository.findAllLocalByTenantResource("t-1", "r-1"))
-            .thenReturn(Arrays.asList(
-                new BoundMonitor()
-                    .setEnvoyId("e-old-1")
-                    .setRenderedContent("content-1"),
-                new BoundMonitor()
-                    .setEnvoyId("e-old-2")
-                    .setRenderedContent("content-2")
-            ));
-
-        // EXECUTE
-
-        final ResourceEvent event = new ResourceEvent()
-            .setReattachedEnvoyId("e-new")
-            .setLabelsChanged(false)
-            .setTenantId("t-1")
-            .setResourceId("r-1");
-
-        monitorManagement.handleResourceChangeEvent(event);
-
-        // VERIFY
-
-        verify(boundMonitorRepository)
-            .findAllLocalByTenantResource("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(
-            Arrays.asList(
-                new BoundMonitor()
-                    .setEnvoyId("e-new")
-                    .setRenderedContent("content-1"),
-                new BoundMonitor()
-                    .setEnvoyId("e-new")
-                    .setRenderedContent("content-2")
-            )
-        );
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-old-1")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-old-2")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-new")
-        );
-
-        verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
-    }
-
-    @Test
-    public void testBindMonitor_AgentWithEnvoy() {
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final Monitor monitor = new Monitor()
+    // The following monitors hits the various scenarios we need to support when a resource changes
+    List<Monitor> monitors = Arrays.asList(
+        // new local monitor
+        // --> 1 x BoundMonitor
+        new Monitor()
             .setId(m0)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("static content")
-            .setZones(Collections.emptyList());
-
-        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setLabels(Collections.emptyMap())
-            .setAssociatedWithEnvoy(true)
-        );
-
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(resourceList);
-
-        final ResourceInfo resourceInfo = new ResourceInfo()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setEnvoyId("e-1");
-
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
-
-        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
-
-        assertThat(result, hasSize(1));
-        assertThat(result.toArray()[0], equalTo("e-1"));
-
-        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setEnvoyId("e-1")
-                .setRenderedContent("static content")
-                .setZoneName("")
-        ));
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
-    }
-
-    @Test
-    public void testBindMonitor_AgentWithNoEnvoy() {
-        reset(resourceApi, envoyResourceManagement);
-
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final Monitor monitor = new Monitor()
-            .setId(m0)
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("static content")
-            .setZones(Collections.emptyList());
-
-        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setLabels(Collections.emptyMap())
-            // doesn't have envoy at the moment, but did before
-            .setAssociatedWithEnvoy(true)
-        );
-
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(resourceList);
-
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(null));
-
-        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
-
-        assertThat(result, hasSize(0));
-
-        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setEnvoyId(null)
-                .setRenderedContent("static content")
-                .setZoneName("")
-        ));
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
-    }
-
-    @Test
-    public void testBindMonitor_AgentWithNoPriorEnvoy() {
-        reset(resourceApi, envoyResourceManagement);
-
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final Monitor monitor = new Monitor()
-            .setId(m0)
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("static content")
-            .setZones(Collections.emptyList());
-
-        List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
-            .setResourceId("r-1")
-            .setLabels(Collections.emptyMap())
-            .setAssociatedWithEnvoy(false)
-        );
-
-        when(resourceApi.getResourcesWithLabels(any(), any()))
-            .thenReturn(resourceList);
-
-        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
-
-        assertThat(result, hasSize(0));
-
-        verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
-    }
-
-    @Test
-    public void testBindMonitor_ResourceId() {
-        reset(resourceApi, envoyResourceManagement);
-
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final Monitor monitor = new Monitor()
-            .setId(m0)
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("static content")
-            .setZones(Collections.emptyList());
-
-        Resource resource = new Resource()
-            .setResourceId("r-1")
-            .setLabels(Collections.emptyMap())
-            .setAssociatedWithEnvoy(true)
-            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
-
-        when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
-            .thenReturn(Optional.of(resource));
-
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(null));
-
-        Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
-
-        assertThat(result, hasSize(0));
-
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).saveAll(Collections.singletonList(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId("r-1")
-                .setEnvoyId(null)
-                .setRenderedContent("static content")
-                .setZoneName("")
-        ));
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
-    }
-
-    @Test
-    public void testUnbindByMonitorId_remote() {
-        final Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-        monitor.setId(null);
-        monitor.setTenantId("t-1");
-        monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
-        entityManager.persist(monitor);
-        entityManager.flush();
-
-        final List<BoundMonitor> bound = Arrays.asList(
-            new BoundMonitor()
-                .setTenantId("t-1")
-                .setMonitor(monitor)
-                .setResourceId("r-0")
-                .setEnvoyId("e-1")
-                .setZoneName("z-1"),
-            new BoundMonitor()
-                .setTenantId("t-1")
-                .setMonitor(monitor)
-                .setResourceId("r-0")
-                .setEnvoyId("e-2")
-                .setZoneName("z-2")
-        );
-        when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-            .thenReturn(bound);
-
-        when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-1", "r-e-1")))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-2", "r-e-2")));
-
-        // EXECUTE
-
-        final Set<String> affectedEnvoys = monitorManagement
-            .unbindByTenantAndMonitorId("t-1", Collections.singletonList(monitor.getId()));
-
-        // VERIFY
-
-        assertThat(affectedEnvoys, contains("e-1", "e-2"));
-
-        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-1"), "r-e-1");
-        verify(zoneStorage).decrementBoundCount(createPrivateZone("t-1", "z-2"), "r-e-2");
-
-        verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-1"));
-        verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone("t-1", "z-2"));
-
-        verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
-
-        verify(boundMonitorRepository).deleteAll(bound);
-
-        verifyNoMoreInteractions(boundMonitorRepository);
-    }
-
-    @Test
-    public void testUpsertBindingToResource() {
-
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final UUID m1 = UUID.fromString("00000000-0000-0000-0001-000000000000");
-        final UUID m2 = UUID.fromString("00000000-0000-0000-0002-000000000000");
-        final UUID m3 = UUID.fromString("00000000-0000-0000-0003-000000000000");
-
-        // The following monitors hits the various scenarios we need to support when a resource changes
-        List<Monitor> monitors = Arrays.asList(
-            // new local monitor
-            // --> 1 x BoundMonitor
-            new Monitor()
-            .setId(m0)
-            .setTenantId("t-1")
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("new local domain=${resource.labels.env}"),
-            // new remote monitor
-            // --> 2 x BoundMonitor
-            new Monitor()
+            .setContent("new local domain=${resource.labels.env}")
+            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+        // new remote monitor
+        // --> 2 x BoundMonitor
+        new Monitor()
             .setId(m1)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setContent("new remote domain=${resource.labels.env}")
-            .setZones(Arrays.asList("z-1", "z-2")),
-            // existing monitor needing re-render
-            // --> 1 x BoundMonitor
-            new Monitor()
+            .setZones(Arrays.asList("z-1", "z-2"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+        // existing monitor needing re-render
+        // --> 1 x BoundMonitor
+        new Monitor()
             .setId(m2)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setContent("existing local domain=${resource.labels.env}"),
-            // existing monitor no re-render
-            new Monitor()
+            .setContent("existing local domain=${resource.labels.env}")
+            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+        // existing monitor no re-render
+        new Monitor()
             .setId(m3)
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setContent("static content")
             .setZones(Collections.singletonList("z-1"))
-        );
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+    );
 
-        final ResourceDTO resource = new ResourceDTO()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setAssociatedWithEnvoy(true)
-            .setLabels(Collections.singletonMap("env", "prod"));
+    final ResourceDTO resource = new ResourceDTO()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setAssociatedWithEnvoy(true)
+        .setLabels(Collections.singletonMap("env", "prod"));
 
-        final ResourceInfo resourceInfo = new ResourceInfo()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            .setEnvoyId("e-1");
+    final ResourceInfo resourceInfo = new ResourceInfo()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
 
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(
-                new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("r-1"))));
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+            new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("r-1"))));
 
-        when(zoneStorage.incrementBoundCount(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneStorage.incrementBoundCount(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(1));
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m0, "r-1"))
-            .thenReturn(Collections.emptyList());
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m1, "r-1"))
-            .thenReturn(Collections.emptyList());
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m2, "r-1"))
-            .thenReturn(Collections.singletonList(
-                new BoundMonitor()
-                    .setResourceId("r-1")
-                    .setMonitor(monitors.get(2))
-                    .setTenantId("t-1")
-                    .setRenderedContent("domain=dev")
-                    .setEnvoyId("e-3")
-                    .setZoneName("")
-            ));
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m3, "r-1"))
-            .thenReturn(Collections.singletonList(
-                new BoundMonitor()
-                    .setResourceId("r-1")
-                    .setMonitor(monitors.get(3))
-                    .setRenderedContent("static content")
-                    .setZoneName("z-1")
-                    .setEnvoyId("e-4")
-            ));
-
-        // EXERCISE
-
-        final Set<String> affectedEnvoys =
-            monitorManagement.upsertBindingToResource(monitors, resource, null);
-
-        // VERIFY
-
-        assertThat(affectedEnvoys, containsInAnyOrder("e-1", "e-2", "e-3"));
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
-        final ResolvedZone z2 = createPrivateZone("t-1", "z-2");
-        verify(zoneStorage).findLeastLoadedEnvoy(z1);
-        verify(zoneStorage).findLeastLoadedEnvoy(z2);
-        verify(zoneStorage).incrementBoundCount(z1, "r-1");
-        verify(zoneStorage).incrementBoundCount(z2, "r-1");
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m2, "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m3, "r-1");
-        verify(boundMonitorRepository).saveAll(
-            Arrays.asList(
-                new BoundMonitor()
-                    .setMonitor(monitors.get(0))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId("e-1")
-                    .setRenderedContent("new local domain=prod")
-                    .setZoneName(""),
-                new BoundMonitor()
-                    .setMonitor(monitors.get(1))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId("e-2")
-                    .setRenderedContent("new remote domain=prod")
-                    .setZoneName("z-1"),
-                new BoundMonitor()
-                    .setMonitor(monitors.get(1))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId("e-2")
-                    .setRenderedContent("new remote domain=prod")
-                    .setZoneName("z-2"),
-                new BoundMonitor()
-                    .setMonitor(monitors.get(2))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId("e-3")
-                    .setRenderedContent("existing local domain=prod")
-                    .setZoneName("")
-                // NOTE binding of m3 did not need to be re-bound since its "static content" was
-                // unaffected by the change in resource labels.
-            )
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage);
-    }
-
-    @Test
-    public void testUpsertBindingToResource_noEnvoyResource() {
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-        final UUID m1 = UUID.fromString("00000000-0000-0000-0001-000000000000");
-
-        List<Monitor> monitors = Arrays.asList(
-            new Monitor()
-                .setId(m0)
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setContent("new local domain=${resource.labels.env}"),
-            new Monitor()
-                .setId(m1)
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.REMOTE)
-                .setContent("new remote domain=${resource.labels.env}")
-                .setZones(Collections.singletonList("z-1"))
-        );
-
-        final ResourceDTO resource = new ResourceDTO()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            // doesn't have envoy at the moment, but did before
-            .setAssociatedWithEnvoy(true)
-            .setLabels(Collections.singletonMap("env", "prod"));
-
-        // simulate no envoys attached
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(null));
-
-        // ...and therefore none registered in the zone
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-        // EXERCISE
-
-        final Set<String> affectedEnvoys =
-            monitorManagement.upsertBindingToResource(monitors, resource, null);
-
-        // VERIFY
-
-        assertThat(affectedEnvoys, hasSize(0));
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
-        verify(zoneStorage).findLeastLoadedEnvoy(z1);
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
-        verify(boundMonitorRepository).saveAll(
-            Arrays.asList(
-                new BoundMonitor()
-                    .setMonitor(monitors.get(0))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId(null)
-                    .setRenderedContent("new local domain=prod")
-                    .setZoneName(""),
-                new BoundMonitor()
-                    .setMonitor(monitors.get(1))
-                    .setTenantId("t-1")
-                    .setResourceId("r-1")
-                    .setEnvoyId(null)
-                    .setRenderedContent("new remote domain=prod")
-                    .setZoneName("z-1")
-            )
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage
-        );
-    }
-
-    @Test
-    public void testUpsertBindingToResource_noPriorEnvoyResource() {
-        final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
-
-        List<Monitor> monitors = Collections.singletonList(
-            new Monitor()
-                .setId(m0)
-                .setTenantId("t-1")
-                .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setContent("new local domain=${resource.labels.env}")
-        );
-
-        final ResourceDTO resource = new ResourceDTO()
-            .setTenantId("t-1")
-            .setResourceId("r-1")
-            // never had an envoy
-            .setAssociatedWithEnvoy(false)
-            .setLabels(Collections.singletonMap("env", "prod"));
-
-        // simulate no envoys attached
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(null));
-
-        // EXERCISE
-
-        final Set<String> affectedEnvoys =
-            monitorManagement.upsertBindingToResource(monitors, resource, null);
-
-        // VERIFY
-
-        assertThat(affectedEnvoys, hasSize(0));
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage
-        );
-    }
-
-    @Test
-    public void testhandleResourceEvent_newResource() {
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1",
-            "r-1",
-            Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.LOCAL,
-            Collections.singletonMap("env", "prod"),
-            "domain=${resource.labels.env}",
-            null
-        );
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
-            .setTenantId("t-1")
-            .setResourceId("r-1"));
-
-        // VERIFY
-
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(savedBoundMonitors, hasSize(1));
-        assertThat(savedBoundMonitors, contains(
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m0, "r-1"))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m1, "r-1"))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m2, "r-1"))
+        .thenReturn(Collections.singletonList(
             new BoundMonitor()
-                .setMonitor(monitor)
-                .setTenantId("t-1")
                 .setResourceId("r-1")
-                .setEnvoyId("e-1")
-                .setRenderedContent("domain=prod")
+                .setMonitor(monitors.get(2))
+                .setTenantId("t-1")
+                .setRenderedContent("domain=dev")
+                .setEnvoyId("e-3")
                 .setZoneName("")
         ));
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-            .setEnvoyId("e-1")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-
-    @Test
-    public void testhandleResourceEvent_monitorWithResourceId() {
-    // Confirm that newly created resource binds with existing monitor-with-resourceId
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1",
-            "r-1",
-            Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.LOCAL,
-            null,
-            "static content",
-            null
-        );
-
-        monitor.setResourceId("r-1");
-        entityManager.merge(monitor);
-        entityManager.flush();
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
-            .setTenantId("t-1")
-            .setResourceId("r-1"));
-
-        // VERIFY
-
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(savedBoundMonitors, hasSize(1));
-        assertThat(savedBoundMonitors, contains(
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m3, "r-1"))
+        .thenReturn(Collections.singletonList(
             new BoundMonitor()
-                .setTenantId("t-1")
-                .setMonitor(monitor)
                 .setResourceId("r-1")
-                .setEnvoyId("e-1")
+                .setMonitor(monitors.get(3))
                 .setRenderedContent("static content")
-                .setZoneName("")));
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-            .setEnvoyId("e-1")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-    /**
-     * Sets up mocking of a resource, stores a monitor, and optionally stores a bound monitor.
-     * @param resourceId if non-null, mock resourceApi retrieval and return one with given ID
-     * @param boundContent if non-null, creates a bound monitor and mocks the queries for that
-     * @return the newly stored monitor
-     */
-    private Monitor setupTestingOfHandleResourceEvent(String tenantId, String resourceId,
-                                                      Map<String, String> resourceLabels,
-                                                      ConfigSelectorScope monitorScope,
-                                                      Map<String, String> labelSelector,
-                                                      String monitorContent, String boundContent) {
-        if (resourceId != null && resourceLabels != null) {
-            final Resource resource = new Resource()
-                .setLabels(resourceLabels)
-                .setResourceId(resourceId)
-                .setTenantId(tenantId)
-                .setAssociatedWithEnvoy(true)
-                .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-                .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
-            when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
-                .thenReturn(Optional.of(resource));
-
-            ResourceInfo resourceInfo = new ResourceInfo()
-                .setResourceId(resourceId)
-                .setEnvoyId("e-1");
-            when(envoyResourceManagement.getOne(any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(resourceInfo));
-        } else {
-            when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
-                .thenReturn(Optional.empty());
-        }
-
-        final Monitor monitor = new Monitor()
-            .setSelectorScope(monitorScope)
-            .setTenantId(tenantId)
-            .setLabelSelector(labelSelector)
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent(monitorContent);
-        entityManager.persist(monitor);
-        entityManager.flush();
-
-        if (boundContent != null) {
-            final BoundMonitor boundMonitor = new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId(resourceId)
-                .setZoneName("")
-                .setRenderedContent(boundContent)
-                .setEnvoyId("e-1");
-
-            when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
-                .thenReturn(Collections.singletonList(monitor.getId()));
-
-            when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
-                .thenReturn(Collections.singletonList(boundMonitor));
-        } else {
-            when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
-                .thenReturn(Collections.emptyList());
-
-            when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
-                .thenReturn(Collections.emptyList());
-        }
-
-        return monitor;
-    }
-
-    @Test
-    public void testhandleResourceEvent_modifiedResource() {
-
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1", "r-1", Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
-            "domain=${resource.labels.env}",
-            "domain=some old value"
-        );
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
-            .setTenantId("t-1")
-            .setResourceId("r-1"));
-
-        // VERIFY
-
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(savedBoundMonitors, hasSize(1));
-        assertThat(savedBoundMonitors, contains(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId("r-1")
-                .setEnvoyId("e-1")
-                .setRenderedContent("domain=prod")
-                .setZoneName("")
+                .setZoneName("z-1")
+                .setEnvoyId("e-4")
         ));
 
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+    // EXERCISE
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
+    final Set<String> affectedEnvoys =
+        monitorManagement.upsertBindingToResource(monitors, resource, null);
+
+    // VERIFY
+
+    assertThat(affectedEnvoys, containsInAnyOrder("e-1", "e-2", "e-3"));
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
+    final ResolvedZone z2 = createPrivateZone("t-1", "z-2");
+    verify(zoneStorage).findLeastLoadedEnvoy(z1);
+    verify(zoneStorage).findLeastLoadedEnvoy(z2);
+    verify(zoneStorage).incrementBoundCount(z1, "r-1");
+    verify(zoneStorage).incrementBoundCount(z2, "r-1");
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m2, "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m3, "r-1");
+    verify(boundMonitorRepository).saveAll(
+        Arrays.asList(
+            new BoundMonitor()
+                .setMonitor(monitors.get(0))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
                 .setEnvoyId("e-1")
-        );
+                .setRenderedContent("new local domain=prod")
+                .setZoneName(""),
+            new BoundMonitor()
+                .setMonitor(monitors.get(1))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId("e-2")
+                .setRenderedContent("new remote domain=prod")
+                .setZoneName("z-1"),
+            new BoundMonitor()
+                .setMonitor(monitors.get(1))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId("e-2")
+                .setRenderedContent("new remote domain=prod")
+                .setZoneName("z-2"),
+            new BoundMonitor()
+                .setMonitor(monitors.get(2))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId("e-3")
+                .setRenderedContent("existing local domain=prod")
+                .setZoneName("")
+            // NOTE binding of m3 did not need to be re-bound since its "static content" was
+            // unaffected by the change in resource labels.
+        )
+    );
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage);
+  }
 
-    @Test
-    public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_sameContent() {
-        final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
+  @Test
+  public void testUpsertBindingToResource_noEnvoyResource() {
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    final UUID m1 = UUID.fromString("00000000-0000-0000-0001-000000000000");
+
+    List<Monitor> monitors = Arrays.asList(
+        new Monitor()
+            .setId(m0)
             .setTenantId("t-1")
-            .setLabelSelector(Collections.singletonMap("env", "prod"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("static content");
-        entityManager.persist(monitor);
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("new local domain=${resource.labels.env}")
+            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+        new Monitor()
+            .setId(m1)
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setContent("new remote domain=${resource.labels.env}")
+            .setZones(Collections.singletonList("z-1"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+    );
 
-        entityManager.flush();
+    final ResourceDTO resource = new ResourceDTO()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        // doesn't have envoy at the moment, but did before
+        .setAssociatedWithEnvoy(true)
+        .setLabels(Collections.singletonMap("env", "prod"));
 
-        final BoundMonitor boundMonitor = new BoundMonitor()
+    // simulate no envoys attached
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(null));
+
+    // ...and therefore none registered in the zone
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+    // EXERCISE
+
+    final Set<String> affectedEnvoys =
+        monitorManagement.upsertBindingToResource(monitors, resource, null);
+
+    // VERIFY
+
+    assertThat(affectedEnvoys, hasSize(0));
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
+    verify(zoneStorage).findLeastLoadedEnvoy(z1);
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
+    verify(boundMonitorRepository).saveAll(
+        Arrays.asList(
+            new BoundMonitor()
+                .setMonitor(monitors.get(0))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("new local domain=prod")
+                .setZoneName(""),
+            new BoundMonitor()
+                .setMonitor(monitors.get(1))
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setEnvoyId(null)
+                .setRenderedContent("new remote domain=prod")
+                .setZoneName("z-1")
+        )
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage
+    );
+  }
+
+  @Test
+  public void testUpsertBindingToResource_noPriorEnvoyResource() {
+    final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
+    List<Monitor> monitors = Collections.singletonList(
+        new Monitor()
+            .setId(m0)
+            .setTenantId("t-1")
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setContent("new local domain=${resource.labels.env}")
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+    );
+
+    final ResourceDTO resource = new ResourceDTO()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        // never had an envoy
+        .setAssociatedWithEnvoy(false)
+        .setLabels(Collections.singletonMap("env", "prod"));
+
+    // simulate no envoys attached
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(null));
+
+    // EXERCISE
+
+    final Set<String> affectedEnvoys =
+        monitorManagement.upsertBindingToResource(monitors, resource, null);
+
+    // VERIFY
+
+    assertThat(affectedEnvoys, hasSize(0));
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage
+    );
+  }
+
+  @Test
+  public void testhandleResourceEvent_newResource() {
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1",
+        "r-1",
+        Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.LOCAL,
+        Collections.singletonMap("env", "prod"),
+        "domain=${resource.labels.env}",
+        null
+    );
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+        .setTenantId("t-1")
+        .setResourceId("r-1"));
+
+    // VERIFY
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(savedBoundMonitors, hasSize(1));
+    assertThat(savedBoundMonitors, contains(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setRenderedContent("domain=prod")
+            .setZoneName("")
+    ));
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
+
+
+  @Test
+  public void testhandleResourceEvent_monitorWithResourceId() {
+    // Confirm that newly created resource binds with existing monitor-with-resourceId
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1",
+        "r-1",
+        Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.LOCAL,
+        null,
+        "static content",
+        null
+    );
+
+    monitor.setResourceId("r-1");
+    entityManager.merge(monitor);
+    entityManager.flush();
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+        .setTenantId("t-1")
+        .setResourceId("r-1"));
+
+    // VERIFY
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(savedBoundMonitors, hasSize(1));
+    assertThat(savedBoundMonitors, contains(
+        new BoundMonitor()
+            .setTenantId("t-1")
             .setMonitor(monitor)
             .setResourceId("r-1")
-            .setZoneName("")
+            .setEnvoyId("e-1")
             .setRenderedContent("static content")
-            .setEnvoyId("e-old");
+            .setZoneName("")));
 
-        when(boundMonitorRepository.findAllLocalByTenantResource(any(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-        // EXERCISE
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+    );
 
-        monitorManagement.handleResourceChangeEvent(
-            new ResourceEvent()
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
+
+  /**
+   * Sets up mocking of a resource, stores a monitor, and optionally stores a bound monitor.
+   * @param resourceId if non-null, mock resourceApi retrieval and return one with given ID
+   * @param boundContent if non-null, creates a bound monitor and mocks the queries for that
+   * @return the newly stored monitor
+   */
+  private Monitor setupTestingOfHandleResourceEvent(String tenantId, String resourceId,
+      Map<String, String> resourceLabels,
+      ConfigSelectorScope monitorScope,
+      Map<String, String> labelSelector,
+      String monitorContent, String boundContent) {
+    if (resourceId != null && resourceLabels != null) {
+      final Resource resource = new Resource()
+          .setLabels(resourceLabels)
+          .setResourceId(resourceId)
+          .setTenantId(tenantId)
+          .setAssociatedWithEnvoy(true)
+          .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+          .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+      when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+          .thenReturn(Optional.of(resource));
+
+      ResourceInfo resourceInfo = new ResourceInfo()
+          .setResourceId(resourceId)
+          .setEnvoyId("e-1");
+      when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+    } else {
+      when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+          .thenReturn(Optional.empty());
+    }
+
+    final Monitor monitor = new Monitor()
+        .setSelectorScope(monitorScope)
+        .setTenantId(tenantId)
+        .setLabelSelector(labelSelector)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent(monitorContent);
+    entityManager.persist(monitor);
+    entityManager.flush();
+
+    if (boundContent != null) {
+      final BoundMonitor boundMonitor = new BoundMonitor()
+          .setMonitor(monitor)
+          .setResourceId(resourceId)
+          .setZoneName("")
+          .setRenderedContent(boundContent)
+          .setEnvoyId("e-1");
+
+      when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+          .thenReturn(Collections.singletonList(monitor.getId()));
+
+      when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+          .thenReturn(Collections.singletonList(boundMonitor));
+    } else {
+      when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+          .thenReturn(Collections.emptyList());
+
+      when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+          .thenReturn(Collections.emptyList());
+    }
+
+    return monitor;
+  }
+
+  @Test
+  public void testhandleResourceEvent_modifiedResource() {
+
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1", "r-1", Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
+        "domain=${resource.labels.env}",
+        "domain=some old value"
+    );
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+        .setTenantId("t-1")
+        .setResourceId("r-1"));
+
+    // VERIFY
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(savedBoundMonitors, hasSize(1));
+    assertThat(savedBoundMonitors, contains(
+        new BoundMonitor()
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setEnvoyId("e-1")
+            .setRenderedContent("domain=prod")
+            .setZoneName("")
+    ));
+
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
+
+  @Test
+  public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_sameContent() {
+    final Monitor monitor = new Monitor()
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setTenantId("t-1")
+        .setLabelSelector(Collections.singletonMap("env", "prod"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("static content");
+    entityManager.persist(monitor);
+
+    entityManager.flush();
+
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setRenderedContent("static content")
+        .setEnvoyId("e-old");
+
+    when(boundMonitorRepository.findAllLocalByTenantResource(any(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
             .setTenantId("t-1")
             .setResourceId("r-1")
             .setReattachedEnvoyId("e-new")
-        );
+    );
 
-        // VERIFY
+    // VERIFY
 
-        verify(boundMonitorRepository).findAllLocalByTenantResource("t-1", "r-1");
+    verify(boundMonitorRepository).findAllLocalByTenantResource("t-1", "r-1");
 
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(savedBoundMonitors, hasSize(1));
-        assertThat(savedBoundMonitors, contains(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId("r-1")
-                .setEnvoyId("e-new")
-                .setRenderedContent("static content")
-                .setZoneName("")
-        ));
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-old")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-new")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi);
-    }
-
-    @Test
-    public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_changedContent() {
-
-        // for this unit test the "new" value of the resource don't really matter as long as
-        // the monitor label selector continues to align
-        final Resource resource = new Resource()
-            .setLabels(Collections.singletonMap("env", "prod"))
-            .setMetadata(Collections.singletonMap("custom", "new"))
-            .setResourceId("r-1")
-            .setTenantId("t-1")
-            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
-        when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
-            .thenReturn(Optional.of(resource));
-
-        ResourceInfo resourceInfo = new ResourceInfo()
-            .setResourceId("r-1")
-            .setEnvoyId("e-not-used"); // for this particular use case
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(CompletableFuture.completedFuture(resourceInfo));
-
-        final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setTenantId("t-1")
-            .setLabelSelector(Collections.singletonMap("env", "prod"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("custom=${resource.metadata.custom}");
-        entityManager.persist(monitor);
-
-        entityManager.flush();
-
-        final BoundMonitor boundMonitor = new BoundMonitor()
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(savedBoundMonitors, hasSize(1));
+    assertThat(savedBoundMonitors, contains(
+        new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
+            .setEnvoyId("e-new")
+            .setRenderedContent("static content")
             .setZoneName("")
-            .setRenderedContent("custom=old")
-            .setEnvoyId("e-old");
+    ));
 
-        when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
-            .thenReturn(Collections.singletonList(monitor.getId()));
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-old")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-new")
+    );
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi);
+  }
 
-        // EXERCISE
+  @Test
+  public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_changedContent() {
 
-        monitorManagement.handleResourceChangeEvent(
-            new ResourceEvent()
+    // for this unit test the "new" value of the resource don't really matter as long as
+    // the monitor label selector continues to align
+    final Resource resource = new Resource()
+        .setLabels(Collections.singletonMap("env", "prod"))
+        .setMetadata(Collections.singletonMap("custom", "new"))
+        .setResourceId("r-1")
+        .setTenantId("t-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
+
+    ResourceInfo resourceInfo = new ResourceInfo()
+        .setResourceId("r-1")
+        .setEnvoyId("e-not-used"); // for this particular use case
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
+
+    final Monitor monitor = new Monitor()
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setTenantId("t-1")
+        .setLabelSelector(Collections.singletonMap("env", "prod"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("custom=${resource.metadata.custom}");
+    entityManager.persist(monitor);
+
+    entityManager.flush();
+
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setRenderedContent("custom=old")
+        .setEnvoyId("e-old");
+
+    when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
+        .thenReturn(Collections.singletonList(monitor.getId()));
+
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
             .setTenantId("t-1")
             .setResourceId("r-1")
             .setLabelsChanged(true)
             .setReattachedEnvoyId("e-new")
-        );
+    );
 
-        // VERIFY
+    // VERIFY
 
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
-        verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(savedBoundMonitors, hasSize(1));
-        assertThat(savedBoundMonitors, contains(
-            new BoundMonitor()
-                .setMonitor(monitor)
-                .setResourceId("r-1")
-                .setEnvoyId("e-new")
-                .setRenderedContent("custom=new")
-                .setZoneName("")
-        ));
-
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-old")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-new")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testhandleResourceEvent_modifiedResource_invalidRendering_existingBindings() {
-
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1", "r-1",
-            // simulate the removal of an 'other' label that is referenced from monitor content
-            Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
-            "domain=${resource.labels.other}",
-            "domain=some old value"
-        );
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(
-            new ResourceEvent()
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setLabelsChanged(true)
-                .setReattachedEnvoyId("e-new")
-        );
-
-        // VERIFY
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
-        final List<BoundMonitor> deletedBoundMonitors = captorOfBoundMonitorList.getValue();
-        assertThat(deletedBoundMonitors, hasSize(1));
-        assertThat(deletedBoundMonitors.get(0).getMonitor().getId(), equalTo(monitor.getId()));
-
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-1")
-        );
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_local() {
-
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1", "r-1",
-            // simulate the removal of an 'other' label that is referenced from monitor content
-            Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.LOCAL,
-            Collections.singletonMap("env", "prod"),
-            "domain=${resource.labels.other}",
-            null
-        );
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(
-            new ResourceEvent()
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setLabelsChanged(true)
-                .setReattachedEnvoyId("e-new")
-        );
-
-        // VERIFY
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        // nothing new bound and no affected envoy events
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_remote() {
-
-        final Monitor monitor = setupTestingOfHandleResourceEvent(
-            "t-1", "r-1",
-            // simulate the removal of an 'other' label that is referenced from monitor content
-            Collections.singletonMap("env", "prod"),
-            ConfigSelectorScope.REMOTE,
-            Collections.singletonMap("env", "prod"),
-            "domain=${resource.labels.other}",
-            null
-        );
-
-        // EXERCISE
-
-        monitorManagement.handleResourceChangeEvent(
-            new ResourceEvent()
-                .setTenantId("t-1")
-                .setResourceId("r-1")
-                .setLabelsChanged(true)
-                .setReattachedEnvoyId("e-new")
-        );
-
-        // VERIFY
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-        verify(envoyResourceManagement).getOne("t-1", "r-1");
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-        verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
-        // nothing new bound and no affected envoy events
-
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
-
-    @Test
-    public void testhandleResourceEvent_removedResource() {
-        when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
-            .thenReturn(Optional.empty());
-
-        final Monitor monitor = new Monitor()
-            .setSelectorScope(ConfigSelectorScope.LOCAL)
-            .setTenantId("t-1")
-            .setLabelSelector(Collections.singletonMap("env", "prod"))
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("domain=${resource.labels.env}");
-        entityManager.persist(monitor);
-        entityManager.flush();
-
-        final BoundMonitor boundMonitor = new BoundMonitor()
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(savedBoundMonitors, hasSize(1));
+    assertThat(savedBoundMonitors, contains(
+        new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
+            .setEnvoyId("e-new")
+            .setRenderedContent("custom=new")
             .setZoneName("")
-            .setRenderedContent("content is ignored")
-            .setEnvoyId("e-1");
+    ));
 
-        when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
-            .thenReturn(Collections.singletonList(monitor.getId()));
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-        when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-old")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-new")
+    );
 
-        when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-            .thenReturn(Collections.singletonList(boundMonitor));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
 
-        // EXERCISE
+  @Test
+  public void testhandleResourceEvent_modifiedResource_invalidRendering_existingBindings() {
 
-        monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1", "r-1",
+        // simulate the removal of an 'other' label that is referenced from monitor content
+        Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.LOCAL, Collections.singletonMap("env", "prod"),
+        "domain=${resource.labels.other}",
+        "domain=some old value"
+    );
+
+    // EXERCISE
+
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
             .setTenantId("t-1")
-            .setResourceId("r-1"));
+            .setResourceId("r-1")
+            .setLabelsChanged(true)
+            .setReattachedEnvoyId("e-new")
+    );
 
-        // VERIFY
+    // VERIFY
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-        verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
+    final List<BoundMonitor> deletedBoundMonitors = captorOfBoundMonitorList.getValue();
+    assertThat(deletedBoundMonitors, hasSize(1));
+    assertThat(deletedBoundMonitors.get(0).getMonitor().getId(), equalTo(monitor.getId()));
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent()
-                .setEnvoyId("e-1")
-        );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+    );
 
-        verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
 
-        verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1",
-            new HashSet<>(Collections.singletonList(monitor.getId()))
-        );
+  @Test
+  public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_local() {
 
-        verify(boundMonitorRepository).deleteAll(
-            Collections.singletonList(boundMonitor)
-        );
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1", "r-1",
+        // simulate the removal of an 'other' label that is referenced from monitor content
+        Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.LOCAL,
+        Collections.singletonMap("env", "prod"),
+        "domain=${resource.labels.other}",
+        null
+    );
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
-    }
+    // EXERCISE
 
-    @Test
-    public void testGetZoneAssignmentCounts() {
-        Map<EnvoyResourcePair, Integer> rawCounts = new HashMap<>();
-        rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
-        rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setLabelsChanged(true)
+            .setReattachedEnvoyId("e-new")
+    );
 
-        when(zoneStorage.getZoneBindingCounts(any()))
-            .thenReturn(CompletableFuture.completedFuture(rawCounts));
+    // VERIFY
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-        // EXECUTE
+    // nothing new bound and no affected envoy events
 
-        final List<ZoneAssignmentCount> counts =
-            monitorManagement.getZoneAssignmentCounts("t-1", "z-1").join();
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
 
-        // VERIFY
+  @Test
+  public void testhandleResourceEvent_modifiedResource_invalidRendering_newBindings_remote() {
 
-        assertThat(counts, hasSize(2));
-        assertThat(counts, containsInAnyOrder(
-            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5),
-            new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6)
+    final Monitor monitor = setupTestingOfHandleResourceEvent(
+        "t-1", "r-1",
+        // simulate the removal of an 'other' label that is referenced from monitor content
+        Collections.singletonMap("env", "prod"),
+        ConfigSelectorScope.REMOTE,
+        Collections.singletonMap("env", "prod"),
+        "domain=${resource.labels.other}",
+        null
+    );
 
-        ));
+    // EXERCISE
 
-        verify(zoneStorage).getZoneBindingCounts(
-            ResolvedZone.createPrivateZone("t-1", "z-1")
-        );
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setLabelsChanged(true)
+            .setReattachedEnvoyId("e-new")
+    );
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi
-        );
-    }
+    // VERIFY
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
-    @Test
-    public void testRebalanceZone_privateZone() {
-        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
-        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
+    // nothing new bound and no affected envoy events
 
-        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
-        // mean=3.25, stddev=1.639
-        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
-        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
-        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
 
-        when(zoneStorage.getZoneBindingCounts(any()))
-            .thenReturn(CompletableFuture.completedFuture(counts));
+  @Test
+  public void testhandleResourceEvent_removedResource() {
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.empty());
 
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(
-                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-            )));
+    final Monitor monitor = new Monitor()
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setTenantId("t-1")
+        .setLabelSelector(Collections.singletonMap("env", "prod"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("domain=${resource.labels.env}");
+    entityManager.persist(monitor);
+    entityManager.flush();
 
-        // only need to return the two within the limit that will get used
-        final List<BoundMonitor> e3bound = Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
-        );
-        when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), eq(PageRequest.of(0,2))))
-            .thenReturn(e3bound);
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setRenderedContent("content is ignored")
+        .setEnvoyId("e-1");
 
-        when(boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(any(), any()))
-            .thenReturn(Arrays.asList(
-                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
-                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
-            ));
+    when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+        .thenReturn(Collections.singletonList(monitor.getId()));
 
-        // EXECUTE
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
 
-        monitorManagement.rebalanceZone("t-1", "z-1").join();
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+        .thenReturn(Collections.singletonList(boundMonitor));
 
-        // VERIFY
+    // EXERCISE
 
-        final ResolvedZone zone = createPrivateZone("t-1", "z-1");
-        verify(zoneStorage).getZoneBindingCounts(zone);
+    monitorManagement.handleResourceChangeEvent(new ResourceEvent()
+        .setTenantId("t-1")
+        .setResourceId("r-1"));
 
-        verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
-            "t-1", "z-1", "e-3", PageRequest.of(0, 2));
+    // VERIFY
 
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent()
+            .setEnvoyId("e-1")
+    );
+
+    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1",
+        new HashSet<>(Collections.singletonList(monitor.getId()))
+    );
+
+    verify(boundMonitorRepository).deleteAll(
+        Collections.singletonList(boundMonitor)
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+  }
+
+  @Test
+  public void testGetZoneAssignmentCounts() {
+    Map<EnvoyResourcePair, Integer> rawCounts = new HashMap<>();
+    rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
+    rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
+
+    when(zoneStorage.getZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(rawCounts));
+
+    // EXECUTE
+
+    final List<ZoneAssignmentCount> counts =
+        monitorManagement.getZoneAssignmentCounts("t-1", "z-1").join();
+
+    // VERIFY
+
+    assertThat(counts, hasSize(2));
+    assertThat(counts, containsInAnyOrder(
+        new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5),
+        new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6)
+
+    ));
+
+    verify(zoneStorage).getZoneBindingCounts(
+        ResolvedZone.createPrivateZone("t-1", "z-1")
+    );
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi
+    );
+  }
+
+  @Test
+  public void testRebalanceZone_privateZone() {
+    monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+    monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
+
+    Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+    // mean=3.25, stddev=1.639
+    counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+    counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+    counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+
+    when(zoneStorage.getZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(counts));
+
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+            new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+        )));
+
+    // only need to return the two within the limit that will get used
+    final List<BoundMonitor> e3bound = Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+    );
+    when(boundMonitorRepository.findWithEnvoyInPrivateZone(any(), any(), any(), eq(PageRequest.of(0,2))))
+        .thenReturn(e3bound);
+
+    when(boundMonitorRepository.findAllWithoutEnvoyInPrivateZone(any(), any()))
+        .thenReturn(Arrays.asList(
             new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
             new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
         ));
 
-        verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
+    // EXECUTE
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-3")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-least")
-        );
+    monitorManagement.rebalanceZone("t-1", "z-1").join();
 
-        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
+    // VERIFY
 
-        verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
-        verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+    final ResolvedZone zone = createPrivateZone("t-1", "z-1");
+    verify(zoneStorage).getZoneBindingCounts(zone);
 
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
-        ));
+    verify(boundMonitorRepository).findWithEnvoyInPrivateZone(
+        "t-1", "z-1", "e-3", PageRequest.of(0, 2));
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi
-        );
-    }
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+    ));
 
-    @Test
-    public void testRebalanceZone_publicZone() {
-        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
-        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
 
-        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
-        // mean=3.25, stddev=1.639
-        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
-        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
-        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-least")
+    );
 
-        when(zoneStorage.getZoneBindingCounts(any()))
-            .thenReturn(CompletableFuture.completedFuture(counts));
+    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
 
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(
-                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-            )));
+    verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
+    verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
 
-        // only need to return the two within the limit that will get used
-        final List<BoundMonitor> e3bound = Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
-        );
-        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,2))))
-            .thenReturn(e3bound);
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
+    ));
 
-        when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
-            .thenReturn(Arrays.asList(
-                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
-                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
-            ));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi
+    );
+  }
 
-        // EXECUTE
+  @Test
+  public void testRebalanceZone_publicZone() {
+    monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+    monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(false);
 
-        final Integer reassigned =
-            monitorManagement.rebalanceZone(null, "public/west").join();
+    Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+    // mean=3.25, stddev=1.639
+    counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+    counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+    counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
 
-        // VERIFY
+    when(zoneStorage.getZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(counts));
 
-        assertThat(reassigned, equalTo(2));
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+            new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+        )));
 
-        final ResolvedZone zone = createPublicZone("public/west");
-        verify(zoneStorage).getZoneBindingCounts(zone);
+    // only need to return the two within the limit that will get used
+    final List<BoundMonitor> e3bound = Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+    );
+    when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,2))))
+        .thenReturn(e3bound);
 
-        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
-            "public/west", "e-3", PageRequest.of(0, 2));
-
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+    when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
+        .thenReturn(Arrays.asList(
             new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
             new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
         ));
 
-        verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+    // EXECUTE
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-3")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-least")
-        );
+    final Integer reassigned =
+        monitorManagement.rebalanceZone(null, "public/west").join();
 
-        verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
+    // VERIFY
 
-        verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
-        verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+    assertThat(reassigned, equalTo(2));
 
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
-        ));
+    final ResolvedZone zone = createPublicZone("public/west");
+    verify(zoneStorage).getZoneBindingCounts(zone);
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi
-        );
-    }
+    verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+        "public/west", "e-3", PageRequest.of(0, 2));
 
-    @Test
-    public void testRebalanceZone_includeZeroes() {
-        monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
-        // INCLUDE zero-count assignments
-        monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(true);
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setMonitor(e3bound.get(1).getMonitor())
+    ));
 
-        Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
-        // mean=2.6 stddev=1.9595
-        counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
-        counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
-        counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
-        counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
 
-        when(zoneStorage.getZoneBindingCounts(any()))
-            .thenReturn(CompletableFuture.completedFuture(counts));
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-least")
+    );
 
-        when(zoneStorage.findLeastLoadedEnvoy(any()))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(
-                new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-            )));
+    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
 
-        // with zeroes included the average skewed lower and it should compute three to reassign
-        final List<BoundMonitor> e3bound = Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
-            new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
-        );
-        when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,3))))
-            .thenReturn(e3bound);
+    verify(zoneStorage).changeBoundCount(zone, "r-3", -2);
+    verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
 
-        when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
-            .thenReturn(Arrays.asList(
-                new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
-                new BoundMonitor().setMonitor(e3bound.get(1).getMonitor()),
-                new BoundMonitor().setMonitor(e3bound.get(2).getMonitor())
-            ));
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor())
+    ));
 
-        // EXECUTE
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi
+    );
+  }
 
-        final Integer reassigned =
-            monitorManagement.rebalanceZone(null, "public/west").join();
+  @Test
+  public void testRebalanceZone_includeZeroes() {
+    monitorManagement.getZonesProperties().setRebalanceStandardDeviations(1);
+    // INCLUDE zero-count assignments
+    monitorManagement.getZonesProperties().setRebalanceEvaluateZeroes(true);
 
-        // VERIFY
+    Map<EnvoyResourcePair, Integer> counts = new HashMap<>();
+    // mean=2.6 stddev=1.9595
+    counts.put(new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least"), 0);
+    counts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 2);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 3);
+    counts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 6);
+    counts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-4"), 2);
 
-        assertThat(reassigned, equalTo(3));
+    when(zoneStorage.getZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(counts));
 
-        final ResolvedZone zone = createPublicZone("public/west");
-        verify(zoneStorage).getZoneBindingCounts(zone);
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+            new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
+        )));
 
-        verify(boundMonitorRepository).findWithEnvoyInPublicZone(
-            "public/west", "e-3", PageRequest.of(0, 3));
+    // with zeroes included the average skewed lower and it should compute three to reassign
+    final List<BoundMonitor> e3bound = Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1")),
+        new BoundMonitor().setEnvoyId("e-3").setMonitor(persistNewMonitor("t-1"))
+    );
+    when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), eq(PageRequest.of(0,3))))
+        .thenReturn(e3bound);
 
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
+    when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(any()))
+        .thenReturn(Arrays.asList(
             new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
             new BoundMonitor().setMonitor(e3bound.get(1).getMonitor()),
             new BoundMonitor().setMonitor(e3bound.get(2).getMonitor())
         ));
 
-        verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+    // EXECUTE
 
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-3")
-        );
-        verify(monitorEventProducer).sendMonitorEvent(
-            new MonitorBoundEvent().setEnvoyId("e-least")
-        );
+    final Integer reassigned =
+        monitorManagement.rebalanceZone(null, "public/west").join();
 
-        verify(zoneStorage, times(3)).findLeastLoadedEnvoy(zone);
+    // VERIFY
 
-        verify(zoneStorage).changeBoundCount(zone, "r-3", -3);
-        verify(zoneStorage, times(3)).incrementBoundCount(zone, "r-least");
+    assertThat(reassigned, equalTo(3));
 
-        verify(boundMonitorRepository).saveAll(Arrays.asList(
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor()),
-            new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(2).getMonitor())
+    final ResolvedZone zone = createPublicZone("public/west");
+    verify(zoneStorage).getZoneBindingCounts(zone);
+
+    verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+        "public/west", "e-3", PageRequest.of(0, 3));
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setMonitor(e3bound.get(1).getMonitor()),
+        new BoundMonitor().setMonitor(e3bound.get(2).getMonitor())
+    ));
+
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/west");
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-least")
+    );
+
+    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(zone);
+
+    verify(zoneStorage).changeBoundCount(zone, "r-3", -3);
+    verify(zoneStorage, times(3)).incrementBoundCount(zone, "r-least");
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(0).getMonitor()),
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(1).getMonitor()),
+        new BoundMonitor().setEnvoyId("e-least").setMonitor(e3bound.get(2).getMonitor())
+    ));
+
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi
+    );
+  }
+
+  @Test
+  public void testRebalanceZone_emptyZone() {
+    when(zoneStorage.getZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(
+            Collections.emptyMap()
         ));
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi
-        );
-    }
+    // EXECUTE
 
-    @Test
-    public void testRebalanceZone_emptyZone() {
-        when(zoneStorage.getZoneBindingCounts(any()))
-            .thenReturn(CompletableFuture.completedFuture(
-                Collections.emptyMap()
-            ));
+    final Integer reassigned =
+        monitorManagement.rebalanceZone("t-1", "z-1").join();
 
-        // EXECUTE
+    // VERIFY
 
-        final Integer reassigned =
-            monitorManagement.rebalanceZone("t-1", "z-1").join();
+    assertThat(reassigned, equalTo(0));
 
-        // VERIFY
+    verify(zoneStorage).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
 
-        assertThat(reassigned, equalTo(0));
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi
+    );
+  }
 
-        verify(zoneStorage).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
+  @Test
+  public void testGetTenantMonitorLabelSelectors() {
+    Map<String, String> labels1 = new HashMap<>();
+    labels1.put("key1", "value-1-1");
+    labels1.put("key2", "value-2-1");
+    labels1.put("key3", "value-3-1");
+    persistNewMonitor("t-1", labels1);
 
-        verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-            zoneStorage, monitorEventProducer, resourceApi
-        );
-    }
+    Map<String, String> labels2 = new HashMap<>();
+    labels2.put("key1", "value-1-1");
+    labels2.put("key2", "value-2-2");
+    labels2.put("key3", "value-3-2");
+    persistNewMonitor("t-1", labels2);
 
-    @Test
-    public void testGetTenantMonitorLabelSelectors() {
-        Map<String, String> labels1 = new HashMap<>();
-        labels1.put("key1", "value-1-1");
-        labels1.put("key2", "value-2-1");
-        labels1.put("key3", "value-3-1");
-        persistNewMonitor("t-1", labels1);
+    Map<String, String> labels3 = new HashMap<>();
+    labels3.put("key1", "value-1-2");
+    labels3.put("key2", "value-2-2");
+    labels3.put("key3", "value-3-2");
+    persistNewMonitor("t-1", labels3);
 
-        Map<String, String> labels2 = new HashMap<>();
-        labels2.put("key1", "value-1-1");
-        labels2.put("key2", "value-2-2");
-        labels2.put("key3", "value-3-2");
-        persistNewMonitor("t-1", labels2);
+    Map<String, String> labels4 = new HashMap<>();
+    labels4.put("key1", "value-1-x");
+    labels4.put("key2", "value-2-x");
+    labels4.put("key3", "value-3-x");
+    persistNewMonitor("t-2", labels4);
 
-        Map<String, String> labels3 = new HashMap<>();
-        labels3.put("key1", "value-1-2");
-        labels3.put("key2", "value-2-2");
-        labels3.put("key3", "value-3-2");
-        persistNewMonitor("t-1", labels3);
+    final MultiValueMap<String, String> results = monitorManagement
+        .getTenantMonitorLabelSelectors("t-1");
 
-        Map<String, String> labels4 = new HashMap<>();
-        labels4.put("key1", "value-1-x");
-        labels4.put("key2", "value-2-x");
-        labels4.put("key3", "value-3-x");
-        persistNewMonitor("t-2", labels4);
-
-        final MultiValueMap<String, String> results = monitorManagement
-            .getTenantMonitorLabelSelectors("t-1");
-
-        final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
-        expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
-        expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
-        expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
-        assertThat(results, equalTo(expected));
-    }
+    final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
+    expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
+    expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
+    expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
+    assertThat(results, equalTo(expected));
+  }
 }

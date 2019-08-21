@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,8 @@ public class MonitorDTO {
   String monitorName;
 
   Map<String,String> labelSelector;
+
+  LabelSelectorMethod labelSelectorMethod;
 
   String tenantId;
 
@@ -55,6 +58,7 @@ public class MonitorDTO {
     this.id = monitor.getId();
     this.monitorName = monitor.getMonitorName();
     this.labelSelector = monitor.getLabelSelector();
+    this.labelSelectorMethod = monitor.getLabelSelectorMethod();
     this.resourceId = monitor.getResourceId();
     this.tenantId = monitor.getMonitorName();
     this.content = monitor.getContent();
