@@ -17,6 +17,8 @@
 package com.rackspace.salus.monitor_management.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.policy.manage.web.client.PolicyApiClient;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApiClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,14 @@ public class RestClientsConfig {
     return new ResourceApiClient(objectMapper,
         restTemplateBuilder.rootUri(servicesProperties.getResourceManagementUrl())
         .build()
+    );
+  }
+
+  @Bean
+  public PolicyApi policyAPi(RestTemplateBuilder restTemplateBuilder) {
+    return new PolicyApiClient(
+        restTemplateBuilder.rootUri(servicesProperties.getPolicyManagementUrl())
+            .build()
     );
   }
 }

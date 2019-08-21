@@ -1,0 +1,16 @@
+{
+  "errors": [
+    "error-1"
+  ],
+  "metrics": [
+    {
+      "name": "cpu",
+      "tags": {
+        "cpu": "cpu1"
+      },
+      "fvalues": {
+        "usage": 1.45
+      }
+    }
+  ]
+}

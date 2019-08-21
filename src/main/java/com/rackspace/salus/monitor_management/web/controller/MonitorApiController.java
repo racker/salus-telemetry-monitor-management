@@ -101,12 +101,79 @@ public class MonitorApiController {
                         uuid, tenantId)));
         return monitorConversionService.convertToOutput(monitor);
     }
+
+    @GetMapping("/tenant/{tenantId}/policy-monitors")
+    @ApiOperation(value = "Gets all Policy Monitors for Tenant")
+    @JsonView(View.Public.class)
+    public PagedContent<DetailedMonitorOutput> getAllPolicyMonitorsForTenant(
+        @PathVariable String tenantId, Pageable pageable)
+        throws NotFoundException {
+
+        return PagedContent.fromPage(monitorManagement.getAllPolicyMonitorsForTenant(tenantId, pageable)
+            .map(monitorConversionService::convertToOutput));
+    }
+
+    @GetMapping("/tenant/{tenantId}/policy-monitors/{uuid}")
+    @ApiOperation(value = "Gets specific Policy Monitor for Tenant")
+    @JsonView(View.Public.class)
+    public DetailedMonitorOutput getPolicyMonitorForTenant(
+        @PathVariable String tenantId, @PathVariable UUID uuid)
+        throws NotFoundException {
+        Monitor monitor = monitorManagement.getPolicyMonitorForTenant(tenantId, uuid);
+        return monitorConversionService.convertToOutput(monitor);
+    }
+
+    @GetMapping("/admin/policy-monitors")
+    @ApiOperation(value = "Gets all Policy Monitors")
+    @JsonView(View.Admin.class)
+    public PagedContent<DetailedMonitorOutput> getAllPolicyMonitors(Pageable pageable) {
+        return PagedContent.fromPage(monitorManagement.getAllPolicyMonitors(pageable)
+            .map(monitorConversionService::convertToOutput));
+    }
+
     @GetMapping("/admin/policy-monitors/{uuid}")
+    @ApiOperation(value = "Get specific Policy Monitor by Id")
+    @JsonView(View.Admin.class)
     public DetailedMonitorOutput getPolicyMonitorById(@PathVariable UUID uuid) throws NotFoundException {
         Monitor monitor =  monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
             new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
 
         return monitorConversionService.convertToOutput(monitor);
+    }
+
+    @PutMapping("/admin/policy-monitors/{uuid}")
+    @ApiOperation(value = "Updates specific Policy Monitor")
+    @JsonView(View.Admin.class)
+    public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
+        @Validated @RequestBody final DetailedMonitorInput input) throws IllegalArgumentException {
+
+        return monitorConversionService.convertToOutput(
+            monitorManagement.updatePolicyMonitor(
+                uuid,
+                monitorConversionService.convertFromInput(input)));
+    }
+
+    @PostMapping("/admin/policy-monitors")
+    @ResponseStatus(HttpStatus.CREATED)
+    @ApiOperation(value = "Creates new Policy Monitor")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Policy Monitor")})
+    @JsonView(View.Admin.class)
+    public DetailedMonitorOutput createPolicyMonitor(
+        @Validated(ValidationGroups.Create.class)
+        @RequestBody final DetailedMonitorInput input)
+        throws IllegalArgumentException {
+        return monitorConversionService.convertToOutput(
+            monitorManagement.createPolicyMonitor(
+                monitorConversionService.convertFromInput(input)));
+    }
+
+    @DeleteMapping("/admin/policy-monitors/{uuid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiOperation(value = "Deletes specific Policy Monitor")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Policy Monitor Deleted")})
+    @JsonView(View.Admin.class)
+    public void deletePolicyMonitor(@PathVariable UUID uuid) {
+        monitorManagement.removePolicyMonitor(uuid);
     }
 
     @GetMapping("/tenant/{tenantId}/bound-monitors")

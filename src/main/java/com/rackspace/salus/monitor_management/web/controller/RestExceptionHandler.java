@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +50,8 @@ public class RestExceptionHandler extends
     return respondWith(request, HttpStatus.NOT_FOUND);
   }
 
-  @ExceptionHandler({AlreadyExistsException.class})
-  public ResponseEntity<?> handleAlreadyExists(
+  @ExceptionHandler({AlreadyExistsException.class, MissingRequirementException.class})
+  public ResponseEntity<?> handleUnprocessable(
       HttpServletRequest request) {
     return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
   }

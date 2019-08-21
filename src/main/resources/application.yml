@@ -1,5 +1,7 @@
 salus:
   environment: local
+  test-monitor:
+    results-timeout: 60s
 spring:
   kafka:
     producer:
@@ -25,3 +27,7 @@ management:
         uri: ${salus.metrics.influx.uri:http://localhost:8086}
         db: salus
         enabled: ${salus.metrics.influx.enabled:false}
+  mvc:
+    async:
+      # async request timeout should be set to some duration larger than salus.test-monitor.results-timeout
+      request-timeout: 70s
