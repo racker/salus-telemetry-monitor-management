@@ -18,6 +18,7 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.util.Map;
 
 import io.swagger.annotations.ApiModelProperty;
@@ -28,6 +29,7 @@ public class DetailedMonitorOutput {
     String id;
     String name;
     Map<String,String> labelSelector;
+    LabelSelectorMethod labelSelectorMethod;
     String resourceId;
     @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;

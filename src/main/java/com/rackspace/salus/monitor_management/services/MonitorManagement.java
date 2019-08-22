@@ -261,11 +261,14 @@ public class MonitorManagement {
         .setTenantId(POLICY_TENANT)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
-        .setLabelSelectorMethod(newMonitor.getLabelSelectorMethod())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
+
+    if (newMonitor.getLabelSelectorMethod() != null) {
+      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
+    }
 
     monitor = monitorRepository.save(monitor);
     return monitor;
