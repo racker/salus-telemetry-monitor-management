@@ -1607,7 +1607,6 @@ public class MonitorManagement {
           }
           else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
             return m.getLabelSelector().entrySet().stream().anyMatch(labels -> {
-              log.info("Testing if {} is in the resource: {}", labels,resource.getLabels().entrySet().contains(labels));
               return resource.getLabels().entrySet().contains(labels);
             });
           } else {
