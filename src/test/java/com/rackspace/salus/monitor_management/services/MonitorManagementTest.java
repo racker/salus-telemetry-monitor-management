@@ -677,13 +677,13 @@ public class MonitorManagementTest {
 
     final ResourceDTO windowsResource = new ResourceDTO()
         .setLabels(Map.of("os", "windows", "env", "dev"))
-        .setResourceId("r-1")
+        .setResourceId("r-windows")
         .setAssociatedWithEnvoy(true)
         .setTenantId("t-1");
 
     final ResourceDTO linuxResource = new ResourceDTO()
         .setLabels(labels)
-        .setResourceId("r-2")
+        .setResourceId("r-linux")
         .setAssociatedWithEnvoy(true)
         .setTenantId("t-1");
 
@@ -702,15 +702,15 @@ public class MonitorManagementTest {
         .thenReturn(List.of(linuxResource, windowsResource));
 
     // An envoy will have to be found for the windows resource when method is changed to OR
-    when(envoyResourceManagement.getOne("t-1", "r-1"))
+    when(envoyResourceManagement.getOne("t-1", "r-windows"))
         .thenReturn(
             CompletableFuture.completedFuture(
-                new ResourceInfo().setResourceId("r-1").setEnvoyId("e-1")
+                new ResourceInfo().setResourceId("r-windows").setEnvoyId("e-1")
             )
         );
 
     when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
-        .thenReturn(Set.of("r-2"));
+        .thenReturn(Set.of("r-linux"));
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), anyString()))
         .thenReturn(Collections.emptyList());
 
@@ -737,15 +737,15 @@ public class MonitorManagementTest {
         new BoundMonitor()
             .setMonitor(monitor)
             .setTenantId("t-1")
-            .setResourceId("r-1")
+            .setResourceId("r-windows")
             .setEnvoyId("e-1")
             .setZoneName("")
             .setRenderedContent("{}")
     ));
-    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-windows");
 
     verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement).getOne("t-1", "r-windows");
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-1")
     );

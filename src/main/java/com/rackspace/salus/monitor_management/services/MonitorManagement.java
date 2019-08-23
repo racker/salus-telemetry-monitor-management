@@ -593,11 +593,7 @@ public class MonitorManagement {
       );
 
       // Finally, update the monitors labels
-      if (labelSelectorChanged) {
-        monitor.setLabelSelector(new HashMap<>(updatedValues.getLabelSelector()));
-      } else {
-        monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
-      }
+      monitor.setLabelSelector(new HashMap<>(labels));
     }
     else if (monitor.getLabelSelector() != null) {
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
