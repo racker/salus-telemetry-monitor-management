@@ -37,6 +37,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
@@ -86,6 +87,7 @@ public class MonitorConversionServiceTest {
         .setAgentType(AgentType.TELEGRAF)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
         .setContent(content)
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
@@ -204,6 +206,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getId()).isEqualTo(monitorId.toString());
     assertThat(result.getName()).isEqualTo("name-a");
     assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(LabelSelectorMethod.AND);
     assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
 
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
@@ -230,11 +233,13 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setName("name-a")
         .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(LabelSelectorMethod.OR);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
@@ -534,5 +539,24 @@ public class MonitorConversionServiceTest {
     assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
   }
 
+  @Test
+  public void testConvertTo_LabelSelectorMethod() {
+    final UUID monitorId = UUID.randomUUID();
 
+    Monitor monitor = new Monitor()
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setId(monitorId)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(monitor.getLabelSelectorMethod());
+  }
+
+  @Test
+  public void testConvertFrom_LabelSelectorMethod() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setLabelSelectorMethod(LabelSelectorMethod.OR);
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(input.getLabelSelectorMethod());
+  }
 }

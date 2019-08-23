@@ -49,6 +49,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
@@ -267,6 +268,7 @@ public class MonitorApiControllerTest {
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
     monitor.setContent("{\"type\":\"mem\"}");
+    monitor.setLabelSelectorMethod(LabelSelectorMethod.OR);
     when(monitorManagement.createMonitor(anyString(), any()))
         .thenReturn(monitor);
 

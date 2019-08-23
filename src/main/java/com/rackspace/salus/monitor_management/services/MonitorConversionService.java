@@ -54,6 +54,7 @@ public class MonitorConversionService {
         .setId(monitor.getId().toString())
         .setName(monitor.getMonitorName())
         .setLabelSelector(monitor.getLabelSelector())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
         .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
@@ -104,6 +105,7 @@ public class MonitorConversionService {
     final MonitorCU monitor = new MonitorCU()
         .setMonitorName(input.getName())
         .setLabelSelector(input.getLabelSelector())
+        .setLabelSelectorMethod(input.getLabelSelectorMethod())
         .setResourceId(input.getResourceId());
 
     final MonitorDetails details = input.getDetails();

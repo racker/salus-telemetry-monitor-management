@@ -32,15 +32,13 @@ import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
-import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -230,6 +228,7 @@ public class MonitorManagement {
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
+        .setLabelSelectorMethod(newMonitor.getLabelSelectorMethod())
         .setResourceId(newMonitor.getResourceId())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
@@ -253,6 +252,11 @@ public class MonitorManagement {
 
     validateMonitoringZones(POLICY_TENANT, null, newMonitor);
 
+    if (!StringUtils.isBlank(newMonitor.getResourceId())) {
+      throw new IllegalArgumentException(
+          "Policy Monitors must use label selectors and not a resourceId");
+    }
+
     Monitor monitor = new Monitor()
         .setTenantId(POLICY_TENANT)
         .setMonitorName(newMonitor.getMonitorName())
@@ -261,6 +265,10 @@ public class MonitorManagement {
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
+
+    if (newMonitor.getLabelSelectorMethod() != null) {
+      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
+    }
 
     monitor = monitorRepository.save(monitor);
     return monitor;
@@ -561,16 +569,31 @@ public class MonitorManagement {
       monitor.setResourceId(updatedValues.getResourceId());
     }
 
-    if (updatedValues.getLabelSelector() != null &&
-        !updatedValues.getLabelSelector().equals(monitor.getLabelSelector())) {
+    boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues);
+    boolean methodChanged = labelSelectorMethodChanged(monitor, updatedValues);
+    if (labelSelectorChanged || methodChanged) {
       // Process potential changes to resource selection and therefore bindings
       // ...only need to process removed and new bindings
 
+      // Set the new label selector
+      if (methodChanged) {
+        monitor.setLabelSelectorMethod(updatedValues.getLabelSelectorMethod());
+      }
+
+      // Determine what the newest labels are
+      Map<String, String> labels;
+      if (labelSelectorChanged) {
+        labels = updatedValues.getLabelSelector();
+      } else {
+        labels = monitor.getLabelSelector();
+      }
+
       affectedEnvoys.addAll(
-          processMonitorLabelSelectorModified(tenantId, monitor, updatedValues.getLabelSelector())
+          processMonitorLabelSelectorModified(tenantId, monitor, labels)
       );
 
-      monitor.setLabelSelector(updatedValues.getLabelSelector());
+      // Finally, update the monitors labels
+      monitor.setLabelSelector(new HashMap<>(labels));
     }
     else if (monitor.getLabelSelector() != null) {
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
@@ -629,6 +652,11 @@ public class MonitorManagement {
    * @return The newly updated monitor.
    */
   public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues) {
+    if (!StringUtils.isBlank(updatedValues.getResourceId())) {
+      throw new IllegalArgumentException(
+          "Policy Monitors must use label selectors and not a resourceId");
+    }
+
     Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
         new NotFoundException(String.format("No policy monitor found for %s", id)));
 
@@ -643,6 +671,9 @@ public class MonitorManagement {
     map.from(updatedValues.getContent())
         .whenNonNull()
         .to(monitor::setContent);
+    map.from(updatedValues.getLabelSelectorMethod())
+        .whenNonNull()
+        .to(monitor::setLabelSelectorMethod);
 
     // PropertyMapper cannot efficiently handle these two fields.
     if (updatedValues.getLabelSelector() != null &&
@@ -716,6 +747,16 @@ public class MonitorManagement {
     return updatedZones != null &&
         ( updatedZones.size() != prevZones.size() ||
             !updatedZones.containsAll(prevZones));
+  }
+
+  private static boolean labelSelectorChanged(Monitor original, MonitorCU newValues) {
+    return newValues.getLabelSelector() != null &&
+        !newValues.getLabelSelector().equals(original.getLabelSelector());
+  }
+
+  private static boolean labelSelectorMethodChanged(Monitor original, MonitorCU newValues) {
+    return newValues.getLabelSelectorMethod() != null &&
+        !newValues.getLabelSelectorMethod().equals(original.getLabelSelectorMethod());
   }
 
   /**
@@ -1549,13 +1590,25 @@ public class MonitorManagement {
    * @param resource The resource to get the policy monitors for.
    * @return A list of monitors.
    */
-  private List<Monitor> getPolicyMonitorsForResource(Resource resource) {
+  List<Monitor> getPolicyMonitorsForResource(Resource resource) {
     String tenantId = resource.getTenantId();
     List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
 
     List<Monitor> resourcePolicies = monitorRepository.findByIdIn(policyMonitorIds)
         .stream()
-        .filter(m -> resource.getLabels().entrySet().containsAll(m.getLabelSelector().entrySet()))
+        .filter(m -> {
+          if (m.getLabelSelector().isEmpty()) {
+            // If no labels are set the monitor applies to all resources
+            return true;
+          }
+          else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
+            return m.getLabelSelector().entrySet().stream().anyMatch(labels -> {
+              return resource.getLabels().entrySet().contains(labels);
+            });
+          } else {
+            return resource.getLabels().entrySet().containsAll(m.getLabelSelector().entrySet());
+          }
+        })
         .collect(Collectors.toList());
 
     log.info("Found {} monitor policies for resource={} from {} total policies for tenant={}",
