@@ -60,7 +60,7 @@ public class MonitorDTO {
     this.labelSelector = monitor.getLabelSelector();
     this.labelSelectorMethod = monitor.getLabelSelectorMethod();
     this.resourceId = monitor.getResourceId();
-    this.tenantId = monitor.getMonitorName();
+    this.tenantId = monitor.getTenantId();
     this.content = monitor.getContent();
     this.agentType = monitor.getAgentType();
     this.selectorScope = monitor.getSelectorScope();
