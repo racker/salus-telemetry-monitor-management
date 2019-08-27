@@ -33,6 +33,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -85,6 +86,7 @@ public class TestMonitorService {
 
   public CompletableFuture<TestMonitorOutput> performTestMonitorOnResource(String tenantId,
                                                                            String resourceId,
+                                                                           Long timeout,
                                                                            MonitorDetails details) {
 
     final boolean isRemote = details instanceof RemoteMonitorDetails;
@@ -112,7 +114,7 @@ public class TestMonitorService {
     final String envoyId;
     if (isRemote) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
-      envoyId = resolveRemoteEnvoy(tenantId, resourceId, remoteMonitorDetails.getMonitoringZones());
+      envoyId = resolveRemoteEnvoy(tenantId, remoteMonitorDetails.getMonitoringZones());
     } else {
       envoyId = resolveLocalEnvoy(tenantId, resourceId);
     }
@@ -126,8 +128,17 @@ public class TestMonitorService {
       throw new IllegalArgumentException("Failed to render monitor configuration content", e);
     }
 
+    if (timeout == null) {
+      timeout = testMonitorProperties.getDefaultTimeout().toSeconds();
+    }
+    event.setTimeout(timeout);
     final CompletableFuture<TestMonitorOutput> future = new CompletableFuture<TestMonitorOutput>()
-        .orTimeout(testMonitorProperties.getResultsTimeout().toMillis(), TimeUnit.MILLISECONDS);
+        .orTimeout(
+            testMonitorProperties.getEndToEndTimeoutExtension()
+                .plus(timeout, ChronoUnit.SECONDS)
+                .toMillis(),
+            TimeUnit.MILLISECONDS
+        );
 
     pending.put(correlationId, future);
 
@@ -153,7 +164,7 @@ public class TestMonitorService {
     return interceptedFuture;
   }
 
-  private String resolveRemoteEnvoy(String tenantId, String resourceId,
+  private String resolveRemoteEnvoy(String tenantId,
                                     List<String> monitoringZones) {
     final List<String> resolvedZones = monitorManagement
         .determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
@@ -235,7 +246,7 @@ public class TestMonitorService {
         .setErrors(
             List.of(String.format(
                 "Test-monitor did not receive results within the expected duration of %ds",
-                testMonitorProperties.getResultsTimeout().getSeconds()
+                testMonitorProperties.getEndToEndTimeoutExtension().getSeconds()
             ))
         );
   }

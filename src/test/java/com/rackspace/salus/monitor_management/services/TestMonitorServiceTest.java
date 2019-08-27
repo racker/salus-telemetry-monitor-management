@@ -72,7 +72,8 @@ import org.springframework.test.context.junit4.SpringRunner;
 @Profile("less-logging")
 public class TestMonitorServiceTest {
 
-  private static Duration resultsTimeout = Duration.ofMillis(500);
+  private static final long DEFAULT_TIMEOUT = 2;
+  private static final Duration resultsTimeout = Duration.ofMillis(500);
 
   @Configuration
   @Import({TestMonitorService.class})
@@ -81,7 +82,8 @@ public class TestMonitorServiceTest {
     @Bean
     public TestMonitorProperties testMonitorProperties() {
       final TestMonitorProperties properties = new TestMonitorProperties();
-      properties.setResultsTimeout(resultsTimeout);
+      properties.setDefaultTimeout(Duration.ofSeconds(DEFAULT_TIMEOUT));
+      properties.setEndToEndTimeoutExtension(resultsTimeout);
       return properties;
     }
   }
@@ -142,7 +144,7 @@ public class TestMonitorServiceTest {
     MonitorDetails monitorDetails = new LocalMonitorDetails()
         .setPlugin(new Cpu());
     final CompletableFuture<TestMonitorOutput> future = testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", monitorDetails);
+        .performTestMonitorOnResource("t-1", "r-1", 3L, monitorDetails);
 
     // VERIFY
 
@@ -152,6 +154,7 @@ public class TestMonitorServiceTest {
     assertThat(reqEventCaptor.getValue().getRenderedContent()).isEqualTo("rendered-1");
     assertThat(reqEventCaptor.getValue().getResourceId()).isEqualTo("r-1");
     assertThat(reqEventCaptor.getValue().getTenantId()).isEqualTo("t-1");
+    assertThat(reqEventCaptor.getValue().getTimeout()).isEqualTo(3L);
 
     // exercise result processing
 
@@ -224,7 +227,7 @@ public class TestMonitorServiceTest {
 
     assertThatThrownBy(() ->
         testMonitorService
-            .performTestMonitorOnResource("t-1", "r-1", monitorDetails))
+            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails))
         .isInstanceOf(MissingRequirementException.class)
         .hasMessage("Unable to locate the resource for the test-monitor");
 
@@ -275,7 +278,7 @@ public class TestMonitorServiceTest {
     MonitorDetails monitorDetails = new LocalMonitorDetails()
         .setPlugin(new Cpu());
     final CompletableFuture<TestMonitorOutput> future = testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", monitorDetails);
+        .performTestMonitorOnResource("t-1", "r-1", 1L, monitorDetails);
 
     // VERIFY
 
@@ -285,6 +288,7 @@ public class TestMonitorServiceTest {
     assertThat(reqEventCaptor.getValue().getRenderedContent()).isEqualTo("rendered-1");
     assertThat(reqEventCaptor.getValue().getResourceId()).isEqualTo("r-1");
     assertThat(reqEventCaptor.getValue().getTenantId()).isEqualTo("t-1");
+    assertThat(reqEventCaptor.getValue().getTimeout()).isEqualTo(1L);
     final String correlationId = reqEventCaptor.getValue().getCorrelationId();
     assertThat(correlationId).isNotBlank();
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isTrue();
@@ -293,7 +297,7 @@ public class TestMonitorServiceTest {
 
     // ...but timeout gets re-mapped by the service to an output object with error set
     final TestMonitorOutput testMonitorOutput = future
-        .get(resultsTimeout.toMillis() + 100, TimeUnit.MILLISECONDS);
+        .get(resultsTimeout.toMillis() + 1100, TimeUnit.MILLISECONDS);
 
     assertThat(testMonitorOutput).isNotNull();
     assertThat(testMonitorOutput.getMetrics()).isNull();
@@ -327,11 +331,24 @@ public class TestMonitorServiceTest {
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_remote_normal()
+  public void testPerformTestMonitorOnResource_remote_normal_explicitTimeout()
       throws InvalidTemplateException, ExecutionException, InterruptedException {
     final List<String> monitoringZones = List.of("z-1");
-    final String envoyId = "e-1";
 
+    commonPerformTestMonitorOnResource_remote_normal(monitoringZones, 7L, 7L);
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_normal_defaultTimeout()
+      throws InvalidTemplateException, ExecutionException, InterruptedException {
+    final List<String> monitoringZones = List.of("z-1");
+
+    commonPerformTestMonitorOnResource_remote_normal(monitoringZones, null, DEFAULT_TIMEOUT);
+  }
+
+  private void commonPerformTestMonitorOnResource_remote_normal(List<String> monitoringZones,
+                                                                Long timeout, Long expectedTimeout)
+      throws InvalidTemplateException, InterruptedException, ExecutionException {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
@@ -351,7 +368,7 @@ public class TestMonitorServiceTest {
         .then(invocationOnMock -> invocationOnMock.getArgument(1));
 
     when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
-        .thenReturn(envoyId);
+        .thenReturn("e-1");
 
     when(monitorContentRenderer.render(any(), any()))
         .thenReturn("rendered-1");
@@ -362,16 +379,17 @@ public class TestMonitorServiceTest {
         .setMonitoringZones(monitoringZones)
         .setPlugin(new Ping());
     final CompletableFuture<TestMonitorOutput> future = testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", monitorDetails);
+        .performTestMonitorOnResource("t-1", "r-1", timeout, monitorDetails);
 
     // VERIFY
 
     verify(testMonitorEventProducer).send(reqEventCaptor.capture());
     assertThat(reqEventCaptor.getValue().getAgentType()).isEqualTo(AgentType.TELEGRAF);
-    assertThat(reqEventCaptor.getValue().getEnvoyId()).isEqualTo(envoyId);
+    assertThat(reqEventCaptor.getValue().getEnvoyId()).isEqualTo("e-1");
     assertThat(reqEventCaptor.getValue().getRenderedContent()).isEqualTo("rendered-1");
     assertThat(reqEventCaptor.getValue().getResourceId()).isEqualTo("r-1");
     assertThat(reqEventCaptor.getValue().getTenantId()).isEqualTo("t-1");
+    assertThat(reqEventCaptor.getValue().getTimeout()).isEqualTo(expectedTimeout);
 
     // exercise result processing
 
@@ -472,7 +490,7 @@ public class TestMonitorServiceTest {
 
     assertThatThrownBy(() ->
         testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", monitorDetails)
+        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
     )
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(expectedMessage);
@@ -532,7 +550,7 @@ public class TestMonitorServiceTest {
 
     assertThatThrownBy(() ->
         testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", monitorDetails)
+        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
     )
         .isInstanceOf(MissingRequirementException.class)
         .hasMessage("No envoys were available in the given monitoring zone");
