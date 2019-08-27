@@ -19,9 +19,9 @@ package com.rackspace.salus.monitor_management.services;
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.Resource;
@@ -30,6 +30,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.List;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Given external requests for test monitors this service takes care of populating and initiating
@@ -58,6 +60,7 @@ public class TestMonitorService {
   private final ResourceRepository resourceRepository;
   private final EnvoyResourceManagement envoyResourceManagement;
   private final MonitorContentRenderer monitorContentRenderer;
+  private final MonitorManagement monitorManagement;
   private final TestMonitorEventProducer testMonitorEventProducer;
   private final TestMonitorProperties testMonitorProperties;
   private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorOutput>> pending =
@@ -68,12 +71,14 @@ public class TestMonitorService {
                             ResourceRepository resourceRepository,
                             EnvoyResourceManagement envoyResourceManagement,
                             MonitorContentRenderer monitorContentRenderer,
+                            MonitorManagement monitorManagement,
                             TestMonitorProperties testMonitorProperties,
                             TestMonitorEventProducer testMonitorEventProducer) {
     this.monitorConversionService = monitorConversionService;
     this.resourceRepository = resourceRepository;
     this.envoyResourceManagement = envoyResourceManagement;
     this.monitorContentRenderer = monitorContentRenderer;
+    this.monitorManagement = monitorManagement;
     this.testMonitorEventProducer = testMonitorEventProducer;
     this.testMonitorProperties = testMonitorProperties;
   }
@@ -82,10 +87,7 @@ public class TestMonitorService {
                                                                            String resourceId,
                                                                            MonitorDetails details) {
 
-    if (!(details instanceof LocalMonitorDetails)) {
-      // this restriction will be removed in a future enhancement
-      throw new IllegalArgumentException("test-monitor currently only supports local monitors");
-    }
+    final boolean isRemote = details instanceof RemoteMonitorDetails;
 
     final MonitorCU monitorCU = monitorConversionService.convertFromInput(
         new DetailedMonitorInput()
@@ -107,19 +109,14 @@ public class TestMonitorService {
     final Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
         .orElseThrow(() -> new MissingRequirementException("Unable to locate the resource for the test-monitor"));
 
-    final ResourceInfo resourceInfo;
-    try {
-      resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
-          .get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new IllegalStateException("Failed to locate Envoy for resource", e);
+    final String envoyId;
+    if (isRemote) {
+      final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
+      envoyId = resolveRemoteEnvoy(tenantId, resourceId, remoteMonitorDetails.getMonitoringZones());
+    } else {
+      envoyId = resolveLocalEnvoy(tenantId, resourceId);
     }
-
-    if (resourceInfo == null) {
-      throw new MissingRequirementException(
-          "An Envoy is not currently attached for the requested resource");
-    }
-    event.setEnvoyId(resourceInfo.getEnvoyId());
+    event.setEnvoyId(envoyId);
 
     try {
       event.setRenderedContent(
@@ -154,6 +151,43 @@ public class TestMonitorService {
     testMonitorEventProducer.send(event);
 
     return interceptedFuture;
+  }
+
+  private String resolveRemoteEnvoy(String tenantId, String resourceId,
+                                    List<String> monitoringZones) {
+    final List<String> resolvedZones = monitorManagement
+        .determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+
+    if (CollectionUtils.isEmpty(resolvedZones)) {
+      throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
+    } else if (resolvedZones.size() > 1) {
+      throw new IllegalArgumentException("test-monitor requires only one monitoring zone to be given");
+    }
+
+    final String envoyId = monitorManagement
+        .findLeastLoadedEnvoyInZone(tenantId, monitoringZones.get(0));
+
+    if (envoyId == null) {
+      throw new MissingRequirementException("No envoys were available in the given monitoring zone");
+    }
+
+    return envoyId;
+  }
+
+  private String resolveLocalEnvoy(String tenantId, String resourceId) {
+    final ResourceInfo resourceInfo;
+    try {
+      resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
+          .get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IllegalStateException("Failed to locate Envoy for resource", e);
+    }
+
+    if (resourceInfo == null) {
+      throw new MissingRequirementException(
+          "An Envoy is not currently attached for the requested resource");
+    }
+    return resourceInfo.getEnvoyId();
   }
 
   void handleTestMonitorResultsEvent(TestMonitorResultsEvent event) {

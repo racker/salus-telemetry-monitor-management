@@ -24,21 +24,16 @@ import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.resource_management.web.client.ResourceApi;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
-import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
-import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
-import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
-import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import com.rackspace.salus.monitor_management.web.model.MonitorCU;
-import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
-import com.rackspace.salus.resource_management.web.client.ResourceApi;
-import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -46,11 +41,16 @@ import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
+import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -312,7 +312,9 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindNewMonitor(String tenantId, Monitor monitor) {
-    return bindMonitor(tenantId, monitor, determineMonitoringZones(monitor));
+    return bindMonitor(tenantId, monitor, determineMonitoringZones(
+        monitor.getSelectorScope(), monitor.getZones()
+    ));
   }
 
   /**
@@ -420,6 +422,14 @@ public class MonitorManagement {
         .setEnvoyId(envoyId)
         .setRenderedContent(monitorContentRenderer.render(monitor.getContent(), resource))
         .setZoneName("");
+  }
+
+  String findLeastLoadedEnvoyInZone(String tenantId, String zone) {
+    final ResolvedZone resolvedZone = resolveZone(tenantId, zone);
+
+    final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+
+    return result.isEmpty() ? null : result.get().getEnvoyId();
   }
 
   private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
@@ -536,14 +546,15 @@ public class MonitorManagement {
     }
   }
 
-  private List<String> determineMonitoringZones(Monitor monitor) {
-    if (monitor.getSelectorScope() != ConfigSelectorScope.REMOTE) {
+  List<String> determineMonitoringZones(ConfigSelectorScope selectorScope,
+                                                List<String> zones) {
+    if (selectorScope != ConfigSelectorScope.REMOTE) {
       return Collections.emptyList();
     }
-    if (monitor.getZones() == null || monitor.getZones().isEmpty()) {
+    if (zones == null || zones.isEmpty()) {
       return zonesProperties.getDefaultZones();
     }
-    return monitor.getZones();
+    return zones;
   }
 
   /**
@@ -1161,7 +1172,8 @@ public class MonitorManagement {
         } else {
           // remote monitor
           try {
-            final List<String> zones = determineMonitoringZones(monitor);
+            final List<String> zones = determineMonitoringZones(monitor.getSelectorScope(),
+                monitor.getZones());
 
             for (String zone : zones) {
               boundMonitors.add(

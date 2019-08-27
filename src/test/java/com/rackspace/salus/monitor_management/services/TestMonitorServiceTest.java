@@ -30,14 +30,17 @@ import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -61,10 +64,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Profile("less-logging")
 public class TestMonitorServiceTest {
 
   private static Duration resultsTimeout = Duration.ofMillis(500);
@@ -88,6 +93,9 @@ public class TestMonitorServiceTest {
   MonitorContentRenderer monitorContentRenderer;
 
   @MockBean
+  MonitorManagement monitorManagement;
+
+  @MockBean
   ResourceRepository resourceRepository;
 
   @MockBean
@@ -103,7 +111,7 @@ public class TestMonitorServiceTest {
   ArgumentCaptor<TestMonitorRequestEvent> reqEventCaptor;
 
   @Test
-  public void testPerformTestMonitorOnResource_normal()
+  public void testPerformTestMonitorOnResource_local_normal()
       throws InvalidTemplateException, ExecutionException, InterruptedException {
 
     MonitorCU monitorCU = new MonitorCU()
@@ -193,7 +201,7 @@ public class TestMonitorServiceTest {
 
     verifyNoMoreInteractions(
         monitorConversionService, monitorContentRenderer, resourceRepository,
-        testMonitorEventProducer
+        testMonitorEventProducer, monitorManagement
     );
   }
 
@@ -315,6 +323,238 @@ public class TestMonitorServiceTest {
     verifyNoMoreInteractions(
         monitorConversionService, monitorContentRenderer, resourceRepository,
         testMonitorEventProducer
+    );
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_normal()
+      throws InvalidTemplateException, ExecutionException, InterruptedException {
+    final List<String> monitoringZones = List.of("z-1");
+    final String envoyId = "e-1";
+
+    MonitorCU monitorCU = new MonitorCU()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("content-1");
+    when(monitorConversionService.convertFromInput(any()))
+        .thenReturn(monitorCU);
+
+    Resource resource = new Resource()
+        .setResourceId("r-1")
+        .setLabels(Map.of("key-1", "value-1"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
+
+    // just return the zones given
+    when(monitorManagement.determineMonitoringZones(any(), any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+
+    when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
+        .thenReturn(envoyId);
+
+    when(monitorContentRenderer.render(any(), any()))
+        .thenReturn("rendered-1");
+
+    // EXECUTE
+
+    MonitorDetails monitorDetails = new RemoteMonitorDetails()
+        .setMonitoringZones(monitoringZones)
+        .setPlugin(new Ping());
+    final CompletableFuture<TestMonitorOutput> future = testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", monitorDetails);
+
+    // VERIFY
+
+    verify(testMonitorEventProducer).send(reqEventCaptor.capture());
+    assertThat(reqEventCaptor.getValue().getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(reqEventCaptor.getValue().getEnvoyId()).isEqualTo(envoyId);
+    assertThat(reqEventCaptor.getValue().getRenderedContent()).isEqualTo("rendered-1");
+    assertThat(reqEventCaptor.getValue().getResourceId()).isEqualTo("r-1");
+    assertThat(reqEventCaptor.getValue().getTenantId()).isEqualTo("t-1");
+
+    // exercise result processing
+
+    final String correlationId = reqEventCaptor.getValue().getCorrelationId();
+    assertThat(correlationId).isNotBlank();
+    assertThat(testMonitorService.containsCorrelationId(correlationId)).isTrue();
+
+    // Simulate a results event getting consumed
+
+    final List<SimpleNameTagValueMetric> expectedMetrics = List.of(
+        new SimpleNameTagValueMetric()
+            .setName("ping")
+            .setIvalues(Map.of("average_response_ms", 12L))
+    );
+    TestMonitorResultsEvent resultsEvent = new TestMonitorResultsEvent()
+        .setCorrelationId(correlationId)
+        .setErrors(List.of("error-1"))
+        .setMetrics(expectedMetrics);
+    testMonitorService.handleTestMonitorResultsEvent(resultsEvent);
+
+    assertThat(future.isDone()).isTrue();
+    final TestMonitorOutput output = future.get();
+    assertThat(output).isNotNull();
+    assertThat(output.getErrors()).containsExactly("error-1");
+    assertThat(output.getMetrics()).isEqualTo(expectedMetrics);
+
+    assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
+
+    verify(monitorConversionService)
+        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
+          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+              .isInstanceOf(Ping.class);
+          return true;
+        }));
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(monitorContentRenderer).render(eq("content-1"), argThat(resourceDTO -> {
+      assertThat(resourceDTO.getResourceId()).isEqualTo(resource.getResourceId());
+      assertThat(resourceDTO.getLabels()).isEqualTo(resource.getLabels());
+      return true;
+    }));
+
+    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+    verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
+
+    verifyNoMoreInteractions(
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer, monitorManagement
+    );
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_nullZones() {
+    commonPerformTestMonitorOnResource_remote_failedZones(null,
+        "test-monitor requires one monitoring zone to be given");
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_emptyZones() {
+    commonPerformTestMonitorOnResource_remote_failedZones(List.of(),
+        "test-monitor requires one monitoring zone to be given");
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_tooManyZones() {
+    commonPerformTestMonitorOnResource_remote_failedZones(List.of("z-1", "z-2"),
+        "test-monitor requires only one monitoring zone to be given");
+  }
+
+  private void commonPerformTestMonitorOnResource_remote_failedZones(List<String> monitoringZones,
+                                                                     String expectedMessage) {
+    MonitorCU monitorCU = new MonitorCU()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("content-1");
+    when(monitorConversionService.convertFromInput(any()))
+        .thenReturn(monitorCU);
+
+    Resource resource = new Resource()
+        .setResourceId("r-1")
+        .setLabels(Map.of("key-1", "value-1"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
+
+    // just return the zones given
+    when(monitorManagement.determineMonitoringZones(any(), any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+
+    // EXECUTE
+
+    MonitorDetails monitorDetails = new RemoteMonitorDetails()
+        // NULL ZONES
+        .setMonitoringZones(monitoringZones)
+        .setPlugin(new Ping());
+
+    assertThatThrownBy(() ->
+        testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", monitorDetails)
+    )
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(expectedMessage);
+
+    // VERIFY
+
+    verify(monitorConversionService)
+        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
+          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+              .isInstanceOf(Ping.class);
+          return true;
+        }));
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+
+    verifyNoMoreInteractions(
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer, monitorManagement
+    );
+  }
+
+  @Test
+  public void testPerformTestMonitorOnResource_remote_noEnvoyInZone() {
+    final List<String> monitoringZones = List.of("z-1");
+    final String envoyId = null;
+
+    MonitorCU monitorCU = new MonitorCU()
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("content-1");
+    when(monitorConversionService.convertFromInput(any()))
+        .thenReturn(monitorCU);
+
+    Resource resource = new Resource()
+        .setResourceId("r-1")
+        .setLabels(Map.of("key-1", "value-1"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
+        .thenReturn(Optional.of(resource));
+
+    // just return the zones given
+    when(monitorManagement.determineMonitoringZones(any(), any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+
+    //noinspection ConstantConditions
+    when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
+        .thenReturn(envoyId);
+
+    // EXECUTE
+
+    MonitorDetails monitorDetails = new RemoteMonitorDetails()
+        .setMonitoringZones(monitoringZones)
+        .setPlugin(new Ping());
+
+    assertThatThrownBy(() ->
+        testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", monitorDetails)
+    )
+        .isInstanceOf(MissingRequirementException.class)
+        .hasMessage("No envoys were available in the given monitoring zone");
+
+    // VERIFY
+
+    verify(monitorConversionService)
+        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
+          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+              .isInstanceOf(Ping.class);
+          return true;
+        }));
+
+    verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
+
+    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+    verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
+
+    verifyNoMoreInteractions(
+        monitorConversionService, monitorContentRenderer, resourceRepository,
+        testMonitorEventProducer, monitorManagement
     );
   }
 }
