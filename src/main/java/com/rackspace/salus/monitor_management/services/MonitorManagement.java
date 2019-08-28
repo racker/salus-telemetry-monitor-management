@@ -228,12 +228,15 @@ public class MonitorManagement {
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
-        .setLabelSelectorMethod(newMonitor.getLabelSelectorMethod())
         .setResourceId(newMonitor.getResourceId())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
+
+    if (newMonitor.getLabelSelectorMethod() != null) {
+      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
+    }
 
     monitor = monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
