@@ -435,6 +435,7 @@ public class MonitorManagementPolicyTest {
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("new content")
+                .setTemplateVariables(Collections.emptyList())
                 .setTenantId(POLICY_TENANT)
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(monitor.getLabelSelector())

@@ -43,7 +43,7 @@ public class MonitorContentRenderer {
         .withDelims(properties.getPlaceholderDelimiters());
   }
 
-  public String render(String rawContent, ResourceDTO resource) throws InvalidTemplateException {
+  String render(String rawContent, ResourceDTO resource) throws InvalidTemplateException {
     final Template template = mustacheCompiler.compile(rawContent);
 
     final Map<String, Object> context = new HashMap<>();

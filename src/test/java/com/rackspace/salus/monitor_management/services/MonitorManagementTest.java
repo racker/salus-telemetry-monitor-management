@@ -20,11 +20,15 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC_PREFI
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -260,6 +264,17 @@ public class MonitorManagementTest {
     }
   }
 
+  private void createMonitorsForTenantWithContent(int count, String tenantId, String content) {
+    for (int i = 0; i < count; i++) {
+      MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      create.setSelectorScope(ConfigSelectorScope.LOCAL);
+      create.setZones(Collections.emptyList());
+      create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      create.setContent(content);
+      monitorManagement.createMonitor(tenantId, create);
+    }
+  }
+
   private Monitor persistNewMonitor(String tenantId) {
     return persistNewMonitor(tenantId, Collections.singletonMap("os", "LINUX"));
   }
@@ -413,6 +428,72 @@ public class MonitorManagementTest {
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
     assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+  }
+
+  @Test
+  public void testCreateNewMonitor_nullLabelSelectorMethod() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setLabelSelector(Collections.emptyMap());
+    create.setLabelSelectorMethod(null);
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(returned.getId(), notNullValue());
+    assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+    assertThat(returned.getContent(), equalTo(create.getContent()));
+    assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
+    // The default value should be set
+    assertThat(returned.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
+    assertThat(returned.getLabelSelector(), notNullValue());
+    assertThat(returned.getLabelSelector().size(), equalTo(0));
+    assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+    assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+  }
+
+  @Test
+  public void testCreateNewMonitor_MetatadaPolicyInContent() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setLabelSelector(Collections.emptyMap());
+    create.setContent("${rackspace.metadata.test_value1} and ${rackspace.metadata.test_value2}");
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    // This is auto-generated so we do not know what the exact value will be
+    assertThat(returned.getId(), notNullValue());
+
+    // templateVariables are returned as a PersistentBag so we check the contents here
+    // vs. asserting the list (and types) match exactly in the Monitor asserts.
+    List<String> expectedMetadata = Arrays.asList("test_value1", "test_value2");
+    assertThat(returned.getTemplateVariables(), hasSize(2));
+    assertThat(returned.getTemplateVariables(), containsInAnyOrder(expectedMetadata.toArray()));
+
+    Monitor expectedMonitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorName(create.getMonitorName())
+        .setContent("${rackspace.metadata.test_value1} and ${rackspace.metadata.test_value2}")
+        .setTenantId(tenantId)
+        .setResourceId(create.getResourceId())
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(Collections.emptyMap())
+        .setLabelSelectorMethod(create.getLabelSelectorMethod());
+
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(returned))
+        .usingElementComparatorIgnoringFields("id", "createdTimestamp", "updatedTimestamp", "templateVariables")
+        .containsExactly(expectedMonitor);
   }
 
   @Test
@@ -839,6 +920,7 @@ public class MonitorManagementTest {
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("address=${resource.metadata.address}")
+                .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
@@ -938,6 +1020,7 @@ public class MonitorManagementTest {
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("static content")
+                .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId("r-2")
@@ -1056,6 +1139,7 @@ public class MonitorManagementTest {
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("{}")
+                .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setZones(Arrays.asList("z-2", "z-3"))
@@ -1139,6 +1223,7 @@ public class MonitorManagementTest {
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent("{}")
+                .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setZones(Arrays.asList("z-1", "z-2"))
@@ -1326,6 +1411,47 @@ public class MonitorManagementTest {
     int totalPages = (monitorsWithLabels  + size  -1 ) / size;
     assertThat(monitors.getTotalPages(), equalTo(totalPages));
     assertThat(monitors.getContent(), hasSize(size));
+  }
+
+  @Test
+  public void testGetMonitorsByTemplateVariable() {
+    int monitorsWithPolicyMetadata = new Random().nextInt(10) + 10;
+    int monitorsWithoutPolicyMetadata = new Random().nextInt(10) + 20;
+
+    String tenant1 = RandomStringUtils.randomAlphabetic(10);
+    String tenant2 = RandomStringUtils.randomAlphabetic(10);
+
+    String content1 = "${rackspace.metadata.test1} and ${rackspace.metadata.test2}";
+    String content2 = "${rackspace.metadata.test2} and ${rackspace.metadata.test3}";
+    String content3 = "no policy metadata ${test1}";
+
+    createMonitorsForTenantWithContent(monitorsWithPolicyMetadata, tenant1, content1);
+    createMonitorsForTenantWithContent(monitorsWithPolicyMetadata, tenant2, content2);
+
+    createMonitorsForTenantWithContent(monitorsWithoutPolicyMetadata, tenant1, content3);
+    createMonitorsForTenantWithContent(monitorsWithoutPolicyMetadata, tenant2, content3);
+
+    Set<Monitor> test1Results = monitorManagement.getMonitorsByTemplateVariable("test1");
+    assertThat(test1Results, hasSize(monitorsWithPolicyMetadata));
+    assertThat(test1Results, everyItem(
+            hasProperty("tenantId", equalTo(tenant1))));
+
+    Set<Monitor> test2Results = monitorManagement.getMonitorsByTemplateVariable("test2");
+    assertThat(test2Results, hasSize(monitorsWithPolicyMetadata * 2));
+    assertThat(test2Results, everyItem(
+        anyOf(
+            hasProperty("tenantId", equalTo(tenant1)),
+            hasProperty("tenantId", equalTo(tenant2)))
+        ));
+
+    Set<Monitor> test3Results = monitorManagement.getMonitorsByTemplateVariable("test3");
+    assertThat(test3Results, hasSize(monitorsWithPolicyMetadata));
+    assertThat(test3Results, everyItem(
+        hasProperty("tenantId", equalTo(tenant2))));
+
+    Set<Monitor> test4Results = monitorManagement.getMonitorsByTemplateVariable("test4");
+    assertThat(test4Results, hasSize(0));
+
   }
 
   @Test
@@ -3402,5 +3528,30 @@ public class MonitorManagementTest {
     expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
     expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
     assertThat(results, equalTo(expected));
+  }
+
+  @Test
+  public void testSetTemplateVariables() {
+    Monitor monitor = new Monitor()
+        .setContent("This is a test with one ${user_specified_regex} and more "
+            + "${rackspace.metadata.regex} and ${rackspace.metadata.random_value}.  It should "
+            + "result in two template variables being found.");
+    assertThat(monitor.getTemplateVariables(), nullValue());
+
+    monitorManagement.setTemplateVariables(monitor);
+    assertThat(monitor.getTemplateVariables(), hasSize(2));
+    assertThat(monitor.getTemplateVariables().get(0), equalTo("regex"));
+    assertThat(monitor.getTemplateVariables().get(1), equalTo("random_value"));
+
+    // update content and set new variables
+    monitor.setContent("content changed: ${rackspace.metadata.new_value}");
+    monitorManagement.setTemplateVariables(monitor);
+    assertThat(monitor.getTemplateVariables(), hasSize(1));
+    assertThat(monitor.getTemplateVariables().get(0), equalTo("new_value"));
+
+    // remove content and set new variables
+    monitor.setContent("");
+    monitorManagement.setTemplateVariables(monitor);
+    assertThat(monitor.getTemplateVariables(), hasSize(0));
   }
 }

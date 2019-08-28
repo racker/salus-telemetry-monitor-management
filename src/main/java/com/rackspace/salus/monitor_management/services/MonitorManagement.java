@@ -22,6 +22,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
+import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -65,6 +66,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -112,6 +115,8 @@ public class MonitorManagement {
 
   private JdbcTemplate jdbcTemplate;
 
+  private Pattern monitorTemplateVariablePattern;
+
   @Autowired
   public MonitorManagement(
       ResourceRepository resourceRepository,
@@ -122,6 +127,7 @@ public class MonitorManagement {
       ZoneStorage zoneStorage,
       MonitorEventProducer monitorEventProducer,
       MonitorContentRenderer monitorContentRenderer,
+      MonitorContentProperties monitorContentProperties,
       PolicyApi policyApi, ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
       JdbcTemplate jdbcTemplate) {
@@ -139,6 +145,8 @@ public class MonitorManagement {
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
     this.jdbcTemplate = jdbcTemplate;
+
+    monitorTemplateVariablePattern = Pattern.compile(monitorContentProperties.getPlaceholderRegex());
   }
 
   /**
@@ -228,12 +236,17 @@ public class MonitorManagement {
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
-        .setLabelSelectorMethod(newMonitor.getLabelSelectorMethod())
         .setResourceId(newMonitor.getResourceId())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones());
+
+    if (newMonitor.getLabelSelectorMethod() != null) {
+      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
+    }
+
+    setTemplateVariables(monitor);
 
     monitor = monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
@@ -269,6 +282,8 @@ public class MonitorManagement {
     if (newMonitor.getLabelSelectorMethod() != null) {
       monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
     }
+
+    setTemplateVariables(monitor);
 
     monitor = monitorRepository.save(monitor);
     return monitor;
@@ -418,13 +433,13 @@ public class MonitorManagement {
         .setTenantId(resource.getTenantId())
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
-        .setRenderedContent(monitorContentRenderer.render(monitor.getContent(), resource))
+        .setRenderedContent(getRenderedContent(monitor.getContent(), resource))
         .setZoneName("");
   }
 
   private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
       throws InvalidTemplateException {
-    final String renderedContent = monitorContentRenderer.render(monitor.getContent(), resource);
+    final String renderedContent = getRenderedContent(monitor.getContent(), resource);
 
     final ResolvedZone resolvedZone = resolveZone(resource.getTenantId(), zone);
 
@@ -635,6 +650,9 @@ public class MonitorManagement {
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
         .to(monitor::setMonitorName);
+
+    setTemplateVariables(monitor);
+
     monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
@@ -693,6 +711,8 @@ public class MonitorManagement {
     } else if (monitor.getZones() != null){
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
+
+    setTemplateVariables(monitor);
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
@@ -813,7 +833,7 @@ public class MonitorManagement {
 
       if (resource != null) {
         try {
-          final String renderedContent = monitorContentRenderer.render(updatedContent, resource);
+          final String renderedContent = getRenderedContent(updatedContent, resource);
 
           for (BoundMonitor boundMonitor : resourceEntry.getValue()) {
             if (!renderedContent.equals(boundMonitor.getRenderedContent())) {
@@ -1179,8 +1199,7 @@ public class MonitorManagement {
         // - envoy re-attachment
 
         try {
-          final String newRenderedContent = monitorContentRenderer
-              .render(monitor.getContent(), resource);
+          final String newRenderedContent = getRenderedContent(monitor.getContent(), resource);
 
           for (BoundMonitor existingBind : existing) {
             boolean updated = false;
@@ -1389,6 +1408,10 @@ public class MonitorManagement {
     } else {
       return new PageImpl<>(monitors, page, monitors.size());
     }
+  }
+
+  Set<Monitor> getMonitorsByTemplateVariable(String variable) {
+    return monitorRepository.findByTemplateVariablesContaining(variable);
   }
 
   /**
@@ -1618,5 +1641,21 @@ public class MonitorManagement {
         tenantId);
 
     return resourcePolicies;
+  }
+
+  void setTemplateVariables(Monitor monitor) {
+    List<String> templateVariables = new ArrayList<>();
+    final Matcher matcher = monitorTemplateVariablePattern.matcher(monitor.getContent());
+    while (matcher.find()) {
+      templateVariables.add(matcher.group(1));
+    }
+    monitor.setTemplateVariables(templateVariables);
+  }
+
+  private String getRenderedContent(String template, ResourceDTO resourceDTO)
+      throws InvalidTemplateException {
+    String tenantId = resourceDTO.getTenantId();
+
+    return monitorContentRenderer.render(template, resourceDTO);
   }
 }
