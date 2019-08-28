@@ -484,7 +484,6 @@ public class TestMonitorServiceTest {
     // EXECUTE
 
     MonitorDetails monitorDetails = new RemoteMonitorDetails()
-        // NULL ZONES
         .setMonitoringZones(monitoringZones)
         .setPlugin(new Ping());
 
