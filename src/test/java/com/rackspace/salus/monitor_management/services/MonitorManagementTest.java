@@ -416,6 +416,36 @@ public class MonitorManagementTest {
   }
 
   @Test
+  public void testCreateNewMonitor_nullLabelSelectorMethod() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(null);
+    create.setLabelSelector(Collections.emptyMap());
+    create.setLabelSelectorMethod(null);
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor returned = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(returned.getId(), notNullValue());
+    assertThat(returned.getMonitorName(), equalTo(create.getMonitorName()));
+    assertThat(returned.getContent(), equalTo(create.getContent()));
+    assertThat(returned.getAgentType(), equalTo(create.getAgentType()));
+
+    // The default value should be set
+    assertThat(returned.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
+    assertThat(returned.getLabelSelector(), notNullValue());
+    assertThat(returned.getLabelSelector().size(), equalTo(0));
+    assertTrue(Maps.difference(create.getLabelSelector(), returned.getLabelSelector()).areEqual());
+
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
+
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
+    assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+  }
+
+  @Test
   public void testCreateNewMonitor_LocalWithZones() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     // zones gets populated by podam
