@@ -54,10 +54,7 @@ public class TestMonitorApiControllerTest {
   @Test
   public void testPerformTestMonitor_success() throws Exception {
 
-    final String encodedMetricsJson = JsonTestUtils
-        .readContent("TestMonitorApiControllerTest/encoded_metrics.json");
-
-    when(testMonitorService.performTestMonitorOnResource(any(), any(), any()))
+    when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
             new TestMonitorOutput()
                 .setErrors(List.of())
@@ -92,10 +89,7 @@ public class TestMonitorApiControllerTest {
   @Test
   public void testPerformTestMonitor_partialError() throws Exception {
 
-    final String encodedMetricsJson = JsonTestUtils
-        .readContent("TestMonitorApiControllerTest/encoded_metrics.json");
-
-    when(testMonitorService.performTestMonitorOnResource(any(), any(), any()))
+    when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
             new TestMonitorOutput()
                 // include an error
@@ -132,7 +126,7 @@ public class TestMonitorApiControllerTest {
   @Test
   public void testPerformTestMonitor_onlyErrors() throws Exception {
 
-    when(testMonitorService.performTestMonitorOnResource(any(), any(), any()))
+    when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
             new TestMonitorOutput()
                 .setErrors(List.of("timed out"))

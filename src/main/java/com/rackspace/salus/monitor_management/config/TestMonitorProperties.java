@@ -30,10 +30,18 @@ import org.springframework.stereotype.Component;
 public class TestMonitorProperties {
 
   /**
-   * If a test-monitor does not get results back within this duration, then the original request
-   * will be timed out.
+   * If <code>timeout</code> of {@link com.rackspace.salus.monitor_management.web.model.TestMonitorInput}
+   * is not specified, this is the default timeout to use.
    */
   @DurationUnit(ChronoUnit.SECONDS)
   @NotNull
-  Duration resultsTimeout = Duration.ofSeconds(60);
+  Duration defaultTimeout = Duration.ofSeconds(30);
+
+  /**
+   * This is the duration to add to the test-monitor's timeout to determine the limit of
+   * end-to-end correlation time.
+   */
+  @DurationUnit(ChronoUnit.SECONDS)
+  @NotNull
+  Duration endToEndTimeoutExtension = Duration.ofSeconds(30);
 }
