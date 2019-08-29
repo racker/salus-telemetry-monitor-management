@@ -22,6 +22,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
+import com.rackspace.salus.common.util.ResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
@@ -52,6 +53,7 @@ import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -102,6 +104,7 @@ public class MonitorManagement {
   private final ResourceApi resourceApi;
   private final ZoneManagement zoneManagement;
   private final ZonesProperties zonesProperties;
+  private final String labelMatchQuery;
 
   private final MonitorRepository monitorRepository;
 
@@ -124,7 +127,7 @@ public class MonitorManagement {
       MonitorContentRenderer monitorContentRenderer,
       PolicyApi policyApi, ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
-      JdbcTemplate jdbcTemplate) {
+      JdbcTemplate jdbcTemplate) throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
     this.monitorRepository = monitorRepository;
@@ -139,6 +142,7 @@ public class MonitorManagement {
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
     this.jdbcTemplate = jdbcTemplate;
+    this.labelMatchQuery = ResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
   }
 
   /**
@@ -1357,11 +1361,8 @@ public class MonitorManagement {
 
     MapSqlParameterSource paramSource = new MapSqlParameterSource();
     paramSource.addValue("tenantId", tenantId);
-    StringBuilder builder = new StringBuilder("SELECT monitors.id FROM monitors JOIN monitor_label_selectors AS ml WHERE monitors.id = ml.monitor_id AND monitors.id IN ");
-    builder.append("(SELECT monitor_id from monitor_label_selectors WHERE monitors.id IN (SELECT id FROM monitors WHERE tenant_id = :tenantId) AND ");
-    builder.append("monitors.id IN (SELECT search_labels.monitor_id FROM (SELECT monitor_id, COUNT(*) AS count FROM monitor_label_selectors GROUP BY monitor_id) AS total_labels JOIN (SELECT monitor_id, COUNT(*) AS count FROM monitor_label_selectors WHERE ");
+    StringBuilder builder = new StringBuilder();
     int i = 0;
-    labels.size();
     for(Map.Entry<String, String> entry : labels.entrySet()) {
       if(i > 0) {
         builder.append(" OR ");
@@ -1372,14 +1373,11 @@ public class MonitorManagement {
       paramSource.addValue("labelKey"+i, entry.getKey());
       i++;
     }
-    builder.append(" GROUP BY monitor_id) AS search_labels WHERE total_labels.monitor_id = search_labels.monitor_id AND search_labels.count >= total_labels.count GROUP BY search_labels.monitor_id)");
-
-    builder.append(") ORDER BY monitors.id");
     paramSource.addValue("i", i);
 
     //noinspection ConstantConditions
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-    final List<UUID> monitorIds = namedParameterTemplate.query(builder.toString(), paramSource,
+    final List<UUID> monitorIds = namedParameterTemplate.query(String.format(labelMatchQuery, builder.toString()), paramSource,
         (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
     );
 
