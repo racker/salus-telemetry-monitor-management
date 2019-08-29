@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
-import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
@@ -37,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
@@ -490,7 +490,7 @@ public class MonitorApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(
-            content().json(readContent("/MonitorApiControllerTest/monitor_label_selectors.json"), true));
+            content().json(SpringResourceUtils.readContent("/MonitorApiControllerTest/monitor_label_selectors.json"), true));
 
     verify(monitorManagement).getTenantMonitorLabelSelectors("t-1");
 
