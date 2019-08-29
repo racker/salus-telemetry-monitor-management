@@ -22,7 +22,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublic
 
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
-import com.rackspace.salus.common.util.ResourceUtils;
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
@@ -142,7 +142,7 @@ public class MonitorManagement {
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
     this.jdbcTemplate = jdbcTemplate;
-    this.labelMatchQuery = ResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
+    this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
   }
 
   /**
