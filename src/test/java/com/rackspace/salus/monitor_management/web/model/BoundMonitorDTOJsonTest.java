@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,6 +54,7 @@ public class BoundMonitorDTOJsonTest {
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
         .setEnvoyId("e-1")
+        .setInterval(Duration.ofSeconds(30))
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
@@ -72,6 +74,7 @@ public class BoundMonitorDTOJsonTest {
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
         .setEnvoyId(null)
+        .setInterval(Duration.ofSeconds(30))
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 
@@ -91,6 +94,7 @@ public class BoundMonitorDTOJsonTest {
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
         .setEnvoyId("e-1")
+        .setInterval(Duration.ofSeconds(30))
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
 

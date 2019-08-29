@@ -18,10 +18,11 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
-import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -35,10 +36,12 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,31 +53,41 @@ import java.util.UUID;
 import javax.validation.ConstraintViolation;
 import org.json.JSONException;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.json.JsonTest;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
-@JsonTest
-@Import({MonitorConversionService.class})
+@SpringBootTest(classes = {MonitorConversionService.class})
+@AutoConfigureJson
 public class MonitorConversionServiceTest {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
   private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
-  @Configuration
-  public static class TestConfig {
-
-  }
+  private static final Duration MIN_INTERVAL = Duration.ofSeconds(10);
+  private static final Duration DEFAULT_LOCAL_INTERVAL = Duration.ofSeconds(30);
+  private static final Duration DEFAULT_REMOTE_INTERVAL = Duration.ofMinutes(5);
 
   @Autowired
   MonitorConversionService conversionService;
+
+  @Autowired
+  MonitorConversionProperties monitorConversionProperties;
+
+  @Before
+  public void setUp() throws Exception {
+    monitorConversionProperties
+        .setMinimumAllowedInterval(MIN_INTERVAL)
+        .setDefaultLocalInterval(DEFAULT_LOCAL_INTERVAL)
+        .setDefaultRemoteInterval(DEFAULT_REMOTE_INTERVAL);
+  }
 
   @Test
   public void convertToOutput_diskio() throws IOException {
@@ -558,5 +571,74 @@ public class MonitorConversionServiceTest {
         .setLabelSelectorMethod(LabelSelectorMethod.OR);
     final MonitorCU result = conversionService.convertFromInput(input);
     assertThat(result.getLabelSelectorMethod()).isEqualTo(input.getLabelSelectorMethod());
+  }
+
+  @Test
+  public void testConvertTo_Interval() {
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setId(monitorId)
+        .setInterval(Duration.ofSeconds(60))
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.getInterval()).isEqualTo(monitor.getInterval());
+  }
+
+  @Test
+  public void testConvertFrom_Interval_Explicit() {
+    final Duration interval = Duration.ofSeconds(60);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setInterval(interval);
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getInterval()).isEqualTo(interval);
+  }
+
+  @Test
+  public void testConvertFrom_Interval_Explicit_ExactlyMin() {
+    final Duration interval = MIN_INTERVAL;
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setInterval(interval);
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getInterval()).isEqualTo(interval);
+  }
+
+  @Test
+  public void testConvertFrom_Interval_Explicit_LessThanMin() {
+    final Duration interval = MIN_INTERVAL.minus(Duration.ofSeconds(1));
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setInterval(interval);
+
+    assertThatThrownBy(() -> {
+      conversionService.convertFromInput(input);
+    })
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(String.format("Interval cannot be less than %s", MIN_INTERVAL));
+  }
+
+  @Test
+  public void testConvertFrom_Interval_DefaultLocal() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setInterval(null);
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getInterval()).isEqualTo(DEFAULT_LOCAL_INTERVAL);
+  }
+
+  @Test
+  public void testConvertFrom_Interval_DefaultRemote() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(new RemoteMonitorDetails().setPlugin(new Ping()))
+        .setInterval(null);
+    final MonitorCU result = conversionService.convertFromInput(input);
+    assertThat(result.getInterval()).isEqualTo(DEFAULT_REMOTE_INTERVAL);
   }
 }
