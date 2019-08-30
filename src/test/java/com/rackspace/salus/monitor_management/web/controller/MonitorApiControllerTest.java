@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
+import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -626,7 +627,7 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testCreateMonitor_intervalDurationParsing() throws Exception {
+  public void testCreateMonitor_intervalParsing_valid() throws Exception {
     final String content = readContent("MonitorApiControllerTest/create_monitor_duration.json");
 
     final Monitor stubMonitorResp = new Monitor()
@@ -653,6 +654,20 @@ public class MonitorApiControllerTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
         );
+  }
+
+  @Test
+  public void testCreateMonitor_intervalParsing_invalidWithNumber() throws Exception {
+    final String content = readContent("MonitorApiControllerTest/create_monitor_duration_number.json");
+
+    mockMvc.perform(post("/api/tenant/t-1/monitors")
+        .content(content)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(httpMessageNotReadable(
+            "Cannot deserialize value of type `java.time.Duration` from String \"30\""));
+
   }
 
   private class UpdateMonitorTestSetup {
