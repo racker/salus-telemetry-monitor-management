@@ -68,9 +68,6 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 @AutoConfigureJson
 public class MonitorConversionServiceTest {
 
-  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
-  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
-
   private static final Duration MIN_INTERVAL = Duration.ofSeconds(10);
   private static final Duration DEFAULT_LOCAL_INTERVAL = Duration.ofSeconds(30);
   private static final Duration DEFAULT_REMOTE_INTERVAL = Duration.ofMinutes(5);
@@ -102,8 +99,8 @@ public class MonitorConversionServiceTest {
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setLabelSelectorMethod(LabelSelectorMethod.OR)
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -158,8 +155,8 @@ public class MonitorConversionServiceTest {
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -210,8 +207,8 @@ public class MonitorConversionServiceTest {
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -278,8 +275,8 @@ public class MonitorConversionServiceTest {
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -365,8 +362,8 @@ public class MonitorConversionServiceTest {
         .setZones(Collections.singletonList("z-1"))
         .setLabelSelector(labels)
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -511,8 +508,8 @@ public class MonitorConversionServiceTest {
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setLabelSelector(labels)
             .setContent(content)
-            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+            .setCreatedTimestamp(Instant.EPOCH)
+            .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -546,8 +543,8 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setResourceId("r-1")
         .setId(monitorId)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
     assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
   }
@@ -559,8 +556,8 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setId(monitorId)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
     assertThat(result.getLabelSelectorMethod()).isEqualTo(monitor.getLabelSelectorMethod());
   }
@@ -581,8 +578,8 @@ public class MonitorConversionServiceTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setId(monitorId)
         .setInterval(Duration.ofSeconds(60))
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
     assertThat(result.getInterval()).isEqualTo(monitor.getInterval());
   }
