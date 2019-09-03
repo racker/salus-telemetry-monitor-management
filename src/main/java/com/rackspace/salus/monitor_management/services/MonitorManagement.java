@@ -356,6 +356,8 @@ public class MonitorManagement {
 
     final List<BoundMonitor> boundMonitors = new ArrayList<>();
 
+    Map<String, String> policies = policyApi.getEffectiveMetadataMap(tenantId, monitor.getMonitorType());
+
     if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
       // AGENT MONITOR
 
@@ -429,14 +431,14 @@ public class MonitorManagement {
         .forEach(monitorEventProducer::sendMonitorEvent);
   }
 
-  private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
+  private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId, Map<String, String> policyMetadata)
       throws InvalidTemplateException {
     return new BoundMonitor()
         .setMonitor(monitor)
         .setTenantId(resource.getTenantId())
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
-        .setRenderedContent(getRenderedContent(monitor.getContent(), resource))
+        .setRenderedContent(getRenderedContent(monitor.getContent(), resource, policyMetadata))
         .setZoneName("");
   }
 
@@ -448,9 +450,9 @@ public class MonitorManagement {
     return result.isEmpty() ? null : result.get().getEnvoyId();
   }
 
-  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
+  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone, Map<String, String> policyMetadata)
       throws InvalidTemplateException {
-    final String renderedContent = getRenderedContent(monitor.getContent(), resource);
+    final String renderedContent = getRenderedContent(monitor.getContent(), resource, policyMetadata);
 
     final ResolvedZone resolvedZone = resolveZone(resource.getTenantId(), zone);
 
@@ -1683,13 +1685,19 @@ public class MonitorManagement {
     while (matcher.find()) {
       templateVariables.add(matcher.group(1));
     }
+
+    // Get all fields annotated by @TemplatableVariable
+    // Check if any of them are null
+    // if they are add them to the list.
+
     monitor.setTemplateVariables(templateVariables);
   }
 
-  private String getRenderedContent(String template, ResourceDTO resourceDTO)
+  private String getRenderedContent(String template, ResourceDTO resourceDTO,
+      Map<String, String> policies)
       throws InvalidTemplateException {
     String tenantId = resourceDTO.getTenantId();
 
-    return monitorContentRenderer.render(template, resourceDTO);
+    return monitorContentRenderer.render(template, resourceDTO, policies);
   }
 }
