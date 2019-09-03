@@ -21,6 +21,7 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMon
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;
+import java.time.Duration;
 import java.util.Map;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -42,6 +43,8 @@ public class DetailedMonitorInput {
   LabelSelectorMethod labelSelectorMethod;
 
   String resourceId;
+
+  Duration interval;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
   @NotNull(groups = ValidationGroups.Create.class)

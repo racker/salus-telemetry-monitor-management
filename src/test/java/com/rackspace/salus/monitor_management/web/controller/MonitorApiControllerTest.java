@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
+import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -37,26 +38,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
-import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -621,6 +626,49 @@ public class MonitorApiControllerTest {
         .andExpect(classValidationError(ValidUpdateMonitor.DEFAULT_MESSAGE));
   }
 
+  @Test
+  public void testCreateMonitor_intervalParsing_valid() throws Exception {
+    final String content = readContent("MonitorApiControllerTest/create_monitor_duration.json");
+
+    final Monitor stubMonitorResp = new Monitor()
+        .setId(UUID.randomUUID())
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    when(monitorManagement.createMonitor(any(), any()))
+        .thenReturn(stubMonitorResp);
+
+    mockMvc.perform(post("/api/tenant/t-1/monitors")
+        .content(content)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(monitorManagement)
+        .createMonitor("t-1",
+            new MonitorCU()
+                .setInterval(Duration.ofSeconds(30))
+                .setLabelSelector(Map.of("agent_environment", "localdev"))
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setAgentType(AgentType.TELEGRAF)
+                .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
+        );
+  }
+
+  @Test
+  public void testCreateMonitor_intervalParsing_invalidWithNumber() throws Exception {
+    final String content = readContent("MonitorApiControllerTest/create_monitor_duration_number.json");
+
+    mockMvc.perform(post("/api/tenant/t-1/monitors")
+        .content(content)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(httpMessageNotReadable(
+            "Cannot deserialize value of type `java.time.Duration` from String \"30\""));
+
+  }
 
   private class UpdateMonitorTestSetup {
 

@@ -20,6 +20,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
@@ -53,4 +54,6 @@ public class MonitorCU implements Serializable {
     List<String> zones;
 
     String resourceId;
+
+    Duration interval;
 }

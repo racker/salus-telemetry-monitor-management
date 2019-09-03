@@ -229,6 +229,7 @@ public class MonitorManagement {
         .setMonitorName(newMonitor.getMonitorName())
         .setLabelSelector(newMonitor.getLabelSelector())
         .setResourceId(newMonitor.getResourceId())
+        .setInterval(newMonitor.getInterval())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
@@ -645,6 +646,14 @@ public class MonitorManagement {
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
 
+    if (updatedValues.getInterval() != null &&
+        !updatedValues.getInterval().equals(monitor.getInterval())) {
+      affectedEnvoys.addAll(
+          processIntervalChanged(monitor)
+      );
+      monitor.setInterval(updatedValues.getInterval());
+    }
+
     PropertyMapper map = PropertyMapper.get();
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
@@ -888,10 +897,23 @@ public class MonitorManagement {
           ));
     }
 
-  return affectedEnvoys;
+    return affectedEnvoys;
   }
 
+  /**
+   * @return affected envoys
+   */
+  private Set<String> processIntervalChanged(Monitor monitor) {
+    // No actual change is needed for the bound monitors. Just need to retrieve them...
+    final List<BoundMonitor> boundMonitors = boundMonitorRepository
+        .findAllByMonitor_Id(monitor.getId());
 
+    // ... and tell the bound envoys about the change.
+    return boundMonitors.stream()
+        .map(BoundMonitor::getEnvoyId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
 
   /**
    * Reconciles bindings to the resources selected by the given updated label selector. It
