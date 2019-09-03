@@ -266,7 +266,7 @@ public class MonitorManagement {
     Monitor monitor = new Monitor()
         .setTenantId(POLICY_TENANT)
         .setMonitorName(newMonitor.getMonitorName())
-        .setMonitorType(MonitorType.cpu)
+        .setMonitorType(newMonitor.getMonitorType())
         .setLabelSelector(newMonitor.getLabelSelector())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
