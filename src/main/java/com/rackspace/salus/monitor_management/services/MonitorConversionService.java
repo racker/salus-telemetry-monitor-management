@@ -161,14 +161,14 @@ public class MonitorConversionService {
     }
   }
 
-  private MonitorType populateMonitorType(MonitorCU monitor, Object plugin) {
+  private void populateMonitorType(MonitorCU monitor, Object plugin) {
     final ApplicableMonitorType applicableMonitorType = plugin.getClass()
         .getAnnotation(ApplicableMonitorType.class);
     if (applicableMonitorType == null) {
       log.warn("monitorClass={} is missing ApplicableMonitorType", plugin.getClass());
       throw new IllegalStateException("Missing ApplicableMonitorType");
     }
-    return applicableMonitorType.value();
+    monitor.setMonitorType(applicableMonitorType.value());
   }
 
   private void populateAgentConfigContent(DetailedMonitorInput input, MonitorCU monitor,
