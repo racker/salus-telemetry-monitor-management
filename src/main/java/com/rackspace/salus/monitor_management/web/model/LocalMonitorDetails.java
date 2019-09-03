@@ -16,16 +16,29 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import com.rackspace.salus.telemetry.model.MonitorType;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiModel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @ApiModel(parent=MonitorDetails.class)
 @Data @EqualsAndHashCode(callSuper = false)
 public class LocalMonitorDetails extends MonitorDetails {
   @NotNull @Valid
   LocalPlugin plugin;
+
+  public MonitorType getType() {
+    final ApplicableMonitorType applicableMonitorType = plugin.getClass()
+        .getAnnotation(ApplicableMonitorType.class);
+    if (applicableMonitorType == null) {
+      log.warn("monitorClass={} is missing ApplicableMonitorType", plugin.getClass());
+      throw new IllegalStateException("Missing ApplicableMonitorType");
+    }
+    return applicableMonitorType.value();
+  }
 }

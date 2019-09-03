@@ -52,6 +52,7 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
@@ -651,6 +652,7 @@ public class MonitorApiControllerTest {
                 .setInterval(Duration.ofSeconds(30))
                 .setLabelSelector(Map.of("agent_environment", "localdev"))
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setMonitorType(MonitorType.cpu)
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
         );

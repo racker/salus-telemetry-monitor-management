@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
@@ -114,6 +115,7 @@ public class MonitorConversionService {
 
     final MonitorCU monitor = new MonitorCU()
         .setMonitorName(input.getName())
+        .setMonitorType(input.getDetails().getType())
         .setLabelSelector(input.getLabelSelector())
         .setLabelSelectorMethod(input.getLabelSelectorMethod())
         .setResourceId(input.getResourceId())
