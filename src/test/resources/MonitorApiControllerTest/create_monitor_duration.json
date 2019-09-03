@@ -1,0 +1,12 @@
+{
+  "interval": "PT30S",
+  "labelSelector": {
+    "agent_environment": "localdev"
+  },
+  "details": {
+    "type": "local",
+    "plugin": {
+      "type": "cpu"
+    }
+  }
+}

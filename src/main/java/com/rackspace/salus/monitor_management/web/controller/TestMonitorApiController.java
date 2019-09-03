@@ -63,6 +63,7 @@ public class TestMonitorApiController {
     return testMonitorService
         .performTestMonitorOnResource(
             tenantId, input.getResourceId(),
+            input.getTimeout(),
             input.getDetails()
         )
         .thenApply(testMonitorOutput ->

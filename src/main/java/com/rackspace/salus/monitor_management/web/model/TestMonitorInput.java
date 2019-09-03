@@ -30,4 +30,9 @@ public class TestMonitorInput {
   @NotNull
   @Valid
   MonitorDetails details;
+
+  /**
+   * The maximum amount of time in seconds the test operation can run.
+   */
+  Long timeout;
 }

@@ -18,30 +18,31 @@ package com.rackspace.salus.monitor_management.config;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
-import org.springframework.stereotype.Component;
 
-@ConfigurationProperties("salus.test-monitor")
-@Component
+@ConfigurationProperties("salus.monitor-conversion")
 @Data
-public class TestMonitorProperties {
+public class MonitorConversionProperties {
 
   /**
-   * If <code>timeout</code> of {@link com.rackspace.salus.monitor_management.web.model.TestMonitorInput}
-   * is not specified, this is the default timeout to use.
+   * Monitors are not allowed to be created/updated with an interval less than this value.
    */
   @DurationUnit(ChronoUnit.SECONDS)
-  @NotNull
-  Duration defaultTimeout = Duration.ofSeconds(30);
+  Duration minimumAllowedInterval = Duration.ofSeconds(30);
 
   /**
-   * This is the duration to add to the test-monitor's timeout to determine the limit of
-   * end-to-end correlation time.
+   * This is the default value used if a create or update API call provides a local monitor
+   * without <code>interval</code> set.
    */
   @DurationUnit(ChronoUnit.SECONDS)
-  @NotNull
-  Duration endToEndTimeoutExtension = Duration.ofSeconds(30);
+  Duration defaultLocalInterval = Duration.ofSeconds(60);
+
+  /**
+   * This is the default value used if a create or update API call provides a remote monitor
+   * without <code>interval</code> set.
+   */
+  @DurationUnit(ChronoUnit.SECONDS)
+  Duration defaultRemoteInterval = Duration.ofSeconds(60);
 }

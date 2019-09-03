@@ -1,0 +1,12 @@
+{
+  "interval": "30",
+  "labelSelector": {
+    "agent_environment": "localdev"
+  },
+  "details": {
+    "type": "local",
+    "plugin": {
+      "type": "cpu"
+    }
+  }
+}

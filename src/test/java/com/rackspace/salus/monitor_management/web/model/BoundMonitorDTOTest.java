@@ -60,5 +60,6 @@ public class BoundMonitorDTOTest {
     assertThat(dto.getAgentType(), equalTo(boundMonitor.getMonitor().getAgentType()));
     assertThat(dto.getRenderedContent(), equalTo(boundMonitor.getRenderedContent()));
     assertThat(dto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));
+    assertThat(dto.getInterval(), equalTo(boundMonitor.getMonitor().getInterval()));
   }
 }
