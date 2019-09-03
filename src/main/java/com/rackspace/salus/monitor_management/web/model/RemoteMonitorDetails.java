@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -36,14 +35,4 @@ public class RemoteMonitorDetails extends MonitorDetails {
 
   @NotNull @Valid
   RemotePlugin plugin;
-
-  public MonitorType getType() {
-    final ApplicableMonitorType applicableMonitorType = plugin.getClass()
-        .getAnnotation(ApplicableMonitorType.class);
-    if (applicableMonitorType == null) {
-      log.warn("monitorClass={} is missing ApplicableMonitorType", plugin.getClass());
-      throw new IllegalStateException("Missing ApplicableMonitorType");
-    }
-    return applicableMonitorType.value();
-  }
 }

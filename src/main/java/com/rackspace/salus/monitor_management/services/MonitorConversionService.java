@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
+import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -115,7 +116,6 @@ public class MonitorConversionService {
 
     final MonitorCU monitor = new MonitorCU()
         .setMonitorName(input.getName())
-        .setMonitorType(input.getDetails().getType())
         .setLabelSelector(input.getLabelSelector())
         .setLabelSelectorMethod(input.getLabelSelectorMethod())
         .setResourceId(input.getResourceId())
@@ -128,6 +128,7 @@ public class MonitorConversionService {
       monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
+      populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     } else if (details instanceof RemoteMonitorDetails) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
@@ -136,6 +137,7 @@ public class MonitorConversionService {
       monitor.setZones(remoteMonitorDetails.getMonitoringZones());
 
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+      populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     }
 
@@ -157,6 +159,16 @@ public class MonitorConversionService {
       throw new IllegalArgumentException(
           String.format("Interval cannot be less than %s", minInterval));
     }
+  }
+
+  private MonitorType populateMonitorType(MonitorCU monitor, Object plugin) {
+    final ApplicableMonitorType applicableMonitorType = plugin.getClass()
+        .getAnnotation(ApplicableMonitorType.class);
+    if (applicableMonitorType == null) {
+      log.warn("monitorClass={} is missing ApplicableMonitorType", plugin.getClass());
+      throw new IllegalStateException("Missing ApplicableMonitorType");
+    }
+    return applicableMonitorType.value();
   }
 
   private void populateAgentConfigContent(DetailedMonitorInput input, MonitorCU monitor,

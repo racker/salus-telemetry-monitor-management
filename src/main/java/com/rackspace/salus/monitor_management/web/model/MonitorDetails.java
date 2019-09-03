@@ -20,9 +20,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
-import com.rackspace.salus.telemetry.model.MonitorType;
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 
 @ApiModel(discriminator="type", subTypes={LocalMonitorDetails.class, RemoteMonitorDetails.class})
 @JsonTypeInfo(use = Id.NAME, property = "type")
@@ -31,5 +29,4 @@ import io.swagger.annotations.ApiModelProperty;
     @Type(name = "remote", value=RemoteMonitorDetails.class)
 })
 public abstract class MonitorDetails {
-  public abstract MonitorType getType();
 }
