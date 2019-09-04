@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,6 +53,7 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.nio.charset.StandardCharsets;
@@ -122,6 +124,7 @@ public class MonitorApiControllerTest {
 
     mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
+        .andDo(print())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
@@ -651,6 +654,7 @@ public class MonitorApiControllerTest {
                 .setInterval(Duration.ofSeconds(30))
                 .setLabelSelector(Map.of("agent_environment", "localdev"))
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setMonitorType(MonitorType.cpu)
                 .setAgentType(AgentType.TELEGRAF)
                 .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
         );

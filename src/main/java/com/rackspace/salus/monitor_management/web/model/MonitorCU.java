@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
@@ -46,6 +47,8 @@ public class MonitorCU implements Serializable {
     LabelSelectorMethod labelSelectorMethod;
 
     String content;
+
+    MonitorType monitorType;
 
     AgentType agentType;
 

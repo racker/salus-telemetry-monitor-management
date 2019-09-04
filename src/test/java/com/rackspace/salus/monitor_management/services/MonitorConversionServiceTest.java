@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
@@ -531,7 +532,8 @@ public class MonitorConversionServiceTest {
   @Test
   public void testConvertFrom_ResourceId() {
     DetailedMonitorInput input = new DetailedMonitorInput()
-        .setResourceId("r-1");
+        .setResourceId("r-1")
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
     final MonitorCU result = conversionService.convertFromInput(input);
     assertThat(result.getResourceId()).isEqualTo(input.getResourceId());
   }
@@ -565,7 +567,8 @@ public class MonitorConversionServiceTest {
   @Test
   public void testConvertFrom_LabelSelectorMethod() {
     DetailedMonitorInput input = new DetailedMonitorInput()
-        .setLabelSelectorMethod(LabelSelectorMethod.OR);
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setDetails(new LocalMonitorDetails().setPlugin(new Cpu()));
     final MonitorCU result = conversionService.convertFromInput(input);
     assertThat(result.getLabelSelectorMethod()).isEqualTo(input.getLabelSelectorMethod());
   }
