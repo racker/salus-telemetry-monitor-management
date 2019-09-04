@@ -34,9 +34,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
@@ -490,7 +490,7 @@ public class MonitorApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(
-            content().json(SpringResourceUtils.readContent("/MonitorApiControllerTest/monitor_label_selectors.json"), true));
+            content().json(readContent("/MonitorApiControllerTest/monitor_label_selectors.json"), true));
 
     verify(monitorManagement).getTenantMonitorLabelSelectors("t-1");
 

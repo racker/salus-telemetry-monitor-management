@@ -19,8 +19,9 @@ package com.rackspace.salus.monitor_management.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
-import com.rackspace.salus.common.util.SpringResourceUtils;
+
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
@@ -80,7 +81,7 @@ public class MonitorConversionServiceTest {
   public void convertToOutput_diskio() throws IOException {
     // NOTE: this unit test is purposely abbreviated compared convertToOutput
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_diskio.json");
+    final String content = readContent("/MonitorConversionServiceTest_diskio.json");
 
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
@@ -112,7 +113,7 @@ public class MonitorConversionServiceTest {
   public void convertFromInput_diskio() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_diskio.json");
+    final String content = readContent("/MonitorConversionServiceTest_diskio.json");
 
     final DiskIo plugin = new DiskIo();
     plugin.setDevices(Collections.singletonList("sda"));
@@ -137,7 +138,7 @@ public class MonitorConversionServiceTest {
   public void convertToOutput_mem() throws IOException {
     // NOTE: this unit test is purposely abbreviated compared convertToOutput
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_mem.json");
+    final String content = readContent("/MonitorConversionServiceTest_mem.json");
 
     Monitor monitor = new Monitor()
         .setId(UUID.randomUUID())
@@ -162,7 +163,7 @@ public class MonitorConversionServiceTest {
   public void convertFromInput_mem() throws JSONException, IOException {
     // NOTE: this unit test is purposely abbreviated compared convertFromInput
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_mem.json");
+    final String content = readContent("/MonitorConversionServiceTest_mem.json");
 
     final Mem plugin = new Mem();
     // no config to set
@@ -185,7 +186,7 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertToOutput_remote");
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_ping.json");
+    final String content = readContent("/MonitorConversionServiceTest_ping.json");
 
     final UUID monitorId = UUID.randomUUID();
 
@@ -243,7 +244,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_ping.json");
+    final String content = readContent("/MonitorConversionServiceTest_ping.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -253,7 +254,7 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertToOutput_x509");
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_x509.json");
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
 
     final UUID monitorId = UUID.randomUUID();
 
@@ -331,7 +332,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_x509.json");
+    final String content = readContent("/MonitorConversionServiceTest_x509.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -341,7 +342,7 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertToOutput_http");
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_http.json");
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
     final UUID monitorId = UUID.randomUUID();
 
     Monitor monitor = new Monitor()
@@ -428,7 +429,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_http.json");
+    final String content = readContent("/MonitorConversionServiceTest_http.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -477,7 +478,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_procstat.json");
+    final String content = readContent("/MonitorConversionServiceTest_procstat.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -487,7 +488,7 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertToOutput_remote");
 
-    final String content = SpringResourceUtils.readContent("/MonitorConversionServiceTest_procstat.json");
+    final String content = readContent("/MonitorConversionServiceTest_procstat.json");
 
     final UUID monitorId = UUID.randomUUID();
 

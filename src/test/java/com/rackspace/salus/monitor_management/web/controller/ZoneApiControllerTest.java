@@ -33,9 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -140,7 +140,7 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(
-                    SpringResourceUtils.readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
+                    readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
     @Test
@@ -169,7 +169,7 @@ public class ZoneApiControllerTest {
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
                 // the STATE field should not be included
-                SpringResourceUtils.readContent("ZoneApiControllerTest/publicZone_as_customer.json"), true));
+                readContent("ZoneApiControllerTest/publicZone_as_customer.json"), true));
     }
 
     @Test
@@ -237,7 +237,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                SpringResourceUtils.readContent("ZoneApiControllerTest/publicZone_basic.json"), true));
+                readContent("ZoneApiControllerTest/publicZone_basic.json"), true));
     }
 
     @Test
@@ -268,7 +268,7 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                SpringResourceUtils.readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
+                readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
     @Test
@@ -316,7 +316,7 @@ public class ZoneApiControllerTest {
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json(
-                    SpringResourceUtils.readContent("ZoneApiControllerTest/privateZone_underscores.json"), true));
+                    readContent("ZoneApiControllerTest/privateZone_underscores.json"), true));
     }
 
     @Test
@@ -363,7 +363,6 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                SpringResourceUtils.
                     readContent("ZoneApiControllerTest/publicZone_basic.json")));
     }
 
@@ -462,7 +461,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                SpringResourceUtils.readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
                 true));
 
         verify(zoneManagement).exists("t-1", "z-1");
@@ -555,7 +554,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                SpringResourceUtils.readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
                 true));
 
         verify(zoneManagement).publicZoneExists("public/west");
