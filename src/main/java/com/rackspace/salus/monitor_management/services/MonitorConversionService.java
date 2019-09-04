@@ -18,8 +18,9 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
+import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -28,11 +29,15 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 /**
@@ -40,13 +45,16 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Slf4j
+@EnableConfigurationProperties(MonitorConversionProperties.class)
 public class MonitorConversionService {
 
   private final ObjectMapper objectMapper;
+  private final MonitorConversionProperties properties;
 
   @Autowired
-  public MonitorConversionService(ObjectMapper objectMapper) {
+  public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties) {
     this.objectMapper = objectMapper;
+    this.properties = properties;
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
@@ -56,6 +64,7 @@ public class MonitorConversionService {
         .setLabelSelector(monitor.getLabelSelector())
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
+        .setInterval(monitor.getInterval())
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
         .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
 
@@ -102,11 +111,15 @@ public class MonitorConversionService {
   }
 
   public MonitorCU convertFromInput(DetailedMonitorInput input) {
+
+    validateInterval(input.getInterval());
+
     final MonitorCU monitor = new MonitorCU()
         .setMonitorName(input.getName())
         .setLabelSelector(input.getLabelSelector())
         .setLabelSelectorMethod(input.getLabelSelectorMethod())
-        .setResourceId(input.getResourceId());
+        .setResourceId(input.getResourceId())
+        .setInterval(input.getInterval());
 
     final MonitorDetails details = input.getDetails();
 
@@ -115,6 +128,7 @@ public class MonitorConversionService {
       monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
+      populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     } else if (details instanceof RemoteMonitorDetails) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
@@ -123,10 +137,38 @@ public class MonitorConversionService {
       monitor.setZones(remoteMonitorDetails.getMonitoringZones());
 
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+      populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     }
 
+    // Set an appropriate default interval based on the type, if an interval wasn't provided by the user
+    if (monitor.getInterval() == null) {
+      monitor.setInterval(
+          monitor.getSelectorScope() == ConfigSelectorScope.LOCAL ?
+              properties.getDefaultLocalInterval() :
+              properties.getDefaultRemoteInterval()
+      );
+    }
+
     return monitor;
+  }
+
+  private void validateInterval(Duration interval) {
+    final Duration minInterval = properties.getMinimumAllowedInterval();
+    if (interval != null && interval.compareTo(minInterval) < 0) {
+      throw new IllegalArgumentException(
+          String.format("Interval cannot be less than %s", minInterval));
+    }
+  }
+
+  private void populateMonitorType(MonitorCU monitor, Object plugin) {
+    final ApplicableMonitorType applicableMonitorType = plugin.getClass()
+        .getAnnotation(ApplicableMonitorType.class);
+    if (applicableMonitorType == null) {
+      log.warn("monitorClass={} is missing ApplicableMonitorType", plugin.getClass());
+      throw new IllegalStateException("Missing ApplicableMonitorType");
+    }
+    monitor.setMonitorType(applicableMonitorType.value());
   }
 
   private void populateAgentConfigContent(DetailedMonitorInput input, MonitorCU monitor,

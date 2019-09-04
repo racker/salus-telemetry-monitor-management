@@ -47,6 +47,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
@@ -231,8 +232,10 @@ public class MonitorManagement {
     Monitor monitor = new Monitor()
         .setTenantId(tenantId)
         .setMonitorName(newMonitor.getMonitorName())
+        .setMonitorType(newMonitor.getMonitorType())
         .setLabelSelector(newMonitor.getLabelSelector())
         .setResourceId(newMonitor.getResourceId())
+        .setInterval(newMonitor.getInterval())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
@@ -267,6 +270,7 @@ public class MonitorManagement {
     Monitor monitor = new Monitor()
         .setTenantId(POLICY_TENANT)
         .setMonitorName(newMonitor.getMonitorName())
+        .setMonitorType(newMonitor.getMonitorType())
         .setLabelSelector(newMonitor.getLabelSelector())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
@@ -336,13 +340,12 @@ public class MonitorManagement {
     if (!StringUtils.isBlank(resourceId)) {
       Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
       resources = new ArrayList<>();
-      if (r.isPresent()) {
-        resources.add(new ResourceDTO(r.get()));
-      }
+      r.ifPresent(resource -> resources.add(new ResourceDTO(resource)));
     } else {
       resources = resourceApi.getResourcesWithLabels(
           tenantId, monitor.getLabelSelector());
     }
+
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
 
     final List<BoundMonitor> boundMonitors = new ArrayList<>();
@@ -649,6 +652,14 @@ public class MonitorManagement {
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
 
+    if (updatedValues.getInterval() != null &&
+        !updatedValues.getInterval().equals(monitor.getInterval())) {
+      affectedEnvoys.addAll(
+          processIntervalChanged(monitor)
+      );
+      monitor.setInterval(updatedValues.getInterval());
+    }
+
     PropertyMapper map = PropertyMapper.get();
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
@@ -727,7 +738,7 @@ public class MonitorManagement {
    * @param tenantId The tenant to perform the binding update operations on.
    * @param monitorId Only bound monitors relating to this monitor id will be acted on.
    */
-  public void processPolicyMonitorUpdate(String tenantId, UUID monitorId) {
+  void processPolicyMonitorUpdate(String tenantId, UUID monitorId) {
     log.info("Handling policy monitor={} update for tenant={}", monitorId, tenantId);
     Optional<Monitor> monitor = monitorRepository.findById(monitorId);
 
@@ -892,10 +903,23 @@ public class MonitorManagement {
           ));
     }
 
-  return affectedEnvoys;
+    return affectedEnvoys;
   }
 
+  /**
+   * @return affected envoys
+   */
+  private Set<String> processIntervalChanged(Monitor monitor) {
+    // No actual change is needed for the bound monitors. Just need to retrieve them...
+    final List<BoundMonitor> boundMonitors = boundMonitorRepository
+        .findAllByMonitor_Id(monitor.getId());
 
+    // ... and tell the bound envoys about the change.
+    return boundMonitors.stream()
+        .map(BoundMonitor::getEnvoyId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
 
   /**
    * Reconciles bindings to the resources selected by the given updated label selector. It
@@ -1615,9 +1639,8 @@ public class MonitorManagement {
             return true;
           }
           else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
-            return m.getLabelSelector().entrySet().stream().anyMatch(labels -> {
-              return resource.getLabels().entrySet().contains(labels);
-            });
+            return m.getLabelSelector().entrySet().stream().anyMatch(
+                labels -> resource.getLabels().entrySet().contains(labels));
           } else {
             return resource.getLabels().entrySet().containsAll(m.getLabelSelector().entrySet());
           }

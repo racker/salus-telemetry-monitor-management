@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -42,6 +44,21 @@ public class RestExceptionHandler extends
   public ResponseEntity<?> handleBadRequest(
       HttpServletRequest request) {
     return respondWith(request, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler({HttpMessageNotReadableException.class})
+  public ResponseEntity<?> handleHttpMessageNotReadable(HttpServletRequest request,
+                                                        HttpMessageNotReadableException e) {
+    if (e.getCause() instanceof JsonMappingException) {
+      final JsonMappingException jsonMappingException = (JsonMappingException) e.getCause();
+
+      return respondWith(request, HttpStatus.BAD_REQUEST,
+          String.format("Failed to parse JSON at %s", jsonMappingException.getPathReference()));
+    }
+    else {
+      // fallback to default message derivation
+      return respondWith(request, HttpStatus.BAD_REQUEST);
+    }
   }
 
   @ExceptionHandler({NotFoundException.class})
