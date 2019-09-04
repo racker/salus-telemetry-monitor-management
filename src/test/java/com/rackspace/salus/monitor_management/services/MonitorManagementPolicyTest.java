@@ -56,6 +56,7 @@ import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
@@ -166,6 +167,7 @@ public class MonitorManagementPolicyTest {
     Monitor monitor = new Monitor()
         .setTenantId(POLICY_TENANT)
         .setMonitorName("policy_mon1")
+        .setMonitorType(MonitorType.ping)
         .setLabelSelector(Collections.singletonMap("os", "LINUX"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setContent("content1")
@@ -240,6 +242,7 @@ public class MonitorManagementPolicyTest {
     Monitor monitor = monitorRepository.save(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -266,6 +269,7 @@ public class MonitorManagementPolicyTest {
     Monitor monitor = monitorRepository.save(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -308,6 +312,7 @@ public class MonitorManagementPolicyTest {
     monitorRepository.save(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -319,6 +324,7 @@ public class MonitorManagementPolicyTest {
     List<Monitor> monitors = Arrays.asList(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -327,6 +333,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content1")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -358,6 +365,7 @@ public class MonitorManagementPolicyTest {
   public void testCreatePolicyMonitor() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setMonitorType(MonitorType.cpu);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setZones(null);
     create.setResourceId(null);
@@ -402,6 +410,7 @@ public class MonitorManagementPolicyTest {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("original content")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -434,6 +443,7 @@ public class MonitorManagementPolicyTest {
             new Monitor()
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.ping)
                 .setContent("new content")
                 .setTemplateVariables(Collections.emptyList())
                 .setTenantId(POLICY_TENANT)
@@ -483,6 +493,7 @@ public class MonitorManagementPolicyTest {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("{}")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1039,6 +1050,7 @@ public class MonitorManagementPolicyTest {
     List<Monitor> monitors = Lists.newArrayList(monitorRepository.saveAll(List.of(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1047,6 +1059,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content1")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1055,6 +1068,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content2")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1063,6 +1077,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content3")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1096,6 +1111,7 @@ public class MonitorManagementPolicyTest {
     List<Monitor> monitors = Lists.newArrayList(monitorRepository.saveAll(List.of(
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content0")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1104,6 +1120,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.OR),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content1")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1112,6 +1129,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.OR),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content2")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1120,6 +1138,7 @@ public class MonitorManagementPolicyTest {
             .setLabelSelectorMethod(LabelSelectorMethod.OR),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("content3")
             .setTenantId(POLICY_TENANT)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1155,6 +1174,7 @@ public class MonitorManagementPolicyTest {
       // limit to local/agent monitors only
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setZones(Collections.emptyList());
+      create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -1165,6 +1185,7 @@ public class MonitorManagementPolicyTest {
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setZones(Collections.emptyList());
+      create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
   }

@@ -1,0 +1,23 @@
+{
+  "id": "m-1",
+  "resourceId": "r-1",
+  "name": "name-1",
+  "labelSelector": {
+    "key1": "val1",
+    "key2": "val2"
+  },
+  "labelSelectorMethod": "AND",
+  "interval": "PT1M30S",
+  "details": {
+    "type": "local",
+    "plugin": {
+      "type": "cpu",
+      "collectCpuTime": false,
+      "percpu": true,
+      "reportActive": false,
+      "totalcpu": true
+    }
+  },
+  "createdTimestamp": "1970-01-01T00:00:00Z",
+  "updatedTimestamp": "1970-01-01T00:00:01Z"
+}

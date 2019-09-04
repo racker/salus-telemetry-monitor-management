@@ -21,7 +21,9 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class RemoteMonitorDetails extends MonitorDetails {

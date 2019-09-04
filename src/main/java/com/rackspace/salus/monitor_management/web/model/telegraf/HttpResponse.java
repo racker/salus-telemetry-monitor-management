@@ -19,9 +19,11 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
+import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.Map;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -30,6 +32,7 @@ import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
+@ApplicableMonitorType(MonitorType.http_response)
 @JsonInclude(Include.NON_NULL)
 public class HttpResponse extends RemotePlugin {
   @NotEmpty

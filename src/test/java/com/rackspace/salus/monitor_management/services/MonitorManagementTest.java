@@ -71,6 +71,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
@@ -201,6 +202,7 @@ public class MonitorManagementTest {
     Monitor monitor = new Monitor()
         .setTenantId("abcde")
         .setMonitorName("mon1")
+        .setMonitorType(MonitorType.cpu)
         .setLabelSelector(Collections.singletonMap("os", "LINUX"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setContent("content1")
@@ -241,6 +243,7 @@ public class MonitorManagementTest {
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -251,6 +254,7 @@ public class MonitorManagementTest {
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+      create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -262,6 +266,7 @@ public class MonitorManagementTest {
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setLabelSelector(labels);
+      create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -291,6 +296,7 @@ public class MonitorManagementTest {
             .setLabelSelector(labelSelector)
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.cpu)
             .setContent("{}")
     );
   }
@@ -705,6 +711,7 @@ public class MonitorManagementTest {
     oldLabelSelector.put("old", "yes");
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
         .setContent("{}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -804,6 +811,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
         .setContent("{}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -904,6 +912,7 @@ public class MonitorManagementTest {
         .setContent("address=${resource.metadata.ping_ip}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setMonitorType(MonitorType.ping)
         .setLabelSelector(Collections.singletonMap("os", "linux"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND);
     entityManager.persist(monitor);
@@ -953,6 +962,7 @@ public class MonitorManagementTest {
             new Monitor()
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.ping)
                 .setContent("address=${resource.metadata.address}")
                 .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
@@ -996,6 +1006,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
         .setContent("address=${resource.metadata.ping_ip}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1077,6 +1088,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
         .setContent("static content")
         .setTenantId("t-1")
         .setResourceId("r-1")
@@ -1112,6 +1124,7 @@ public class MonitorManagementTest {
             new Monitor()
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
                 .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
@@ -1165,6 +1178,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
         .setContent("{}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1231,6 +1245,7 @@ public class MonitorManagementTest {
             new Monitor()
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.ping)
                 .setContent("{}")
                 .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
@@ -1283,6 +1298,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
         .setContent("{}")
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1315,6 +1331,7 @@ public class MonitorManagementTest {
             new Monitor()
                 .setId(monitor.getId())
                 .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.ping)
                 .setContent("{}")
                 .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
@@ -1348,6 +1365,7 @@ public class MonitorManagementTest {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("{}")
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -1402,6 +1420,7 @@ public class MonitorManagementTest {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
+            .setMonitorType(MonitorType.ping)
             .setContent("{}")
             .setTenantId("t-1")
             .setSelectorScope(ConfigSelectorScope.REMOTE)
@@ -2892,6 +2911,7 @@ public class MonitorManagementTest {
     final Monitor monitor = new Monitor()
         .setSelectorScope(monitorScope)
         .setTenantId(tenantId)
+        .setMonitorType(MonitorType.cpu)
         .setLabelSelector(labelSelector)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setAgentType(AgentType.TELEGRAF)
@@ -2974,6 +2994,7 @@ public class MonitorManagementTest {
   public void testhandleResourceEvent_modifiedResource_reattachedEnvoy_sameContent() {
     final Monitor monitor = new Monitor()
         .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
@@ -3054,6 +3075,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
@@ -3240,6 +3262,7 @@ public class MonitorManagementTest {
 
     final Monitor monitor = new Monitor()
         .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)

@@ -16,17 +16,17 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
-import io.swagger.annotations.ApiModel;
+import com.rackspace.salus.telemetry.model.MonitorType;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@ApiModel(discriminator="type", subTypes={LocalMonitorDetails.class, RemoteMonitorDetails.class})
-@JsonTypeInfo(use = Id.NAME, property = "type")
-@JsonSubTypes({
-    @Type(name = "local", value=LocalMonitorDetails.class),
-    @Type(name = "remote", value=RemoteMonitorDetails.class)
-})
-public abstract class MonitorDetails {
+/**
+ * This annotation helps the API gateway determine how to construct the backend monitor object.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface ApplicableMonitorType {
+  MonitorType value();
 }
