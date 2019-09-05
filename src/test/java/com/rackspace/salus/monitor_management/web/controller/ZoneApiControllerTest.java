@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -362,7 +363,7 @@ public class ZoneApiControllerTest {
             .andExpect(content()
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(content().json(
-                readContent("ZoneApiControllerTest/publicZone_basic.json")));
+                    readContent("ZoneApiControllerTest/publicZone_basic.json")));
     }
 
     @Test
@@ -650,11 +651,5 @@ public class ZoneApiControllerTest {
             .andExpect(jsonPath("$.message", equalTo("Must provide a public zone name")));
 
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
-    }
-
-    private static String readContent(String resource) throws IOException {
-        try (InputStream in = new ClassPathResource(resource).getInputStream()) {
-            return FileCopyUtils.copyToString(new InputStreamReader(in));
-        }
     }
 }

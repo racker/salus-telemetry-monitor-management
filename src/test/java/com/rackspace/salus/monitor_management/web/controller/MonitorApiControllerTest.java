@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
-import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
@@ -37,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;

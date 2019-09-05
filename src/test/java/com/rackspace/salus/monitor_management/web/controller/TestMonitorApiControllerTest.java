@@ -24,11 +24,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
-import com.rackspace.salus.test.JsonTestUtils;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -77,7 +77,7 @@ public class TestMonitorApiControllerTest {
         .andExpect(request().asyncStarted())
         .andReturn();
 
-    final String expectedRespJson = JsonTestUtils.readContent(
+    final String expectedRespJson = readContent(
         "TestMonitorApiControllerTest/resp_no_errors.json");
 
     mvc.perform(asyncDispatch(mvcResult))
@@ -113,7 +113,7 @@ public class TestMonitorApiControllerTest {
         .andExpect(request().asyncStarted())
         .andReturn();
 
-    final String expectedRespJson = JsonTestUtils.readContent(
+    final String expectedRespJson = readContent(
         "TestMonitorApiControllerTest/resp_with_errors.json");
 
     mvc.perform(asyncDispatch(mvcResult))
@@ -141,8 +141,7 @@ public class TestMonitorApiControllerTest {
         .andExpect(request().asyncStarted())
         .andReturn();
 
-    final String expectedRespJson = JsonTestUtils
-        .readContent("TestMonitorApiControllerTest/resp_timeout.json");
+    final String expectedRespJson = readContent("TestMonitorApiControllerTest/resp_timeout.json");
 
     mvc.perform(asyncDispatch(mvcResult))
         // due to errors and no metrics in response

@@ -16,11 +16,12 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
+
 
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
