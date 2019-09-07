@@ -24,7 +24,7 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -106,7 +106,7 @@ public class NetConversionTest {
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
     final LocalMonitorDetails monitorDetails = (LocalMonitorDetails) result.getDetails();
-    final LocalPlugin plugin = monitorDetails.getPlugin();
+    final Plugin plugin = monitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(Net.class);
 
     final Net expected = new Net()

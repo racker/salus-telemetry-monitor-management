@@ -19,7 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
@@ -29,7 +29,7 @@ import lombok.EqualsAndHashCode;
 @Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.net)
-public class Net extends LocalPlugin {
+public class Net extends Plugin {
   List<String> interfaces;
   @JsonProperty(defaultValue = "true")
   Boolean ignoreProtocolStats = true;

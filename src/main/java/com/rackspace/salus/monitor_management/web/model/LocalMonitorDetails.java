@@ -29,5 +29,5 @@ import lombok.extern.slf4j.Slf4j;
 @Data @EqualsAndHashCode(callSuper = false)
 public class LocalMonitorDetails extends MonitorDetails {
   @NotNull @Valid
-  LocalPlugin plugin;
+  Plugin plugin;
 }

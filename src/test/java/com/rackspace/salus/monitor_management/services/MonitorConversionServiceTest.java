@@ -27,10 +27,10 @@ import com.rackspace.salus.monitor_management.config.MonitorConversionProperties
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
@@ -109,7 +109,7 @@ public class MonitorConversionServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
-    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
+    final Plugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(DiskIo.class);
 
     final DiskIo specificPlugin = (DiskIo) plugin;
@@ -165,7 +165,7 @@ public class MonitorConversionServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
-    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
+    final Plugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(Mem.class);
     // no config to validate
   }
@@ -223,7 +223,7 @@ public class MonitorConversionServiceTest {
 
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
     assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
-    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    final Plugin plugin = remoteMonitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(Ping.class);
 
     final Ping pingPlugin = (Ping) plugin;
@@ -290,7 +290,7 @@ public class MonitorConversionServiceTest {
 
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
     assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
-    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    final Plugin plugin = remoteMonitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(X509Cert.class);
 
     final X509Cert x509Plugin = (X509Cert) plugin;
@@ -377,7 +377,7 @@ public class MonitorConversionServiceTest {
 
     final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
     assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
-    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    final Plugin plugin = remoteMonitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(HttpResponse.class);
 
     final HttpResponse httpPlugin = (HttpResponse) plugin;
@@ -522,7 +522,7 @@ public class MonitorConversionServiceTest {
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
     final LocalMonitorDetails localMonitorDetails = (LocalMonitorDetails) result.getDetails();
-    final LocalPlugin plugin = localMonitorDetails.getPlugin();
+    final Plugin plugin = localMonitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(Procstat.class);
 
     final Procstat procstatPlugin = (Procstat) plugin;

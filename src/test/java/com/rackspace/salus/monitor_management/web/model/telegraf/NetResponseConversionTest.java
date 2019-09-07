@@ -25,7 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse.Protocol;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -110,7 +110,7 @@ public class NetResponseConversionTest {
     assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
 
     final RemoteMonitorDetails monitorDetails = (RemoteMonitorDetails) result.getDetails();
-    final RemotePlugin remotePlugin = monitorDetails.getPlugin();
+    final Plugin remotePlugin = monitorDetails.getPlugin();
     assertThat(remotePlugin).isInstanceOf(NetResponse.class);
 
     final NetResponse expected = new NetResponse()

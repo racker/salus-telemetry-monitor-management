@@ -24,11 +24,10 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
@@ -74,14 +73,14 @@ public class MonitorConversionService {
       final LocalMonitorDetails monitorDetails = new LocalMonitorDetails();
       detailedMonitorOutput.setDetails(monitorDetails);
 
-      final LocalPlugin localPlugin;
+      final Plugin localPlugin;
 
       try {
         localPlugin = objectMapper
-            .readValue(monitor.getContent(), LocalPlugin.class);
+            .readValue(monitor.getContent(), Plugin.class);
       } catch (IOException e) {
-        log.warn("Failed to deserialize LocalPlugin for monitor={}", monitor, e);
-        throw new IllegalStateException("Failed to deserialize LocalPlugin");
+        log.warn("Failed to deserialize Plugin for monitor={}", monitor, e);
+        throw new IllegalStateException("Failed to deserialize Plugin");
       }
 
       assertPluginAgentType(monitor, localPlugin);
@@ -93,13 +92,13 @@ public class MonitorConversionService {
 
       monitorDetails.setMonitoringZones(monitor.getZones());
 
-      final RemotePlugin remotePlugin;
+      final Plugin remotePlugin;
 
       try {
-        remotePlugin = objectMapper.readValue(monitor.getContent(), RemotePlugin.class);
+        remotePlugin = objectMapper.readValue(monitor.getContent(), Plugin.class);
       } catch (IOException e) {
-        log.warn("Failed to deserialize RemotePlugin for monitor={}", monitor, e);
-        throw new IllegalStateException("Failed to deserialize RemotePlugin");
+        log.warn("Failed to deserialize Plugin for monitor={}", monitor, e);
+        throw new IllegalStateException("Failed to deserialize Plugin");
       }
 
       assertPluginAgentType(monitor, remotePlugin);
@@ -127,7 +126,7 @@ public class MonitorConversionService {
     if (details instanceof LocalMonitorDetails) {
       monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
 
-      final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
+      final Plugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     } else if (details instanceof RemoteMonitorDetails) {
@@ -136,7 +135,7 @@ public class MonitorConversionService {
       monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
       monitor.setZones(remoteMonitorDetails.getMonitoringZones());
 
-      final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+      final Plugin plugin = remoteMonitorDetails.getPlugin();
       populateMonitorType(monitor, plugin);
       populateAgentConfigContent(input, monitor, plugin);
     }

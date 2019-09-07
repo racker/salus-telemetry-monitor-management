@@ -19,7 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.Arrays;
@@ -30,7 +30,7 @@ import lombok.EqualsAndHashCode;
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.disk)
-public class Disk extends LocalPlugin {
+public class Disk extends Plugin {
   List<String> mountPoints;
   @JsonProperty(defaultValue = "[\"tmpfs\", \"devtmpfs\", \"devfs\", \"iso9660\", \"overlay\", \"aufs\", \"squashfs\"]")
   List<String> ignoreFs = Arrays.asList("tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs");

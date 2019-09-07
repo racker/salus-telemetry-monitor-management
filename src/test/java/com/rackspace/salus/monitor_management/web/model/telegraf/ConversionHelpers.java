@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.time.Instant;
@@ -42,7 +42,7 @@ class ConversionHelpers {
     assertThat(result.getLabelSelector()).isEqualTo(monitor.getLabelSelector());
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
-    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
+    final Plugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
     return ((T) plugin);
   }

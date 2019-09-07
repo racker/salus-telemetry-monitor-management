@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.Plugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidHostAndPort;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -33,7 +33,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.net_response)
 @JsonInclude(Include.NON_NULL)
-public class NetResponse extends RemotePlugin {
+public class NetResponse extends Plugin {
 
   public enum Protocol {
     udp, tcp

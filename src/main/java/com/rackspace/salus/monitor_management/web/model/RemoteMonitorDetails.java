@@ -34,5 +34,5 @@ public class RemoteMonitorDetails extends MonitorDetails {
   List<String> monitoringZones;
 
   @NotNull @Valid
-  RemotePlugin plugin;
+  Plugin plugin;
 }
