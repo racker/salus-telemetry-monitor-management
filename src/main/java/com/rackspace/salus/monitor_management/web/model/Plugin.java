@@ -25,6 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Net;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
@@ -42,7 +43,8 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
     @Type(name = "ping", value = Ping.class),
     @Type(name = "x509_cert", value = X509Cert.class),
     @Type(name = "http_response", value = HttpResponse.class),
-    @Type(name = "net_response", value = NetResponse.class)
+    @Type(name = "net_response", value = NetResponse.class),
+    @Type(name = "mysql", value = Mysql.class)
 })
 public abstract class Plugin {
 
