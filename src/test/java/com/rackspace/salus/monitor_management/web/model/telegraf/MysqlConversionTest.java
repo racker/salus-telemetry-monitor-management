@@ -30,7 +30,9 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.json.JSONException;
 import org.junit.Test;
@@ -64,7 +66,32 @@ public class MysqlConversionTest {
 
     final Mysql mysqlPlugin = assertCommon(result, monitor, Mysql.class, "convertToOutput");
 
+    List<String> dbs = new ArrayList<>();
+    dbs.add("1");
+    dbs.add("2");
+    assertThat(mysqlPlugin.getServers()).isEqualTo(dbs);
+    assertThat(mysqlPlugin.getPerfEventsStatementsDigestTextLimit()).isEqualTo(1);
+    assertThat(mysqlPlugin.getPerfEventsStatementsLimit()).isEqualTo(2);
+    assertThat(mysqlPlugin.getPerfEventsStatementsTimeLimit()).isEqualTo(3);
+    assertThat(mysqlPlugin.getTableSchemaDatabases()).isEqualTo(dbs);
+    assertThat(mysqlPlugin.isGatherProcessList()).isFalse();
+    assertThat(mysqlPlugin.isGatherUserStatistics()).isTrue();
+    assertThat(mysqlPlugin.isGatherInfoSchemaAutoInc()).isFalse();
     assertThat(mysqlPlugin.isGatherInnoDBMetrics()).isTrue();
+    assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
+    assertThat(mysqlPlugin.isGatherBinaryLogs()).isTrue();
+    assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableLockWaits()).isTrue();
+    assertThat(mysqlPlugin.isGatherIndexIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherEventWaits()).isTrue();
+    assertThat(mysqlPlugin.isGatherTableSchema()).isFalse();
+    assertThat(mysqlPlugin.isGatherFileEventsStats()).isTrue();
+    assertThat(mysqlPlugin.isGatherPerfEventsStatements()).isFalse();
+    assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo("3s");
+    assertThat(mysqlPlugin.getMetricVersion()).isEqualTo("2");
+    assertThat(mysqlPlugin.getTlsCa()).isEqualTo("tlsCa");
+    assertThat(mysqlPlugin.getTlsCert()).isEqualTo("tlsCert");
+    assertThat(mysqlPlugin.getTlsKey()).isEqualTo("tlsKey");
   }
 
   @Test
@@ -78,8 +105,30 @@ public class MysqlConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Mysql mysqlPlugin = assertCommon(result, monitor, Mysql.class, "convertToOutput_defaults");
-
+    assertThat(mysqlPlugin.getServers()).isEqualTo(null);
+    assertThat(mysqlPlugin.getPerfEventsStatementsDigestTextLimit()).isEqualTo(null);
+    assertThat(mysqlPlugin.getPerfEventsStatementsLimit()).isEqualTo(null);
+    assertThat(mysqlPlugin.getPerfEventsStatementsTimeLimit()).isEqualTo(null);
+    assertThat(mysqlPlugin.getTableSchemaDatabases()).isEqualTo(null);
+    assertThat(mysqlPlugin.isGatherProcessList()).isFalse();
+    assertThat(mysqlPlugin.isGatherUserStatistics()).isFalse();
+    assertThat(mysqlPlugin.isGatherInfoSchemaAutoInc()).isFalse();
     assertThat(mysqlPlugin.isGatherInnoDBMetrics()).isFalse();
+    assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
+    assertThat(mysqlPlugin.isGatherBinaryLogs()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableLockWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherIndexIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherEventWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableSchema()).isFalse();
+    assertThat(mysqlPlugin.isGatherFileEventsStats()).isFalse();
+    assertThat(mysqlPlugin.isGatherPerfEventsStatements()).isFalse();
+    assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo(null);
+    assertThat(mysqlPlugin.getMetricVersion()).isEqualTo("2");
+    assertThat(mysqlPlugin.getTlsCa()).isEqualTo(null);
+    assertThat(mysqlPlugin.getTlsCert()).isEqualTo(null);
+    assertThat(mysqlPlugin.getTlsKey()).isEqualTo(null);
+
   }
 
   @Test
@@ -88,9 +137,34 @@ public class MysqlConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
+    List<String> dbs = new ArrayList<>();
+    dbs.add("1");
+    dbs.add("2");
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Mysql plugin = new Mysql();
-    plugin.setGatherProcessList(true);
+    plugin.setServers(dbs);
+    plugin.setPerfEventsStatementsDigestTextLimit(1);
+    plugin.setPerfEventsStatementsLimit(2);
+    plugin.setPerfEventsStatementsTimeLimit(3);
+    plugin.setTableSchemaDatabases(dbs);
+    plugin.setGatherProcessList(false);
+    plugin.setGatherUserStatistics(true);
+    plugin.setGatherInfoSchemaAutoInc(false);
+    plugin.setGatherInnoDBMetrics(true);
+    plugin.setGatherSlaveStatus(false);
+    plugin.setGatherBinaryLogs(true);
+    plugin.setGatherTableIOWaits(false);
+    plugin.setGatherTableLockWaits(true);
+    plugin.setGatherIndexIOWaits(false);
+    plugin.setGatherEventWaits(true);
+    plugin.setGatherTableSchema(false);
+    plugin.setGatherFileEventsStats(true);
+    plugin.setGatherPerfEventsStatements(false);
+    plugin.setIntervalSlow("3s");
+    plugin.setMetricVersion("2");
+    plugin.setTlsCa("tlsCa");
+    plugin.setTlsCert("tlsCert");
+    plugin.setTlsKey("tlsKey");
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()

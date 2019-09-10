@@ -1,5 +1,6 @@
 {
   "type": "mysql",
+  "servers": ["1", "2"],
   "perfEventsStatementsDigestTextLimit": 1,
   "perfEventsStatementsLimit": 2,
   "perfEventsStatementsTimeLimit": 3,

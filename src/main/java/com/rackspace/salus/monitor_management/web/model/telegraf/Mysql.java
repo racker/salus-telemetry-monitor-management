@@ -49,7 +49,7 @@ public class Mysql extends LocalPlugin {
   boolean gatherFileEventsStats;
   boolean gatherPerfEventsStatements;
   String intervalSlow;
-  String metricVersion;
+  String metricVersion = "2";
   String tlsCa;
   String tlsCert;
   String tlsKey;
