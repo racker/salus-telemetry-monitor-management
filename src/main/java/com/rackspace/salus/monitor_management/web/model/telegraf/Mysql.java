@@ -31,4 +31,26 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.mysql)
 public class Mysql extends LocalPlugin {
   List<String> servers;
+  Integer perfEventsStatementsDigestTextLimit;
+  Integer perfEventsStatementsLimit;
+  Integer perfEventsStatementsTimeLimit;
+  List<String> tableSchemaDatabases;
+  boolean gatherProcessList;
+  boolean gatherUserStatistics;
+  boolean gatherInfoSchemaAutoInc;
+  boolean gatherInnoDBMetrics;
+  boolean gatherSlaveStatus;
+  boolean gatherBinaryLogs;
+  boolean gatherTableIOWaits;
+  boolean gatherTableLockWaits;
+  boolean gatherIndexIOWaits;
+  boolean gatherEventWaits;
+  boolean gatherTableSchema;
+  boolean gatherFileEventsStats;
+  boolean gatherPerfEventsStatements;
+  String intervalSlow;
+  String metricVersion;
+  String tlsCa;
+  String tlsCert;
+  String tlsKey;
 }
