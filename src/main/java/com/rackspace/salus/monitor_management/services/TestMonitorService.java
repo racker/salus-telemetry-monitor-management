@@ -23,6 +23,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
@@ -31,10 +32,12 @@ import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +65,7 @@ public class TestMonitorService {
   private final EnvoyResourceManagement envoyResourceManagement;
   private final MonitorContentRenderer monitorContentRenderer;
   private final MonitorManagement monitorManagement;
+  private final PolicyApi policyApi;
   private final TestMonitorEventProducer testMonitorEventProducer;
   private final TestMonitorProperties testMonitorProperties;
   private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorOutput>> pending =
@@ -69,17 +73,19 @@ public class TestMonitorService {
 
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
-                            ResourceRepository resourceRepository,
-                            EnvoyResourceManagement envoyResourceManagement,
-                            MonitorContentRenderer monitorContentRenderer,
-                            MonitorManagement monitorManagement,
-                            TestMonitorProperties testMonitorProperties,
-                            TestMonitorEventProducer testMonitorEventProducer) {
+      ResourceRepository resourceRepository,
+      EnvoyResourceManagement envoyResourceManagement,
+      MonitorContentRenderer monitorContentRenderer,
+      MonitorManagement monitorManagement,
+      PolicyApi policyApi,
+      TestMonitorProperties testMonitorProperties,
+      TestMonitorEventProducer testMonitorEventProducer) {
     this.monitorConversionService = monitorConversionService;
     this.resourceRepository = resourceRepository;
     this.envoyResourceManagement = envoyResourceManagement;
     this.monitorContentRenderer = monitorContentRenderer;
     this.monitorManagement = monitorManagement;
+    this.policyApi = policyApi;
     this.testMonitorEventProducer = testMonitorEventProducer;
     this.testMonitorProperties = testMonitorProperties;
   }
@@ -92,6 +98,8 @@ public class TestMonitorService {
     final boolean isRemote = details instanceof RemoteMonitorDetails;
 
     final MonitorCU monitorCU = monitorConversionService.convertFromInput(
+        tenantId,
+        null,
         new DetailedMonitorInput()
             .setDetails(details)
     );

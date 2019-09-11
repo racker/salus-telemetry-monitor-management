@@ -31,15 +31,4 @@ public class MonitorContentProperties {
    * rendering. The default avoids conflicting with "{{ }}" used by Insomnia for its templating.
    */
   String placeholderDelimiters = "${ }";
-
-  /**
-   * Regex string that can be used the detect the variables set in the monitor's content.
-   *
-   * If any templated variables are found when using this regex with a Matcher, the variable
-   * name without the prefix can be retrieved with <code>matcher.group(1)</code>.
-   *
-   * If the {@link MonitorContentProperties:placeholderDelimiters} changes, this regex should
-   * also change.
-   */
-  String placeholderRegex = String.format("\\$\\{%s(.+?)}", MetadataPolicy.PREFIX);
 }

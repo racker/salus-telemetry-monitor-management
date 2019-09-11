@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -28,18 +29,21 @@ import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -53,6 +57,12 @@ public class NetConversionTest {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
   private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
+
+  @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
+  MonitorRepository monitorRepository;
 
   @Autowired
   MonitorConversionService conversionService;
@@ -72,7 +82,8 @@ public class NetConversionTest {
     final DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabelSelector(labels)
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);

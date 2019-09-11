@@ -59,4 +59,6 @@ public class MonitorCU implements Serializable {
     String resourceId;
 
     Duration interval;
+
+    List<String> pluginMetadataFields;
 }

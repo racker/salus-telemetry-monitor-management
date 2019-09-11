@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -99,6 +98,7 @@ import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -155,6 +155,9 @@ public class MonitorManagementTest {
   public ExpectedException exceptionRule = ExpectedException.none();
 
   @MockBean
+  MonitorConversionService monitorConversionService;
+
+  @MockBean
   MonitorEventProducer monitorEventProducer;
 
   @MockBean
@@ -206,7 +209,8 @@ public class MonitorManagementTest {
         .setLabelSelector(Collections.singletonMap("os", "LINUX"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setContent("content1")
-        .setAgentType(AgentType.FILEBEAT);
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60));
     monitorRepository.save(monitor);
     currentMonitor = monitor;
 
@@ -255,6 +259,7 @@ public class MonitorManagementTest {
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -267,6 +272,7 @@ public class MonitorManagementTest {
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setLabelSelector(labels);
       create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -278,6 +284,8 @@ public class MonitorManagementTest {
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setContent(content);
+      create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -297,6 +305,7 @@ public class MonitorManagementTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.cpu)
+            .setInterval(Duration.ofSeconds(60))
             .setContent("{}")
     );
   }
@@ -501,42 +510,6 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testCreateNewMonitor_MetatadaPolicyInContent() {
-    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-    create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
-    create.setLabelSelector(Collections.emptyMap());
-    create.setContent("${rackspace.metadata.test_value1} and ${rackspace.metadata.test_value2}");
-
-    String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
-    Monitor returned = monitorManagement.createMonitor(tenantId, create);
-
-    // This is auto-generated so we do not know what the exact value will be
-    assertThat(returned.getId(), notNullValue());
-
-    // templateVariables are returned as a PersistentBag so we check the contents here
-    // vs. asserting the list (and types) match exactly in the Monitor asserts.
-    List<String> expectedMetadata = Arrays.asList("test_value1", "test_value2");
-    assertThat(returned.getTemplateVariables(), hasSize(2));
-    assertThat(returned.getTemplateVariables(), containsInAnyOrder(expectedMetadata.toArray()));
-
-    Monitor expectedMonitor = new Monitor()
-        .setAgentType(AgentType.TELEGRAF)
-        .setMonitorName(create.getMonitorName())
-        .setContent("${rackspace.metadata.test_value1} and ${rackspace.metadata.test_value2}")
-        .setTenantId(tenantId)
-        .setResourceId(create.getResourceId())
-        .setSelectorScope(ConfigSelectorScope.LOCAL)
-        .setLabelSelector(Collections.emptyMap())
-        .setLabelSelectorMethod(create.getLabelSelectorMethod());
-
-    org.assertj.core.api.Assertions.assertThat(Collections.singleton(returned))
-        .usingElementComparatorIgnoringFields("id", "createdTimestamp", "updatedTimestamp", "templateVariables")
-        .containsExactly(expectedMonitor);
-  }
-
-  @Test
   public void testCreateNewMonitor_LocalWithZones() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     // zones gets populated by podam
@@ -716,7 +689,8 @@ public class MonitorManagementTest {
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(oldLabelSelector)
-        .setLabelSelectorMethod(LabelSelectorMethod.OR);
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
 
@@ -816,7 +790,8 @@ public class MonitorManagementTest {
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(labels)
-        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
 
@@ -914,7 +889,8 @@ public class MonitorManagementTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setMonitorType(MonitorType.ping)
         .setLabelSelector(Collections.singletonMap("os", "linux"))
-        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     final BoundMonitor bound1 = new BoundMonitor()
@@ -964,11 +940,12 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("address=${resource.metadata.address}")
-                .setTemplateVariables(Collections.emptyList())
+                .setMonitorMetadataFields(List.of("zones"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
-                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
 
     verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
 
@@ -1093,7 +1070,8 @@ public class MonitorManagementTest {
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
-        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     final BoundMonitor bound1 = new BoundMonitor()
@@ -1126,11 +1104,12 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
-                .setTemplateVariables(Collections.emptyList())
+                .setMonitorMetadataFields(List.of("zones"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId("r-2")
-                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
 
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-2");
@@ -1184,7 +1163,8 @@ public class MonitorManagementTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Arrays.asList("z-1", "z-2"))
         .setLabelSelector(Collections.singletonMap("os", "linux"))
-        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
@@ -1247,12 +1227,13 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("{}")
-                .setTemplateVariables(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setZones(Arrays.asList("z-2", "z-3"))
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
-                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setMonitorMetadataFields(Collections.emptyList())
+                .setInterval(Duration.ofSeconds(60)));
 
     verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
 
@@ -1304,7 +1285,8 @@ public class MonitorManagementTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setZones(Arrays.asList("z-1", "z-2"))
         .setLabelSelector(Collections.singletonMap("os", "linux"))
-        .setLabelSelectorMethod(LabelSelectorMethod.AND);
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     List<Zone> zones = Arrays.asList(
@@ -1333,12 +1315,13 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("{}")
-                .setTemplateVariables(Collections.emptyList())
+                .setMonitorMetadataFields(Collections.emptyList())
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setZones(Arrays.asList("z-1", "z-2"))
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
-                .setLabelSelectorMethod(LabelSelectorMethod.AND));
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
 
     verify(zoneManagement).getAvailableZonesForTenant("t-1", Pageable.unpaged());
 
@@ -1371,7 +1354,8 @@ public class MonitorManagementTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     final BoundMonitor boundMonitor = new BoundMonitor()
         .setTenantId("t-1")
@@ -1426,7 +1410,8 @@ public class MonitorManagementTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList(zoneName))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     final BoundMonitor boundMonitor = new BoundMonitor()
         .setMonitor(monitor)
@@ -1523,47 +1508,6 @@ public class MonitorManagementTest {
     int totalPages = (monitorsWithLabels  + size  -1 ) / size;
     assertThat(monitors.getTotalPages(), equalTo(totalPages));
     assertThat(monitors.getContent(), hasSize(size));
-  }
-
-  @Test
-  public void testGetMonitorsByTemplateVariable() {
-    int monitorsWithPolicyMetadata = new Random().nextInt(10) + 10;
-    int monitorsWithoutPolicyMetadata = new Random().nextInt(10) + 20;
-
-    String tenant1 = RandomStringUtils.randomAlphabetic(10);
-    String tenant2 = RandomStringUtils.randomAlphabetic(10);
-
-    String content1 = "${rackspace.metadata.test1} and ${rackspace.metadata.test2}";
-    String content2 = "${rackspace.metadata.test2} and ${rackspace.metadata.test3}";
-    String content3 = "no policy metadata ${test1}";
-
-    createMonitorsForTenantWithContent(monitorsWithPolicyMetadata, tenant1, content1);
-    createMonitorsForTenantWithContent(monitorsWithPolicyMetadata, tenant2, content2);
-
-    createMonitorsForTenantWithContent(monitorsWithoutPolicyMetadata, tenant1, content3);
-    createMonitorsForTenantWithContent(monitorsWithoutPolicyMetadata, tenant2, content3);
-
-    Set<Monitor> test1Results = monitorManagement.getMonitorsByTemplateVariable("test1");
-    assertThat(test1Results, hasSize(monitorsWithPolicyMetadata));
-    assertThat(test1Results, everyItem(
-            hasProperty("tenantId", equalTo(tenant1))));
-
-    Set<Monitor> test2Results = monitorManagement.getMonitorsByTemplateVariable("test2");
-    assertThat(test2Results, hasSize(monitorsWithPolicyMetadata * 2));
-    assertThat(test2Results, everyItem(
-        anyOf(
-            hasProperty("tenantId", equalTo(tenant1)),
-            hasProperty("tenantId", equalTo(tenant2)))
-        ));
-
-    Set<Monitor> test3Results = monitorManagement.getMonitorsByTemplateVariable("test3");
-    assertThat(test3Results, hasSize(monitorsWithPolicyMetadata));
-    assertThat(test3Results, everyItem(
-        hasProperty("tenantId", equalTo(tenant2))));
-
-    Set<Monitor> test4Results = monitorManagement.getMonitorsByTemplateVariable("test4");
-    assertThat(test4Results, hasSize(0));
-
   }
 
   @Test
@@ -2915,7 +2859,8 @@ public class MonitorManagementTest {
         .setLabelSelector(labelSelector)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setAgentType(AgentType.TELEGRAF)
-        .setContent(monitorContent);
+        .setContent(monitorContent)
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
 
@@ -2999,7 +2944,8 @@ public class MonitorManagementTest {
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setAgentType(AgentType.TELEGRAF)
-        .setContent("static content");
+        .setContent("static content")
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     entityManager.flush();
@@ -3080,7 +3026,8 @@ public class MonitorManagementTest {
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setAgentType(AgentType.TELEGRAF)
-        .setContent("custom=${resource.metadata.custom}");
+        .setContent("custom=${resource.metadata.custom}")
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     entityManager.flush();
@@ -3267,7 +3214,8 @@ public class MonitorManagementTest {
         .setLabelSelector(Collections.singletonMap("env", "prod"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setAgentType(AgentType.TELEGRAF)
-        .setContent("domain=${resource.labels.env}");
+        .setContent("domain=${resource.labels.env}")
+        .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
 
@@ -3648,26 +3596,23 @@ public class MonitorManagementTest {
 
   @Test
   public void testSetTemplateVariables() {
-    Monitor monitor = new Monitor()
-        .setContent("This is a test with one ${user_specified_regex} and more "
-            + "${rackspace.metadata.regex} and ${rackspace.metadata.random_value}.  It should "
-            + "result in two template variables being found.");
-    assertThat(monitor.getTemplateVariables(), nullValue());
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    Monitor monitor = new Monitor();
+    assertThat(monitor.getMonitorMetadataFields(), nullValue());
 
-    monitorManagement.setTemplateVariables(monitor);
-    assertThat(monitor.getTemplateVariables(), hasSize(2));
-    assertThat(monitor.getTemplateVariables().get(0), equalTo("regex"));
-    assertThat(monitor.getTemplateVariables().get(1), equalTo("random_value"));
+    monitorManagement.setMetadataFields(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields(), hasSize(2));
+    assertThat(monitor.getMonitorMetadataFields(), containsInAnyOrder("interval", "zones"));
 
-    // update content and set new variables
-    monitor.setContent("content changed: ${rackspace.metadata.new_value}");
-    monitorManagement.setTemplateVariables(monitor);
-    assertThat(monitor.getTemplateVariables(), hasSize(1));
-    assertThat(monitor.getTemplateVariables().get(0), equalTo("new_value"));
+    // update data and set new variables
+    monitor.setInterval(Duration.ofSeconds(10));
+    monitorManagement.setMetadataFields(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields(), hasSize(1));
+    assertThat(monitor.getMonitorMetadataFields(), contains("zones"));
 
     // remove content and set new variables
-    monitor.setContent("");
-    monitorManagement.setTemplateVariables(monitor);
-    assertThat(monitor.getTemplateVariables(), hasSize(0));
+    monitor.setZones(List.of("zone1"));
+    monitorManagement.setMetadataFields(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields(), hasSize(0));
   }
 }

@@ -43,12 +43,11 @@ public class MonitorContentRenderer {
         .withDelims(properties.getPlaceholderDelimiters());
   }
 
-  String render(String rawContent, ResourceDTO resource, Map<String, String> policies) throws InvalidTemplateException {
+  String render(String rawContent, ResourceDTO resource) throws InvalidTemplateException {
     final Template template = mustacheCompiler.compile(rawContent);
 
     final Map<String, Object> context = new HashMap<>();
     context.put(CTX_RESOURCE, resource);
-    context.putAll(policies);
 
     try {
       return template.execute(context);

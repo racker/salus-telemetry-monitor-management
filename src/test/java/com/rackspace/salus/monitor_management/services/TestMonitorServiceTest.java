@@ -19,8 +19,10 @@ package com.rackspace.salus.monitor_management.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -34,6 +36,7 @@ import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
@@ -98,6 +101,9 @@ public class TestMonitorServiceTest {
   MonitorManagement monitorManagement;
 
   @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
   ResourceRepository resourceRepository;
 
   @MockBean
@@ -119,7 +125,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     Resource resource = new Resource()
@@ -185,11 +191,13 @@ public class TestMonitorServiceTest {
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
-          assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Cpu.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+              assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Cpu.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
@@ -214,7 +222,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
@@ -232,11 +240,13 @@ public class TestMonitorServiceTest {
         .hasMessage("Unable to locate the resource for the test-monitor");
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
-          assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Cpu.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+              assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Cpu.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
@@ -253,7 +263,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     Resource resource = new Resource()
@@ -307,11 +317,13 @@ public class TestMonitorServiceTest {
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
-          assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Cpu.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+              assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Cpu.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
@@ -352,7 +364,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     Resource resource = new Resource()
@@ -419,11 +431,13 @@ public class TestMonitorServiceTest {
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
-          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Ping.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Ping.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
@@ -466,7 +480,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     Resource resource = new Resource()
@@ -497,11 +511,13 @@ public class TestMonitorServiceTest {
     // VERIFY
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
-          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Ping.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Ping.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
@@ -522,7 +538,7 @@ public class TestMonitorServiceTest {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
-    when(monitorConversionService.convertFromInput(any()))
+    when(monitorConversionService.convertFromInput(anyString(), any(), any()))
         .thenReturn(monitorCU);
 
     Resource resource = new Resource()
@@ -557,11 +573,13 @@ public class TestMonitorServiceTest {
     // VERIFY
 
     verify(monitorConversionService)
-        .convertFromInput(ArgumentMatchers.argThat(detailedMonitorInput -> {
-          assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
-          assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
-              .isInstanceOf(Ping.class);
-          return true;
+        .convertFromInput(eq("t-1"),
+            isNull(),
+            ArgumentMatchers.argThat(detailedMonitorInput -> {
+              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
+                  .isInstanceOf(Ping.class);
+              return true;
         }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
