@@ -19,7 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
@@ -28,36 +28,16 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.mysql)
-public class Mysql extends LocalPlugin {
+@ApplicableMonitorType(MonitorType.postgres)
+public class PostgresRemote extends RemotePlugin {
   @NotEmpty
-  List<@ValidLocalHost String> servers;
-  Integer perfEventsStatementsDigestTextLimit;
-  Integer perfEventsStatementsLimit;
-  Integer perfEventsStatementsTimeLimit;
-  List<String> tableSchemaDatabases;
-  boolean gatherProcessList;
-  boolean gatherUserStatistics;
-  boolean gatherInfoSchemaAutoInc;
-  boolean gatherInnoDBMetrics;
-  boolean gatherSlaveStatus;
-  boolean gatherBinaryLogs;
-  boolean gatherTableIOWaits;
-  boolean gatherTableLockWaits;
-  boolean gatherIndexIOWaits;
-  boolean gatherEventWaits;
-  boolean gatherTableSchema;
-  boolean gatherFileEventsStats;
-  boolean gatherPerfEventsStatements;
+  String address;
+  String outputaddress;
   @ValidGoDuration
-  String intervalSlow;
-  @Pattern(regexp = "2", message = "invalid metric version")
-  String metricVersion = "2";
-  String tlsCa;
-  String tlsCert;
-  String tlsKey;
+  String maxLifetime;
+  List<String> ignoredDatabases;
+  List<String> databases;
 }

@@ -25,6 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.MysqlRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.monitor_management.web.model.telegraf.PostgresRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
@@ -33,8 +34,9 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
     @Type(name = "x509_cert", value = X509Cert.class),
     @Type(name = "http_response", value = HttpResponse.class),
     @Type(name = "net_response", value = NetResponse.class),
-    @Type(name = "mysql", value = MysqlRemote.class)
-
+    @Type(name = "mysql", value = MysqlRemote.class),
+    @Type(name = "postgres", value = PostgresRemote.class),
+    //@Type(name = "sql_server", value = SqlServerRemote.class)
 })
 public abstract class RemotePlugin {
 

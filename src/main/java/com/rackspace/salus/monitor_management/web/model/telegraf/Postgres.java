@@ -32,32 +32,14 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.mysql)
-public class Mysql extends LocalPlugin {
+@ApplicableMonitorType(MonitorType.postgres)
+public class Postgres extends LocalPlugin {
   @NotEmpty
-  List<@ValidLocalHost String> servers;
-  Integer perfEventsStatementsDigestTextLimit;
-  Integer perfEventsStatementsLimit;
-  Integer perfEventsStatementsTimeLimit;
-  List<String> tableSchemaDatabases;
-  boolean gatherProcessList;
-  boolean gatherUserStatistics;
-  boolean gatherInfoSchemaAutoInc;
-  boolean gatherInnoDBMetrics;
-  boolean gatherSlaveStatus;
-  boolean gatherBinaryLogs;
-  boolean gatherTableIOWaits;
-  boolean gatherTableLockWaits;
-  boolean gatherIndexIOWaits;
-  boolean gatherEventWaits;
-  boolean gatherTableSchema;
-  boolean gatherFileEventsStats;
-  boolean gatherPerfEventsStatements;
+  @ValidLocalHost
+  String address;
+  String outputaddress;
   @ValidGoDuration
-  String intervalSlow;
-  @Pattern(regexp = "2", message = "invalid metric version")
-  String metricVersion = "2";
-  String tlsCa;
-  String tlsCert;
-  String tlsKey;
+  String maxLifetime;
+  List<String> ignoredDatabases;
+  List<String> databases;
 }
