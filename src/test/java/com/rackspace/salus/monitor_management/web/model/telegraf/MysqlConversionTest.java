@@ -66,14 +66,14 @@ public class MysqlConversionTest {
 
     final Mysql mysqlPlugin = assertCommon(result, monitor, Mysql.class, "convertToOutput");
 
-    List<String> dbs = new ArrayList<>();
-    dbs.add("1");
-    dbs.add("2");
-    assertThat(mysqlPlugin.getServers()).isEqualTo(dbs);
+    List<String> l = new ArrayList<>();
+    l.add("1");
+    l.add("2");
+    assertThat(mysqlPlugin.getServers()).isEqualTo(l);
     assertThat(mysqlPlugin.getPerfEventsStatementsDigestTextLimit()).isEqualTo(1);
     assertThat(mysqlPlugin.getPerfEventsStatementsLimit()).isEqualTo(2);
     assertThat(mysqlPlugin.getPerfEventsStatementsTimeLimit()).isEqualTo(3);
-    assertThat(mysqlPlugin.getTableSchemaDatabases()).isEqualTo(dbs);
+    assertThat(mysqlPlugin.getTableSchemaDatabases()).isEqualTo(l);
     assertThat(mysqlPlugin.isGatherProcessList()).isFalse();
     assertThat(mysqlPlugin.isGatherUserStatistics()).isTrue();
     assertThat(mysqlPlugin.isGatherInfoSchemaAutoInc()).isFalse();
@@ -137,16 +137,16 @@ public class MysqlConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
-    List<String> dbs = new ArrayList<>();
-    dbs.add("1");
-    dbs.add("2");
+    List<String> l = new ArrayList<>();
+    l.add("1");
+    l.add("2");
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Mysql plugin = new Mysql();
-    plugin.setServers(dbs);
+    plugin.setServers(l);
     plugin.setPerfEventsStatementsDigestTextLimit(1);
     plugin.setPerfEventsStatementsLimit(2);
     plugin.setPerfEventsStatementsTimeLimit(3);
-    plugin.setTableSchemaDatabases(dbs);
+    plugin.setTableSchemaDatabases(l);
     plugin.setGatherProcessList(false);
     plugin.setGatherUserStatistics(true);
     plugin.setGatherInfoSchemaAutoInc(false);
