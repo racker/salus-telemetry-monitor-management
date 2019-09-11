@@ -26,8 +26,10 @@ import java.util.Map;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @ValidCreateMonitor(groups = {ValidationGroups.Create.class})
 @ValidUpdateMonitor(groups = {ValidationGroups.Update.class})
 public class DetailedMonitorInput {
@@ -50,4 +52,12 @@ public class DetailedMonitorInput {
   @NotNull(groups = ValidationGroups.Create.class)
   @Valid
   MonitorDetails details;
+
+  public DetailedMonitorInput(DetailedMonitorOutput output) {
+    this.name = output.getName();
+    this.labelSelectorMethod = output.getLabelSelectorMethod();
+    this.resourceId = output.getResourceId();
+    this.interval = output.getInterval();
+    this.details = output.getDetails();
+  }
 }

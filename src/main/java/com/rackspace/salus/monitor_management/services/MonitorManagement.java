@@ -20,15 +20,23 @@ import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -40,6 +48,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
@@ -50,6 +59,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -106,8 +116,9 @@ public class MonitorManagement {
   private final ZoneManagement zoneManagement;
   private final ZonesProperties zonesProperties;
   private final String labelMatchQuery;
-
   private final MonitorRepository monitorRepository;
+  private final MonitorConversionService monitorConversionService;
+  private final ObjectMapper objectMapper;
 
   @PersistenceContext
   private final EntityManager entityManager;
@@ -128,7 +139,9 @@ public class MonitorManagement {
       MonitorContentRenderer monitorContentRenderer,
       PolicyApi policyApi, ResourceApi resourceApi,
       ZoneManagement zoneManagement, ZonesProperties zonesProperties,
-      JdbcTemplate jdbcTemplate) throws IOException {
+      MonitorConversionService monitorConversionService,
+      ObjectMapper objectMapper, JdbcTemplate jdbcTemplate)
+      throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
     this.monitorRepository = monitorRepository;
@@ -142,6 +155,8 @@ public class MonitorManagement {
     this.resourceApi = resourceApi;
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
+    this.monitorConversionService = monitorConversionService;
+    this.objectMapper = objectMapper;
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
   }
@@ -239,7 +254,14 @@ public class MonitorManagement {
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
-        .setZones(newMonitor.getZones());
+        .setZones(newMonitor.getZones())
+        .setPluginMetadataFields(newMonitor.getPluginMetadataFields());
+
+    if (newMonitor.getLabelSelectorMethod() != null) {
+      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
+    }
+
+    setMetadataFields(tenantId, monitor);
 
     if (newMonitor.getLabelSelectorMethod() != null) {
       monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
@@ -275,11 +297,14 @@ public class MonitorManagement {
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
-        .setZones(newMonitor.getZones());
+        .setZones(newMonitor.getZones())
+        .setPluginMetadataFields(newMonitor.getPluginMetadataFields());
 
     if (newMonitor.getLabelSelectorMethod() != null) {
       monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
     }
+
+    setMetadataFields(POLICY_TENANT, monitor);
 
     monitor = monitorRepository.save(monitor);
     return monitor;
@@ -430,7 +455,7 @@ public class MonitorManagement {
         .setTenantId(resource.getTenantId())
         .setResourceId(resource.getResourceId())
         .setEnvoyId(envoyId)
-        .setRenderedContent(monitorContentRenderer.render(monitor.getContent(), resource))
+        .setRenderedContent(getRenderedContent(monitor.getContent(), resource))
         .setZoneName("");
   }
 
@@ -444,7 +469,7 @@ public class MonitorManagement {
 
   private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
       throws InvalidTemplateException {
-    final String renderedContent = monitorContentRenderer.render(monitor.getContent(), resource);
+    final String renderedContent = getRenderedContent(monitor.getContent(), resource);
 
     final ResolvedZone resolvedZone = resolveZone(resource.getTenantId(), zone);
 
@@ -664,6 +689,10 @@ public class MonitorManagement {
     map.from(updatedValues.getMonitorName())
         .whenNonNull()
         .to(monitor::setMonitorName);
+
+    setMetadataFields(tenantId, monitor);
+    monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
+
     monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
@@ -719,9 +748,11 @@ public class MonitorManagement {
       // See above regarding:
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
       monitor.setZones(new ArrayList<>(updatedValues.getZones()));
-    } else if (monitor.getZones() != null){
+    } else if (monitor.getZones() != null) {
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
+
+    setMetadataFields(POLICY_TENANT, monitor);
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
@@ -837,12 +868,11 @@ public class MonitorManagement {
     for (Entry<String, List<BoundMonitor>> resourceEntry : groupedByResourceId.entrySet()) {
 
       final String resourceId = resourceEntry.getKey();
-      final ResourceDTO resource = resourceApi
-          .getByResourceId(tenantId, resourceId);
+      final ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
 
       if (resource != null) {
         try {
-          final String renderedContent = monitorContentRenderer.render(updatedContent, resource);
+          final String renderedContent = getRenderedContent(updatedContent, resource);
 
           for (BoundMonitor boundMonitor : resourceEntry.getValue()) {
             if (!renderedContent.equals(boundMonitor.getRenderedContent())) {
@@ -962,7 +992,6 @@ public class MonitorManagement {
     return affectedEnvoys;
   }
 
-
   /**
    * Delete a monitor.
    *
@@ -1003,6 +1032,118 @@ public class MonitorManagement {
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
     log.info("Handling monitor policy event={}", event);
     refreshBoundPolicyMonitorsForTenant(event.getTenantId());
+  }
+
+  /**
+   * Modifies a monitor when a policy metadata field it utilizes is altered.
+   *
+   * All existing bound monitors and removed, the monitor's fields are updated to represent
+   * the policy change, then the monitor is rebound to the relevant resources.
+   *
+   * @param event The policy change event.
+   */
+  void handleMetadataPolicyEvent(MetadataPolicyEvent event) {
+    log.info("Handling metadata policy event={}", event);
+
+    String tenantId = event.getTenantId();
+
+    List<MonitorMetadataPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorMetadataPolicies(tenantId);
+
+    Optional<MonitorMetadataPolicyDTO> policyOptional = effectivePolicies.stream()
+        .filter(p -> p.getId().equals(event.getPolicyId()))
+        .findAny();
+
+    // if the policy is not relevant to this tenant, then bail out early.
+    if (policyOptional.isEmpty()) {
+      return;
+    }
+
+    MonitorMetadataPolicyDTO policy = policyOptional.get();
+    MonitorType monitorType = policy.getMonitorType();
+
+    // The list of relevant monitors depends on both the target class name and monitor type (if set)
+    Set<Monitor> relevantMonitors;
+    if (monitorType == null) {
+      if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
+        relevantMonitors = monitorRepository.findByTenantIdAndMonitorMetadataFieldsContaining(
+            tenantId, policy.getKey());
+      } else {
+        relevantMonitors = monitorRepository.findByTenantIdAndPluginMetadataFieldsContaining(
+            tenantId, policy.getKey());
+      }
+    } else {
+      if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
+        relevantMonitors = monitorRepository
+            .findByTenantIdAndMonitorTypeAndMonitorMetadataFieldsContaining(
+                tenantId, monitorType, policy.getKey());
+      } else {
+        relevantMonitors = monitorRepository
+            .findByTenantIdAndMonitorTypeAndPluginMetadataFieldsContaining(
+                tenantId, monitorType, policy.getKey());
+      }
+    }
+
+    List<UUID> monitorIds = relevantMonitors
+        .stream()
+        .map(Monitor::getId)
+        .collect(Collectors.toList());
+
+    // Remove existing bound monitors
+    Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, monitorIds);
+    final Set<String> affectedEnvoys = new HashSet<>(unbinding);
+
+    // Then add new bindings
+    for (Monitor monitor : relevantMonitors) {
+      if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
+        MetadataUtils.updateMetadataValue(monitor, policy);
+      } else {
+        // When the policy relates to the plugin details the monitor's must be converted
+        // so the LocalPlugin fields can be accessed.
+
+        DetailedMonitorInput input = new DetailedMonitorInput(
+            monitorConversionService.convertToOutput(monitor));
+
+        MonitorDetails details = input.getDetails();
+
+        Object plugin;
+        if (details instanceof LocalMonitorDetails) {
+          plugin = ((LocalMonitorDetails) details).getPlugin();
+          MetadataUtils.updateMetadataValue(plugin, policy);
+        } else if (details instanceof RemoteMonitorDetails) {
+          plugin = ((RemoteMonitorDetails) details).getPlugin();
+          MetadataUtils.updateMetadataValue(plugin, policy);
+        } else {
+          log.error("Received policy event that could not be applied, {}", event);
+          return;
+        }
+
+        try {
+          monitor.setContent(objectMapper.writeValueAsString(plugin));
+        } catch (JsonProcessingException e) {
+          log.warn("Failed to serialize plugin details of monitor={}", plugin, e);
+          throw new IllegalStateException("Failed to serialize plugin details");
+        }
+      }
+
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      // that has a field of type List/Map. It wants to clear the loaded value, which is
+      // disallowed by the object it uses for retrieved lists/maps.
+      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+      monitor.setMonitorMetadataFields(new ArrayList<>(monitor.getMonitorMetadataFields()));
+      monitor.setPluginMetadataFields(new ArrayList<>(monitor.getPluginMetadataFields()));
+      monitor.setZones(new ArrayList<>(monitor.getZones()));
+
+      monitorRepository.save(monitor);
+
+      // Rebind the monitor to any relevant resources
+      Set<String> newBindings = bindNewMonitor(tenantId, monitor);
+      affectedEnvoys.addAll(newBindings);
+    }
+
+    log.info("Updating {} monitors due to policy metadata={} change on tenant={}",
+        relevantMonitors.size(), event.getPolicyId(), tenantId);
+
+    sendMonitorBoundEvents(affectedEnvoys);
   }
 
   void handleTenantChangeEvent(TenantPolicyChangeEvent event) {
@@ -1222,8 +1363,7 @@ public class MonitorManagement {
         // - envoy re-attachment
 
         try {
-          final String newRenderedContent = monitorContentRenderer
-              .render(monitor.getContent(), resource);
+          final String newRenderedContent = getRenderedContent(monitor.getContent(), resource);
 
           for (BoundMonitor existingBind : existing) {
             boolean updated = false;
@@ -1582,16 +1722,12 @@ public class MonitorManagement {
     return boundMonitorRepository.findAllByTenantId(tenantId, page);
   }
 
-  public Page<BoundMonitor> getAllBoundAccountMonitorsByTenantId(String tenantId, Pageable page) {
-    return boundMonitorRepository.findAllByMonitor_TenantId(tenantId, page);
-  }
-
-  public List<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId) {
+  private List<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId) {
     return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
   }
 
-  public Page<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId, Pageable page) {
-    return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT, page);
+  private List<BoundMonitor> getAllBoundMonitorsByMonitorIdAndTenantId(UUID monitorId, String tenantId) {
+    return boundMonitorRepository.findAllByMonitor_IdAndMonitor_TenantId(monitorId, tenantId);
   }
 
   public Monitor getPolicyMonitorForTenant(String tenantId, UUID monitorId) {
@@ -1637,8 +1773,7 @@ public class MonitorManagement {
           if (m.getLabelSelector().isEmpty()) {
             // If no labels are set the monitor applies to all resources
             return true;
-          }
-          else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
+          } else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
             return m.getLabelSelector().entrySet().stream().anyMatch(
                 labels -> resource.getLabels().entrySet().contains(labels));
           } else {
@@ -1654,5 +1789,40 @@ public class MonitorManagement {
         tenantId);
 
     return resourcePolicies;
+  }
+
+  void setMetadataFields(String tenantId, Monitor monitor) {
+    Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
+    List<String> metadataFields;
+    TargetClassName className = TargetClassName.getTargetClassName(monitor);
+
+    if (monitor.getMonitorMetadataFields() != null && !monitor.getMonitorMetadataFields().isEmpty()) {
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+      metadataFields = MetadataUtils
+          .getMetadataFieldsForUpdate(monitor, monitor.getMonitorMetadataFields(), policyMetadata);
+    } else {
+      metadataFields = MetadataUtils.getMetadataFieldsForCreate(monitor);
+    }
+
+    // Store the list of fields that are using metadata policies.
+    monitor.setMonitorMetadataFields(metadataFields);
+
+    if (metadataFields.isEmpty()) {
+      log.debug("No unset metadata fields were found on monitor={}", monitor);
+      return;
+    }
+
+    if (policyMetadata == null) {
+      // this api request is avoided if there are no metadata fields to set
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+    }
+
+    log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
+    MetadataUtils.setNewMetadataValues(monitor, metadataFields, policyMetadata);
+  }
+
+  private String getRenderedContent(String template, ResourceDTO resourceDTO)
+      throws InvalidTemplateException {
+    return monitorContentRenderer.render(template, resourceDTO);
   }
 }

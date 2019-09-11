@@ -16,7 +16,10 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
+
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
+import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
@@ -67,6 +70,16 @@ public class PolicyEventListener {
     // Ignore null tenant events.  These will be handled by policy management.
     if (updateEvent.getTenantId() != null) {
       monitorManagement.processPolicyMonitorUpdate(updateEvent.getTenantId(), updateEvent.getMonitorId());
+    }
+  }
+
+  @KafkaHandler
+  public void consumeMetadataPolicyUpdateEvents(MetadataPolicyEvent policyEvent) {
+    if (policyEvent.getTenantId().equals(POLICY_TENANT)) {
+      // do something different?
+      // send event to get this per tenant, then do refreshBoundPolicyMonitorsForTenant?
+    } else {
+      monitorManagement.handleMetadataPolicyEvent(policyEvent);
     }
   }
 

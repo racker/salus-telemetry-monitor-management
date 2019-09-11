@@ -21,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
-
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -38,10 +40,14 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MetadataValueType;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,6 +59,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.validation.ConstraintViolation;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Assert;
 import org.junit.Before;
@@ -62,6 +69,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
@@ -79,6 +87,12 @@ public class MonitorConversionServiceTest {
 
   @Autowired
   MonitorConversionProperties monitorConversionProperties;
+
+  @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
+  MonitorRepository monitorRepository;
 
   @Before
   public void setUp() throws Exception {
@@ -139,7 +153,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     JSONAssert.assertEquals(content, result.getContent(), true);
@@ -185,7 +200,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabelSelector(Collections.singletonMap("os","linux"))
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     JSONAssert.assertEquals(content, result.getContent(), true);
@@ -197,7 +213,7 @@ public class MonitorConversionServiceTest {
     labels.put("os", "linux");
     labels.put("test", "convertToOutput_remote");
 
-    final String content = readContent("/MonitorConversionServiceTest_ping.json");
+    final String content = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
 
     final UUID monitorId = UUID.randomUUID();
 
@@ -228,6 +244,11 @@ public class MonitorConversionServiceTest {
 
     final Ping pingPlugin = (Ping) plugin;
     assertThat(pingPlugin.getUrls()).contains("localhost");
+    assertThat(pingPlugin.getCount()).isEqualTo(63);
+    assertThat(pingPlugin.getPingInterval()).isEqualTo(2);
+    assertThat(pingPlugin.getDeadline()).isNull();
+    assertThat(pingPlugin.getInterfaceOrAddress()).isNull();
+    assertThat(pingPlugin.getTimeout()).isNull();
   }
 
   @Test
@@ -247,7 +268,8 @@ public class MonitorConversionServiceTest {
         .setLabelSelector(labels)
         .setLabelSelectorMethod(LabelSelectorMethod.OR)
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
@@ -256,6 +278,50 @@ public class MonitorConversionServiceTest {
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
     final String content = readContent("/MonitorConversionServiceTest_ping.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertFromInput_ping_withPluginPolicies() throws JSONException, IOException {
+    Map<String, MonitorMetadataPolicyDTO> expectedPolicy = Map.of(
+        "count", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("count")
+            .setValueType(MetadataValueType.INT)
+            .setValue("63"),
+        "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("pingInterval")
+            .setValueType(MetadataValueType.INT)
+            .setValue("2"));
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(expectedPolicy);
+
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertFromInput_ping");
+
+    final RemoteMonitorDetails details = new RemoteMonitorDetails();
+    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final Ping plugin = new Ping();
+    plugin.setUrls(Collections.singletonList("localhost"));
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setName("name-a")
+        .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(LabelSelectorMethod.OR);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+
+    final String content = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -336,7 +402,8 @@ public class MonitorConversionServiceTest {
         .setName("name-a")
         .setLabelSelector(labels)
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
@@ -433,7 +500,8 @@ public class MonitorConversionServiceTest {
         .setName("name-a")
         .setLabelSelector(labels)
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
@@ -482,7 +550,8 @@ public class MonitorConversionServiceTest {
             .setName("name-a")
             .setLabelSelector(labels)
             .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
@@ -535,7 +604,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setResourceId("r-1")
         .setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
     assertThat(result.getResourceId()).isEqualTo(input.getResourceId());
   }
 
@@ -570,7 +640,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabelSelectorMethod(LabelSelectorMethod.OR)
         .setDetails(new LocalMonitorDetails().setPlugin(new Cpu()));
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
     assertThat(result.getLabelSelectorMethod()).isEqualTo(input.getLabelSelectorMethod());
   }
 
@@ -595,7 +666,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setInterval(interval);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
     assertThat(result.getInterval()).isEqualTo(interval);
   }
 
@@ -606,7 +678,8 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setInterval(interval);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
     assertThat(result.getInterval()).isEqualTo(interval);
   }
 
@@ -619,7 +692,8 @@ public class MonitorConversionServiceTest {
         .setInterval(interval);
 
     assertThatThrownBy(() -> {
-      conversionService.convertFromInput(input);
+      conversionService.convertFromInput(
+          RandomStringUtils.randomAlphabetic(10), null, input);
     })
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(String.format("Interval cannot be less than %s", MIN_INTERVAL));
@@ -630,8 +704,19 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setInterval(null);
-    final MonitorCU result = conversionService.convertFromInput(input);
-    assertThat(result.getInterval()).isEqualTo(DEFAULT_LOCAL_INTERVAL);
+    Map<String, MonitorMetadataPolicyDTO> expectedPolicy = Map.of("interval",
+        (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("300"));
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(expectedPolicy);
+
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
+    // interval is set on the Monitor not the plugin, so it will remain null at this stage
+    // even though interval metadata was also seen for the plugin object.
+    assertThat(result.getInterval()).isNull();
   }
 
   @Test
@@ -639,7 +724,19 @@ public class MonitorConversionServiceTest {
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new RemoteMonitorDetails().setPlugin(new Ping()))
         .setInterval(null);
-    final MonitorCU result = conversionService.convertFromInput(input);
-    assertThat(result.getInterval()).isEqualTo(DEFAULT_REMOTE_INTERVAL);
+
+    Map<String, MonitorMetadataPolicyDTO> expectedPolicy = Map.of("interval",
+        (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("300"));
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(expectedPolicy);
+
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
+    // interval is set on the Monitor not the plugin, so it will remain null at this stage
+    // even though interval metadata was also seen for the plugin object.
+    assertThat(result.getInterval()).isNull();
   }
 }

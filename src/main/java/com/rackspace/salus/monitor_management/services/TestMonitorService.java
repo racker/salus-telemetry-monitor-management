@@ -92,6 +92,8 @@ public class TestMonitorService {
     final boolean isRemote = details instanceof RemoteMonitorDetails;
 
     final MonitorCU monitorCU = monitorConversionService.convertFromInput(
+        tenantId,
+        null,
         new DetailedMonitorInput()
             .setDetails(details)
     );

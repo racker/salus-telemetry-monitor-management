@@ -49,6 +49,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -56,6 +57,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -101,7 +103,13 @@ public class MonitorApiControllerTest {
   MockMvc mockMvc;
 
   @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
   MonitorManagement monitorManagement;
+
+  @MockBean
+  MonitorRepository monitorRepository;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -656,6 +664,7 @@ public class MonitorApiControllerTest {
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setMonitorType(MonitorType.cpu)
                 .setAgentType(AgentType.TELEGRAF)
+                .setPluginMetadataFields(Collections.emptyList())
                 .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
         );
   }
