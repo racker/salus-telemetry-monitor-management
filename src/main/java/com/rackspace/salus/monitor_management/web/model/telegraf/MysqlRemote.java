@@ -25,11 +25,15 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.mysql)
 public class MysqlRemote extends RemotePlugin {
+  @NotEmpty
   List<String> servers;
   Integer perfEventsStatementsDigestTextLimit;
   Integer perfEventsStatementsLimit;
@@ -48,7 +52,9 @@ public class MysqlRemote extends RemotePlugin {
   boolean gatherTableSchema;
   boolean gatherFileEventsStats;
   boolean gatherPerfEventsStatements;
+  @ValidGoDuration
   String intervalSlow;
+  @Pattern(regexp = "2", message = "invalid metric version")
   String metricVersion = "2";
   String tlsCa;
   String tlsCert;
