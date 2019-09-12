@@ -1,5 +1,5 @@
 {
-  "type": "postgres",
+  "type": "postgresql",
   "address": "host=localhost user=postgres sslmode=disable",
   "outputaddress": "db1",
   "maxLifetime": "0s",

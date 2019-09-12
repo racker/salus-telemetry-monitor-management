@@ -47,7 +47,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @JsonTest
 @Import({MonitorConversionService.class})
-public class PostgresRemoteConversionTest {
+public class PostgresqlRemoteConversionTest {
   @Configuration
   public static class TestConfig { }
 
@@ -55,8 +55,8 @@ public class PostgresRemoteConversionTest {
   MonitorConversionService conversionService;
 
   @Test
-  public void convertToOutput_postgres_remote() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgres.json");
+  public void convertToOutput_postgresql_remote() throws IOException {
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgresql.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.TELEGRAF,
         ConfigSelectorScope.REMOTE
@@ -64,7 +64,7 @@ public class PostgresRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final PostgresRemote postgresPlugin = assertCommonRemote(result, monitor, PostgresRemote.class, "convertToOutput");
+    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput");
 
     List<String> l = new ArrayList<>();
     l.add("1");
@@ -72,16 +72,16 @@ public class PostgresRemoteConversionTest {
     List<String> l2 = new ArrayList<>();
     l2.add("3");
     l2.add("4");
-    assertThat(postgresPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
-    assertThat(postgresPlugin.getOutputaddress()).isEqualTo("db1");
-    assertThat(postgresPlugin.getMaxLifetime()).isEqualTo("0s");
-    assertThat(postgresPlugin.getIgnoredDatabases()).isEqualTo(l);
-    assertThat(postgresPlugin.getDatabases()).isEqualTo(l2);
+    assertThat(postgresqlPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
+    assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo("db1");
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo("0s");
+    assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(l);
+    assertThat(postgresqlPlugin.getDatabases()).isEqualTo(l2);
   }
 
   @Test
-  public void convertToOutput_postgres_remote_defaults() {
-    final String content = "{\"type\": \"postgres\"}";
+  public void convertToOutput_postgresql_remote_defaults() {
+    final String content = "{\"type\": \"postgresql\"}";
 
     Monitor monitor = createMonitor(content, "convertToOutput_defaults", AgentType.TELEGRAF,
         ConfigSelectorScope.REMOTE
@@ -89,17 +89,17 @@ public class PostgresRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final PostgresRemote postgresPlugin = assertCommonRemote(result, monitor, PostgresRemote.class, "convertToOutput_defaults");
-    assertThat(postgresPlugin.getAddress()).isEqualTo(null);
-    assertThat(postgresPlugin.getOutputaddress()).isEqualTo(null);
-    assertThat(postgresPlugin.getMaxLifetime()).isEqualTo(null);
-    assertThat(postgresPlugin.getIgnoredDatabases()).isEqualTo(null);
-    assertThat(postgresPlugin.getDatabases()).isEqualTo(null);
+    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput_defaults");
+    assertThat(postgresqlPlugin.getAddress()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getDatabases()).isEqualTo(null);
 
   }
 
   @Test
-  public void convertFromInput_postgres_remote() throws JSONException, IOException {
+  public void convertFromInput_postgresql_remote() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
@@ -111,7 +111,7 @@ public class PostgresRemoteConversionTest {
     l2.add("3");
     l2.add("4");
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
-    final PostgresRemote plugin = new PostgresRemote();
+    final PostgresqlRemote plugin = new PostgresqlRemote();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setOutputaddress("db1");
     plugin.setMaxLifetime("0s");
@@ -130,7 +130,7 @@ public class PostgresRemoteConversionTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgres.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgresql.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 

@@ -47,7 +47,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @JsonTest
 @Import({MonitorConversionService.class})
-public class PostgresConversionTest {
+public class PostgresqlConversionTest {
   @Configuration
   public static class TestConfig { }
 
@@ -55,8 +55,8 @@ public class PostgresConversionTest {
   MonitorConversionService conversionService;
 
   @Test
-  public void convertToOutput_postgres() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgres.json");
+  public void convertToOutput_postgresql() throws IOException {
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgresql.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.TELEGRAF,
         ConfigSelectorScope.LOCAL
@@ -64,7 +64,7 @@ public class PostgresConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Postgres postgresPlugin = assertCommon(result, monitor, Postgres.class, "convertToOutput");
+    final Postgresql postgresqlPlugin = assertCommon(result, monitor, Postgresql.class, "convertToOutput");
 
     List<String> l = new ArrayList<>();
     l.add("1");
@@ -72,16 +72,16 @@ public class PostgresConversionTest {
     List<String> l2 = new ArrayList<>();
     l2.add("3");
     l2.add("4");
-    assertThat(postgresPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
-    assertThat(postgresPlugin.getOutputaddress()).isEqualTo("db1");
-    assertThat(postgresPlugin.getMaxLifetime()).isEqualTo("0s");
-    assertThat(postgresPlugin.getIgnoredDatabases()).isEqualTo(l);
-    assertThat(postgresPlugin.getDatabases()).isEqualTo(l2);
+    assertThat(postgresqlPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
+    assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo("db1");
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo("0s");
+    assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(l);
+    assertThat(postgresqlPlugin.getDatabases()).isEqualTo(l2);
   }
 
   @Test
-  public void convertToOutput_postgres_defaults() {
-    final String content = "{\"type\": \"postgres\"}";
+  public void convertToOutput_postgresql_defaults() {
+    final String content = "{\"type\": \"postgresql\"}";
 
     Monitor monitor = createMonitor(content, "convertToOutput_defaults", AgentType.TELEGRAF,
         ConfigSelectorScope.LOCAL
@@ -89,17 +89,17 @@ public class PostgresConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Postgres postgresPlugin = assertCommon(result, monitor, Postgres.class, "convertToOutput_defaults");
-    assertThat(postgresPlugin.getAddress()).isEqualTo(null);
-    assertThat(postgresPlugin.getOutputaddress()).isEqualTo(null);
-    assertThat(postgresPlugin.getMaxLifetime()).isEqualTo(null);
-    assertThat(postgresPlugin.getIgnoredDatabases()).isEqualTo(null);
-    assertThat(postgresPlugin.getDatabases()).isEqualTo(null);
+    final Postgresql postgresqlPlugin = assertCommon(result, monitor, Postgresql.class, "convertToOutput_defaults");
+    assertThat(postgresqlPlugin.getAddress()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(null);
+    assertThat(postgresqlPlugin.getDatabases()).isEqualTo(null);
 
   }
 
   @Test
-  public void convertFromInput_postgres() throws JSONException, IOException {
+  public void convertFromInput_postgresql() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
@@ -111,7 +111,7 @@ public class PostgresConversionTest {
     l2.add("3");
     l2.add("4");
     final LocalMonitorDetails details = new LocalMonitorDetails();
-    final Postgres plugin = new Postgres();
+    final Postgresql plugin = new Postgresql();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setOutputaddress("db1");
     plugin.setMaxLifetime("0s");
@@ -130,7 +130,7 @@ public class PostgresConversionTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgres.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_postgresql.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 

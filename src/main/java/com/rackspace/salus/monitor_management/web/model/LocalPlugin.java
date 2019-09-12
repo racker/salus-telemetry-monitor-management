@@ -25,7 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Net;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Postgres;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 
@@ -38,7 +38,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
     @Type(name = "net", value = Net.class),
     @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
-    @Type(name = "postgres", value = Postgres.class),
+    @Type(name = "postgresql", value = Postgresql.class),
     //@Type(name = "sql_server", value = SqlServer.class)
 })
 public abstract class LocalPlugin {

@@ -31,8 +31,8 @@ import javax.validation.constraints.Pattern;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.postgres)
-public class PostgresRemote extends RemotePlugin {
+@ApplicableMonitorType(MonitorType.postgresql)
+public class PostgresqlRemote extends RemotePlugin {
   @NotEmpty
   String address;
   String outputaddress;

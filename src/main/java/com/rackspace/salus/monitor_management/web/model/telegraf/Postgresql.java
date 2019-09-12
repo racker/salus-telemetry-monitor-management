@@ -32,8 +32,8 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.postgres)
-public class Postgres extends LocalPlugin {
+@ApplicableMonitorType(MonitorType.postgresql)
+public class Postgresql extends LocalPlugin {
   @NotEmpty
   @ValidLocalHost
   String address;
