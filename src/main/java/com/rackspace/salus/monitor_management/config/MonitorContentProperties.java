@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.config;
 
-import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

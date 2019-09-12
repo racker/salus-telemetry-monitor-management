@@ -1034,13 +1034,11 @@ public class MonitorManagement {
   /**
    * Modifies a monitor when a policy metadata field it utilizes is altered.
    *
-   * All existing bound monitors and removed, the monitor's fields are updated to represent
-   * the policy change.
+   * For account monitors all existing bound monitors are removed and then rebound once the monitor
+   * has been saved with the new values.
    *
-   * For account monitors the monitor is then rebound to the relevant resources.
-   *
-   * For Policy monitors an event is sent out that will eventually result in
-   * processPolicyMonitorUpdate being called for these monitors.
+   * For policy monitors, after the monitor has been saved, an event is sent out that will eventually
+   * result in processPolicyMonitorUpdate being called for these monitors.
    *
    * @param event The policy change event.
    */

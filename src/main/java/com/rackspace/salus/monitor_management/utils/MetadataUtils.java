@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.utils;
 
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.model.MetadataField;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -113,6 +112,7 @@ public class MetadataUtils {
 
   /**
    * Updates the object in place, setting policy metadata values to the relevant metadata fields.
+   *
    * @param object The object to update.
    * @param metadataFields The metadata fields that should attempt to be updated.
    * @param policyMetadata The relevant policies for this object.

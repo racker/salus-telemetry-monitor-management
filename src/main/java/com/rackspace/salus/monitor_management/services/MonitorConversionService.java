@@ -230,7 +230,7 @@ public class MonitorConversionService {
    * @param monitor The parent MonitorCU object being constructed.
    * @param plugin The plugin to set metadata values on.
    */
-  void setMetadataFields(String tenantId, MonitorCU monitor, Object plugin) {
+  private void setMetadataFields(String tenantId, MonitorCU monitor, Object plugin) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;
     TargetClassName className = TargetClassName.getTargetClassName(plugin);

@@ -137,7 +137,7 @@ public class MetadataUtilsTest {
   }
 
   @Test
-  public void setUpdateMetadataValue_INT_plugin() {
+  public void setUpdateMetadataValue_INT() {
     Ping plugin = new Ping();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
         .setKey("pingInterval")
@@ -146,5 +146,41 @@ public class MetadataUtilsTest {
 
     MetadataUtils.updateMetadataValue(plugin, policy);
     assertThat(plugin.getPingInterval()).isEqualTo(61);
+  }
+
+  @Test
+  public void setUpdateMetadataValue_STRING() {
+    Ping plugin = new Ping();
+    MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+        .setKey("interfaceOrAddress")
+        .setValueType(MetadataValueType.STRING)
+        .setValue("myInterface");
+
+    MetadataUtils.updateMetadataValue(plugin, policy);
+    assertThat(plugin.getInterfaceOrAddress()).isEqualTo("myInterface");
+  }
+
+  @Test
+  public void setUpdateMetadataValue_DURATION() {
+    Monitor monitor = new Monitor();
+    MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+        .setKey("interval")
+        .setValueType(MetadataValueType.DURATION)
+        .setValue("44");
+
+    MetadataUtils.updateMetadataValue(monitor, policy);
+    assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(44));
+  }
+
+  @Test
+  public void setUpdateMetadataValue_STRING_LIST() {
+    Monitor monitor = new Monitor();
+    MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+        .setKey("zones")
+        .setValueType(MetadataValueType.STRING_LIST)
+        .setValue("zone1,zone2");
+
+    MetadataUtils.updateMetadataValue(monitor, policy);
+    assertThat(monitor.getZones()).isEqualTo(List.of("zone1", "zone2"));
   }
 }

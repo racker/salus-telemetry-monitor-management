@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +44,6 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
-import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -316,7 +314,7 @@ public class MonitorManagement_MetadataPolicyTest {
     // Returns the list of monitor metadata policies effective on this account
     when(policyApi.getEffectiveMonitorMetadataPolicies(tenantId))
         .thenReturn(List.of(
-            // The actual RemotePlugin policy that will be used
+            // An irrelevant RemotePlugin policy
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("count")
@@ -324,7 +322,7 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setValueType(MetadataValueType.INT)
                 .setTargetClassName(TargetClassName.RemotePlugin)
                 .setId(UUID.randomUUID()),
-            // A similar but irrelevant LocalPlugin policy
+            // An irrelevant LocalPlugin policy
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("count")
@@ -332,7 +330,7 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setValueType(MetadataValueType.INT)
                 .setTargetClassName(TargetClassName.LocalPlugin)
                 .setId(UUID.randomUUID()),
-            // A similar but irrelevant Monitor policy
+            // The actual RemotePlugin policy that will be used
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("interval")
@@ -383,7 +381,7 @@ public class MonitorManagement_MetadataPolicyTest {
     // Returns the list of monitor metadata policies effective on this account
     when(policyApi.getEffectiveMonitorMetadataPolicies(tenantId))
         .thenReturn(List.of(
-            // The actual RemotePlugin policy that will be used
+            // An irrelevant RemotePlugin policy
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("count")
@@ -391,7 +389,7 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setValueType(MetadataValueType.INT)
                 .setTargetClassName(TargetClassName.RemotePlugin)
                 .setId(UUID.randomUUID()),
-            // A similar but irrelevant LocalPlugin policy
+            // An irrelevant LocalPlugin policy
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("count")
@@ -399,7 +397,7 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setValueType(MetadataValueType.INT)
                 .setTargetClassName(TargetClassName.LocalPlugin)
                 .setId(UUID.randomUUID()),
-            // A similar but irrelevant Monitor policy
+            // The actual RemotePlugin policy that will be used
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("interval")
