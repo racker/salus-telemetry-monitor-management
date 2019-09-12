@@ -136,6 +136,8 @@ public class MonitorConversionService {
         .setInterval(input.getInterval());
 
     if (monitorId != null) {
+      // Get the previous metadata used
+      // This will be used in setMetadataFields to help identify which values need to be replaced
       monitorRepository.findById(monitorId).ifPresent(m ->
         monitor.setPluginMetadataFields(m.getPluginMetadataFields()));
     }
@@ -158,15 +160,6 @@ public class MonitorConversionService {
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
       populateMonitorType(monitor, plugin);
       populateAgentConfigContent(tenantId, input, monitor, plugin);
-    }
-
-    // Set an appropriate default interval based on the type, if an interval wasn't provided by the user
-    if (monitor.getInterval() == null) {
-      monitor.setInterval(
-          monitor.getSelectorScope() == ConfigSelectorScope.LOCAL ?
-              properties.getDefaultLocalInterval() :
-              properties.getDefaultRemoteInterval()
-      );
     }
 
     return monitor;
@@ -227,6 +220,16 @@ public class MonitorConversionService {
     }
   }
 
+  /**
+   * Updates a plugins metadata policy fields in place.
+   *
+   * Determines which fields of the Monitor may use metadata policies, retrieves the effective
+   * policies for the provided tenant, then sets the fields to the policy values.
+   *
+   * @param tenantId The tenant id the monitor is created under.
+   * @param monitor The parent MonitorCU object being constructed.
+   * @param plugin The plugin to set metadata values on.
+   */
   void setMetadataFields(String tenantId, MonitorCU monitor, Object plugin) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;

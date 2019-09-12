@@ -16,11 +16,17 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +45,7 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
+import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -58,6 +65,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.validation.ConstraintViolationException;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -69,6 +77,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -155,6 +164,8 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Before
   public void setUp() {
+    monitorManagement = Mockito.spy(monitorManagement);
+
     List<ResourceDTO> resourceList = new ArrayList<>();
     resourceList.add(new ResourceDTO()
         .setResourceId(DEFAULT_RESOURCE_ID)
@@ -249,7 +260,11 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setId(UUID.randomUUID())));
 
 
-    saveAssortmentOfPingMonitors(tenantId);
+    List<Monitor> savedMonitors = saveAssortmentOfPingMonitors(tenantId);
+    List<Monitor> monitorsThatUseMetadata = savedMonitors.stream().filter(
+        m -> !m.getPluginMetadataFields().isEmpty())
+        .collect(Collectors.toList());
+    List<UUID> monitorIds = monitorsThatUseMetadata.stream().map(Monitor::getId).collect(Collectors.toList());
 
     monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
         .setTenantId(tenantId)
@@ -280,6 +295,13 @@ public class MonitorManagement_MetadataPolicyTest {
     assertThat(updatedMonitors.get(2).getPluginMetadataFields().contains("count"), equalTo(true));
     assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
     assertThat(updatedMonitors.get(2).getMonitorMetadataFields().contains("interval"), equalTo(true));
+
+    // verify the unbind / bind process happened
+    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
+      assertThat(m, isOneOf(monitorsThatUseMetadata.toArray()));
+      return true;
+    }));
   }
 
   /**
@@ -320,7 +342,11 @@ public class MonitorManagement_MetadataPolicyTest {
                 .setId(policyId)));
 
 
-    saveAssortmentOfPingMonitors(tenantId);
+    List<Monitor> savedMonitors = saveAssortmentOfPingMonitors(tenantId);
+    List<Monitor> monitorsThatUseMetadata = savedMonitors.stream().filter(
+        m -> !m.getMonitorMetadataFields().isEmpty())
+        .collect(Collectors.toList());
+    List<UUID> monitorIds = monitorsThatUseMetadata.stream().map(Monitor::getId).collect(Collectors.toList());
 
     monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
         .setTenantId(tenantId)
@@ -336,6 +362,82 @@ public class MonitorManagement_MetadataPolicyTest {
 
     assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
     assertThat(updatedMonitors.get(2).getMonitorMetadataFields().contains("interval"), equalTo(true));
+
+    // verify the unbind / bind process happened
+    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
+      assertThat(m, isOneOf(monitorsThatUseMetadata.toArray()));
+      return true;
+    }));
+  }
+
+  /**
+   * Same as the above test except using the POLICY_TENANT which should not trigger
+   * any unbinding/binding.
+   */
+  @Test
+  public void testHandleMetadataPolicyEvent_monitorMetadata_policyTenant() {
+    String tenantId = Monitor.POLICY_TENANT;
+    UUID policyId = UUID.randomUUID();
+
+    // Returns the list of monitor metadata policies effective on this account
+    when(policyApi.getEffectiveMonitorMetadataPolicies(tenantId))
+        .thenReturn(List.of(
+            // The actual RemotePlugin policy that will be used
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setMonitorType(MonitorType.ping)
+                .setKey("count")
+                .setValue(Integer.toString(UPDATED_COUNT_VALUE))
+                .setValueType(MetadataValueType.INT)
+                .setTargetClassName(TargetClassName.RemotePlugin)
+                .setId(UUID.randomUUID()),
+            // A similar but irrelevant LocalPlugin policy
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setMonitorType(MonitorType.ping)
+                .setKey("count")
+                .setValue("677")
+                .setValueType(MetadataValueType.INT)
+                .setTargetClassName(TargetClassName.LocalPlugin)
+                .setId(UUID.randomUUID()),
+            // A similar but irrelevant Monitor policy
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setMonitorType(MonitorType.ping)
+                .setKey("interval")
+                .setValue(Long.toString(UPDATED_DURATION_VALUE.getSeconds()))
+                .setValueType(MetadataValueType.DURATION)
+                .setTargetClassName(TargetClassName.Monitor)
+                .setId(policyId)));
+
+
+    List<Monitor> savedMonitors = saveAssortmentOfPingMonitors(tenantId);
+    List<Monitor> monitorsThatUseMetadata = savedMonitors.stream().filter(
+        m -> !m.getMonitorMetadataFields().isEmpty())
+        .collect(Collectors.toList());
+    List<UUID> monitorIds = monitorsThatUseMetadata.stream().map(Monitor::getId).collect(Collectors.toList());
+
+    monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
+        .setTenantId(tenantId)
+        .setPolicyId(policyId));
+
+    List<Monitor> updatedMonitors = monitorManagement.getMonitors(tenantId, Pageable.unpaged()).getContent();
+
+    assertThat(updatedMonitors.get(0).getInterval(), equalTo(UPDATED_DURATION_VALUE));
+    assertThat(updatedMonitors.get(0).getMonitorMetadataFields().contains("interval"), equalTo(true));
+
+    assertThat(updatedMonitors.get(1).getInterval(), equalTo(Duration.ofSeconds(60)));
+    assertThat(updatedMonitors.get(1).getMonitorMetadataFields().contains("interval"), equalTo(false));
+
+    assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
+    assertThat(updatedMonitors.get(2).getMonitorMetadataFields().contains("interval"), equalTo(true));
+
+    // verify the unbind / bind process did not occur
+    verify(monitorManagement, never()).unbindByTenantAndMonitorId(anyString(), any());
+    verify(monitorManagement, never()).bindNewMonitor(anyString(), any());
+    // verify policy monitor update events were sent
+    verify(monitorEventProducer, times(monitorIds.size())).sendPolicyMonitorUpdateEvent(argThat(m -> {
+      assertThat(m.getMonitorId(), isOneOf(monitorIds.toArray()));
+      return true;
+    }));
   }
 
   private MonitorCU getBaseMonitorCU() {

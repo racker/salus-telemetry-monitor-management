@@ -23,6 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
@@ -47,6 +49,8 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MetadataValueType;
+import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.time.Duration;
@@ -700,7 +704,8 @@ public class MonitorConversionServiceTest {
   }
 
   @Test
-  public void testConvertFrom_Interval_DefaultLocal() {
+  public void testConvertFrom_Interval_DefaultLocal_noMetadata() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
         .setInterval(null);
@@ -713,14 +718,18 @@ public class MonitorConversionServiceTest {
         .thenReturn(expectedPolicy);
 
     final MonitorCU result = conversionService.convertFromInput(
-        RandomStringUtils.randomAlphabetic(10), null, input);
+        tenantId, null, input);
     // interval is set on the Monitor not the plugin, so it will remain null at this stage
     // even though interval metadata was also seen for the plugin object.
     assertThat(result.getInterval()).isNull();
+
+    // mem has no metadata fields so no interactions with api occur
+    verifyNoMoreInteractions(policyApi);
   }
 
   @Test
   public void testConvertFrom_Interval_DefaultRemote() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setDetails(new RemoteMonitorDetails().setPlugin(new Ping()))
         .setInterval(null);
@@ -734,9 +743,12 @@ public class MonitorConversionServiceTest {
         .thenReturn(expectedPolicy);
 
     final MonitorCU result = conversionService.convertFromInput(
-        RandomStringUtils.randomAlphabetic(10), null, input);
+        tenantId, null, input);
     // interval is set on the Monitor not the plugin, so it will remain null at this stage
     // even though interval metadata was also seen for the plugin object.
     assertThat(result.getInterval()).isNull();
+
+    // ping has metadata fields so the api would have been called
+    verify(policyApi).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.RemotePlugin, MonitorType.ping);
   }
 }

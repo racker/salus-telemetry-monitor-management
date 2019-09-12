@@ -67,7 +67,7 @@ public class MetadataUtilsTest {
             .setValue("10")
     );
 
-    // count has a different value than the policy.  even though it was previously using metadata it is now excluded
+    // count has a different value than the policy.  even though it was previously using metadata, it is now excluded
     // timeout has the same value as the metadata and was previously set using it, so it remains as metadata
     // pingInterval was not previously using metadata so it is still not included in the results
     // deadline is set to null so it will be set to metadata
@@ -137,7 +137,7 @@ public class MetadataUtilsTest {
   }
 
   @Test
-  public void setUpdateMetadataValue_plugin() {
+  public void setUpdateMetadataValue_INT_plugin() {
     Ping plugin = new Ping();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
         .setKey("pingInterval")

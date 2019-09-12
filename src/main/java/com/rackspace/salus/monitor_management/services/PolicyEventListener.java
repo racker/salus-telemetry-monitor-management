@@ -75,12 +75,7 @@ public class PolicyEventListener {
 
   @KafkaHandler
   public void consumeMetadataPolicyUpdateEvents(MetadataPolicyEvent policyEvent) {
-    if (policyEvent.getTenantId().equals(POLICY_TENANT)) {
-      // do something different?
-      // send event to get this per tenant, then do refreshBoundPolicyMonitorsForTenant?
-    } else {
-      monitorManagement.handleMetadataPolicyEvent(policyEvent);
-    }
+    monitorManagement.handleMetadataPolicyEvent(policyEvent);
   }
 
   @KafkaHandler

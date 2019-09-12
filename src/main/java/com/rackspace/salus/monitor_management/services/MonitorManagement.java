@@ -263,10 +263,6 @@ public class MonitorManagement {
 
     setMetadataFields(tenantId, monitor);
 
-    if (newMonitor.getLabelSelectorMethod() != null) {
-      monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
-    }
-
     monitor = monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
     sendMonitorBoundEvents(affectedEnvoys);
@@ -753,6 +749,7 @@ public class MonitorManagement {
     }
 
     setMetadataFields(POLICY_TENANT, monitor);
+    monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
@@ -1038,7 +1035,12 @@ public class MonitorManagement {
    * Modifies a monitor when a policy metadata field it utilizes is altered.
    *
    * All existing bound monitors and removed, the monitor's fields are updated to represent
-   * the policy change, then the monitor is rebound to the relevant resources.
+   * the policy change.
+   *
+   * For account monitors the monitor is then rebound to the relevant resources.
+   *
+   * For Policy monitors an event is sent out that will eventually result in
+   * processPolicyMonitorUpdate being called for these monitors.
    *
    * @param event The policy change event.
    */
@@ -1047,6 +1049,9 @@ public class MonitorManagement {
 
     String tenantId = event.getTenantId();
 
+    // In future, for policy monitors we should really get the effective policies based on the
+    // scope the monitor is configured for.
+    // Currently this step assumes all policy monitors are using globally scoped metadata.
     List<MonitorMetadataPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorMetadataPolicies(tenantId);
 
     Optional<MonitorMetadataPolicyDTO> policyOptional = effectivePolicies.stream()
@@ -1089,17 +1094,20 @@ public class MonitorManagement {
         .collect(Collectors.toList());
 
     // Remove existing bound monitors
-    Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, monitorIds);
-    final Set<String> affectedEnvoys = new HashSet<>(unbinding);
+    // Policy monitors do not get rebound in this method, so can be skipped.
+    final Set<String> affectedEnvoys = new HashSet<>();
+    if (!tenantId.equals(POLICY_TENANT)) {
+      Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, monitorIds);
+      affectedEnvoys.addAll(unbinding);
+    }
 
     // Then add new bindings
     for (Monitor monitor : relevantMonitors) {
       if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
         MetadataUtils.updateMetadataValue(monitor, policy);
       } else {
-        // When the policy relates to the plugin details the monitor's must be converted
-        // so the LocalPlugin fields can be accessed.
-
+        // When the policy relates to plugin details the monitor must be converted
+        // so the Remote/LocalPlugin fields can be accessed.
         DetailedMonitorInput input = new DetailedMonitorInput(
             monitorConversionService.convertToOutput(monitor));
 
@@ -1135,15 +1143,28 @@ public class MonitorManagement {
 
       monitorRepository.save(monitor);
 
-      // Rebind the monitor to any relevant resources
-      Set<String> newBindings = bindNewMonitor(tenantId, monitor);
-      affectedEnvoys.addAll(newBindings);
+      if (!tenantId.equals(POLICY_TENANT)) {
+        // Rebind the monitor to any relevant resources
+        Set<String> newBindings = bindNewMonitor(tenantId, monitor);
+        affectedEnvoys.addAll(newBindings);
+      }
     }
 
     log.info("Updating {} monitors due to policy metadata={} change on tenant={}",
         relevantMonitors.size(), event.getPolicyId(), tenantId);
 
-    sendMonitorBoundEvents(affectedEnvoys);
+    if (tenantId.equals(POLICY_TENANT)) {
+      // Send an event for each monitor. It will be consumed by PolicyMgmt to determine which
+      // tenants are relevant to this change.
+      // This will result in PolicyMgmt sending an event that will trigger processPolicyMonitorUpdate
+      // being ran for each tenant using the policy monitor.
+      for (Monitor m : relevantMonitors) {
+        monitorEventProducer.sendPolicyMonitorUpdateEvent(
+            new PolicyMonitorUpdateEvent().setMonitorId(m.getId()));
+      }
+    } else {
+      sendMonitorBoundEvents(affectedEnvoys);
+    }
   }
 
   void handleTenantChangeEvent(TenantPolicyChangeEvent event) {
@@ -1791,6 +1812,15 @@ public class MonitorManagement {
     return resourcePolicies;
   }
 
+  /**
+   * Updates a monitors metadata policy fields in place.
+   *
+   * Determines which fields of the Monitor may use metadata policies, retrieves the effective
+   * policies for the provided tenant, then sets the fields to the policy values.
+   *
+   * @param tenantId The tenant id the monitor is created under.
+   * @param monitor The monitor object to update.
+   */
   void setMetadataFields(String tenantId, Monitor monitor) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;

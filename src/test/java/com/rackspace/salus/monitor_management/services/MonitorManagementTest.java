@@ -52,6 +52,7 @@ import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -67,9 +68,11 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.MetadataValueType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -3578,7 +3581,19 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testSetTemplateVariables() {
+  public void testSetMetadataFields() {
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(Map.of(
+            "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setValueType(MetadataValueType.DURATION)
+                .setValue("1")
+                .setKey("interval"),
+            "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setValueType(MetadataValueType.STRING_LIST)
+                .setValue("zone1,zone2")
+                .setKey("zones")
+        ));
+
     String tenantId = RandomStringUtils.randomAlphabetic(10);
     Monitor monitor = new Monitor();
     assertThat(monitor.getMonitorMetadataFields(), nullValue());
@@ -3587,15 +3602,22 @@ public class MonitorManagementTest {
     assertThat(monitor.getMonitorMetadataFields(), hasSize(2));
     assertThat(monitor.getMonitorMetadataFields(), containsInAnyOrder("interval", "zones"));
 
-    // update data and set new variables
+    // set a value different from the policy to remove it from metadata fields
     monitor.setInterval(Duration.ofSeconds(10));
     monitorManagement.setMetadataFields(tenantId, monitor);
     assertThat(monitor.getMonitorMetadataFields(), hasSize(1));
     assertThat(monitor.getMonitorMetadataFields(), contains("zones"));
 
-    // remove content and set new variables
-    monitor.setZones(List.of("zone1"));
+    // set a value the same as the policy and it should remain in metadata fields.
+    monitor.setZones(List.of("zone1", "zone2"));
+    monitorManagement.setMetadataFields(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields(), hasSize(1));
+
+    // set a value different from the policy to remove it from metadata fields
+    monitor.setZones(List.of("zone"));
     monitorManagement.setMetadataFields(tenantId, monitor);
     assertThat(monitor.getMonitorMetadataFields(), hasSize(0));
+
+    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null);
   }
 }
