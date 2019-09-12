@@ -37,7 +37,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
     @Type(name = "net_response", value = NetResponse.class),
     @Type(name = "mysql", value = MysqlRemote.class),
     @Type(name = "postgresql", value = PostgresqlRemote.class),
-    @Type(name = "sql_server", value = SqlServerRemote.class)
+    @Type(name = "sqlserver", value = SqlServerRemote.class)
 })
 public abstract class RemotePlugin {
 

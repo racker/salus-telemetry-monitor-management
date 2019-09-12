@@ -31,7 +31,7 @@ import javax.validation.constraints.Pattern;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.sql_server)
+@ApplicableMonitorType(MonitorType.sqlserver)
 public class SqlServerRemote extends RemotePlugin {
   @NotEmpty
   List<String> servers;

@@ -40,7 +40,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
     @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
     @Type(name = "postgresql", value = Postgresql.class),
-    @Type(name = "sql_server", value = SqlServer.class)
+    @Type(name = "sqlserver", value = SqlServer.class)
 })
 public abstract class LocalPlugin {
 

@@ -80,7 +80,7 @@ public class SqlServerConversionTest {
 
   @Test
   public void convertToOutput_sql_server_defaults() {
-    final String content = "{\"type\": \"sql_server\"}";
+    final String content = "{\"type\": \"sqlserver\"}";
 
     Monitor monitor = createMonitor(content, "convertToOutput_defaults", AgentType.TELEGRAF,
         ConfigSelectorScope.LOCAL

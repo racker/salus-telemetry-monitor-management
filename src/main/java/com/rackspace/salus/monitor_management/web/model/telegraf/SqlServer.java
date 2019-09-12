@@ -33,7 +33,7 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.sql_server)
+@ApplicableMonitorType(MonitorType.sqlserver)
 public class SqlServer extends LocalPlugin {
   @NotEmpty
   List<@ValidLocalHost String> servers;
