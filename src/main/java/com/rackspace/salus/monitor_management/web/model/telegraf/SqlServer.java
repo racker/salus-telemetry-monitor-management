@@ -37,9 +37,8 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost
 public class SqlServer extends LocalPlugin {
   @NotEmpty
   List<@ValidLocalHost String> servers;
-  @Pattern(regexp = "2", message = "invalid query version")
   @JsonProperty("query_version")
-  String queryVersion = "2";
+  Integer queryVersion = 2;
   boolean azuredb;
   @JsonProperty("exclude_query")
   List<String> excludeQuery;

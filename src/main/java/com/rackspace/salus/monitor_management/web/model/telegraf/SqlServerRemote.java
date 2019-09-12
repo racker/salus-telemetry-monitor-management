@@ -35,8 +35,7 @@ import javax.validation.constraints.Pattern;
 public class SqlServerRemote extends RemotePlugin {
   @NotEmpty
   List<String> servers;
-  @Pattern(regexp = "2", message = "invalid query version")
-  String queryVersion = "2";
+  Integer queryVersion = 2;
   boolean azuredb;
   @JsonProperty("exclude_query")
   List<String> excludeQuery;

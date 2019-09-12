@@ -73,7 +73,7 @@ public class SqlServerConversionTest {
     l2.add("3");
     l2.add("4");
     assertThat(sqlServerPlugin.getServers()).isEqualTo(l);
-    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo("2");
+    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo(2);
     assertThat(sqlServerPlugin.isAzuredb()).isTrue();
     assertThat(sqlServerPlugin.getExcludeQuery()).isEqualTo(l2);
   }
@@ -90,7 +90,7 @@ public class SqlServerConversionTest {
 
     final SqlServer sqlServerPlugin = assertCommon(result, monitor, SqlServer.class, "convertToOutput_defaults");
     assertThat(sqlServerPlugin.getServers()).isEqualTo(null);
-    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo("2");
+    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo(2);
     assertThat(sqlServerPlugin.isAzuredb()).isFalse();
     assertThat(sqlServerPlugin.getExcludeQuery()).isEqualTo(null);
 
@@ -111,7 +111,7 @@ public class SqlServerConversionTest {
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final SqlServer plugin = new SqlServer();
     plugin.setServers(l);
-    plugin.setQueryVersion("2");
+    plugin.setQueryVersion(2);
     plugin.setAzuredb(true);
     plugin.setExcludeQuery(l2);
     details.setPlugin(plugin);
