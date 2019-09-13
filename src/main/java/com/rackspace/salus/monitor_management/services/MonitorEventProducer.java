@@ -45,9 +45,7 @@ public class MonitorEventProducer {
         log.debug("Sending policyMonitorUpdateEvent={} on topic={}", event, topic);
         try {
             kafkaTemplate.send(topic, buildMessageKey(event), event).get();
-        } catch (InterruptedException e) {
-            throw new RuntimeKafkaException(e);
-        } catch (ExecutionException e) {
+        } catch (InterruptedException|ExecutionException e) {
             throw new RuntimeKafkaException(e);
         }
     }
