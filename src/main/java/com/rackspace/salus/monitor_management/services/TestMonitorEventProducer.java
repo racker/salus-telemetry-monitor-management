@@ -16,8 +16,10 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -42,7 +44,13 @@ public class TestMonitorEventProducer {
 
     log.debug("Sending test-monitor request event={} on topic={}", event, topic);
     //noinspection unchecked
-    kafkaTemplate.send(topic, event);
+    try {
+      kafkaTemplate.send(topic, event).get();
+    } catch (InterruptedException e) {
+      throw new RuntimeKafkaException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeKafkaException(e);
+    }
   }
 
 }
