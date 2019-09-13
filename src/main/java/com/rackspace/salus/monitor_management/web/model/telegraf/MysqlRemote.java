@@ -42,7 +42,7 @@ public class MysqlRemote extends RemotePlugin {
   boolean gatherProcessList;
   boolean gatherUserStatistics;
   boolean gatherInfoSchemaAutoInc;
-  boolean gatherInnoDBMetrics;
+  boolean gatherInnodbMetrics;
   boolean gatherSlaveStatus;
   boolean gatherBinaryLogs;
   boolean gatherTableIOWaits;

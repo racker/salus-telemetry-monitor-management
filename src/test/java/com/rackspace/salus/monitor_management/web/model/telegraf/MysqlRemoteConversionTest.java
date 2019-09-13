@@ -77,7 +77,7 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherProcessList()).isFalse();
     assertThat(mysqlPlugin.isGatherUserStatistics()).isTrue();
     assertThat(mysqlPlugin.isGatherInfoSchemaAutoInc()).isFalse();
-    assertThat(mysqlPlugin.isGatherInnoDBMetrics()).isTrue();
+    assertThat(mysqlPlugin.isGatherInnodbMetrics()).isTrue();
     assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
     assertThat(mysqlPlugin.isGatherBinaryLogs()).isTrue();
     assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
@@ -113,7 +113,7 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherProcessList()).isFalse();
     assertThat(mysqlPlugin.isGatherUserStatistics()).isFalse();
     assertThat(mysqlPlugin.isGatherInfoSchemaAutoInc()).isFalse();
-    assertThat(mysqlPlugin.isGatherInnoDBMetrics()).isFalse();
+    assertThat(mysqlPlugin.isGatherInnodbMetrics()).isFalse();
     assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
     assertThat(mysqlPlugin.isGatherBinaryLogs()).isFalse();
     assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
@@ -150,7 +150,7 @@ public class MysqlRemoteConversionTest {
     plugin.setGatherProcessList(false);
     plugin.setGatherUserStatistics(true);
     plugin.setGatherInfoSchemaAutoInc(false);
-    plugin.setGatherInnoDBMetrics(true);
+    plugin.setGatherInnodbMetrics(true);
     plugin.setGatherSlaveStatus(false);
     plugin.setGatherBinaryLogs(true);
     plugin.setGatherTableIOWaits(false);

@@ -8,7 +8,7 @@
   "gatherProcessList": false,
   "gatherUserStatistics": true,
   "gatherInfoSchemaAutoInc": false,
-  "gatherInnoDBMetrics": true,
+  "gatherInnodbMetrics": true,
   "gatherSlaveStatus": false,
   "gatherBinaryLogs": true,
   "gatherTableIOWaits": false,
