@@ -32,9 +32,7 @@ public class MonitorEventProducer {
         log.debug("Sending monitorBoundEvent={} on topic={}", event, topic);
         try {
             kafkaTemplate.send(topic, event.getEnvoyId(), event).get();
-        } catch (InterruptedException e) {
-            throw new RuntimeKafkaException(e);
-        } catch (ExecutionException e) {
+        } catch (InterruptedException|ExecutionException e) {
             throw new RuntimeKafkaException(e);
         }
     }
