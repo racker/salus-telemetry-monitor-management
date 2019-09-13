@@ -19,7 +19,7 @@
   "gatherFileEventsStats": true,
   "gatherPerfEventsStatements": false,
   "intervalSlow": "3s",
-  "metricVersion": "2",
+  "metricVersion": 2,
   "tlsCa": "tlsCa",
   "tlsCert": "tlsCert",
   "tlsKey": "tlsKey"

@@ -55,8 +55,7 @@ public class Mysql extends LocalPlugin {
   boolean gatherPerfEventsStatements;
   @ValidGoDuration
   String intervalSlow;
-  @Pattern(regexp = "2", message = "invalid metric version")
-  String metricVersion = "2";
+  Integer metricVersion = 2;
   String tlsCa;
   String tlsCert;
   String tlsKey;
