@@ -25,6 +25,8 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuratio
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import javax.validation.constraints.NotEmpty;
@@ -38,6 +40,8 @@ public class SqlServer extends LocalPlugin {
   @NotEmpty
   List<@ValidLocalHost String> servers;
   @JsonProperty("query_version")
+  @Min(2)
+  @Max(2)
   Integer queryVersion = 2;
   boolean azuredb;
   @JsonProperty("exclude_query")
