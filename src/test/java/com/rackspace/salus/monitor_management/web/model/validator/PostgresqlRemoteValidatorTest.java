@@ -22,13 +22,9 @@ import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.PostgresqlRemote;
 import com.rackspace.salus.monitor_management.web.validator.PostgresqlRemoteValidator;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import javax.validation.ConstraintViolation;

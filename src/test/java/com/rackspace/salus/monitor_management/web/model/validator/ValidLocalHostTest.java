@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.web.model.validator;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import javax.validation.ConstraintViolation;
 import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import org.junit.Before;
 import org.junit.Test;

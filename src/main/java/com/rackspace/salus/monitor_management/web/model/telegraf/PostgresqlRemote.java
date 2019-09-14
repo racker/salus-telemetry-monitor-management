@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
@@ -25,10 +24,9 @@ import com.rackspace.salus.monitor_management.web.validator.PostgresqlRemoteVali
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
+import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Pattern;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)

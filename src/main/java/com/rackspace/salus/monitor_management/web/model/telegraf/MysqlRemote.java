@@ -18,18 +18,16 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Pattern;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)

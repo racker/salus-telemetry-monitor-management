@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.MysqlRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;

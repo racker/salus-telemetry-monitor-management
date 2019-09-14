@@ -46,6 +46,7 @@ class ConversionHelpers {
 
     final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
+    //noinspection unchecked
     return ((T) plugin);
   }
 
@@ -59,6 +60,7 @@ class ConversionHelpers {
 
     final RemotePlugin plugin = ((RemoteMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
+    //noinspection unchecked
     return ((T) plugin);
   }
 

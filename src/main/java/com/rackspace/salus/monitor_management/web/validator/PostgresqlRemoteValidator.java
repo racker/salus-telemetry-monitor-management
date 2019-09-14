@@ -1,10 +1,9 @@
 package com.rackspace.salus.monitor_management.web.validator;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static org.apache.commons.collections.CollectionUtils.isNotEmpty;
+import static org.apache.commons.collections.CollectionUtils.isEmpty;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.PostgresqlRemote;
 import java.lang.annotation.Documented;
@@ -19,11 +18,7 @@ public class PostgresqlRemoteValidator implements ConstraintValidator <Postgresq
 
     @Override
     public boolean isValid(PostgresqlRemote monitor, ConstraintValidatorContext context) {
-        if (isNotEmpty(monitor.getDatabases()) && isNotEmpty(monitor.getIgnoredDatabases())) {
-            return false;
-        } else {
-            return true;
-        }
+        return isEmpty(monitor.getDatabases()) || isEmpty(monitor.getIgnoredDatabases());
     }
 
     @Target({TYPE, ANNOTATION_TYPE}) // class level constraint
