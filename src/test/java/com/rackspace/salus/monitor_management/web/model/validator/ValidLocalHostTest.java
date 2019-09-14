@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model.validator;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
@@ -69,5 +70,8 @@ public class ValidLocalHostTest {
     final Set<ConstraintViolation<WithLocalHost>> results = validatorFactoryBean.validate(obj);
 
     assertThat(results, hasSize(1));
+    assertThat(new ArrayList<>(results).get(0).getMessage(),
+        containsString(ValidLocalHost.DEFAULT_MESSAGE));
+
   }
 }

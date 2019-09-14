@@ -25,17 +25,14 @@ import javax.validation.Constraint;
 import javax.validation.Payload;
 import javax.validation.constraints.Pattern;
 
-/**
- * Indicates that the string is a simplified Go duration formed as an integer value followed by a
- * time unit suffix of "ms", "s", "m", or "h".
- */
 @Pattern(regexp = ".*(localhost|127.0.0.1).*", message = "address must point to localhost")
 @Target({ElementType.FIELD, ElementType.TYPE_USE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Constraint(validatedBy = {}/*composite*/)
+@Constraint(validatedBy = {})
 public @interface ValidLocalHost {
-  String message() default "address must point to localhost";
+  String DEFAULT_MESSAGE = "address must point to localhost";
+  String message() default DEFAULT_MESSAGE;
 
   Class<?>[] groups() default { };
 

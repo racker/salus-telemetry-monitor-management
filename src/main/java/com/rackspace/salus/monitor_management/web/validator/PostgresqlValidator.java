@@ -4,6 +4,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static org.apache.commons.collections.CollectionUtils.isNotEmpty;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import java.lang.annotation.Documented;
@@ -18,15 +19,7 @@ public class PostgresqlValidator implements ConstraintValidator <PostgresqlValid
 
     @Override
     public boolean isValid(Postgresql monitor, ConstraintValidatorContext context) {
-        int count = 0;
-
-        if (!(monitor.getDatabases() == null)) {
-            count++;
-        }
-        if (!(monitor.getIgnoredDatabases() == null)) {
-            count++;
-        }
-        if(count > 1) {
+        if (isNotEmpty(monitor.getDatabases()) && isNotEmpty(monitor.getIgnoredDatabases())) {
             return false;
         } else {
             return true;
