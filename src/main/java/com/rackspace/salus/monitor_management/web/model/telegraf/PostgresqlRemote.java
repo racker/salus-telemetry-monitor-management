@@ -21,6 +21,7 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.validator.PostgresqlRemoteValidator.AtMostOneOf;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
@@ -32,6 +33,7 @@ import javax.validation.constraints.Pattern;
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.postgresql)
+@AtMostOneOf
 public class PostgresqlRemote extends RemotePlugin {
   @NotEmpty
   String address;
