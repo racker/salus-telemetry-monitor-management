@@ -66,9 +66,7 @@ public class MysqlRemoteConversionTest {
 
     final MysqlRemote mysqlPlugin = assertCommonRemote(result, monitor, MysqlRemote.class, "convertToOutput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
+    List<String> l = List.of("1","2");
     assertThat(mysqlPlugin.getServers()).isEqualTo(l);
     assertThat(mysqlPlugin.getPerfEventsStatementsDigestTextLimit()).isEqualTo(1);
     assertThat(mysqlPlugin.getPerfEventsStatementsLimit()).isEqualTo(2);
@@ -137,9 +135,7 @@ public class MysqlRemoteConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
+    List<String> l = List.of("1","2");
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     final MysqlRemote plugin = new MysqlRemote();
     plugin.setServers(l);

@@ -60,8 +60,7 @@ public class PostgresqlRemoteValidatorTest {
   @Test
   public void testInvalid() {
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
+    List<String> l = List.of("1");
     final PostgresqlRemote plugin = new PostgresqlRemote();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setDatabases(l).setIgnoredDatabases(l);

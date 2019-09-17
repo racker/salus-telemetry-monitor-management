@@ -66,12 +66,8 @@ public class PostgresqlRemoteConversionTest {
 
     final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
-    List<String> l2 = new ArrayList<>();
-    l2.add("3");
-    l2.add("4");
+    List<String> l = List.of("1","2");
+    List<String> l2 = List.of("3","4");
     assertThat(postgresqlPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
     assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo("db1");
     assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo("0s");
@@ -104,12 +100,8 @@ public class PostgresqlRemoteConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
-    List<String> l2 = new ArrayList<>();
-    l2.add("3");
-    l2.add("4");
+    List<String> l = List.of("1","2");
+    List<String> l2 = List.of("3","4");
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     final PostgresqlRemote plugin = new PostgresqlRemote();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");

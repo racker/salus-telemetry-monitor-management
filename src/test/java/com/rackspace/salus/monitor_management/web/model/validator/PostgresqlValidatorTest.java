@@ -60,8 +60,7 @@ public class PostgresqlValidatorTest {
   @Test
   public void testInvalid() {
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
+    List<String> l = List.of("1");
     final Postgresql plugin = new Postgresql();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setDatabases(l).setIgnoredDatabases(l);

@@ -66,12 +66,8 @@ public class SqlServerRemoteConversionTest {
 
     final SqlServerRemote sqlServerPlugin = assertCommonRemote(result, monitor, SqlServerRemote.class, "convertToOutput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
-    List<String> l2 = new ArrayList<>();
-    l2.add("3");
-    l2.add("4");
+    List<String> l = List.of("1","2");
+    List<String> l2 = List.of("3","4");
     assertThat(sqlServerPlugin.getServers()).isEqualTo(l);
     assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo(2);
     assertThat(sqlServerPlugin.isAzuredb()).isTrue();
@@ -102,12 +98,8 @@ public class SqlServerRemoteConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
-    List<String> l = new ArrayList<>();
-    l.add("1");
-    l.add("2");
-    List<String> l2 = new ArrayList<>();
-    l2.add("3");
-    l2.add("4");
+    List<String> l = List.of("1","2");
+    List<String> l2 = List.of("3","4");
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     final SqlServerRemote plugin = new SqlServerRemote();
     plugin.setServers(l);
