@@ -27,6 +27,7 @@ import java.util.List;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -34,8 +35,10 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.sqlserver)
 public class SqlServer extends LocalPlugin {
+  public static final String REGEXP = "^(sqlserver://.+)|(([^?;]+=[^;]+;)*([^?;]+=[^;]+);?)$";
+  public static final String ERR_MESSAGE = "invalid sqlserver db connection string";
   @NotEmpty
-  List<@ValidLocalHost String> servers;
+  List<@ValidLocalHost @Pattern(regexp = SqlServer.REGEXP, message = SqlServer.ERR_MESSAGE)String> servers;
   @JsonProperty("query_version")
   @Min(2)
   @Max(2)

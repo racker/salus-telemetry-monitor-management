@@ -26,6 +26,7 @@ import java.util.List;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -34,7 +35,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.sqlserver)
 public class SqlServerRemote extends RemotePlugin {
   @NotEmpty
-  List<String> servers;
+  List<@Pattern(regexp = SqlServer.REGEXP, message = SqlServer.ERR_MESSAGE) String> servers;
   @JsonProperty("query_version")
   @Min(2)
   @Max(2)

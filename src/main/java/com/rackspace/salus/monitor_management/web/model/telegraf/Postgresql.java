@@ -35,7 +35,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.postgresql)
 @AtMostOneOf
 public class Postgresql extends LocalPlugin {
-  public static final String REGEXP = "^(postgres://.+)|(([^ ]+=[^ ]+ )*([^ ]+=[^ ]+))+$";
+  public static final String REGEXP = "^(postgres://.+)|(([^ ]+=[^ ]+ )*([^ ]+=[^ ]+))$";
   public static final String ERR_MESSAGE = "invalid postgresql db connection string";
   @NotEmpty
   @ValidLocalHost
