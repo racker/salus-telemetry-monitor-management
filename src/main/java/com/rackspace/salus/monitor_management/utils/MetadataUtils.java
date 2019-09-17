@@ -173,6 +173,10 @@ public class MetadataUtils {
    * Determines which fields of the Monitor may use metadata policies, retrieves the effective
    * policies for the provided tenant, then sets the fields to the policy values.
    *
+   * NOTE: This method is essentially the same as setMetadataFieldsForPlugin but must use
+   * some different methods due to object differences.  If this method is changed
+   * setMetadataFieldsForPlugin must be updated similarly.
+   *
    * @param tenantId The tenant id the monitor is created under.
    * @param monitor The monitor object to update.
    */
@@ -211,6 +215,10 @@ public class MetadataUtils {
    *
    * Determines which fields of the Monitor may use metadata policies, retrieves the effective
    * policies for the provided tenant, then sets the fields to the policy values.
+   *
+   * NOTE: This method is essentially the same as setMetadataFieldsForMonitor but must use
+   * some different methods due to object differences.  If this method is changed
+   * setMetadataFieldsForMonitor must be updated similarly.
    *
    * @param tenantId The tenant id the monitor is created under.
    * @param monitor The parent MonitorCU object being constructed.

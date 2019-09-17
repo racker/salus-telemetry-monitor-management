@@ -43,7 +43,6 @@ import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -58,7 +57,6 @@ import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.model.MetadataValueType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
@@ -106,8 +104,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
     MonitorConversionService.class,
-    DatabaseConfig.class,
-    MetadataUtils.class})
+    MetadataUtils.class,
+    DatabaseConfig.class})
 public class MonitorManagementPolicyTest {
 
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
@@ -147,14 +145,14 @@ public class MonitorManagementPolicyTest {
   @MockBean
   ZoneManagement zoneManagement;
 
+  @MockBean
+  MetadataUtils metadataUtils;
+
   @Autowired
   ObjectMapper objectMapper;
 
   @Autowired
   MonitorRepository monitorRepository;
-
-  @Autowired
-  MetadataUtils metadataUtils;
 
   @Autowired
   private MonitorManagement monitorManagement;
@@ -216,13 +214,6 @@ public class MonitorManagementPolicyTest {
 
     when(zoneStorage.decrementBoundCount(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(1));
-
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
-        .thenReturn(Map.of("interval",
-            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-                .setKey("interval")
-                .setValue("60")
-                .setValueType(MetadataValueType.DURATION)));
   }
 
   @Test
@@ -449,11 +440,14 @@ public class MonitorManagementPolicyTest {
             .setZones(Collections.singletonList("z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
             .setLabelSelectorMethod(LabelSelectorMethod.OR)
-            .setInterval(Duration.ofSeconds(60)));
+            .setInterval(Duration.ofSeconds(60))
+            .setMonitorMetadataFields(Collections.emptyList())
+            .setPluginMetadataFields(Collections.emptyList()));
 
     MonitorCU update = new MonitorCU()
         .setContent("new content")
-        .setZones(Collections.singletonList("z-2"));
+        .setZones(Collections.singletonList("z-2"))
+        .setInterval(Duration.ofSeconds(20));
 
     // make sure the zones we're setting are allowed to be used
     List<Zone> zones = Arrays.asList(
@@ -471,7 +465,8 @@ public class MonitorManagementPolicyTest {
 
     // The returned monitor should match the original with zone and content fields changed
     org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp",
+            "monitorMetadataFields", "pluginMetadataFields")
         .containsExactly(
             new Monitor()
                 .setId(monitor.getId())
@@ -483,8 +478,12 @@ public class MonitorManagementPolicyTest {
                 .setLabelSelector(monitor.getLabelSelector())
                 .setZones(Collections.singletonList("z-2"))
                 .setLabelSelectorMethod(LabelSelectorMethod.OR)
-                .setMonitorMetadataFields(Collections.emptyList())
-                .setInterval(Duration.ofSeconds(60)));
+                .setInterval(Duration.ofSeconds(20)));
+
+    // these are returned as PersistentBags so cannot be compared to other lists.
+    // rather than including them in the above assert, we just verify they are empty here.
+    assertThat(updatedMonitor.getMonitorMetadataFields(), hasSize(0));
+    assertThat(updatedMonitor.getPluginMetadataFields(), hasSize(0));
 
     // Event is sent with no tenant set (to be consumed by policy mgmt)
     verify(monitorEventProducer).sendPolicyMonitorUpdateEvent(

@@ -31,7 +31,6 @@ import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
-import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -56,7 +55,6 @@ public class MonitorConversionService {
 
   private final ObjectMapper objectMapper;
   private final MonitorConversionProperties properties;
-  private final PolicyApi policyApi;
   private final MonitorRepository monitorRepository;
   private final MetadataUtils metadataUtils;
 
@@ -68,7 +66,6 @@ public class MonitorConversionService {
       MetadataUtils metadataUtils) {
     this.objectMapper = objectMapper;
     this.properties = properties;
-    this.policyApi = policyApi;
     this.monitorRepository = monitorRepository;
     this.metadataUtils = metadataUtils;
   }
@@ -137,7 +134,8 @@ public class MonitorConversionService {
         .setResourceId(input.getResourceId())
         .setInterval(input.getInterval());
 
-    if (monitorId != null) {
+    // Policy monitors should not use metadata
+    if (!tenantId.equals(Monitor.POLICY_TENANT) && monitorId != null) {
       // Get the previous metadata used
       // This will be used in setMetadataFields to help identify which values need to be replaced
       monitorRepository.findById(monitorId).ifPresent(m ->
@@ -196,7 +194,11 @@ public class MonitorConversionService {
     }
 
     monitor.setAgentType(applicableAgentType.value());
-    metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
+
+    // Policy monitors should not use metadata
+    if (!tenantId.equals(Monitor.POLICY_TENANT)) {
+      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
+    }
 
     try {
       monitor.setContent(
@@ -223,13 +225,14 @@ public class MonitorConversionService {
   }
 
   /**
-   * // When the policy relates to plugin details the monitor must be converted
-   *         // so the Remote/LocalPlugin fields can be accessed.
-   * @param monitor
-   * @param policy
-   * @return
-   * @throws InvalidClassException
-   * @throws IllegalArgumentException
+   * Gets the content field from a monitor, modifies it based on the new value
+   * in the provided policy, and then returns the new content string.
+   *
+   * @param monitor The monitor whose content should be updated.
+   * @param policy The policy whose value should be input into the monitor content.
+   * @return The new monitor content containing the policy value.
+   * @throws InvalidClassException If the plugin's class could not be handled.
+   * @throws JsonProcessingException If the plugin cannot be converted back into a string.
    */
   public String updateMonitorContentWithPolicy(Monitor monitor, MonitorMetadataPolicyDTO policy)
       throws InvalidClassException, JsonProcessingException {
