@@ -40,6 +40,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -63,6 +64,8 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -103,10 +106,19 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
     MonitorConversionService.class,
-    DatabaseConfig.class})
+    DatabaseConfig.class,
+    MetadataUtils.class})
 public class MonitorManagementPolicyTest {
 
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
+
+  @TestConfiguration
+  static class TestConfig {
+    @Bean
+    MeterRegistry meterRegistry() {
+      return new SimpleMeterRegistry();
+    }
+  }
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -140,6 +152,9 @@ public class MonitorManagementPolicyTest {
 
   @Autowired
   MonitorRepository monitorRepository;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @Autowired
   private MonitorManagement monitorManagement;

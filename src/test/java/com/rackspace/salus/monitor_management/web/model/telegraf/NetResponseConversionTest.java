@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
@@ -50,7 +51,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @JsonTest
-@Import({MonitorConversionService.class})
+@Import({MonitorConversionService.class, MetadataUtils.class})
 public class NetResponseConversionTest {
   @Configuration
   public static class TestConfig { }
@@ -66,6 +67,9 @@ public class NetResponseConversionTest {
 
   @Autowired
   MonitorConversionService conversionService;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @Test
   public void convertFromInput() throws JSONException, IOException {

@@ -17,22 +17,40 @@
 package com.rackspace.salus.monitor_management.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.MetadataValueType;
+import com.rackspace.salus.telemetry.model.TargetClassName;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
+@ContextConfiguration(classes = {MetadataUtils.class})
 public class MetadataUtilsTest {
+
+  @MockBean
+  PolicyApi policyApi;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -182,5 +200,46 @@ public class MetadataUtilsTest {
 
     MetadataUtils.updateMetadataValue(monitor, policy);
     assertThat(monitor.getZones()).isEqualTo(List.of("zone1", "zone2"));
+  }
+
+  @Test
+  public void testSetMetadataFieldsForMonitor() {
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(Map.of(
+            "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setValueType(MetadataValueType.DURATION)
+                .setValue("1")
+                .setKey("interval"),
+            "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setValueType(MetadataValueType.STRING_LIST)
+                .setValue("zone1,zone2")
+                .setKey("zones")
+        ));
+
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    Monitor monitor = new Monitor();
+    assertThat(monitor.getMonitorMetadataFields()).isNull();
+
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(2);
+    assertThat(monitor.getMonitorMetadataFields()).containsExactlyInAnyOrder("interval", "zones");
+
+    // set a value different from the policy to remove it from metadata fields
+    monitor.setInterval(Duration.ofSeconds(10));
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
+    assertThat(monitor.getMonitorMetadataFields()).containsExactly("zones");
+
+    // set a value the same as the policy and it should remain in metadata fields.
+    monitor.setZones(List.of("zone1", "zone2"));
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
+
+    // set a value different from the policy to remove it from metadata fields
+    monitor.setZones(List.of("zone"));
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
+
+    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null);
   }
 }

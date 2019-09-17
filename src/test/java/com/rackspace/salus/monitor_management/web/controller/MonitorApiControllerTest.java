@@ -41,6 +41,7 @@ import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -94,7 +95,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
-@Import({MonitorConversionService.class})
+@Import({MonitorConversionService.class, MetadataUtils.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -116,6 +117,9 @@ public class MonitorApiControllerTest {
 
   @Autowired
   MonitorConversionService monitorConversionService;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @Test
   public void testGetMonitor() throws Exception {

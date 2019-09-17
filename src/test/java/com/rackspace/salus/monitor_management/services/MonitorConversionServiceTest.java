@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -78,7 +79,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = {MonitorConversionService.class})
+@SpringBootTest(classes = {MonitorConversionService.class, MetadataUtils.class})
 @AutoConfigureJson
 public class MonitorConversionServiceTest {
 
@@ -91,6 +92,9 @@ public class MonitorConversionServiceTest {
 
   @Autowired
   MonitorConversionProperties monitorConversionProperties;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @MockBean
   PolicyApi policyApi;

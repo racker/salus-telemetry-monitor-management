@@ -30,17 +30,16 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
-import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,16 +58,19 @@ public class MonitorConversionService {
   private final MonitorConversionProperties properties;
   private final PolicyApi policyApi;
   private final MonitorRepository monitorRepository;
+  private final MetadataUtils metadataUtils;
 
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties,
       PolicyApi policyApi,
-      MonitorRepository monitorRepository) {
+      MonitorRepository monitorRepository,
+      MetadataUtils metadataUtils) {
     this.objectMapper = objectMapper;
     this.properties = properties;
     this.policyApi = policyApi;
     this.monitorRepository = monitorRepository;
+    this.metadataUtils = metadataUtils;
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
@@ -194,7 +196,7 @@ public class MonitorConversionService {
     }
 
     monitor.setAgentType(applicableAgentType.value());
-    setMetadataFields(tenantId, monitor, plugin);
+    metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
 
     try {
       monitor.setContent(
@@ -221,42 +223,32 @@ public class MonitorConversionService {
   }
 
   /**
-   * Updates a plugins metadata policy fields in place.
-   *
-   * Determines which fields of the Monitor may use metadata policies, retrieves the effective
-   * policies for the provided tenant, then sets the fields to the policy values.
-   *
-   * @param tenantId The tenant id the monitor is created under.
-   * @param monitor The parent MonitorCU object being constructed.
-   * @param plugin The plugin to set metadata values on.
+   * // When the policy relates to plugin details the monitor must be converted
+   *         // so the Remote/LocalPlugin fields can be accessed.
+   * @param monitor
+   * @param policy
+   * @return
+   * @throws InvalidClassException
+   * @throws IllegalArgumentException
    */
-  private void setMetadataFields(String tenantId, MonitorCU monitor, Object plugin) {
-    Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
-    List<String> metadataFields;
-    TargetClassName className = TargetClassName.getTargetClassName(plugin);
+  public String updateMonitorContentWithPolicy(Monitor monitor, MonitorMetadataPolicyDTO policy)
+      throws InvalidClassException, JsonProcessingException {
+    DetailedMonitorInput input = new DetailedMonitorInput(convertToOutput(monitor));
+    MonitorDetails details = input.getDetails();
 
-    if (monitor.getPluginMetadataFields() != null && !monitor.getPluginMetadataFields().isEmpty()) {
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
-      metadataFields = MetadataUtils
-          .getMetadataFieldsForUpdate(plugin, monitor.getPluginMetadataFields(), policyMetadata);
+    Object plugin;
+    if (details instanceof LocalMonitorDetails) {
+      plugin = ((LocalMonitorDetails) details).getPlugin();
+      MetadataUtils.updateMetadataValue(plugin, policy);
+    } else if (details instanceof RemoteMonitorDetails) {
+      plugin = ((RemoteMonitorDetails) details).getPlugin();
+      MetadataUtils.updateMetadataValue(plugin, policy);
     } else {
-      metadataFields = MetadataUtils.getMetadataFieldsForCreate(plugin);
+      throw new InvalidClassException(String.format(
+          "Unexpected class found when extracting monitor plugin content=%s",
+          monitor.getContent()));
     }
 
-    // Store the list of fields that are using metadata policies.
-    monitor.setPluginMetadataFields(metadataFields);
-
-    if (metadataFields.isEmpty()) {
-      log.debug("No unset metadata fields were found on monitor={}", monitor);
-      return;
-    }
-
-    if (policyMetadata == null) {
-      // this api request is avoided if there are no metadata fields to set
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
-    }
-
-    log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
-    MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
+    return objectMapper.writeValueAsString(plugin);
   }
 }
