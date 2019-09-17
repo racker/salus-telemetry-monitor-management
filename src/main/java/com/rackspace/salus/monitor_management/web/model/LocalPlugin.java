@@ -25,7 +25,10 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Net;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
+import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
 @JsonSubTypes({
@@ -34,7 +37,10 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
     @Type(name = "diskio", value = DiskIo.class),
     @Type(name = "mem", value = Mem.class),
     @Type(name = "net", value = Net.class),
-    @Type(name = "procstat", value = Procstat.class)
+    @Type(name = "procstat", value = Procstat.class),
+    @Type(name = "mysql", value = Mysql.class),
+    @Type(name = "postgresql", value = Postgresql.class),
+    @Type(name = "sqlserver", value = SqlServer.class)
 })
 public abstract class LocalPlugin {
 

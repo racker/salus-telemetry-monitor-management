@@ -22,6 +22,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.time.Instant;
@@ -44,6 +46,21 @@ class ConversionHelpers {
 
     final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
+    //noinspection unchecked
+    return ((T) plugin);
+  }
+
+  static <T> T assertCommonRemote(DetailedMonitorOutput result,
+                            Monitor monitor, Class<T> pluginClass, String scenario) {
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitor.getId().toString());
+    assertThat(result.getName()).isEqualTo(scenario);
+    assertThat(result.getLabelSelector()).isEqualTo(monitor.getLabelSelector());
+    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+
+    final RemotePlugin plugin = ((RemoteMonitorDetails) result.getDetails()).getPlugin();
+    assertThat(plugin).isInstanceOf(pluginClass);
+    //noinspection unchecked
     return ((T) plugin);
   }
 
