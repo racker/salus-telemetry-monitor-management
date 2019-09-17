@@ -26,6 +26,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -34,8 +35,11 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.postgresql)
 @AtMostOneOf
 public class Postgresql extends LocalPlugin {
+  public static final String REGEXP = "^(postgres://.+)|(([^ ]+=[^ ]+ )*([^ ]+=[^ ]+))+$";
+  public static final String ERR_MESSAGE = "invalid postgresql db connection string";
   @NotEmpty
   @ValidLocalHost
+  @Pattern(regexp = Postgresql.REGEXP, message = Postgresql.ERR_MESSAGE)
   String address;
   String outputaddress;
   @ValidGoDuration

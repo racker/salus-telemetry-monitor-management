@@ -25,6 +25,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -34,6 +35,7 @@ import lombok.EqualsAndHashCode;
 @AtMostOneOf
 public class PostgresqlRemote extends RemotePlugin {
   @NotEmpty
+  @Pattern(regexp = Postgresql.REGEXP, message = Postgresql.ERR_MESSAGE)
   String address;
   String outputaddress;
   @ValidGoDuration

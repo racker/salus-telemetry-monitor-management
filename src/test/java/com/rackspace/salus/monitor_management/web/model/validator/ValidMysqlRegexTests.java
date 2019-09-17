@@ -32,7 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-public class ValidDbConnectionRegexTests {
+public class ValidMysqlRegexTests {
   private LocalValidatorFactoryBean validatorFactoryBean;
 
   @AllArgsConstructor

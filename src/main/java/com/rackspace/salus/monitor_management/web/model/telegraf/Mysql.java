@@ -35,7 +35,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.mysql)
 public class Mysql extends LocalPlugin {
-  public static final String REGEXP = "^((.+(:.+)?@)?(tcp(\\(.+\\))))?/([^?]*)?((\\?.+=[^&]+)?(&.+=.+)*)?$";
+  public static final String REGEXP = "^((?<user>.+(:.+)?@)?(tcp(?<address>\\(.+\\))))?/(?<dbname>[^?]*)?(?<params>(\\?.+=[^&]+)?(&.+=.+)*)?$";
   public static final String ERR_MESSAGE = "invalid mysql db connection string";
   @NotEmpty
   List<@ValidLocalHost @Pattern(regexp = Mysql.REGEXP, message = Mysql.ERR_MESSAGE) String> servers;
