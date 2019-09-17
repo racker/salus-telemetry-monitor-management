@@ -49,9 +49,9 @@ public class Mysql extends LocalPlugin {
   boolean gatherInnodbMetrics;
   boolean gatherSlaveStatus;
   boolean gatherBinaryLogs;
-  boolean gatherTableIOWaits;
+  boolean gatherTableIoWaits;
   boolean gatherTableLockWaits;
-  boolean gatherIndexIOWaits;
+  boolean gatherIndexIoWaits;
   boolean gatherEventWaits;
   boolean gatherTableSchema;
   boolean gatherFileEventsStats;

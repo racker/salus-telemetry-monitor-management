@@ -78,9 +78,9 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherInnodbMetrics()).isTrue();
     assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
     assertThat(mysqlPlugin.isGatherBinaryLogs()).isTrue();
-    assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableIoWaits()).isFalse();
     assertThat(mysqlPlugin.isGatherTableLockWaits()).isTrue();
-    assertThat(mysqlPlugin.isGatherIndexIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherIndexIoWaits()).isFalse();
     assertThat(mysqlPlugin.isGatherEventWaits()).isTrue();
     assertThat(mysqlPlugin.isGatherTableSchema()).isFalse();
     assertThat(mysqlPlugin.isGatherFileEventsStats()).isTrue();
@@ -114,9 +114,9 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherInnodbMetrics()).isFalse();
     assertThat(mysqlPlugin.isGatherSlaveStatus()).isFalse();
     assertThat(mysqlPlugin.isGatherBinaryLogs()).isFalse();
-    assertThat(mysqlPlugin.isGatherTableIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherTableIoWaits()).isFalse();
     assertThat(mysqlPlugin.isGatherTableLockWaits()).isFalse();
-    assertThat(mysqlPlugin.isGatherIndexIOWaits()).isFalse();
+    assertThat(mysqlPlugin.isGatherIndexIoWaits()).isFalse();
     assertThat(mysqlPlugin.isGatherEventWaits()).isFalse();
     assertThat(mysqlPlugin.isGatherTableSchema()).isFalse();
     assertThat(mysqlPlugin.isGatherFileEventsStats()).isFalse();
@@ -149,9 +149,9 @@ public class MysqlRemoteConversionTest {
     plugin.setGatherInnodbMetrics(true);
     plugin.setGatherSlaveStatus(false);
     plugin.setGatherBinaryLogs(true);
-    plugin.setGatherTableIOWaits(false);
+    plugin.setGatherTableIoWaits(false);
     plugin.setGatherTableLockWaits(true);
-    plugin.setGatherIndexIOWaits(false);
+    plugin.setGatherIndexIoWaits(false);
     plugin.setGatherEventWaits(true);
     plugin.setGatherTableSchema(false);
     plugin.setGatherFileEventsStats(true);

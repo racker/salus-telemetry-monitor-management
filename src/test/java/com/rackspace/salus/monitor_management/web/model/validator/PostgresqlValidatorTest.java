@@ -44,9 +44,16 @@ public class PostgresqlValidatorTest {
 
   @Test
   public void testValid() {
+    testValidInternal(false);
+    testValidInternal(true);
+  }
+  private void testValidInternal(boolean setDb) {
 
     final Postgresql plugin = new Postgresql();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
+    if (setDb) {
+      plugin.setDatabases(List.of("1"));
+    }
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
 
@@ -57,6 +64,7 @@ public class PostgresqlValidatorTest {
 
     assertThat(errors, hasSize(0));
   }
+
   @Test
   public void testInvalid() {
 
