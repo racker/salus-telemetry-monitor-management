@@ -75,7 +75,7 @@ public class PolicyEventListener {
 
   @KafkaHandler
   public void consumeMetadataPolicyUpdateEvents(MetadataPolicyEvent policyEvent) {
-    if (!policyEvent.getTenantId().equals(POLICY_TENANT)) {
+    if (policyEvent.getTenantId().equals(POLICY_TENANT)) {
       // Policy Monitors should not contain metadata.
       log.error("Received MetadataPolicyEvent={} for policy tenant", policyEvent);
     } else {

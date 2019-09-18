@@ -1126,6 +1126,15 @@ public class MonitorManagement {
       monitor.setPluginMetadataFields(new ArrayList<>(monitor.getPluginMetadataFields()));
       monitor.setZones(new ArrayList<>(monitor.getZones()));
 
+      /**
+       * The above stuff makes tests work, but fails when run for real due to
+       * Caused by: org.hibernate.LazyInitializationException: failed to lazily initialize a collection of role: com.rackspace.salus.telemetry.entities.Monitor.pluginMetadataFields, could not initialize proxy
+       *
+       * If we remove the above it will work for real but tests will fail.
+       *
+       * We need to solve this.
+       */
+
       monitorRepository.save(monitor);
 
       // Rebind the monitor to any relevant resources
