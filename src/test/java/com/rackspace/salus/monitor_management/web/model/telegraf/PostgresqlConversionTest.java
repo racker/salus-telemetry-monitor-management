@@ -21,6 +21,8 @@ import static com.rackspace.salus.monitor_management.web.model.telegraf.Conversi
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -29,30 +31,41 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @JsonTest
-@Import({MonitorConversionService.class})
+@Import({MonitorConversionService.class, MetadataUtils.class})
 public class PostgresqlConversionTest {
   @Configuration
   public static class TestConfig { }
 
+  @MockBean
+  PolicyApi policyApi;
+
+  @MockBean
+  MonitorRepository monitorRepository;
+
   @Autowired
   MonitorConversionService conversionService;
+
+  @Autowired
+  MetadataUtils metadataUtils;
 
   @Test
   public void convertToOutput_postgresql() throws IOException {
@@ -115,7 +128,10 @@ public class PostgresqlConversionTest {
         .setName("name-a")
         .setLabelSelector(labels)
         .setDetails(details);
-    final MonitorCU result = conversionService.convertFromInput(input);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10),
+        null,
+        input);
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
