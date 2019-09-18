@@ -23,7 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +32,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.services.MonitorManagement_MetadataPolicyTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -78,26 +78,35 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEntityManager;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = false)
-@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
+//@DataJpaTest(showSql = false)
+@SpringBootTest(properties = {
+    "salus.services.resourceManagementUrl="
+}, classes = {
+    ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
     MonitorConversionService.class,
     MetadataUtils.class,
-    DatabaseConfig.class})
+    DatabaseConfig.class,
+    TestConfig.class
+})
+@AutoConfigureDataJpa
+@AutoConfigureTestDatabase
+@AutoConfigureTestEntityManager
 public class MonitorManagement_MetadataPolicyTest {
 
   private static final Duration UPDATED_DURATION_VALUE = Duration.ofSeconds(99);
@@ -114,6 +123,12 @@ public class MonitorManagement_MetadataPolicyTest {
     MeterRegistry meterRegistry() {
       return new SimpleMeterRegistry();
     }
+
+    @Bean
+    public ZonesProperties zonesProperties() {
+      return new ZonesProperties();
+    }
+
   }
 
   @MockBean
@@ -163,21 +178,16 @@ public class MonitorManagement_MetadataPolicyTest {
   @TestConfiguration
   public static class Config {
 
-    @Bean
-    public ZonesProperties zonesProperties() {
-      return new ZonesProperties();
-    }
-
-    @Bean
-    public ServicesProperties servicesProperties() {
-      return new ServicesProperties()
-          .setResourceManagementUrl("");
-    }
+//    @Bean
+//    public ServicesProperties servicesProperties() {
+//      return new ServicesProperties()
+//          .setResourceManagementUrl("");
+//    }
   }
 
   @Before
   public void setUp() {
-    monitorManagement = Mockito.spy(monitorManagement);
+//    monitorManagement = Mockito.spy(monitorManagement);
 
     List<ResourceDTO> resourceList = new ArrayList<>();
     resourceList.add(new ResourceDTO()
@@ -440,7 +450,7 @@ public class MonitorManagement_MetadataPolicyTest {
     );
 
     List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
-    entityManager.flush();
+//    entityManager.flush();
     return savedMonitors;
   }
 }
