@@ -40,6 +40,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -61,6 +62,9 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -99,10 +103,20 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
+    MonitorConversionService.class,
+    MetadataUtils.class,
     DatabaseConfig.class})
 public class MonitorManagementPolicyTest {
 
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
+
+  @TestConfiguration
+  static class TestConfig {
+    @Bean
+    MeterRegistry meterRegistry() {
+      return new SimpleMeterRegistry();
+    }
+  }
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -130,6 +144,9 @@ public class MonitorManagementPolicyTest {
 
   @MockBean
   ZoneManagement zoneManagement;
+
+  @MockBean
+  MetadataUtils metadataUtils;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -171,7 +188,8 @@ public class MonitorManagementPolicyTest {
         .setLabelSelector(Collections.singletonMap("os", "LINUX"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setContent("content1")
-        .setAgentType(AgentType.TELEGRAF);
+        .setAgentType(AgentType.TELEGRAF)
+        .setInterval(Duration.ofSeconds(60));
     currentMonitor = monitorRepository.save(monitor);
 
     List<ResourceDTO> resourceList = new ArrayList<>();
@@ -248,7 +266,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     // Use the two saved monitors
     when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
@@ -275,7 +294,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     exceptionRule.expect(NotFoundException.class);
     exceptionRule.expectMessage(
@@ -318,7 +338,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     // save two monitors that are in use by the tenant
     List<Monitor> monitors = Arrays.asList(
@@ -330,7 +351,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -340,6 +362,7 @@ public class MonitorManagementPolicyTest {
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.emptyMap())
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60))
     );
 
     List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
@@ -416,11 +439,15 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.OR));
+            .setLabelSelectorMethod(LabelSelectorMethod.OR)
+            .setInterval(Duration.ofSeconds(60))
+            .setMonitorMetadataFields(Collections.emptyList())
+            .setPluginMetadataFields(Collections.emptyList()));
 
     MonitorCU update = new MonitorCU()
         .setContent("new content")
-        .setZones(Collections.singletonList("z-2"));
+        .setZones(Collections.singletonList("z-2"))
+        .setInterval(Duration.ofSeconds(20));
 
     // make sure the zones we're setting are allowed to be used
     List<Zone> zones = Arrays.asList(
@@ -438,7 +465,8 @@ public class MonitorManagementPolicyTest {
 
     // The returned monitor should match the original with zone and content fields changed
     org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
-        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp",
+            "monitorMetadataFields", "pluginMetadataFields")
         .containsExactly(
             new Monitor()
                 .setId(monitor.getId())
@@ -449,7 +477,13 @@ public class MonitorManagementPolicyTest {
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(monitor.getLabelSelector())
                 .setZones(Collections.singletonList("z-2"))
-                .setLabelSelectorMethod(LabelSelectorMethod.OR));
+                .setLabelSelectorMethod(LabelSelectorMethod.OR)
+                .setInterval(Duration.ofSeconds(20)));
+
+    // these are returned as PersistentBags so cannot be compared to other lists.
+    // rather than including them in the above assert, we just verify they are empty here.
+    assertThat(updatedMonitor.getMonitorMetadataFields(), hasSize(0));
+    assertThat(updatedMonitor.getPluginMetadataFields(), hasSize(0));
 
     // Event is sent with no tenant set (to be consumed by policy mgmt)
     verify(monitorEventProducer).sendPolicyMonitorUpdateEvent(
@@ -498,7 +532,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)));
 
     // EXECUTE
 
@@ -1055,7 +1090,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1064,7 +1100,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("os", "linux", "env", "dev"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1073,7 +1110,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("os", "linux", "env", "dev", "key3", "value3"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
+            .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1083,6 +1121,7 @@ public class MonitorManagementPolicyTest {
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("not", "applicable"))
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
+            .setInterval(Duration.ofSeconds(60))
     )));
     Resource resource = new Resource()
         .setTenantId(RandomStringUtils.randomAlphabetic(10))
@@ -1116,7 +1155,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.OR),
+            .setLabelSelectorMethod(LabelSelectorMethod.OR)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1125,7 +1165,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("os", "linux", "env", "dev"))
-            .setLabelSelectorMethod(LabelSelectorMethod.OR),
+            .setLabelSelectorMethod(LabelSelectorMethod.OR)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1134,7 +1175,8 @@ public class MonitorManagementPolicyTest {
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("os", "linux", "env", "dev", "key3", "value3"))
-            .setLabelSelectorMethod(LabelSelectorMethod.OR),
+            .setLabelSelectorMethod(LabelSelectorMethod.OR)
+            .setInterval(Duration.ofSeconds(60)),
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
@@ -1144,6 +1186,7 @@ public class MonitorManagementPolicyTest {
             .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Map.of("not", "applicable"))
             .setLabelSelectorMethod(LabelSelectorMethod.OR)
+            .setInterval(Duration.ofSeconds(60))
     )));
     Resource resource = new Resource()
         .setTenantId(RandomStringUtils.randomAlphabetic(10))

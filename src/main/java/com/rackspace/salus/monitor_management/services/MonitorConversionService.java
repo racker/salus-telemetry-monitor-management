@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
+import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -29,12 +30,16 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -50,11 +55,19 @@ public class MonitorConversionService {
 
   private final ObjectMapper objectMapper;
   private final MonitorConversionProperties properties;
+  private final MonitorRepository monitorRepository;
+  private final MetadataUtils metadataUtils;
 
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
-  public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties) {
+  public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties,
+      PolicyApi policyApi,
+      MonitorRepository monitorRepository,
+      MetadataUtils metadataUtils) {
     this.objectMapper = objectMapper;
     this.properties = properties;
+    this.monitorRepository = monitorRepository;
+    this.metadataUtils = metadataUtils;
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
@@ -110,7 +123,7 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
-  public MonitorCU convertFromInput(DetailedMonitorInput input) {
+  public MonitorCU convertFromInput(String tenantId, UUID monitorId, DetailedMonitorInput input) {
 
     validateInterval(input.getInterval());
 
@@ -121,6 +134,14 @@ public class MonitorConversionService {
         .setResourceId(input.getResourceId())
         .setInterval(input.getInterval());
 
+    // Policy monitors should not use metadata
+    if (!tenantId.equals(Monitor.POLICY_TENANT) && monitorId != null) {
+      // Get the previous metadata used
+      // This will be used in setMetadataFields to help identify which values need to be replaced
+      monitorRepository.findById(monitorId).ifPresent(m ->
+        monitor.setPluginMetadataFields(m.getPluginMetadataFields()));
+    }
+
     final MonitorDetails details = input.getDetails();
 
     // these will evaluate false when details is null during an update
@@ -129,7 +150,7 @@ public class MonitorConversionService {
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(input, monitor, plugin);
+      populateAgentConfigContent(tenantId, input, monitor, plugin);
     } else if (details instanceof RemoteMonitorDetails) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
 
@@ -138,16 +159,7 @@ public class MonitorConversionService {
 
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(input, monitor, plugin);
-    }
-
-    // Set an appropriate default interval based on the type, if an interval wasn't provided by the user
-    if (monitor.getInterval() == null) {
-      monitor.setInterval(
-          monitor.getSelectorScope() == ConfigSelectorScope.LOCAL ?
-              properties.getDefaultLocalInterval() :
-              properties.getDefaultRemoteInterval()
-      );
+      populateAgentConfigContent(tenantId, input, monitor, plugin);
     }
 
     return monitor;
@@ -171,7 +183,7 @@ public class MonitorConversionService {
     monitor.setMonitorType(applicableMonitorType.value());
   }
 
-  private void populateAgentConfigContent(DetailedMonitorInput input, MonitorCU monitor,
+  private void populateAgentConfigContent(String tenantId, DetailedMonitorInput input, MonitorCU monitor,
                                           Object plugin) {
     final ApplicableAgentType applicableAgentType = plugin.getClass()
         .getAnnotation(ApplicableAgentType.class);
@@ -182,6 +194,11 @@ public class MonitorConversionService {
     }
 
     monitor.setAgentType(applicableAgentType.value());
+
+    // Policy monitors should not use metadata
+    if (!tenantId.equals(Monitor.POLICY_TENANT)) {
+      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
+    }
 
     try {
       monitor.setContent(
@@ -205,5 +222,36 @@ public class MonitorConversionService {
       log.warn("The deserialized plugin={} has wrong agentType from monitor={}", plugin, monitor);
       throw new IllegalStateException("Inconsistent AgentType");
     }
+  }
+
+  /**
+   * Gets the content field from a monitor, modifies it based on the new value
+   * in the provided policy, and then returns the new content string.
+   *
+   * @param monitor The monitor whose content should be updated.
+   * @param policy The policy whose value should be input into the monitor content.
+   * @return The new monitor content containing the policy value.
+   * @throws InvalidClassException If the plugin's class could not be handled.
+   * @throws JsonProcessingException If the plugin cannot be converted back into a string.
+   */
+  public String updateMonitorContentWithPolicy(Monitor monitor, MonitorMetadataPolicyDTO policy)
+      throws InvalidClassException, JsonProcessingException {
+    DetailedMonitorInput input = new DetailedMonitorInput(convertToOutput(monitor));
+    MonitorDetails details = input.getDetails();
+
+    Object plugin;
+    if (details instanceof LocalMonitorDetails) {
+      plugin = ((LocalMonitorDetails) details).getPlugin();
+      MetadataUtils.updateMetadataValue(plugin, policy);
+    } else if (details instanceof RemoteMonitorDetails) {
+      plugin = ((RemoteMonitorDetails) details).getPlugin();
+      MetadataUtils.updateMetadataValue(plugin, policy);
+    } else {
+      throw new InvalidClassException(String.format(
+          "Unexpected class found when extracting monitor plugin content=%s",
+          monitor.getContent()));
+    }
+
+    return objectMapper.writeValueAsString(plugin);
   }
 }

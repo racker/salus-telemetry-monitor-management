@@ -150,7 +150,7 @@ public class MonitorApiController {
         return monitorConversionService.convertToOutput(
             monitorManagement.updatePolicyMonitor(
                 uuid,
-                monitorConversionService.convertFromInput(input)));
+                monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, uuid, input)));
     }
 
     @PostMapping("/admin/policy-monitors")
@@ -164,7 +164,7 @@ public class MonitorApiController {
         throws IllegalArgumentException {
         return monitorConversionService.convertToOutput(
             monitorManagement.createPolicyMonitor(
-                monitorConversionService.convertFromInput(input)));
+                monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, null, input)));
     }
 
     @DeleteMapping("/admin/policy-monitors/{uuid}")
@@ -209,7 +209,7 @@ public class MonitorApiController {
         return monitorConversionService.convertToOutput(
                 monitorManagement.createMonitor(
                         tenantId,
-                        monitorConversionService.convertFromInput(input)));
+                        monitorConversionService.convertFromInput(tenantId, null, input)));
     }
 
     @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
@@ -224,7 +224,7 @@ public class MonitorApiController {
                 monitorManagement.updateMonitor(
                         tenantId,
                         uuid,
-                        monitorConversionService.convertFromInput(input)));
+                        monitorConversionService.convertFromInput(tenantId, uuid, input)));
     }
 
     @DeleteMapping("/tenant/{tenantId}/monitors/{uuid}")
