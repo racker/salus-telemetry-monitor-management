@@ -32,6 +32,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.services.MonitorManagement_MetadataPolicyTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -66,10 +67,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.validation.ConstraintViolationException;
+import javax.persistence.RollbackException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.util.Lists;
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,24 +80,30 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.transaction.TransactionSystemException;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
-@DataJpaTest(showSql = false)
-@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
+@SpringBootTest
+@AutoConfigureDataJpa
+@ContextConfiguration(classes = {
+    ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
     MonitorConversionService.class,
     MetadataUtils.class,
-    DatabaseConfig.class})
+    DatabaseConfig.class,
+    TestConfig.class
+})
 public class MonitorManagement_MetadataPolicyTest {
 
   private static final Duration UPDATED_DURATION_VALUE = Duration.ofSeconds(99);
@@ -112,6 +119,17 @@ public class MonitorManagement_MetadataPolicyTest {
     @Bean
     MeterRegistry meterRegistry() {
       return new SimpleMeterRegistry();
+    }
+
+    @Bean
+    public ZonesProperties zonesProperties() {
+      return new ZonesProperties();
+    }
+
+    @Bean
+    public ServicesProperties servicesProperties() {
+      return new ServicesProperties()
+          .setResourceManagementUrl("");
     }
   }
 
@@ -149,30 +167,12 @@ public class MonitorManagement_MetadataPolicyTest {
   private MonitorManagement monitorManagement;
 
   @Autowired
-  EntityManager entityManager;
-
-  @Autowired
   MetadataUtils metadataUtils;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 
   @Captor
   private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
-
-  @TestConfiguration
-  public static class Config {
-
-    @Bean
-    public ZonesProperties zonesProperties() {
-      return new ZonesProperties();
-    }
-
-    @Bean
-    public ServicesProperties servicesProperties() {
-      return new ServicesProperties()
-          .setResourceManagementUrl("");
-    }
-  }
 
   @Before
   public void setUp() {
@@ -232,10 +232,10 @@ public class MonitorManagement_MetadataPolicyTest {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
     MonitorCU create = getBaseMonitorCU();
 
-    exceptionRule.expect(ConstraintViolationException.class);
-    exceptionRule.expectMessage("must not be null");
+    // RollbackException wraps the ConstraintViolations
+    exceptionRule.expect(TransactionSystemException.class);
+    exceptionRule.expectCause(IsInstanceOf.instanceOf(RollbackException.class));
     monitorManagement.createMonitor(tenantId, create);
-    entityManager.flush(); // flush must be called to trigger jpa exceptions in tests
   }
 
   @Test
@@ -293,25 +293,19 @@ public class MonitorManagement_MetadataPolicyTest {
     // monitor 1 had a custom count value, but count was in its pluginMetadata so it should now be
     // using the policy metadata value
     assertThat(updatedMonitors.get(0).getContent(), equalTo(expectedPolicyUpdateContent));
-    assertThat(updatedMonitors.get(0).getPluginMetadataFields().contains("count"), equalTo(true));
     assertThat(updatedMonitors.get(0).getInterval(), equalTo(Duration.ofSeconds(0)));
-    assertThat(updatedMonitors.get(0).getMonitorMetadataFields().contains("interval"), equalTo(true));
     // monitor 2 had a custom count with no pluginMetadata so should still have that value
     assertThat(updatedMonitors.get(1).getContent(), equalTo(expectedOriginalContent));
-    assertThat(updatedMonitors.get(1).getPluginMetadataFields().contains("count"), equalTo(false));
     assertThat(updatedMonitors.get(1).getInterval(), equalTo(Duration.ofSeconds(60)));
-    assertThat(updatedMonitors.get(1).getMonitorMetadataFields().contains("interval"), equalTo(false));
     // monitor 3 had the count set to the metadata value and count was in its pluginMetadata
     // so it should still have that value
     assertThat(updatedMonitors.get(2).getContent(), equalTo(expectedPolicyUpdateContent));
-    assertThat(updatedMonitors.get(2).getPluginMetadataFields().contains("count"), equalTo(true));
     assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
-    assertThat(updatedMonitors.get(2).getMonitorMetadataFields().contains("interval"), equalTo(true));
 
     // verify the unbind / bind process happened
     verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
     verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m, isOneOf(monitorsThatUseMetadata.toArray()));
+      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
       return true;
     }));
   }
@@ -367,18 +361,13 @@ public class MonitorManagement_MetadataPolicyTest {
     List<Monitor> updatedMonitors = monitorManagement.getMonitors(tenantId, Pageable.unpaged()).getContent();
 
     assertThat(updatedMonitors.get(0).getInterval(), equalTo(UPDATED_DURATION_VALUE));
-    assertThat(updatedMonitors.get(0).getMonitorMetadataFields().contains("interval"), equalTo(true));
-
     assertThat(updatedMonitors.get(1).getInterval(), equalTo(Duration.ofSeconds(60)));
-    assertThat(updatedMonitors.get(1).getMonitorMetadataFields().contains("interval"), equalTo(false));
-
     assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
-    assertThat(updatedMonitors.get(2).getMonitorMetadataFields().contains("interval"), equalTo(true));
 
     // verify the unbind / bind process happened
     verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
     verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m, isOneOf(monitorsThatUseMetadata.toArray()));
+      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
       return true;
     }));
   }
@@ -438,8 +427,6 @@ public class MonitorManagement_MetadataPolicyTest {
             .setMonitorMetadataFields(List.of("interval"))
     );
 
-    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
-    entityManager.flush();
-    return savedMonitors;
+    return Lists.newArrayList(monitorRepository.saveAll(monitors));
   }
 }
