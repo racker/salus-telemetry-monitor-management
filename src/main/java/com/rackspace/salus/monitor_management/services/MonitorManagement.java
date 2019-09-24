@@ -1117,24 +1117,6 @@ public class MonitorManagement {
           monitorMetadataContentUpdateErrors.increment();
         }
       }
-
-      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      // that has a field of type List/Map. It wants to clear the loaded value, which is
-      // disallowed by the object it uses for retrieved lists/maps.
-      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
-      monitor.setMonitorMetadataFields(new ArrayList<>(monitor.getMonitorMetadataFields()));
-      monitor.setPluginMetadataFields(new ArrayList<>(monitor.getPluginMetadataFields()));
-      monitor.setZones(new ArrayList<>(monitor.getZones()));
-
-      /**
-       * The above stuff makes tests work, but fails when run for real due to
-       * Caused by: org.hibernate.LazyInitializationException: failed to lazily initialize a collection of role: com.rackspace.salus.telemetry.entities.Monitor.pluginMetadataFields, could not initialize proxy
-       *
-       * If we remove the above it will work for real but tests will fail.
-       *
-       * We need to solve this.
-       */
-
       monitorRepository.save(monitor);
 
       // Rebind the monitor to any relevant resources
