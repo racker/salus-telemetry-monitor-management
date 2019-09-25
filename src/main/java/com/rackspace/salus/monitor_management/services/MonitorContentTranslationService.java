@@ -22,17 +22,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.zafarkhaja.semver.Version;
 import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperator;
 import com.rackspace.salus.monitor_management.repositories.MonitorTranslationOperatorRepository;
-import com.rackspace.salus.monitor_management.translators.MonitorTranslator;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec;
+import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,7 +44,7 @@ import org.springframework.stereotype.Service;
  * plugin structure expected by a specific version of an agent.
  * <p>
  * The translation types and embedded implementation of each are declared as concrete classes
- * extending {@link MonitorTranslatorSpec}.
+ * extending {@link MonitorTranslator}.
  * </p>
  * <p>
  * The runtime mapping of translators to agent types and versions is persisted via the {@link
@@ -61,48 +57,13 @@ public class MonitorContentTranslationService {
 
   private final MonitorTranslationOperatorRepository monitorTranslationOperatorRepository;
   private final ObjectMapper objectMapper;
-  private final Map<
-        Class<? extends MonitorTranslatorSpec>,
-        MonitorTranslator<? extends MonitorTranslatorSpec>
-      > specToImpl = new HashMap<>();
 
   @Autowired
   public MonitorContentTranslationService(
       MonitorTranslationOperatorRepository monitorTranslationOperatorRepository,
-      ObjectMapper objectMapper,
-      List<MonitorTranslator<?>> monitorTranslators) {
+      ObjectMapper objectMapper) {
     this.monitorTranslationOperatorRepository = monitorTranslationOperatorRepository;
     this.objectMapper = objectMapper;
-
-    indexMonitorTranslators(monitorTranslators);
-  }
-
-  private void indexMonitorTranslators(List<MonitorTranslator<?>> monitorTranslators) {
-
-    /*
-    This following code has the goal of introspecting out the "SomeSpec" from a declaration that
-    looks like this
-
-    @Component
-    public class SomeTranslator implements MonitorTranslator<SomeSpec>
-
-    That "spec" class is used as a key into specToImpl to allow for later looking up the translator
-    given the spec deserialized from a particular operator.
-     */
-
-    for (MonitorTranslator<?> monitorTranslator : monitorTranslators) {
-      for (Type genericInterface : monitorTranslator.getClass().getGenericInterfaces()) {
-        if (genericInterface instanceof ParameterizedType) {
-          final ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
-          if (parameterizedType.getRawType().equals(MonitorTranslator.class) &&
-              parameterizedType.getActualTypeArguments()[0] instanceof Class) {
-            //noinspection unchecked
-            specToImpl.put(
-                (Class<? extends MonitorTranslatorSpec>) parameterizedType.getActualTypeArguments()[0], monitorTranslator);
-          }
-        }
-      }
-    }
   }
 
   public MonitorTranslationOperator save(MonitorTranslationOperatorCreate in) {
@@ -191,20 +152,10 @@ public class MonitorContentTranslationService {
         continue;
       }
 
-      final Class<? extends MonitorTranslatorSpec> specClass = operator.getTranslatorSpec().getClass();
-
-      final MonitorTranslator<? extends MonitorTranslatorSpec> translator =
-          specToImpl.get(specClass);
-
-      if (translator != null) {
-        translator.translate(operator.getTranslatorSpec(), contentTree);
-      } else {
-        throw new MonitorContentTranslationException(
-            String.format("Missing translator for specification type %s", specClass));
-      }
+      operator.getTranslatorSpec().translate(contentTree);
     }
 
-    if (!contentTree.hasNonNull(MonitorTranslatorSpec.TYPE_PROPERTY)) {
+    if (!contentTree.hasNonNull(MonitorTranslator.TYPE_PROPERTY)) {
       throw new MonitorContentTranslationException(
           "Content translation resulted is missing JSON type property");
     }

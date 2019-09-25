@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.entities;
 
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec;
+import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
@@ -66,10 +66,10 @@ public class MonitorTranslationOperator {
   ConfigSelectorScope selectorScope;
 
   /**
-   * Persisted column contains the JSON serialization of a concrete subclass of {@link MonitorTranslatorSpec}
+   * Persisted column contains the JSON serialization of a concrete subclass of {@link MonitorTranslator}
    */
   @Type(type = "json")
   @Column(name = "translator_spec", nullable = false)
   @Lob
-  MonitorTranslatorSpec translatorSpec;
+  MonitorTranslator translatorSpec;
 }

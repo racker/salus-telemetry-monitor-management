@@ -14,17 +14,29 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.translators;
+package com.rackspace.salus.monitor_management.web.model.translators;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec;
+import javax.validation.constraints.NotEmpty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-public interface MonitorTranslator<T extends MonitorTranslatorSpec> {
+@Data @EqualsAndHashCode(callSuper = false)
+public class RenameFieldTranslator extends MonitorTranslator {
 
-  /**
-   * Translate the given monitor content tree for the monitor of the given type.
-   * @param contentTree can be manipulated in place, if this translator finds it is applicable
-   */
-  void translate(MonitorTranslatorSpec spec, ObjectNode contentTree);
+  @NotEmpty
+  String from;
 
+  @NotEmpty
+  String to;
+
+  @Override
+  public void translate(ObjectNode contentTree) {
+
+    final JsonNode node = contentTree.remove(from);
+    if (node != null) {
+      contentTree.set(to, node);
+    }
+  }
 }

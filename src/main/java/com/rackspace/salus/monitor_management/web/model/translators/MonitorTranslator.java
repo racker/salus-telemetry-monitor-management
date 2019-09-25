@@ -16,27 +16,24 @@
 
 package com.rackspace.salus.monitor_management.web.model.translators;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import javax.validation.constraints.NotEmpty;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = false)
-public class RenameFieldSpec extends MonitorTranslatorSpec {
+@JsonTypeInfo(use = Id.NAME, property = MonitorTranslator.TYPE_PROPERTY)
+@JsonSubTypes({
+    @Type(name = "renameField", value = RenameFieldTranslator.class)
+})
+public abstract class MonitorTranslator {
 
-  @NotEmpty
-  String from;
+  public static final String TYPE_PROPERTY = "type";
 
-  @NotEmpty
-  String to;
+  /**
+   * Translate the given monitor content tree for the monitor of the given type.
+   * @param contentTree can be manipulated in place, if this translator finds it is applicable
+   */
+  public abstract void translate(ObjectNode contentTree);
 
-  @Override
-  public void translate(ObjectNode contentTree) {
-
-    final JsonNode node = contentTree.remove(from);
-    if (node != null) {
-      contentTree.set(to, node);
-    }
-  }
 }
