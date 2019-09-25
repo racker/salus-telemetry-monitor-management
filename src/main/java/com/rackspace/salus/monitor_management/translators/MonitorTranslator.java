@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.translators;
 
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec;
 
-@EntityScan({"com.rackspace.salus.telemetry.entities", "com.rackspace.salus.monitor_management.entities"})
-@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
-@Configuration
-public class DatabaseConfig {
+public interface MonitorTranslator<T extends MonitorTranslatorSpec> {
+
+  /**
+   * Translate the given monitor content tree for the monitor of the given type.
+   * @param contentTree can be manipulated in place, if this translator finds it is applicable
+   */
+  void translate(MonitorTranslatorSpec spec, ObjectNode contentTree);
 
 }

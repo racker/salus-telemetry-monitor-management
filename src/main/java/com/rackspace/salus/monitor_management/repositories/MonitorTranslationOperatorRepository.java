@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.repositories;
 
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperator;
+import com.rackspace.salus.telemetry.model.AgentType;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.data.repository.CrudRepository;
 
-@EntityScan({"com.rackspace.salus.telemetry.entities", "com.rackspace.salus.monitor_management.entities"})
-@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
-@Configuration
-public class DatabaseConfig {
+public interface MonitorTranslationOperatorRepository extends CrudRepository<MonitorTranslationOperator, UUID> {
+
+  List<MonitorTranslationOperator> findAllByAgentType(AgentType agentType);
 
 }

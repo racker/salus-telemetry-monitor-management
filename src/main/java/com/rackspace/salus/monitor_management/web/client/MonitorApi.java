@@ -18,10 +18,14 @@ package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
+import java.util.Map;
 
 public interface MonitorApi {
 
-  List<BoundMonitorDTO> getBoundMonitors(String envoyId);
+  List<BoundMonitorDTO> queryBoundMonitors(String envoyId,
+                                           Map<AgentType, String> installedAgentVersions);
+
   DetailedMonitorOutput getPolicyMonitorById(String monitorId);
 }

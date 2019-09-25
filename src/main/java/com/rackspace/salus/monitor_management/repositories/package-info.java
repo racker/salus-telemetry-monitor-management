@@ -14,15 +14,8 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
-
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-
-@EntityScan({"com.rackspace.salus.telemetry.entities", "com.rackspace.salus.monitor_management.entities"})
-@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
-@Configuration
-public class DatabaseConfig {
-
-}
+/**
+ * This package tracks <code>com.rackspace.salus.monitor_management.entities</code> by declaring
+ * repositories for the private entities declared there.
+ */
+package com.rackspace.salus.monitor_management.repositories;
