@@ -26,10 +26,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperator;
 import com.rackspace.salus.monitor_management.repositories.MonitorTranslationOperatorRepository;
-import com.rackspace.salus.monitor_management.translators.RenameFieldTranslator;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec;
-import com.rackspace.salus.monitor_management.web.model.translators.RenameFieldSpec;
+import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
+import com.rackspace.salus.monitor_management.web.model.translators.RenameFieldTranslator;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -51,8 +50,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {
-    MonitorContentTranslationService.class,
-    RenameFieldTranslator.class
+    MonitorContentTranslationService.class
 })
 @AutoConfigureJson
 public class MonitorContentTranslationServiceTest {
@@ -389,8 +387,8 @@ public class MonitorContentTranslationServiceTest {
     );
   }
 
-  private MonitorTranslatorSpec buildRenameSpec(String from, String to) {
-    return new RenameFieldSpec().setFrom(from).setTo(to);
+  private MonitorTranslator buildRenameSpec(String from, String to) {
+    return new RenameFieldTranslator().setFrom(from).setTo(to);
   }
 
   private String buildRenderedContent(String type, String... fieldAndValue)

@@ -1,0 +1,12 @@
+{
+  "id": "00000001-ffcf-40d2-8684-95cb0362ae6d",
+  "agentType": "TELEGRAF",
+  "agentVersions": ">= 1.12.0",
+  "monitorType": "cpu",
+  "selectorScope": "LOCAL",
+  "translatorSpec": {
+    "type": "renameField",
+    "from": "from-field",
+    "to": "to-field"
+  }
+}

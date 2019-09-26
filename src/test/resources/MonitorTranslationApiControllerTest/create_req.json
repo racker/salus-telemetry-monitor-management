@@ -1,0 +1,11 @@
+{
+  "agentType": "TELEGRAF",
+  "agentVersions": ">= 1.12.0",
+  "monitorType": "cpu",
+  "selectorScope": "LOCAL",
+  "translatorSpec": {
+    "type": "renameField",
+    "from": "from-field",
+    "to": "to-field"
+  }
+}

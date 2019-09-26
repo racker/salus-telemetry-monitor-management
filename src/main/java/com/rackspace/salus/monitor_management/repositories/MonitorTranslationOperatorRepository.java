@@ -20,9 +20,10 @@ import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperato
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.PagingAndSortingRepository;
 
-public interface MonitorTranslationOperatorRepository extends CrudRepository<MonitorTranslationOperator, UUID> {
+public interface MonitorTranslationOperatorRepository extends
+    PagingAndSortingRepository<MonitorTranslationOperator, UUID> {
 
   List<MonitorTranslationOperator> findAllByAgentType(AgentType agentType);
 

@@ -37,6 +37,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -66,7 +68,7 @@ public class MonitorContentTranslationService {
     this.objectMapper = objectMapper;
   }
 
-  public MonitorTranslationOperator save(MonitorTranslationOperatorCreate in) {
+  public MonitorTranslationOperator create(MonitorTranslationOperatorCreate in) {
     final MonitorTranslationOperator operator = new MonitorTranslationOperator()
         .setAgentType(in.getAgentType())
         .setAgentVersions(in.getAgentVersions())
@@ -76,7 +78,11 @@ public class MonitorContentTranslationService {
     return monitorTranslationOperatorRepository.save(operator);
   }
 
-  public MonitorTranslationOperator retrieve(UUID operatorId) {
+  public Page<MonitorTranslationOperator> getAll(Pageable pageable) {
+    return monitorTranslationOperatorRepository.findAll(pageable);
+  }
+
+  public MonitorTranslationOperator getById(UUID operatorId) {
     return monitorTranslationOperatorRepository.findById(operatorId)
         .orElseThrow(() -> new NotFoundException("Could not find monitor translation operator"));
   }

@@ -20,7 +20,6 @@ import com.rackspace.salus.monitor_management.web.model.translators.MonitorTrans
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import com.vladmihalcea.hibernate.type.json.JsonStringType;
 import java.util.UUID;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -29,17 +28,20 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Index;
-import javax.persistence.Lob;
 import javax.persistence.Table;
 import lombok.Data;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 
+/**
+ * This entity persists a specific instance of a monitor translation for a given agent type and
+ * optionally agent versions, monitor type, and/or selector scope.
+ */
 @Entity
 @Table(name = "monitor_translation_operators", indexes = {
     @Index(name = "monitor_translation_operators_by_agent_type", columnList = "agent_type")
 })
-@TypeDef(name = "json", typeClass = JsonStringType.class)
+@TypeDef(name = "monitorTypeJsonString", typeClass = MonitorTranslatorJsonStringType.class)
 @Data
 public class MonitorTranslationOperator {
 
@@ -59,17 +61,22 @@ public class MonitorTranslationOperator {
   @Column(name = "agent_versions")
   String agentVersions;
 
+  /**
+   * Optional field that narrows applicability to a specific monitor type.
+   */
   @Column(name = "monitor_type")
   MonitorType monitorType;
 
+  /**
+   * Optional field that narrows applicability to a specific selector scope.
+   */
   @Column(name="selector_scope")
   ConfigSelectorScope selectorScope;
 
   /**
    * Persisted column contains the JSON serialization of a concrete subclass of {@link MonitorTranslator}
    */
-  @Type(type = "json")
-  @Column(name = "translator_spec", nullable = false)
-  @Lob
+  @Column(name = "translator_spec", nullable = false, length = 500)
+  @Type(type = "monitorTypeJsonString")
   MonitorTranslator translatorSpec;
 }
