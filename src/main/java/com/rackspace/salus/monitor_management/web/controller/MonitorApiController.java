@@ -21,7 +21,7 @@ import com.rackspace.salus.monitor_management.services.MonitorContentTranslation
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorsQuery;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
@@ -94,7 +94,7 @@ public class MonitorApiController {
   @ApiOperation(value = "Queries BoundMonitors attached to a particular Envoy"
       + " and translates the content for the given agent types and versions")
   @JsonView(View.Admin.class)
-  public List<BoundMonitorDTO> queryBoundMonitors(@RequestBody @Validated BoundMonitorsQuery query) {
+  public List<BoundMonitorDTO> queryBoundMonitors(@RequestBody @Validated BoundMonitorsRequest query) {
     final List<BoundMonitor> boundMonitors = monitorManagement
         .getAllBoundMonitorsByEnvoyId(query.getEnvoyId());
 

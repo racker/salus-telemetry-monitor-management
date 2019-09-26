@@ -17,7 +17,7 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorsQuery;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
@@ -67,13 +67,13 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public List<BoundMonitorDTO> queryBoundMonitors(String envoyId,
-                                                  Map<AgentType, String> installedAgentVersions) {
+  public List<BoundMonitorDTO> getBoundMonitors(String envoyId,
+                                                Map<AgentType, String> installedAgentVersions) {
     return Objects.requireNonNull(restTemplate.exchange(
         "/api/admin/bound-monitors",
         HttpMethod.POST,
         new HttpEntity<>(
-            new BoundMonitorsQuery()
+            new BoundMonitorsRequest()
             .setEnvoyId(envoyId)
             .setInstalledAgentVersions(installedAgentVersions)
         ),

@@ -16,7 +16,7 @@
 
 /**
  * This package contains monitor content translators -- not to be confused with i18n/language
- * translations.
+ * translation support.
  * The top-level, abstract data type is {@link com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslatorSpec}
  * and other concrete classes in this package are specific translators that extend that.
  */

@@ -22,7 +22,7 @@ import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 
 @Data
-public class BoundMonitorsQuery {
+public class BoundMonitorsRequest {
   @NotEmpty
   String envoyId;
 

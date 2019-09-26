@@ -102,7 +102,7 @@ public class MonitorApiClientTest {
 
     final Map<AgentType, String> installedAgentVersions = Map.of(AgentType.TELEGRAF, "1.12.0");
     final List<BoundMonitorDTO> boundMonitors =
-        monitorApiClient.queryBoundMonitors("e-1", installedAgentVersions);
+        monitorApiClient.getBoundMonitors("e-1", installedAgentVersions);
     assertThat(boundMonitors, equalTo(givenBoundMonitors));
   }
 

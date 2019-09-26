@@ -16,21 +16,20 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperator;
+import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 
 /**
- * Indicates that an issue was encountered with either a
- * {@link MonitorTranslationOperator} or the
- * {@link com.rackspace.salus.telemetry.entities.BoundMonitor} being translated that prevented
- * translation.
+ * Indicates that an issue was encountered with either a {@link MonitorTranslator} or the
+ * {@link BoundMonitor}'s rendered content that prevented translation.
  */
-public class MonitorContentTranslationException extends Exception {
+class MonitorContentTranslationException extends Exception {
 
-  public MonitorContentTranslationException(String message) {
+  MonitorContentTranslationException(String message) {
     super(message);
   }
 
-  public MonitorContentTranslationException(String message, Throwable cause) {
+  MonitorContentTranslationException(String message, Throwable cause) {
     super(message, cause);
   }
 }

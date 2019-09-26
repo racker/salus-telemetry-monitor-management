@@ -27,12 +27,12 @@ import org.hibernate.type.descriptor.java.JavaTypeDescriptor;
 import org.hibernate.type.descriptor.sql.VarcharTypeDescriptor;
 
 /**
- * Since the translator specs are persisted as a JSON text column, but the code using the entity
- * always need to work with the specific instance of {@link MonitorTranslator} this custom Hibernate
- * type simplifies the conversion into and out of the JSON encoding of those instances.
+ * Since the translator specs are persisted as a JSON <code>varchar</code> column,
+ * but the code using the entity always needs to work with the specific instance of {@link MonitorTranslator}
+ * this custom Hibernate type simplifies the conversion into and out of the JSON encoding of those instances.
  * <p>
  * <em>NOTE</em> the hibernate-types library wasn't a viable solution since the SQL type
- * declared by the JSON string types there are hardcoded as "OTHER".
+ * declared by the JSON string types is hardcoded as "OTHER".
  * </p>
  */
 public class MonitorTranslatorJsonStringType extends

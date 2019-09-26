@@ -24,8 +24,8 @@ import java.util.Map;
 
 public interface MonitorApi {
 
-  List<BoundMonitorDTO> queryBoundMonitors(String envoyId,
-                                           Map<AgentType, String> installedAgentVersions);
+  List<BoundMonitorDTO> getBoundMonitors(String envoyId,
+                                         Map<AgentType, String> installedAgentVersions);
 
   DetailedMonitorOutput getPolicyMonitorById(String monitorId);
 }

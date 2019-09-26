@@ -55,7 +55,7 @@ public class MonitorTranslationOperator {
   AgentType agentType;
 
   /**
-   * Optional field that conveys an applicable version ranges
+   * Optional field that conveys applicable version ranges
    * <a href="https://github.com/zafarkhaja/jsemver#external-dsl"></a>in the form of jsemver's external DSL</a>
    */
   @Column(name = "agent_versions")

@@ -22,6 +22,9 @@ import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * Renames a field, if present, to a new name with the same value.
+ */
 @Data @EqualsAndHashCode(callSuper = false)
 public class RenameFieldTranslator extends MonitorTranslator {
 

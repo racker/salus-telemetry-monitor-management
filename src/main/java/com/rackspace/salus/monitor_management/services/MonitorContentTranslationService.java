@@ -40,12 +40,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 /**
- * This service is responsible for translating the rendered content of bound monitors into the exact
- * plugin structure expected by a specific version of an agent.
+ * This service is responsible for translating the rendered content of {@link BoundMonitor}s into the exact
+ * plugin structure expected by a specific version of an agent and returning {@link BoundMonitorDTO}s
+ * that contain the translated content.
  * <p>
- * The translation types and embedded implementation of each are declared as concrete classes
+ * The translation specification and embedded implementation of each are declared as concrete classes
  * extending {@link MonitorTranslator}.
  * </p>
  * <p>
@@ -74,7 +76,7 @@ public class MonitorContentTranslationService {
         .setAgentVersions(in.getAgentVersions())
         .setTranslatorSpec(in.getTranslatorSpec());
 
-    log.info("Saving new monitorTranslationOperator={}", operator);
+    log.info("Creating new monitorTranslationOperator={}", operator);
     return monitorTranslationOperatorRepository.save(operator);
   }
 
@@ -88,25 +90,27 @@ public class MonitorContentTranslationService {
   }
 
   public void delete(UUID operatorId) {
+    log.info("Deleting monitorTranslationOperator={}", operatorId);
     monitorTranslationOperatorRepository.deleteById(operatorId);
   }
 
   public List<BoundMonitorDTO> translate(List<BoundMonitor> boundMonitors,
                                          Map<AgentType, String> agentVersions) {
 
-    if (agentVersions == null || agentVersions.isEmpty()) {
-      // No agents installed, so it's not possible to perform any translation of bound monitors
-      // A later agent installation will circle back to this operation with a non-emtpy agent version map.
+    if (CollectionUtils.isEmpty(agentVersions)) {
+      // No agents installed, so it's not possible to perform any translation of bound monitors.
+      // Agent installation is triggered on every Envoy attachment, so the bound monitor translation
+      // is attempted again when the agent install details are known.
       return List.of();
     }
 
-    // re-map the requested agent-versions into translator instances, where those are initially
+    // re-map the requested agent-versions into a list of operators each, where those are initially
     // retrieved from the DB
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByAgentType =
         agentVersions.entrySet().stream()
             .collect(Collectors.toMap(
                 Entry::getKey,
-                entry -> loadTranslatorInstances(entry.getKey(), entry.getValue())
+                entry -> loadOperators(entry.getKey(), entry.getValue())
             ));
 
     // now translate the rendered content of the bound monitors and turn them into DTOs
@@ -185,18 +189,18 @@ public class MonitorContentTranslationService {
    * Retrieves {@link MonitorTranslationOperator} entities that match the given agentType
    * and narrows those results by those that have a version range that satisfies the given agentVersion
    */
-  private List<MonitorTranslationOperator> loadTranslatorInstances(AgentType agentType, String agentVersion) {
+  private List<MonitorTranslationOperator> loadOperators(AgentType agentType, String agentVersion) {
     final Version agentSemVer = Version.valueOf(agentVersion);
 
     return
         monitorTranslationOperatorRepository.findAllByAgentType(agentType).stream()
-            .sorted(MonitorContentTranslationService::highestPrecedenceFirst)
             .filter(op ->
                 // match any
                 op.getAgentVersions() == null ||
                     // or match within range
                     agentSemVer.satisfies(op.getAgentVersions())
             )
+            .sorted(MonitorContentTranslationService::highestPrecedenceFirst)
             .collect(Collectors.toList());
   }
 
