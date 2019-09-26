@@ -2,6 +2,7 @@ SELECT   monitors.id
 FROM     monitors
 JOIN     monitor_label_selectors AS ml
 where    monitors.id = ml.monitor_id
+AND      monitors.label_selector_method = 'AND'
 AND      monitors.id IN
          (
     SELECT monitor_id

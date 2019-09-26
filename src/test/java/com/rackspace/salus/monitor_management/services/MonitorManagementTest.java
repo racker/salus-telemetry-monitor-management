@@ -1622,6 +1622,7 @@ public class MonitorManagementTest {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setZones(Collections.emptyList());
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
@@ -1646,6 +1647,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1669,6 +1671,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();

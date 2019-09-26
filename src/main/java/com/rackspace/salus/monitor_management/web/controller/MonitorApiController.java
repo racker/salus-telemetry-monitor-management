@@ -241,8 +241,8 @@ public class MonitorApiController {
     @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
     @JsonView(View.Public.class)
     public PagedContent<DetailedMonitorOutput> getMonitorsWithLabels(@PathVariable String tenantId,
-                                                 @RequestBody Map<String, String> labels, Pageable pageable) {
-        return PagedContent.fromPage(monitorManagement.getMonitorsFromLabels(labels, tenantId, pageable)
+                                                 @RequestBody Map<String, String> labels) {
+        return PagedContent.fromPage(monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged())
             .map(monitor -> monitorConversionService.convertToOutput(monitor)));
     }
 

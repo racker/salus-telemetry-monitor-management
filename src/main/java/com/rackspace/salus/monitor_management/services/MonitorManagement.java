@@ -114,6 +114,7 @@ public class MonitorManagement {
   private final ZoneManagement zoneManagement;
   private final ZonesProperties zonesProperties;
   private final String labelMatchQuery;
+  private final String labelMatchOrQuery;
   private final MonitorRepository monitorRepository;
   private final MonitorConversionService monitorConversionService;
   private final MetadataUtils metadataUtils;
@@ -162,7 +163,7 @@ public class MonitorManagement {
     this.metadataUtils = metadataUtils;
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
-
+    this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
     monitorMetadataContentUpdateErrors = meterRegistry.counter("errors",
         "operation", "updateMonitorContentWithPolicy");
     invalidTemplateErrors = meterRegistry.counter("errors",
@@ -1528,9 +1529,17 @@ public class MonitorManagement {
 
     //noinspection ConstantConditions
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
+
+
     final List<UUID> monitorIds = namedParameterTemplate.query(String.format(labelMatchQuery, builder.toString()), paramSource,
         (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
     );
+
+    final List<UUID> monitorOrIds = namedParameterTemplate.query(String.format(labelMatchOrQuery, builder.toString()), paramSource,
+        (resultSet, rowIndex) -> UUID.fromString(resultSet.getString(1))
+    );
+
+    monitorIds.addAll(monitorOrIds);
 
     final List<Monitor> monitors = new ArrayList<>();
     // use JPA to retrieve and resolve the Monitor objects and then convert Iterable result to list
