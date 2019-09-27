@@ -16,8 +16,8 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 
 /**
  * Indicates that an issue was encountered with either a {@link MonitorTranslator} or the

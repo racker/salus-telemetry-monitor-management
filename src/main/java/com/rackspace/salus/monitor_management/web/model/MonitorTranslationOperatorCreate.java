@@ -16,10 +16,10 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.monitor_management.web.model.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.Data;

@@ -29,14 +29,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rackspace.salus.common.util.SpringResourceUtils;
-import com.rackspace.salus.monitor_management.entities.MonitorTranslationOperator;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
-import com.rackspace.salus.monitor_management.web.model.translators.RenameFieldTranslator;
+import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.translators.RenameFieldTranslator;
 import java.util.List;
 import java.util.UUID;
 import org.junit.Test;
