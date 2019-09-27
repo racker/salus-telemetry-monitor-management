@@ -212,8 +212,10 @@ public class MonitorContentTranslationService {
       // ones with null versions are less specific, so sorted "greater than"
       return rhs.getAgentVersions() != null ? 1 : -1;
     } else {
-      // when both have versions, resort to a reverse textual comparison trying to put something
-      // like ">=1.12" ahead of ">=1.11"
+      // When both have versions, resort to a reverse textual comparison trying to put something
+      // like ">=1.12" ahead of ">=1.11". The ordering within these cases is not particularly
+      // important since loadOperators will filter down to operators that apply to the
+      // agent versions anyway.
       return rhs.getAgentVersions().compareTo(lhs.getAgentVersions());
     }
   }
