@@ -373,7 +373,7 @@ public class MonitorManagement {
       r.ifPresent(resource -> resources.add(new ResourceDTO(resource)));
     } else {
       resources = resourceApi.getResourcesWithLabels(
-          tenantId, monitor.getLabelSelector());
+          tenantId, monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
     }
 
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
@@ -972,7 +972,7 @@ public class MonitorManagement {
         boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
 
     final List<ResourceDTO> selectedResources = resourceApi
-        .getResourcesWithLabels(tenantId, updatedLabelSelector);
+        .getResourcesWithLabels(tenantId, updatedLabelSelector, monitor.getLabelSelectorMethod());
 
     final Set<String> selectedResourceIds = selectedResources.stream()
         .map(ResourceDTO::getResourceId)
