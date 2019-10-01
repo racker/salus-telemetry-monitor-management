@@ -1656,7 +1656,7 @@ public class MonitorManagementTest {
     entityManager.flush();
 
     Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(0L, monitors.getTotalElements());
   }
 
   @Test
@@ -1668,19 +1668,25 @@ public class MonitorManagementTest {
     monitorLabels.put("region", "DFW");
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "DARWIN");
-    labels.put("env", "test");
+    labels.put("env", "prod");
 
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
-    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setLabelSelectorMethod(LabelSelectorMethod.OR);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
 
     Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
   }
 
   @Test
@@ -1769,7 +1775,7 @@ public class MonitorManagementTest {
     monitorLabels.put("env", "test");
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "DARWIN");
-    labels.put("env", "test");
+    labels.put("env", "prod");
     labels.put("architecture", "x86");
     labels.put("region", "DFW");
 
