@@ -1567,7 +1567,7 @@ public class MonitorManagement {
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
     log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
         envoyId, zoneName, zoneTenantId);
-    List<BoundMonitor> boundMonitors = getAllBoundMonitorsByEnvoyId(envoyId, Pageable.unpaged()).getContent();
+    List<BoundMonitor> boundMonitors = getAllBoundMonitorsByEnvoyId(envoyId);
     if (boundMonitors.isEmpty()) {
       return;
     }
@@ -1701,8 +1701,8 @@ public class MonitorManagement {
     return boundMonitors;
   }
 
-  public Page<BoundMonitor> getAllBoundMonitorsByEnvoyId(String envoyId, Pageable page) {
-    return boundMonitorRepository.findAllByEnvoyId(envoyId, page);
+  public List<BoundMonitor> getAllBoundMonitorsByEnvoyId(String envoyId) {
+    return boundMonitorRepository.findAllByEnvoyId(envoyId);
   }
 
   public Page<BoundMonitor> getAllBoundMonitorsByTenantId(String tenantId, Pageable page) {

@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.client;
+package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.AgentType;
-import java.util.List;
 import java.util.Map;
+import javax.validation.constraints.NotEmpty;
+import lombok.Data;
 
-public interface MonitorApi {
+@Data
+public class BoundMonitorsRequest {
+  @NotEmpty
+  String envoyId;
 
-  List<BoundMonitorDTO> getBoundMonitors(String envoyId,
-                                         Map<AgentType, String> installedAgentVersions);
-
-  DetailedMonitorOutput getPolicyMonitorById(String monitorId);
+  Map<AgentType, String> installedAgentVersions;
 }

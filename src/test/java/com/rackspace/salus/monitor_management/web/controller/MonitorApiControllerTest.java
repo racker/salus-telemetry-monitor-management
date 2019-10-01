@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
@@ -36,12 +37,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -51,6 +53,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -111,6 +114,9 @@ public class MonitorApiControllerTest {
 
   @MockBean
   MonitorRepository monitorRepository;
+
+  @MockBean
+  MonitorContentTranslationService monitorContentTranslationService;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -492,6 +498,37 @@ public class MonitorApiControllerTest {
         .andExpect(jsonPath("$.number", equalTo(page)))
         .andExpect(jsonPath("$.last", is(true)))
         .andExpect(jsonPath("$.first", is(true)));
+  }
+
+  @Test
+  public void testQueryBoundMonitors() throws Exception {
+    final List<BoundMonitor> boundMonitors = List.of(
+        podamFactory.manufacturePojo(BoundMonitor.class)
+    );
+    when(monitorManagement.getAllBoundMonitorsByEnvoyId(any()))
+        .thenReturn(boundMonitors);
+
+    final List<BoundMonitorDTO> boundMonitorDtos = List.of(
+        podamFactory.manufacturePojo(BoundMonitorDTO.class)
+    );
+    when(monitorContentTranslationService.translate(any(), any()))
+        .thenReturn(boundMonitorDtos);
+
+    final String reqBody = readContent("MonitorApiControllerTest/query_bound_monitors.json");
+
+    mockMvc.perform(post("/api/admin/bound-monitors")
+        .content(reqBody)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()", is(1)))
+        .andExpect(jsonPath("$[0].monitorId",
+            is(boundMonitorDtos.get(0).getMonitorId().toString())));
+
+    verify(monitorManagement).getAllBoundMonitorsByEnvoyId("e-1");
+
+    verify(monitorContentTranslationService)
+        .translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
   }
 
   @Test
