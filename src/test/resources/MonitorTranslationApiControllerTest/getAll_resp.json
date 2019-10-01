@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "id": "00000001-ffcf-40d2-8684-95cb0362ae6d",
+      "agentType": "TELEGRAF",
+      "agentVersions": ">= 1.12.0",
+      "monitorType": "cpu",
+      "selectorScope": "LOCAL",
+      "translatorSpec": {
+        "type": "renameField",
+        "from": "from-field",
+        "to": "to-field"
+      }
+    },
+    {
+      "id": "00000002-ffcf-40d2-8684-95cb0362ae6d",
+      "agentType": "TELEGRAF",
+      "agentVersions": "< 1.12.0",
+      "monitorType": "http_response",
+      "selectorScope": "REMOTE",
+      "translatorSpec": {
+        "type": "renameField",
+        "from": "from-field",
+        "to": "to-field"
+      }
+    }
+  ],
+  "number": 1,
+  "totalPages": 5,
+  "totalElements": 10,
+  "last": false,
+  "first": false
+}

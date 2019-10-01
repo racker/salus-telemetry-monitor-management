@@ -1,0 +1,6 @@
+{
+  "envoyId": "e-1",
+  "installedAgentVersions": {
+    "TELEGRAF": "1.12.0"
+  }
+}

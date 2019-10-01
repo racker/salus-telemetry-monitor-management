@@ -194,7 +194,7 @@ public class MonitorManagement_MetadataPolicyTest {
     when(envoyResourceManagement.getOne(anyString(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
-    when(resourceApi.getResourcesWithLabels(any(), any(), LabelSelectorMethod.AND))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");

@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.client;
+package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.telemetry.model.AgentType;
-import java.util.List;
-import java.util.Map;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 
-public interface MonitorApi {
+/**
+ * Indicates that an issue was encountered with either a {@link MonitorTranslator} or the
+ * {@link BoundMonitor}'s rendered content that prevented translation.
+ */
+class MonitorContentTranslationException extends Exception {
 
-  List<BoundMonitorDTO> getBoundMonitors(String envoyId,
-                                         Map<AgentType, String> installedAgentVersions);
+  MonitorContentTranslationException(String message) {
+    super(message);
+  }
 
-  DetailedMonitorOutput getPolicyMonitorById(String monitorId);
+  MonitorContentTranslationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

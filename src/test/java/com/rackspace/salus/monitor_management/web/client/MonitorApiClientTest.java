@@ -16,9 +16,12 @@
 
 package com.rackspace.salus.monitor_management.web.client;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -27,9 +30,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.telemetry.model.PagedContent;
+import com.rackspace.salus.telemetry.model.AgentType;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,8 +43,7 @@ import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -71,7 +75,7 @@ public class MonitorApiClientTest {
   ObjectMapper objectMapper;
 
   @Test
-  public void getBoundMonitors() throws JsonProcessingException {
+  public void testQueryBoundMonitors() throws IOException {
 
     final UUID id1 = UUID.fromString("16caf730-48e8-47ba-0001-aa9babba8953");
     final UUID id2 = UUID.fromString("16caf730-48e8-47ba-0002-aa9babba8953");
@@ -88,13 +92,17 @@ public class MonitorApiClientTest {
             .setMonitorId(id3)
             .setRenderedContent("{\"instance\":3, \"state\":1}")
     );
-    final PagedContent<BoundMonitorDTO> resultPage = PagedContent.fromPage(
-        new PageImpl<>(givenBoundMonitors, Pageable.unpaged(), givenBoundMonitors.size()));
 
-    mockServer.expect(requestTo("/api/admin/bound-monitors/e-1?size=2147483647"))
-        .andRespond(withSuccess(objectMapper.writeValueAsString(resultPage), MediaType.APPLICATION_JSON));
+    final String expectedReqJson = readContent("MonitorApiClientTest/testQueryBoundMonitors_req.json");
 
-    final List<BoundMonitorDTO> boundMonitors = monitorApiClient.getBoundMonitors("e-1");
+    mockServer.expect(requestTo("/api/admin/bound-monitors"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(content().json(expectedReqJson, true))
+        .andRespond(withSuccess(objectMapper.writeValueAsString(givenBoundMonitors), MediaType.APPLICATION_JSON));
+
+    final Map<AgentType, String> installedAgentVersions = Map.of(AgentType.TELEGRAF, "1.12.0");
+    final List<BoundMonitorDTO> boundMonitors =
+        monitorApiClient.getBoundMonitors("e-1", installedAgentVersions);
     assertThat(boundMonitors, equalTo(givenBoundMonitors));
   }
 

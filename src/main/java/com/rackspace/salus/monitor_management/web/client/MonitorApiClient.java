@@ -17,16 +17,18 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.telemetry.model.PagedContent;
+import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * This client component provides a small subset of Monitor Management REST operations that
@@ -56,8 +58,8 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public class MonitorApiClient implements MonitorApi {
 
-  private static final ParameterizedTypeReference<PagedContent<BoundMonitorDTO>> PAGE_OF_BOUND_MONITOR = new ParameterizedTypeReference<PagedContent<BoundMonitorDTO>>() {
-  };
+  private static final ParameterizedTypeReference<List<BoundMonitorDTO>> LIST_OF_BOUND_MONITOR
+      = new ParameterizedTypeReference<>() {};
   private final RestTemplate restTemplate;
 
   public MonitorApiClient(RestTemplate restTemplate) {
@@ -65,19 +67,18 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public List<BoundMonitorDTO> getBoundMonitors(String envoyId) {
-    final String uri = UriComponentsBuilder
-        .fromPath("/api/admin/bound-monitors/{envoyId}")
-        .queryParam("size", Integer.MAX_VALUE)
-        .build(envoyId)
-        .toString();
-
+  public List<BoundMonitorDTO> getBoundMonitors(String envoyId,
+                                                Map<AgentType, String> installedAgentVersions) {
     return Objects.requireNonNull(restTemplate.exchange(
-        uri,
-        HttpMethod.GET,
-        null,
-        PAGE_OF_BOUND_MONITOR
-      ).getBody()).getContent();
+        "/api/admin/bound-monitors",
+        HttpMethod.POST,
+        new HttpEntity<>(
+            new BoundMonitorsRequest()
+            .setEnvoyId(envoyId)
+            .setInstalledAgentVersions(installedAgentVersions)
+        ),
+        LIST_OF_BOUND_MONITOR
+      ).getBody());
   }
 
   @Override
