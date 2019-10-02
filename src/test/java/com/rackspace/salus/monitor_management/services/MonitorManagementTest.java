@@ -242,7 +242,7 @@ public class MonitorManagementTest {
         .setTenantId("t-1")
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
   }
 
@@ -328,11 +328,12 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(null);
     create.setResourceId(null);
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
     final ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
-    when(resourceApi.getResourcesWithLabels(anyString(), any()))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(List.of(resource));
     when(envoyResourceManagement.getOne(anyString(), anyString()))
         .thenReturn(
@@ -359,7 +360,7 @@ public class MonitorManagementTest {
     assertThat(retrieved.get().getResourceId(), nullValue());
 
 
-    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
     verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-1")
@@ -525,6 +526,7 @@ public class MonitorManagementTest {
     create.setContent("value=${does_not_exist}");
     create.setResourceId("");
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
 
     Monitor returned = monitorManagement.createMonitor(tenantId, create);
     assertThat(returned.getId(), notNullValue());
@@ -534,7 +536,7 @@ public class MonitorManagementTest {
 
     verify(envoyResourceManagement).getOne(tenantId, DEFAULT_RESOURCE_ID);
 
-    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
 
     // ...but no bindings created, verified by no interaction with boundMonitorRepository
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
@@ -555,6 +557,7 @@ public class MonitorManagementTest {
     List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
     create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
     create.setLabelSelector(Collections.emptyMap());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
 
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
@@ -565,7 +568,7 @@ public class MonitorManagementTest {
     Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
     assertTrue(retrieved.isPresent());
 
-    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
 
     verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
 
@@ -671,7 +674,7 @@ public class MonitorManagementTest {
             )
         );
 
-    when(resourceApi.getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes")))
+    when(resourceApi.getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"), LabelSelectorMethod.AND))
         .thenReturn(Arrays.asList(r2, r3));
 
     final Map<String, String> oldLabelSelector = new HashMap<>();
@@ -683,7 +686,7 @@ public class MonitorManagementTest {
         .setTenantId("t-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(oldLabelSelector)
-        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
@@ -719,9 +722,9 @@ public class MonitorManagementTest {
     assertThat(updatedMonitor.getSelectorScope(), equalTo(ConfigSelectorScope.LOCAL));
     assertThat(updatedMonitor.getLabelSelector(), equalTo(newLabelSelector));
     // The method was not specified so the existing one should remain instead of being set back to the default.
-    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.OR));
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"));
+    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("new", "yes"), LabelSelectorMethod.AND);
 
     verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
 
@@ -790,7 +793,7 @@ public class MonitorManagementTest {
     entityManager.flush();
 
     // Both resources will be relevant when method is changed to OR
-    when(resourceApi.getResourcesWithLabels("t-1", labels))
+    when(resourceApi.getResourcesWithLabels("t-1", labels, LabelSelectorMethod.OR))
         .thenReturn(List.of(linuxResource, windowsResource));
 
     // An envoy will have to be found for the windows resource when method is changed to OR
@@ -823,7 +826,7 @@ public class MonitorManagementTest {
     assertThat(updatedMonitor.getLabelSelector(), equalTo(labels));
     assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.OR));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", labels);
+    verify(resourceApi).getResourcesWithLabels("t-1", labels, LabelSelectorMethod.OR);
 
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
@@ -1142,7 +1145,7 @@ public class MonitorManagementTest {
   public void testUpdateExistingMonitor_zonesChanged() {
     reset(envoyResourceManagement, resourceApi);
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(Collections.singletonList(
             new ResourceDTO()
                 .setTenantId("t-1")
@@ -1229,7 +1232,7 @@ public class MonitorManagementTest {
                 .setMonitorMetadataFields(Collections.emptyList())
                 .setInterval(Duration.ofSeconds(60)));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"));
+    verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"), LabelSelectorMethod.AND);
 
     final ResolvedZone resolvedZ3 = createPrivateZone("t-1", "z-3");
     verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
@@ -1622,6 +1625,7 @@ public class MonitorManagementTest {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setZones(Collections.emptyList());
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
@@ -1646,12 +1650,43 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
 
     Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    assertEquals(0L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(0L, monitors.getTotalElements());
+  }
+
+  @Test
+  public void testMatchMonitorWithSupersetOfLabelsUsingOr() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    monitorLabels.put("architecture", "x86");
+    monitorLabels.put("region", "DFW");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "prod");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.OR);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
   }
 
   @Test
@@ -1669,6 +1704,31 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(0L, monitors.getTotalElements());
+  }
+
+  @Test
+  public void testMisMatchMonitorWithSupersetOfLabelsUsingOr() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    monitorLabels.put("architecture", "x86");
+    monitorLabels.put("region", "DFW");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "Windows");
+    labels.put("env", "prod");
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.OR);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1693,6 +1753,38 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    monitorManagement.createMonitor(tenantId, create);
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(1L, monitors.getTotalElements()); //make sure we only returned the one value
+    assertEquals(tenantId, monitors.getContent().get(0).getTenantId());
+    assertEquals(create.getAgentType(), monitors.getContent().get(0).getAgentType());
+    assertEquals(create.getContent(), monitors.getContent().get(0).getContent());
+    assertEquals(create.getMonitorName(), monitors.getContent().get(0).getMonitorName());
+    assertEquals(create.getSelectorScope(), monitors.getContent().get(0).getSelectorScope());
+    assertEquals(create.getLabelSelector(), monitors.getContent().get(0).getLabelSelector());
+  }
+
+  @Test
+  public void testMatchMonitorWithSubsetOfLabelsUsingOr() {
+    final Map<String, String> monitorLabels = new HashMap<>();
+    monitorLabels.put("os", "DARWIN");
+    monitorLabels.put("env", "test");
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "DARWIN");
+    labels.put("env", "prod");
+    labels.put("architecture", "x86");
+    labels.put("region", "DFW");
+
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setLabelSelector(monitorLabels);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelectorMethod(LabelSelectorMethod.OR);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1825,7 +1917,7 @@ public class MonitorManagementTest {
             .setMetadata(Collections.singletonMap("public_ip", "151.2.2.2"))
     );
     reset(resourceApi);
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(tenantResources);
 
     Monitor monitor = new Monitor()
@@ -2238,7 +2330,7 @@ public class MonitorManagementTest {
         .setAssociatedWithEnvoy(true)
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     final ResourceInfo resourceInfo = new ResourceInfo()
@@ -2254,7 +2346,7 @@ public class MonitorManagementTest {
     assertThat(result, hasSize(1));
     assertThat(result.toArray()[0], equalTo("e-1"));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
     verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
@@ -2289,7 +2381,7 @@ public class MonitorManagementTest {
         .setAssociatedWithEnvoy(true)
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     when(envoyResourceManagement.getOne(any(), any()))
@@ -2299,7 +2391,7 @@ public class MonitorManagementTest {
 
     assertThat(result, hasSize(0));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
     verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
@@ -2332,14 +2424,14 @@ public class MonitorManagementTest {
         .setAssociatedWithEnvoy(false)
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
     assertThat(result, hasSize(0));
 
-    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
   }
