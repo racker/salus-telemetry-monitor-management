@@ -15,10 +15,10 @@ AND      monitors.id IN
   )
   AND monitors.id IN
     (
-      SELECT id
+      SELECT monitor_id
       FROM monitor_label_selectors
       WHERE
-      id IN
+      monitor_id IN
       (
         SELECT id
         FROM monitors
@@ -26,7 +26,7 @@ AND      monitors.id IN
       )
       AND monitors.id IN
       (
-        SELECT id
+        SELECT monitor_id
         FROM monitor_label_selectors
         WHERE %s
         GROUP BY id
