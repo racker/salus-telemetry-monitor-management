@@ -5,12 +5,12 @@ where    monitors.id = ml.monitor_id
 AND      monitors.label_selector_method = 'AND'
 AND      monitors.id IN
          (
-    SELECT monitor_id
-    FROM   monitor_label_selectors
+    SELECT first_ml.monitor_id
+    FROM   monitor_label_selectors AS first_ml
     WHERE  monitors.id IN
        (
-          SELECT id
-          FROM   monitors
+          SELECT first_monitors.id
+          FROM   monitors AS first_monitors
           WHERE  tenant_id = :tenantId)
     AND    monitors.id IN
         (

@@ -9,27 +9,27 @@ AND      monitors.id IN
   FROM   monitor_label_selectors
   WHERE  monitors.id IN
   (
-    SELECT id
-    FROM   monitors
+    SELECT first_monitors.id
+    FROM   monitors AS first_monitors
     WHERE  tenant_id = :tenantId
   )
   AND monitors.id IN
     (
-      SELECT monitor_id
+      SELECT monitor_label_selectors.monitor_id
       FROM monitor_label_selectors
       WHERE
-      monitor_id IN
+      monitor_label_selectors.monitor_id IN
       (
-        SELECT id
-        FROM monitors
+        SELECT inner_monitors.id
+        FROM monitors AS inner_monitors
         WHERE tenant_id = :tenantId
       )
       AND monitors.id IN
       (
-        SELECT monitor_id
+        SELECT monitor_label_selectors.monitor_id
         FROM monitor_label_selectors
         WHERE %s
-        GROUP BY id
+        GROUP BY monitor_label_selectors.monitor_id
         HAVING COUNT(*) >= 1
       )
  ))
