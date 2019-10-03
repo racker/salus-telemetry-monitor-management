@@ -16,9 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.rackspace.salus.common.errors.ResponseMessages;
-import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -28,7 +26,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -43,49 +40,22 @@ public class RestExceptionHandler extends
     super(errorAttributes);
   }
 
-  @ExceptionHandler({IllegalArgumentException.class})
-  public ResponseEntity<?> handleBadRequest(
-      HttpServletRequest request) {
-    return respondWith(request, HttpStatus.BAD_REQUEST);
-  }
-
-  @ExceptionHandler({HttpMessageNotReadableException.class})
-  public ResponseEntity<?> handleHttpMessageNotReadable(HttpServletRequest request,
-                                                        HttpMessageNotReadableException e) {
-    if (e.getCause() instanceof JsonMappingException) {
-      final JsonMappingException jsonMappingException = (JsonMappingException) e.getCause();
-
-      return respondWith(request, HttpStatus.BAD_REQUEST,
-          String.format("Failed to parse JSON at %s", jsonMappingException.getPathReference()));
-    }
-    else {
-      // fallback to default message derivation
-      return respondWith(request, HttpStatus.BAD_REQUEST);
-    }
-  }
-
   @ExceptionHandler({NotFoundException.class})
-  public ResponseEntity<?> handleNotFound(
-      HttpServletRequest request) {
+  public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
+    logRequestFailure(request, e);
     return respondWith(request, HttpStatus.NOT_FOUND);
   }
 
   @ExceptionHandler({AlreadyExistsException.class, MissingRequirementException.class})
-  public ResponseEntity<?> handleUnprocessable(
-      HttpServletRequest request) {
+  public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
+    logRequestFailure(request, e);
     return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
   @ExceptionHandler({JDBCException.class})
-  public ResponseEntity<?> handleJDBCException(
-      HttpServletRequest request) {
+  public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
+    logRequestFailure(request, e);
     return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
-  }
-
-  @ExceptionHandler({RuntimeKafkaException.class})
-  public ResponseEntity<?> handleKafkaExceptions(
-      HttpServletRequest request) {
-    return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.kafkaExceptionMessage);
   }
 
 }
