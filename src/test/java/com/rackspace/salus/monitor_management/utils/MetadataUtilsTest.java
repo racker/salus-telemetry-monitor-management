@@ -220,24 +220,24 @@ public class MetadataUtilsTest {
     Monitor monitor = new Monitor();
     assertThat(monitor.getMonitorMetadataFields()).isNull();
 
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(2);
     assertThat(monitor.getMonitorMetadataFields()).containsExactlyInAnyOrder("interval", "zones");
 
     // set a value different from the policy to remove it from metadata fields
     monitor.setInterval(Duration.ofSeconds(10));
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
     assertThat(monitor.getMonitorMetadataFields()).containsExactly("zones");
 
     // set a value the same as the policy and it should remain in metadata fields.
     monitor.setZones(List.of("zone1", "zone2"));
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
 
     // set a value different from the policy to remove it from metadata fields
     monitor.setZones(List.of("zone"));
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
 
     verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null);

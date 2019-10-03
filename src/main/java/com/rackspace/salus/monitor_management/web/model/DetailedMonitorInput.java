@@ -30,7 +30,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-@ValidCreateMonitor(groups = {ValidationGroups.Create.class})
+@ValidCreateMonitor(groups = {ValidationGroups.Create.class, ValidationGroups.Patch.class})
 @ValidUpdateMonitor(groups = {ValidationGroups.Update.class})
 public class DetailedMonitorInput {
   String name;
@@ -49,7 +49,7 @@ public class DetailedMonitorInput {
   Duration interval;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
-  @NotNull(groups = ValidationGroups.Create.class)
+  @NotNull(groups = {ValidationGroups.Create.class, ValidationGroups.Patch.class})
   @Valid
   MonitorDetails details;
 

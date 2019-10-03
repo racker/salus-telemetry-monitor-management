@@ -47,7 +47,7 @@ public class MetadataUtils {
    * @param object The object to inspect for metadata fields.
    * @return The list of metadata fields found.
    */
-  public static List<String> getMetadataFieldsForCreate(Object object) {
+  static List<String> getMetadataFieldsForCreate(Object object) {
     List<String> metadataFields = new ArrayList<>();
     for (Field f : object.getClass().getDeclaredFields()) {
       try {
@@ -72,7 +72,8 @@ public class MetadataUtils {
    * @param policies A map of relevant policies.
    * @return The list of metadata fields found.
    */
-  public static List<String> getMetadataFieldsForUpdate(Object object, List<String> previousMetadataFields, Map<String, MonitorMetadataPolicyDTO> policies) {
+  @SuppressWarnings("unchecked")
+  static List<String> getMetadataFieldsForUpdate(Object object, List<String> previousMetadataFields, Map<String, MonitorMetadataPolicyDTO> policies) {
     List<String> metadataFields = new ArrayList<>();
     for (Field f : object.getClass().getDeclaredFields()) {
       try {
@@ -129,7 +130,7 @@ public class MetadataUtils {
    * @param metadataFields The metadata fields that should attempt to be updated.
    * @param policyMetadata The relevant policies for this object.
    */
-  public static void setNewMetadataValues(Object object, List<String> metadataFields, Map<String, MonitorMetadataPolicyDTO> policyMetadata) {
+  static void setNewMetadataValues(Object object, List<String> metadataFields, Map<String, MonitorMetadataPolicyDTO> policyMetadata) {
     for (String key : metadataFields) {
       if (policyMetadata.containsKey(key)) {
         MonitorMetadataPolicyDTO policy = policyMetadata.get(key);
@@ -180,12 +181,14 @@ public class MetadataUtils {
    * @param tenantId The tenant id the monitor is created under.
    * @param monitor The monitor object to update.
    */
-  public void setMetadataFieldsForMonitor(String tenantId, Monitor monitor) {
+  public void setMetadataFieldsForMonitor(String tenantId, Monitor monitor, boolean patchOperation) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;
     TargetClassName className = TargetClassName.getTargetClassName(monitor);
 
-    if (monitor.getMonitorMetadataFields() != null && !monitor.getMonitorMetadataFields().isEmpty()) {
+    if (!patchOperation &&
+        monitor.getMonitorMetadataFields() != null &&
+        !monitor.getMonitorMetadataFields().isEmpty()) {
       policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
       metadataFields = MetadataUtils
           .getMetadataFieldsForUpdate(monitor, monitor.getMonitorMetadataFields(), policyMetadata);
@@ -224,12 +227,14 @@ public class MetadataUtils {
    * @param monitor The parent MonitorCU object being constructed.
    * @param plugin The plugin to set metadata values on.
    */
-  public void setMetadataFieldsForPlugin(String tenantId, MonitorCU monitor, Object plugin) {
+  public void setMetadataFieldsForPlugin(String tenantId, MonitorCU monitor, Object plugin, boolean patchOperation) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;
     TargetClassName className = TargetClassName.getTargetClassName(plugin);
 
-    if (monitor.getPluginMetadataFields() != null && !monitor.getPluginMetadataFields().isEmpty()) {
+    if (!patchOperation &&
+        monitor.getPluginMetadataFields() != null &&
+        !monitor.getPluginMetadataFields().isEmpty()) {
       policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
       metadataFields = MetadataUtils
           .getMetadataFieldsForUpdate(plugin, monitor.getPluginMetadataFields(), policyMetadata);

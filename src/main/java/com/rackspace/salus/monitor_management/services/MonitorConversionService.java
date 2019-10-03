@@ -123,7 +123,13 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
-  public MonitorCU convertFromInput(String tenantId, UUID monitorId, DetailedMonitorInput input) {
+  public MonitorCU convertFromInput(String tenantId, UUID monitorId,
+      DetailedMonitorInput input) {
+    return convertFromInput(tenantId, monitorId, input, false);
+  }
+
+  public MonitorCU convertFromInput(String tenantId, UUID monitorId,
+                                    DetailedMonitorInput input, boolean patchOperation) {
 
     validateInterval(input.getInterval());
 
@@ -150,7 +156,7 @@ public class MonitorConversionService {
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(tenantId, input, monitor, plugin);
+      populateAgentConfigContent(tenantId, input, monitor, plugin, patchOperation);
     } else if (details instanceof RemoteMonitorDetails) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
 
@@ -159,7 +165,7 @@ public class MonitorConversionService {
 
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(tenantId, input, monitor, plugin);
+      populateAgentConfigContent(tenantId, input, monitor, plugin, patchOperation);
     }
 
     return monitor;
@@ -184,7 +190,7 @@ public class MonitorConversionService {
   }
 
   private void populateAgentConfigContent(String tenantId, DetailedMonitorInput input, MonitorCU monitor,
-                                          Object plugin) {
+                                          Object plugin, boolean patchOperation) {
     final ApplicableAgentType applicableAgentType = plugin.getClass()
         .getAnnotation(ApplicableAgentType.class);
     if (applicableAgentType == null) {
@@ -197,7 +203,7 @@ public class MonitorConversionService {
 
     // Policy monitors should not use metadata
     if (!tenantId.equals(Monitor.POLICY_TENANT)) {
-      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
+      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin, patchOperation);
     }
 
     try {
