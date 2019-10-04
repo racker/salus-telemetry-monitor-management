@@ -606,9 +606,12 @@ public class MonitorManagement {
   /**
    * Update an existing monitor.
    *
-   * @param tenantId      The tenant to update the monitor for.
-   * @param id            The id of the existing monitor.
-   * @param updatedValues The new monitor parameters to store.
+   * @param tenantId       The tenant to update the monitor for.
+   * @param id             The id of the existing monitor.
+   * @param updatedValues  The new monitor parameters to store.
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   *                       null values are ignored for updates but utilized in patches.
+   *
    * @return The newly updated monitor.
    */
   public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues, boolean patchOperation) {

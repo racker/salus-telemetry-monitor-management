@@ -133,8 +133,19 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
+  /**
+   * Helper method for updates to perform a patch.
+   *
+   * @param tenantId  The tenant the monitor relates to.
+   * @param monitorId The id of the monitor if an update is being performed.
+   * @param monitor   The existing monitor object that will be updated
+   * @param patch     The individual changes to be made to the Monitor
+   * @return A MonitorCU object used to construct a Monitor
+   */
   public MonitorCU convertFromPatchInput(String tenantId, UUID monitorId,
                                         Monitor monitor, JsonMergePatch patch) {
+    // To apply a patch we must convert the existing monitor to a DetailedMonitorInput
+    // then write any new values we've received to that.
     DetailedMonitorOutput output = convertToOutput(monitor);
     DetailedMonitorInput input = new DetailedMonitorInput(output);
 
@@ -143,11 +154,31 @@ public class MonitorConversionService {
     return convertFromInput(tenantId, monitorId, patchedInput, true);
   }
 
+  /**
+   * Helper method for updates that defaults to a non-patch update.
+   *
+   * @param tenantId  The tenant the monitor relates to.
+   * @param monitorId The id of the monitor if an update is being performed.
+   * @param input     The details provided to set on the Monitor
+   *
+   * @return A MonitorCU object used to construct a Monitor
+   */
   public MonitorCU convertFromInput(String tenantId, UUID monitorId,
       DetailedMonitorInput input) {
     return convertFromInput(tenantId, monitorId, input, false);
   }
 
+  /**
+   * Generates a monitor's string content from an input plugin object.
+   *
+   * @param tenantId       The tenant the monitor relates to.
+   * @param monitorId      The id of the monitor if an update is being performed.
+   * @param input          The details provided to set on the Monitor
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   *                       null values are ignored for updates but utilized in patches.
+   *
+   * @return A MonitorCU object used to construct a Monitor
+   */
   public MonitorCU convertFromInput(String tenantId, UUID monitorId,
                                     DetailedMonitorInput input, boolean patchOperation) {
 
