@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_MERGE_PATCH_TYPE;
+
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
@@ -39,6 +41,7 @@ import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.json.JsonMergePatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +50,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -160,13 +164,33 @@ public class MonitorApiController {
   @ApiOperation(value = "Updates specific Policy Monitor")
   @JsonView(View.Admin.class)
   public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
-                                                   @Validated @RequestBody final DetailedMonitorInput input)
+                                                   @Validated(ValidationGroups.Update.class)
+                                                   @RequestBody final DetailedMonitorInput input)
       throws IllegalArgumentException {
 
     return monitorConversionService.convertToOutput(
         monitorManagement.updatePolicyMonitor(
             uuid,
             monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, uuid, input)
+        ));
+  }
+
+  @PatchMapping("/admin/policy-monitors/{uuid}")
+  @ApiOperation(value = "Patch specific Policy Monitor")
+  @JsonView(View.Admin.class)
+  public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
+                                                  @Validated(ValidationGroups.Patch.class)
+                                                  @RequestBody final JsonMergePatch input)
+      throws IllegalArgumentException {
+
+    Monitor monitor = monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
+        new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
+
+    return monitorConversionService.convertToOutput(
+        monitorManagement.updatePolicyMonitor(
+            uuid,
+            monitorConversionService.convertFromPatchInput(Monitor.POLICY_TENANT, uuid, monitor, input),
+            true
         ));
   }
 
@@ -244,6 +268,29 @@ public class MonitorApiController {
             tenantId,
             uuid,
             monitorConversionService.convertFromInput(tenantId, uuid, input)
+        ));
+  }
+
+  @PatchMapping(path = "/tenant/{tenantId}/monitors/{uuid}", consumes = JSON_MERGE_PATCH_TYPE)
+  @ApiOperation(value = "Updates specific Monitor for Tenant")
+  @JsonView(View.Public.class)
+  public DetailedMonitorOutput patch(@PathVariable String tenantId,
+      @PathVariable UUID uuid,
+      @Validated(ValidationGroups.Patch.class)
+      @RequestBody final JsonMergePatch input)
+      throws IllegalArgumentException {
+
+    Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
+        () -> new NotFoundException(String.format("No monitor found for %s on tenant %s",
+            uuid, tenantId
+        )));
+
+    return monitorConversionService.convertToOutput(
+        monitorManagement.updateMonitor(
+            tenantId,
+            uuid,
+            monitorConversionService.convertFromPatchInput(tenantId, uuid, monitor, input),
+            true
         ));
   }
 

@@ -18,8 +18,10 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -40,6 +42,8 @@ import java.io.InvalidClassException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonMergePatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -57,17 +61,23 @@ public class MonitorConversionService {
   private final MonitorConversionProperties properties;
   private final MonitorRepository monitorRepository;
   private final MetadataUtils metadataUtils;
+  private final PatchHelper patchHelper;
 
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties,
       PolicyApi policyApi,
       MonitorRepository monitorRepository,
-      MetadataUtils metadataUtils) {
+      MetadataUtils metadataUtils,
+      PatchHelper patchHelper) {
     this.objectMapper = objectMapper;
     this.properties = properties;
     this.monitorRepository = monitorRepository;
     this.metadataUtils = metadataUtils;
+    this.patchHelper = patchHelper;
+
+    // Register ability to handle Json Merge Patch conversions.
+    this.objectMapper.registerModule(new JSR353Module());
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
@@ -121,6 +131,16 @@ public class MonitorConversionService {
     }
 
     return detailedMonitorOutput;
+  }
+
+  public MonitorCU convertFromPatchInput(String tenantId, UUID monitorId,
+                                        Monitor monitor, JsonMergePatch patch) {
+    DetailedMonitorOutput output = convertToOutput(monitor);
+    DetailedMonitorInput input = new DetailedMonitorInput(output);
+
+    DetailedMonitorInput patchedInput = patchHelper.mergePatch(patch, input, DetailedMonitorInput.class);
+
+    return convertFromInput(tenantId, monitorId, patchedInput, true);
   }
 
   public MonitorCU convertFromInput(String tenantId, UUID monitorId,

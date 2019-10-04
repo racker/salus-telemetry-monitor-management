@@ -39,6 +39,7 @@ import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.services.MonitorManagement_MetadataPolicyTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -162,6 +163,9 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @MockBean
   ZoneManagement zoneManagement;
+
+  @MockBean
+  PatchHelper patchHelper;
 
   @Autowired
   ObjectMapper objectMapper;

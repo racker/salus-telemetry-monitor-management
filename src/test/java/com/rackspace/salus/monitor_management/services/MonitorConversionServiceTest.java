@@ -27,8 +27,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
+import com.rackspace.salus.monitor_management.services.MonitorConversionServiceTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -63,7 +66,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonMergePatch;
+import javax.json.JsonValue;
 import javax.validation.ConstraintViolation;
+import javax.validation.Validator;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Assert;
@@ -74,18 +81,29 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = {MonitorConversionService.class, MetadataUtils.class})
+@SpringBootTest(classes = {MonitorConversionService.class, MetadataUtils.class, PatchHelper.class,
+    TestConfig.class})
 @AutoConfigureJson
 public class MonitorConversionServiceTest {
 
   private static final Duration MIN_INTERVAL = Duration.ofSeconds(10);
   private static final Duration DEFAULT_LOCAL_INTERVAL = Duration.ofSeconds(30);
   private static final Duration DEFAULT_REMOTE_INTERVAL = Duration.ofMinutes(5);
+
+  @TestConfiguration
+  static class TestConfig {
+    @Bean
+    public Validator localValidatorFactoryBean() {
+      return new LocalValidatorFactoryBean();
+    }
+  }
 
   @Autowired
   MonitorConversionService conversionService;
@@ -95,6 +113,12 @@ public class MonitorConversionServiceTest {
 
   @Autowired
   MetadataUtils metadataUtils;
+
+  @Autowired
+  PatchHelper patchHelper;
+
+  @Autowired
+  ObjectMapper objectMapper;
 
   @MockBean
   PolicyApi policyApi;
@@ -331,6 +355,90 @@ public class MonitorConversionServiceTest {
 
     final String content = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertFromPatchInput_ping_resetPolicies()
+      throws JSONException, IOException {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID monitorId = UUID.randomUUID();
+
+    Map<String, MonitorMetadataPolicyDTO> expectedPolicy = Map.of(
+        "count", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("count")
+            .setValueType(MetadataValueType.INT)
+            .setValue("63"),
+        "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("pingInterval")
+            .setValueType(MetadataValueType.INT)
+            .setValue("2"),
+        "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("interval")
+            .setValueType(MetadataValueType.INT)
+            .setValue("44"),
+        "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("zones")
+            .setValueType(MetadataValueType.STRING_LIST)
+            .setValue("defaultZone1,defaultZone2"));
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(expectedPolicy);
+
+    // Create the plugin that will be converted to the monitor's contents
+    final Ping plugin = new Ping()
+        .setUrls(Collections.singletonList("localhost"))
+        .setCount(1)
+        .setPingInterval(2)
+        .setTimeout(3);
+
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convert");
+
+    // Create the original Monitor that will be patched
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setZones(Collections.singletonList("z-1"))
+        .setInterval(Duration.ofSeconds(100))
+        .setContent(objectMapper.writeValueAsString(plugin))
+        .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorMetadataFields(Collections.emptyList())
+        .setPluginMetadataFields(Collections.emptyList())
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+
+    // Create the patch payload which only contains the fields to change
+    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
+        .add("interval", JsonValue.NULL)
+        .add("details", Json.createObjectBuilder()
+            .add("monitoringZones", JsonValue.NULL)
+            .add("plugin", Json.createObjectBuilder()
+              .add("count", JsonValue.NULL)
+              .add("pingInterval", JsonValue.NULL)
+              .add("timeout", 33)))
+        .build());
+
+    final MonitorCU result = conversionService.convertFromPatchInput(
+        tenantId, monitorId, monitor, mergePatch);
+
+    assertThat(result).isNotNull();
+    // unchanged fields
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getLabelSelectorMethod()).isEqualTo(LabelSelectorMethod.OR);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
+    assertThat(result.getMonitorName()).isEqualTo("name-a");
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+
+    // fields changed by patch
+    final String content = readContent("/MonitorConversionServiceTest_patch_with_policy.json");
+    JSONAssert.assertEquals(content, result.getContent(), true);
+    // these are still null since they are top level fields handled by MonitorManagement
+    assertThat(result.getInterval()).isEqualTo(null);
+    assertThat(result.getZones()).isEqualTo(null);
   }
 
   @Test

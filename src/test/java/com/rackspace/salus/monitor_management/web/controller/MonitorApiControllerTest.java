@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
+import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_MERGE_PATCH_TYPE;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
@@ -25,6 +26,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,6 +46,7 @@ import com.rackspace.salus.monitor_management.services.MonitorContentTranslation
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -98,7 +102,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
-@Import({MonitorConversionService.class, MetadataUtils.class})
+@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -117,6 +121,9 @@ public class MonitorApiControllerTest {
 
   @MockBean
   MonitorContentTranslationService monitorContentTranslationService;
+
+  @Autowired
+  PatchHelper patchHelper;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -428,6 +435,37 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testPatchMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setId(UUID.randomUUID());
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+
+    when(monitorManagement.getMonitor(anyString(), any()))
+        .thenReturn(Optional.of(monitor));
+    when(monitorManagement.updateMonitor(anyString(), any(), any(), anyBoolean()))
+        .thenReturn(monitor);
+
+    String tenantId = monitor.getTenantId();
+    UUID id = monitor.getId();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    update.setLabelSelector(null);
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+
+    mockMvc.perform(patch(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andDo(print())
+        .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }

@@ -55,6 +55,7 @@ public class DetailedMonitorInput {
 
   public DetailedMonitorInput(DetailedMonitorOutput output) {
     this.name = output.getName();
+    this.labelSelector = output.getLabelSelector();
     this.labelSelectorMethod = output.getLabelSelectorMethod();
     this.resourceId = output.getResourceId();
     this.interval = output.getInterval();

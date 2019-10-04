@@ -22,6 +22,7 @@ import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
@@ -53,6 +54,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class CpuConversionTest {
   @Configuration
   public static class TestConfig { }
+
+  @MockBean
+  PatchHelper patchHelper;
 
   @MockBean
   PolicyApi policyApi;
