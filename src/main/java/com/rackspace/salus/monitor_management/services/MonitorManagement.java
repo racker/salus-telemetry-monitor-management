@@ -779,7 +779,13 @@ public class MonitorManagement {
     if (zonesChanged(updatedValues.getZones(), monitor.getZones(), patchOperation)) {
       // See above regarding:
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+      if (updatedValues.getZones() == null) {
+        // policy monitors cannot use metadata, so this value cannot be null.
+        // ignore the change and keep the original zones.
+        monitor.setZones(new ArrayList<>(monitor.getZones()));
+      } else {
+        monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+      }
     } else if (monitor.getZones() != null) {
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }

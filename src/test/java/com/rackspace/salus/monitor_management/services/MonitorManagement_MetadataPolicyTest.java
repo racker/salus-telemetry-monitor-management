@@ -279,12 +279,8 @@ public class MonitorManagement_MetadataPolicyTest {
 
     // EXECUTE
 
-    // need to update this object to have all fields populated?
-    final MonitorCU update = new MonitorCU()
-        .setMonitorName(null)
-        .setInterval(null)
-        .setLabelSelectorMethod(null)
-        .setZones(null);
+    // update will contain all null values
+    final MonitorCU update = new MonitorCU();
     final Monitor updatedMonitor = monitorManagement.updateMonitor(
         tenantId, monitor.getId(), update, true);
 

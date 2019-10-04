@@ -471,6 +471,25 @@ public class MonitorApiControllerTest {
   }
 
   @Test
+  public void testPatchNonExistentMonitor() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
+        .setResourceId("");
+
+    mockMvc.perform(patch(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
   public void testGetAll() throws Exception {
     int numberOfMonitors = 20;
     // Use the APIs default Pageable settings

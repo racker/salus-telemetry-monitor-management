@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,6 +78,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import javax.persistence.EntityManager;
+import javax.validation.ConstraintViolationException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -151,6 +154,9 @@ public class MonitorManagementPolicyTest {
 
   @MockBean
   MetadataUtils metadataUtils;
+
+  @Autowired
+  EntityManager entityManager;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -504,25 +510,89 @@ public class MonitorManagementPolicyTest {
   }
 
   @Test
-  public void testUpdatePolicyMonitor_setResourceId() {
+  public void testPatchPolicyMonitor_withMetadata() {
+    // make sure the zone we're setting is allowed to be used by this tenant
+    List<Zone> zones = Collections.singletonList(new Zone().setName("public/z-1"));
+    when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
-            .setContent("original content")
+            .setContent("{\"type\": \"ping\", \"urls\": [\"localhost\"]}")
+            .setMonitorType(MonitorType.ping)
             .setTenantId(POLICY_TENANT)
+            .setInterval(Duration.ofSeconds(60))
             .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("z-1"))
+            .setZones(Collections.singletonList("public/z-1"))
             .setLabelSelector(Collections.singletonMap("os", "linux"))
             .setLabelSelectorMethod(LabelSelectorMethod.AND));
 
+    // this has to be populated with all fields otherwise they will be considered as null
     MonitorCU update = new MonitorCU()
-        .setContent("new content")
-        .setZones(Collections.singletonList("z-2"))
-        .setResourceId(RandomStringUtils.randomAlphabetic(10));
+        .setZones(null)
+        .setInterval(null) // setting this should trigger a failure on update
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setAgentType(monitor.getAgentType())
+        .setMonitorType(monitor.getMonitorType())
+        .setContent(monitor.getContent())
+        .setLabelSelector(monitor.getLabelSelector())
+        .setMonitorName(monitor.getMonitorName())
+        .setResourceId(monitor.getResourceId())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
 
-    exceptionRule.expect(IllegalArgumentException.class);
-    exceptionRule.expectMessage("Policy Monitors must use label selectors and not a resourceId");
-    monitorManagement.updatePolicyMonitor(monitor.getId(), update);
+    // Policy Monitors do not use policy metadata so this should fail validation
+    exceptionRule.expect(ConstraintViolationException.class);
+    monitorManagement.updatePolicyMonitor(monitor.getId(), update, true);
+    entityManager.flush(); // must flush for entity constraint violations to trigger
+  }
+
+  @Test
+  public void testPatchPolicyMonitor_success() {
+    // make sure the zone we're setting is allowed to be used by this tenant
+    List<Zone> zones = List.of(new Zone().setName("public/z-1"),
+                               new Zone().setName("public/z-2"));
+    when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("{\"type\": \"ping\", \"urls\": [\"localhost\"]}")
+            .setMonitorType(MonitorType.ping)
+            .setTenantId(POLICY_TENANT)
+            .setInterval(Duration.ofSeconds(60))
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("public/z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+
+    // this has to be populated with all fields otherwise they will be considered as null
+    MonitorCU update = new MonitorCU()
+        .setZones(List.of("public/z-1", "public/z-2"))
+        .setInterval(Duration.ofSeconds(100)) // setting this should trigger a failure on update
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setAgentType(monitor.getAgentType())
+        .setMonitorType(monitor.getMonitorType())
+        .setContent(monitor.getContent())
+        .setLabelSelector(monitor.getLabelSelector())
+        .setMonitorName(null)
+        .setResourceId(monitor.getResourceId())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
+
+    final Monitor updatedMonitor = monitorManagement.updatePolicyMonitor(monitor.getId(), update, true);
+    entityManager.flush(); // must flush for entity constraint violations to trigger
+
+    // new values
+    assertThat(updatedMonitor.getZones(), hasSize(2));
+    assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/z-1", "public/z-2"));
+    assertThat(updatedMonitor.getInterval(), equalTo(Duration.ofSeconds(100)));
+    assertThat(updatedMonitor.getMonitorName(), nullValue());
+
+    // no changes
+    assertThat(updatedMonitor.getLabelSelector(), equalTo(monitor.getLabelSelector()));
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(monitor.getLabelSelectorMethod()));
+    assertThat(updatedMonitor.getContent(), equalTo(monitor.getContent()));
   }
 
   @Test
