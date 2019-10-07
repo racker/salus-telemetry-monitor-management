@@ -72,10 +72,11 @@
       <artifactId>javax.json-api</artifactId>
       <version>1.1.4</version>
     </dependency>
-    <!-- JSR-353 (JSON Processing): Johnzon implementation -->
+    <!-- JSR-353 (JSON Processing): Implementation -->
     <dependency>
-      <groupId>org.apache.johnzon</groupId>
-      <artifactId>johnzon-core</artifactId>
+      <groupId>org.glassfish</groupId>
+      <artifactId>javax.json</artifactId>
+      <version>1.1</version>
     </dependency>
     <!-- Jackson module for the JSR-353 (JSON Processing) -->
     <dependency>
