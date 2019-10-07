@@ -75,9 +75,6 @@ public class MonitorConversionService {
     this.monitorRepository = monitorRepository;
     this.metadataUtils = metadataUtils;
     this.patchHelper = patchHelper;
-
-    // Register ability to handle Json Merge Patch conversions.
-    this.objectMapper.registerModule(new JSR353Module());
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
