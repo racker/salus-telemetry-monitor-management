@@ -29,6 +29,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -209,7 +210,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
@@ -679,7 +680,7 @@ public class MonitorManagementPolicyTest {
     );
 
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // EXECUTE
@@ -774,7 +775,7 @@ public class MonitorManagementPolicyTest {
     );
 
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // define the bound monitors
@@ -861,7 +862,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     List<BoundMonitor> existingBound = new ArrayList<>();
@@ -963,7 +964,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     List<BoundMonitor> existingBound = new ArrayList<>();
@@ -1060,7 +1061,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // Define the bound monitors that will be removed
@@ -1082,7 +1083,7 @@ public class MonitorManagementPolicyTest {
         .thenReturn(existingBound);
 
     // All resources will be returned when rebinding
-    when(resourceApi.getResourcesWithLabels(any(), any()))
+    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // Various calls involved in finding the envoys to detach/attach to.
@@ -1131,7 +1132,7 @@ public class MonitorManagementPolicyTest {
     }
 
     // operations involved in binding the monitor to the two relevant resources
-    verify(resourceApi).getResourcesWithLabels(tenantId, monitor.getLabelSelector());
+    verify(resourceApi).getResourcesWithLabels(tenantId, monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
     verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
     verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
     org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())

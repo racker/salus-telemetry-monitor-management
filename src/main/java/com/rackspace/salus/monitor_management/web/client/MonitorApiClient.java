@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.client;
 
+import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
+
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
@@ -60,6 +62,7 @@ public class MonitorApiClient implements MonitorApi {
 
   private static final ParameterizedTypeReference<List<BoundMonitorDTO>> LIST_OF_BOUND_MONITOR
       = new ParameterizedTypeReference<>() {};
+  private static final String SERVICE_NAME = "monitor-management";
   private final RestTemplate restTemplate;
 
   public MonitorApiClient(RestTemplate restTemplate) {
@@ -69,33 +72,45 @@ public class MonitorApiClient implements MonitorApi {
   @Override
   public List<BoundMonitorDTO> getBoundMonitors(String envoyId,
                                                 Map<AgentType, String> installedAgentVersions) {
-    return Objects.requireNonNull(restTemplate.exchange(
-        "/api/admin/bound-monitors",
-        HttpMethod.POST,
-        new HttpEntity<>(
-            new BoundMonitorsRequest()
-            .setEnvoyId(envoyId)
-            .setInstalledAgentVersions(installedAgentVersions)
-        ),
-        LIST_OF_BOUND_MONITOR
-      ).getBody());
+
+    return mapRestClientExceptions(
+        SERVICE_NAME,
+        () ->
+            Objects.requireNonNull(restTemplate.exchange(
+                "/api/admin/bound-monitors",
+                HttpMethod.POST,
+                new HttpEntity<>(
+                    new BoundMonitorsRequest()
+                        .setEnvoyId(envoyId)
+                        .setInstalledAgentVersions(installedAgentVersions)
+                ),
+                LIST_OF_BOUND_MONITOR
+            ).getBody())
+    );
   }
 
   @Override
   public DetailedMonitorOutput getPolicyMonitorById(String monitorId) {
-    try {
-      return restTemplate.getForObject(
-          "/api/admin/policy-monitors/{monitorId}",
-          DetailedMonitorOutput.class,
-          monitorId
-      );
-    } catch (HttpClientErrorException e) {
-      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        return null;
-      }
-      else {
-        throw new IllegalArgumentException(e);
-      }
-    }
+
+    return mapRestClientExceptions(
+        SERVICE_NAME,
+        () -> {
+          try {
+            return restTemplate.getForObject(
+                "/api/admin/policy-monitors/{monitorId}",
+                DetailedMonitorOutput.class,
+                monitorId
+            );
+          } catch (HttpClientErrorException e) {
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+              return null;
+            }
+            else {
+              // rethrow and let mapRestClientExceptions process it
+              throw e;
+            }
+          }
+        }
+    );
   }
 }
