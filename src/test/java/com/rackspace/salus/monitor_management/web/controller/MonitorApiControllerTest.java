@@ -42,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -102,7 +103,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
-@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class})
+@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();

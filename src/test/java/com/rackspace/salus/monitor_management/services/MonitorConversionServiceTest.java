@@ -28,8 +28,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
-import com.rackspace.salus.monitor_management.services.MonitorConversionServiceTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -70,7 +70,6 @@ import javax.json.Json;
 import javax.json.JsonMergePatch;
 import javax.json.JsonValue;
 import javax.validation.ConstraintViolation;
-import javax.validation.Validator;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Assert;
@@ -79,31 +78,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = {MonitorConversionService.class, MetadataUtils.class, PatchHelper.class,
-    TestConfig.class})
+@SpringBootTest(classes = {MonitorConversionService.class, MetadataUtils.class,
+    PatchHelper.class, JsonConfig.class})
 @AutoConfigureJson
+@ImportAutoConfiguration(ValidationAutoConfiguration.class)
 public class MonitorConversionServiceTest {
 
   private static final Duration MIN_INTERVAL = Duration.ofSeconds(10);
   private static final Duration DEFAULT_LOCAL_INTERVAL = Duration.ofSeconds(30);
   private static final Duration DEFAULT_REMOTE_INTERVAL = Duration.ofMinutes(5);
-
-  @TestConfiguration
-  static class TestConfig {
-    @Bean
-    public Validator localValidatorFactoryBean() {
-      return new LocalValidatorFactoryBean();
-    }
-  }
 
   @Autowired
   MonitorConversionService conversionService;

@@ -25,17 +25,22 @@ import javax.json.JsonValue;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.validation.Validator;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class PatchHelper {
 
   public static final String JSON_MERGE_PATCH_TYPE = "application/json-patch+json";
 
   private final ObjectMapper objectMapper;
   private final Validator validator;
+
+  @Autowired
+  public PatchHelper(ObjectMapper objectMapper, Validator validator) {
+    this.objectMapper = objectMapper;
+    this.validator = validator;
+  }
 
   /**
    * Performs a JSON Patch operation.
