@@ -32,6 +32,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -44,6 +45,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonMergePatch;
+import javax.validation.ConstraintDeclarationException;
+import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -140,13 +143,23 @@ public class MonitorConversionService {
    * @return A MonitorCU object used to construct a Monitor
    */
   public MonitorCU convertFromPatchInput(String tenantId, UUID monitorId,
-                                        Monitor monitor, JsonMergePatch patch) {
+                                        Monitor monitor, JsonMergePatch patch)
+      throws IllegalArgumentException {
     // To apply a patch we must convert the existing monitor to a DetailedMonitorInput
     // then write any new values we've received to that.
     DetailedMonitorOutput output = convertToOutput(monitor);
     DetailedMonitorInput input = new DetailedMonitorInput(output);
 
-    DetailedMonitorInput patchedInput = patchHelper.mergePatch(patch, input, DetailedMonitorInput.class);
+    DetailedMonitorInput patchedInput;
+    try {
+      patchedInput = patchHelper.mergePatch(
+          patch,
+          input,
+          DetailedMonitorInput.class,
+          ValidationGroups.Patch.class);
+    } catch (ConstraintViolationException e) {
+      throw new IllegalArgumentException(e.getMessage());
+    }
 
     return convertFromInput(tenantId, monitorId, patchedInput, true);
   }

@@ -455,6 +455,9 @@ public class MonitorApiControllerTest {
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
     monitor.setContent("{\"type\":\"mem\"}");
+    // ensure only one of these is set
+    monitor.setResourceId(RandomStringUtils.randomAlphabetic(10));
+    monitor.setLabelSelector(null);
 
     when(monitorManagement.getMonitor(anyString(), any()))
         .thenReturn(Optional.of(monitor));

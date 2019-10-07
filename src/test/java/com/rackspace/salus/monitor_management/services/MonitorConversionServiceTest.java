@@ -74,7 +74,9 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,6 +98,9 @@ public class MonitorConversionServiceTest {
   private static final Duration MIN_INTERVAL = Duration.ofSeconds(10);
   private static final Duration DEFAULT_LOCAL_INTERVAL = Duration.ofSeconds(30);
   private static final Duration DEFAULT_REMOTE_INTERVAL = Duration.ofMinutes(5);
+
+  @Rule
+  public ExpectedException exceptionRule = ExpectedException.none();
 
   @Autowired
   MonitorConversionService conversionService;
@@ -431,6 +436,99 @@ public class MonitorConversionServiceTest {
     // these are still null since they are top level fields handled by MonitorManagement
     assertThat(result.getInterval()).isEqualTo(null);
     assertThat(result.getZones()).isEqualTo(null);
+  }
+
+  @Test
+  public void convertFromPatchInput_ping_testTopLevelValidation()
+      throws IOException {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID monitorId = UUID.randomUUID();
+
+    // Create the plugin that will be converted to the monitor's contents
+    final Ping plugin = new Ping()
+        .setUrls(Collections.singletonList("localhost"))
+        .setCount(1)
+        .setPingInterval(2)
+        .setTimeout(3);
+
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convert");
+
+    // Create the original Monitor that will be patched
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setZones(Collections.singletonList("z-1"))
+        .setInterval(Duration.ofSeconds(100))
+        .setContent(objectMapper.writeValueAsString(plugin))
+        .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorMetadataFields(Collections.emptyList())
+        .setPluginMetadataFields(Collections.emptyList())
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+
+    // Create the patch payload which only contains the fields to change
+    // Urls has non-null validation and should trigger an exception
+    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
+        .add("interval", JsonValue.NULL)
+        .add("details", JsonValue.NULL)
+        .build());
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("details: must not be null");
+    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, mergePatch);
+  }
+
+  @Test
+  public void convertFromPatchInput_ping_testPluginFieldValidation()
+      throws IOException {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID monitorId = UUID.randomUUID();
+
+    // Create the plugin that will be converted to the monitor's contents
+    final Ping plugin = new Ping()
+        .setUrls(Collections.singletonList("localhost"))
+        .setCount(1)
+        .setPingInterval(2)
+        .setTimeout(3);
+
+    final Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convert");
+
+    // Create the original Monitor that will be patched
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setZones(Collections.singletonList("z-1"))
+        .setInterval(Duration.ofSeconds(100))
+        .setContent(objectMapper.writeValueAsString(plugin))
+        .setLabelSelector(labels)
+        .setLabelSelectorMethod(LabelSelectorMethod.OR)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorMetadataFields(Collections.emptyList())
+        .setPluginMetadataFields(Collections.emptyList())
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+
+    // Create the patch payload which only contains the fields to change
+    // Urls has non-null validation and should trigger an exception
+    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
+        .add("interval", JsonValue.NULL)
+        .add("details", Json.createObjectBuilder()
+            .add("monitoringZones", JsonValue.NULL)
+            .add("plugin", Json.createObjectBuilder()
+                .add("urls", JsonValue.NULL)))
+        .build());
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("details.plugin.urls: must not be empty");
+    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, mergePatch);
   }
 
   @Test

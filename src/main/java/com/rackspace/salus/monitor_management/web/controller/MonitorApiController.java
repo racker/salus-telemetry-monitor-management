@@ -179,7 +179,6 @@ public class MonitorApiController {
   @ApiOperation(value = "Patch specific Policy Monitor")
   @JsonView(View.Admin.class)
   public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
-                                                  @Validated(ValidationGroups.Patch.class)
                                                   @RequestBody final JsonMergePatch input)
       throws IllegalArgumentException {
 
@@ -276,7 +275,6 @@ public class MonitorApiController {
   @JsonView(View.Public.class)
   public DetailedMonitorOutput patch(@PathVariable String tenantId,
       @PathVariable UUID uuid,
-      @Validated(ValidationGroups.Patch.class)
       @RequestBody final JsonMergePatch input)
       throws IllegalArgumentException {
 

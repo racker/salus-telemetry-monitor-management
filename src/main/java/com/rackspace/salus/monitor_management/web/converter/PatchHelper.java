@@ -63,13 +63,14 @@ public class PatchHelper {
    * @param mergePatch JSON Merge Patch document
    * @param targetBean object that will be patched
    * @param beanClass  class of the object the will be patched
+   * @param groups     validation groups for the operation
    * @param <T>
    * @return patched object
    */
-  public <T> T mergePatch(JsonMergePatch mergePatch, T targetBean, Class<T> beanClass) {
+  public <T> T mergePatch(JsonMergePatch mergePatch, T targetBean, Class<T> beanClass, Class<?>... groups) {
     JsonValue target = objectMapper.convertValue(targetBean, JsonValue.class);
     JsonValue patched = applyMergePatch(mergePatch, target);
-    return convertAndValidate(patched, beanClass);
+    return convertAndValidate(patched, beanClass, groups);
   }
 
   private JsonValue applyPatch(JsonPatch patch, JsonStructure target) {
@@ -88,14 +89,14 @@ public class PatchHelper {
     }
   }
 
-  private <T> T convertAndValidate(JsonValue jsonValue, Class<T> beanClass) {
+  private <T> T convertAndValidate(JsonValue jsonValue, Class<T> beanClass, Class<?>... groups) {
     T bean = objectMapper.convertValue(jsonValue, beanClass);
-    validate(bean);
+    validate(bean, groups);
     return bean;
   }
 
-  private <T> void validate(T bean) {
-    Set<ConstraintViolation<T>> violations = validator.validate(bean);
+  private <T> void validate(T bean, Class<?>... groups) {
+    Set<ConstraintViolation<T>> violations = validator.validate(bean, groups);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(violations);
     }
