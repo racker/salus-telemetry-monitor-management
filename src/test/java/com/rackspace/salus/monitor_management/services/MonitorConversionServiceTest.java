@@ -472,7 +472,7 @@ public class MonitorConversionServiceTest {
         .setUpdatedTimestamp(Instant.EPOCH);
 
     // Create the patch payload which only contains the fields to change
-    // Urls has non-null validation and should trigger an exception
+    // Details has non-null validation and should trigger an exception
     JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
         .add("interval", JsonValue.NULL)
         .add("details", JsonValue.NULL)
@@ -517,7 +517,7 @@ public class MonitorConversionServiceTest {
         .setUpdatedTimestamp(Instant.EPOCH);
 
     // Create the patch payload which only contains the fields to change
-    // Urls has non-null validation and should trigger an exception
+    // Urls has non-empty validation and should trigger an exception
     JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
         .add("interval", JsonValue.NULL)
         .add("details", Json.createObjectBuilder()
