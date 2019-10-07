@@ -693,8 +693,7 @@ public class MonitorManagement {
 
     // Detect zone changes
     List<String> originalZones = monitor.getZones();
-    boolean zonesChanged = zonesChanged(updatedValues.getZones(), originalZones, patchOperation);
-    if (zonesChanged) {
+    if (zonesChanged(updatedValues.getZones(), originalZones, patchOperation)) {
       // give JPA a modifiable copy of the given list
       if (updatedValues.getZones() == null) {
         monitor.setZones(null);
@@ -710,7 +709,8 @@ public class MonitorManagement {
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, patchOperation);
     monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
 
-    if (zonesChanged) {
+    // test things again once metadata has been put in place
+    if (zonesChanged(monitor.getZones(), originalZones, patchOperation)) {
       // Process potential changes to bound zones
       // we must perform this after the metadata has been set in case zones was set to null
       // and the default must first be populated.

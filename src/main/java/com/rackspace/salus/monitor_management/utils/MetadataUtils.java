@@ -154,7 +154,7 @@ public class MetadataUtils {
           break;
         case STRING_LIST:
           List<String> listValue = Arrays.asList(policy.getValue().split("\\s*,\\s*"));
-          f.set(object, listValue);
+          f.set(object, new ArrayList<>(listValue));
           break;
         case INT:
           f.set(object, Integer.parseInt(policy.getValue()));
