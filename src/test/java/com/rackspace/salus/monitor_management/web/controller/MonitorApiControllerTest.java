@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -438,6 +439,13 @@ public class MonitorApiControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    // Basic verification that the expected method was called
+    // Uses arg matcher since we do not need to validate the monitorCU here.
+    verify(monitorManagement).updateMonitor(
+        argThat(t -> t.equals(tenantId)),
+        argThat(i -> i.equals(id)),
+        argThat(monitorCU -> true));
   }
 
   @Test
@@ -457,18 +465,22 @@ public class MonitorApiControllerTest {
     UUID id = monitor.getId();
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    update.setLabelSelector(null);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    // send an update with a new name and a null interval
+    String update = "{\"name\":\"newName1234\",\"interval\":null}";
 
     mockMvc.perform(patch(url)
-        .content(objectMapper.writeValueAsString(update))
+        .content(update)
         .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andDo(print())
         .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    // Basic verification that the expected method was called with the patchOperation value provided.
+    // In this case mockito had issues when argThat was used to validate params, so I opted
+    // for even more generic validation.
+    verify(monitorManagement).updateMonitor(anyString(), any(), any(), anyBoolean());
   }
 
   @Test
@@ -477,17 +489,19 @@ public class MonitorApiControllerTest {
     UUID id = UUID.randomUUID();
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-    DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
-    update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()))
-        .setResourceId("");
+    // send an update with a new name and a null interval
+    String update = "{\"name\":\"newName1234\",\"interval\":null}";
 
     mockMvc.perform(patch(url)
-        .content(objectMapper.writeValueAsString(update))
+        .content(update)
         .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isNotFound())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(monitorManagement).getMonitor(tenantId, id);
+    verifyNoMoreInteractions(monitorManagement);
   }
 
   @Test
