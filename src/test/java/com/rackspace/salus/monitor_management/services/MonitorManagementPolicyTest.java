@@ -511,6 +511,28 @@ public class MonitorManagementPolicyTest {
   }
 
   @Test
+  public void testUpdatePolicyMonitor_setResourceId() {
+    final Monitor monitor =
+        monitorRepository.save(new Monitor()
+            .setAgentType(AgentType.TELEGRAF)
+            .setContent("original content")
+            .setTenantId(POLICY_TENANT)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setZones(Collections.singletonList("z-1"))
+            .setLabelSelector(Collections.singletonMap("os", "linux"))
+            .setLabelSelectorMethod(LabelSelectorMethod.AND));
+
+    MonitorCU update = new MonitorCU()
+        .setContent("new content")
+        .setZones(Collections.singletonList("z-2"))
+        .setResourceId(RandomStringUtils.randomAlphabetic(10));
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("Policy Monitors must use label selectors and not a resourceId");
+    monitorManagement.updatePolicyMonitor(monitor.getId(), update);
+  }
+
+  @Test
   public void testPatchPolicyMonitor_withMetadata() {
     // make sure the zone we're setting is allowed to be used by this tenant
     List<Zone> zones = Collections.singletonList(new Zone().setName("public/z-1"));
