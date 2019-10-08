@@ -175,7 +175,7 @@ public class MonitorApiController {
         ));
   }
 
-  @PatchMapping("/admin/policy-monitors/{uuid}")
+  @PatchMapping(path = "/admin/policy-monitors/{uuid}", consumes = JSON_MERGE_PATCH_TYPE)
   @ApiOperation(value = "Patch specific Policy Monitor")
   @JsonView(View.Admin.class)
   public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
