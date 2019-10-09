@@ -941,7 +941,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("address=${resource.metadata.address}")
-                .setMonitorMetadataFields(List.of("zones"))
+                .setMonitorMetadataFields(List.of("monitorName", "zones"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
@@ -1105,7 +1105,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
-                .setMonitorMetadataFields(List.of("zones"))
+                .setMonitorMetadataFields(List.of("monitorName", "zones"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId("r-2")
@@ -1233,7 +1233,7 @@ public class MonitorManagementTest {
                 .setZones(Arrays.asList("z-2", "z-3"))
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
                 .setLabelSelectorMethod(LabelSelectorMethod.AND)
-                .setMonitorMetadataFields(Collections.emptyList())
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setInterval(Duration.ofSeconds(60)));
 
     verify(resourceApi).getResourcesWithLabels("t-1", Collections.singletonMap("os", "linux"), LabelSelectorMethod.AND);
@@ -1316,7 +1316,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("{}")
-                .setMonitorMetadataFields(Collections.emptyList())
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setZones(Arrays.asList("z-1", "z-2"))

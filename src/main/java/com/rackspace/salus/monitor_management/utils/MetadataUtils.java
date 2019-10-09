@@ -20,7 +20,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.telemetry.model.MetadataField;
+import com.rackspace.salus.telemetry.model.NonMetadataField;
 import com.rackspace.salus.telemetry.model.TargetClassName;
 import java.lang.reflect.Field;
 import java.time.Duration;
@@ -42,7 +42,7 @@ public class MetadataUtils {
   }
 
   /**
-   * Gets all fields that have MetadataField annotation and are set to null.
+   * Gets all fields that don't have a NonMetadataField annotation and are set to null.
    *
    * @param object The object to inspect for metadata fields.
    * @return The list of metadata fields found.
@@ -52,7 +52,7 @@ public class MetadataUtils {
     for (Field f : object.getClass().getDeclaredFields()) {
       try {
         f.setAccessible(true); // since these fields are private, we must set this first
-        if (f.getAnnotationsByType(MetadataField.class).length > 0 && f.get(object) == null) {
+        if (f.getAnnotationsByType(NonMetadataField.class).length == 0 && f.get(object) == null) {
           metadataFields.add(f.getName());
         }
       } catch(IllegalAccessException|IllegalArgumentException e) {
@@ -63,9 +63,9 @@ public class MetadataUtils {
   }
 
   /**
-   * Gets all fields that have MetadataField annotation and are set to null
-   * and all fields that have the MetadataField annotation, were previously using the metadata value
-   * and still have the same value as the corresponding policy.
+   * Gets all fields that don't have a NonMetadataField annotation and are set to null
+   * and all fields that don't have the NonMetadataField annotation which were previously using the
+   * metadata value and still have the same value as the corresponding policy.
    *
    * @param object The object to inspect for metadata fields.
    * @param previousMetadataFields A list of fields that were previously using metadata policy values.
@@ -78,7 +78,7 @@ public class MetadataUtils {
     for (Field f : object.getClass().getDeclaredFields()) {
       try {
         f.setAccessible(true); // since these fields are private, we must set this first
-        if (f.getAnnotationsByType(MetadataField.class).length > 0) {
+        if (f.getAnnotationsByType(NonMetadataField.class).length == 0) {
           if (f.get(object) == null) {
             metadataFields.add(f.getName());
           } else if (previousMetadataFields.contains(f.getName()) && policies.containsKey(f.getName())) {
