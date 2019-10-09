@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -175,7 +176,8 @@ public class MonitorApiController {
         ));
   }
 
-  @PatchMapping(path = "/admin/policy-monitors/{uuid}", consumes = JSON_MERGE_PATCH_TYPE)
+  @PatchMapping(path = "/admin/policy-monitors/{uuid}",
+                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_MERGE_PATCH_TYPE})
   @ApiOperation(value = "Patch specific Policy Monitor")
   @JsonView(View.Admin.class)
   public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
@@ -270,7 +272,8 @@ public class MonitorApiController {
         ));
   }
 
-  @PatchMapping(path = "/tenant/{tenantId}/monitors/{uuid}", consumes = JSON_MERGE_PATCH_TYPE)
+  @PatchMapping(path = "/tenant/{tenantId}/monitors/{uuid}",
+                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_MERGE_PATCH_TYPE})
   @ApiOperation(value = "Updates specific Monitor for Tenant")
   @JsonView(View.Public.class)
   public DetailedMonitorOutput patch(@PathVariable String tenantId,
