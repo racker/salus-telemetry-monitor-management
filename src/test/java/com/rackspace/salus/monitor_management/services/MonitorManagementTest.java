@@ -34,6 +34,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -53,6 +54,7 @@ import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
@@ -1143,6 +1145,308 @@ public class MonitorManagementTest {
     verify(envoyResourceManagement).getOne("t-1", "r-2");
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer);
+  }
+
+  @Test
+  public void testPatchExistingMonitor_removeResourceIdSetLabels() {
+    // Starts with one monitor-with-resource-id bound to one resource
+    // updates it to use a label selector
+    // confirms monitor is updated, old binding is removed, new bindings are added
+    reset(envoyResourceManagement, resourceApi);
+    final ResourceDTO r1 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setResourceId("r-1")
+        .setTenantId("t-1");
+
+    when(resourceApi.getByResourceId("t-1", "r-1"))
+        .thenReturn(r1);
+    when(envoyResourceManagement.getOne("t-1", "r-2"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-2").setEnvoyId("e-2")
+            )
+        );
+    when(envoyResourceManagement.getOne("t-1", "r-3"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-2").setEnvoyId("e-3")
+            )
+        );
+
+    // Resources that will be found by label selector
+    final List<ResourceDTO> newResourcesMatched = List.of(
+        new ResourceDTO()
+          .setLabels(Collections.singletonMap("os", "linux"))
+          .setResourceId("r-2")
+          .setTenantId("t-1")
+          .setAssociatedWithEnvoy(true),
+        new ResourceDTO()
+          .setLabels(Collections.singletonMap("os", "linux"))
+          .setResourceId("r-3")
+          .setTenantId("t-1")
+          .setAssociatedWithEnvoy(true));
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
+        .setContent("static content")
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setLabelSelector(null)
+        .setZones(null)
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setTenantId("t-1")
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setZoneName("")
+        .setEnvoyId("e-1");
+    entityManager.persist(bound1);
+
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
+        .thenReturn(Collections.singletonList(bound1));
+
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
+        .thenReturn(Collections.singletonList(bound1));
+
+    when(resourceApi.getResourcesWithLabels(any(), any(), any()))
+        .thenReturn(newResourcesMatched);
+
+    // EXECUTE
+
+    final Map<String, String> newLabelSelector = Map.of("os", "linux");
+
+    final MonitorCU update = new MonitorCU()
+        .setResourceId(null)
+        .setLabelSelector(newLabelSelector)
+        // for a patch we need to set all the other values to the same as the original
+        .setZones(monitor.getZones())
+        .setMonitorType(monitor.getMonitorType())
+        .setMonitorName(monitor.getMonitorName())
+        .setContent(monitor.getContent())
+        .setAgentType(monitor.getAgentType())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setInterval(monitor.getInterval())
+        .setSelectorScope(monitor.getSelectorScope())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update, true);
+
+    // VERIFY
+    // confirm monitor is updated
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.cpu)
+                .setContent("static content")
+                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setResourceId(null)
+                .setLabelSelector(newLabelSelector)
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
+
+    verify(resourceApi).getResourcesWithLabels("t-1", newLabelSelector, LabelSelectorMethod.AND);
+
+    // confirm old binding deleted
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(bound1));
+
+    // confirm new binding saved
+    // they are saved individually per resource not all at once.
+    verify(boundMonitorRepository).saveAll(List.of(
+        new BoundMonitor()
+            .setTenantId("t-1")
+            .setMonitor(monitor)
+            .setResourceId("r-2")
+            .setZoneName("")
+            .setEnvoyId("e-2")
+            .setRenderedContent("static content")
+    ));
+    verify(boundMonitorRepository).saveAll(List.of(
+        new BoundMonitor()
+            .setTenantId("t-1")
+            .setMonitor(monitor)
+            .setResourceId("r-3")
+            .setZoneName("")
+            .setEnvoyId("e-3")
+            .setRenderedContent("static content")
+    ));
+
+    // confirm event sent for both old and new bindings
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-2")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
+    verifyNoMoreInteractions(monitorEventProducer);
+  }
+
+  @Test
+  public void testUpdateExistingMonitor_removeLabelsSetResourceId() {
+    // Starts with one monitor-with-label-selector bound to two resources
+    // updates it to use a resourceId
+    // confirms monitor is updated, old bindings are removed, new binding is added
+    // This is the reverse scenario of testPatchExistingMonitor_removeResourceIdSetLabels
+    reset(envoyResourceManagement, resourceApi);
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
+        .setContent("static content")
+        .setTenantId("t-1")
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setLabelSelector(Map.of("os", "linux"))
+        .setZones(null)
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    Resource resource = new Resource()
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        .setAssociatedWithEnvoy(true)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+
+    List<BoundMonitor> existingBoundMonitors = List.of(
+        new BoundMonitor()
+          .setTenantId("t-1")
+          .setMonitor(monitor)
+          .setResourceId("r-2")
+          .setZoneName("")
+          .setEnvoyId("e-2")
+          .setRenderedContent("static content"),
+        new BoundMonitor()
+          .setTenantId("t-1")
+          .setMonitor(monitor)
+          .setResourceId("r-3")
+          .setZoneName("")
+          .setEnvoyId("e-3")
+          .setRenderedContent("static content"));
+
+
+    // Called when binding new resource
+    when(resourceApi.getByResourceId("t-1", "r-1"))
+        .thenReturn(new ResourceDTO(resource));
+    when(envoyResourceManagement.getOne("t-1", "r-1"))
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                new ResourceInfo().setResourceId("r-1").setEnvoyId("e-1")));
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
+        .thenReturn(Collections.emptyList());
+    when(resourceRepository.findByTenantIdAndResourceId("t-1", "r-1"))
+        .thenReturn(Optional.of(resource));
+
+    // Called when unbinding old resources
+    when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
+        .thenReturn(new HashSet<>(Arrays.asList("r-1", "r-2", "r-3")));
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(any(), any()))
+        .thenReturn(existingBoundMonitors);
+
+    // EXECUTE
+
+    String newResourceIdBinding = "r-1";
+
+    final MonitorCU update = new MonitorCU()
+        .setResourceId(newResourceIdBinding)
+        .setLabelSelector(null)
+        // for a patch we need to set all the other values to the same as the original
+        .setZones(monitor.getZones())
+        .setMonitorType(monitor.getMonitorType())
+        .setMonitorName(monitor.getMonitorName())
+        .setContent(monitor.getContent())
+        .setAgentType(monitor.getAgentType())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setInterval(monitor.getInterval())
+        .setSelectorScope(monitor.getSelectorScope())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update, true);
+
+    // VERIFY
+    // confirm monitor is updated
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.cpu)
+                .setContent("static content")
+                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setResourceId(newResourceIdBinding)
+                .setLabelSelector(null)
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
+
+    // confirm old binding deleted
+    verify(boundMonitorRepository).deleteAll(existingBoundMonitors);
+
+    // confirm new binding saved
+    verify(boundMonitorRepository).saveAll(List.of(
+        new BoundMonitor()
+            .setTenantId("t-1")
+            .setMonitor(monitor)
+            .setResourceId("r-1")
+            .setZoneName("")
+            .setEnvoyId("e-1")
+            .setRenderedContent("static content")
+    ));
+
+    // confirm event sent for both old and new bindings
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-2")
+    );
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-3")
+    );
+    verifyNoMoreInteractions(monitorEventProducer);
+  }
+
+  @Test
+  public void testUpdateExistingMonitor_setBothResourceIdAndLabelSelector() {
+    reset(envoyResourceManagement, resourceApi);
+
+    final Monitor monitor = monitorRepository.save(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
+        .setContent("static content")
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setLabelSelector(null)
+        .setInterval(Duration.ofSeconds(60)));
+    entityManager.flush();
+
+    // EXECUTE
+
+    final MonitorCU update = new MonitorCU()
+        .setLabelSelector(Map.of("key1", "value1"));
+
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage(ValidUpdateMonitor.DEFAULT_MESSAGE);
+    monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+
   }
 
   @Test

@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 @Data
 @NoArgsConstructor
@@ -57,7 +58,16 @@ public class MonitorDTO {
   public MonitorDTO(Monitor monitor) {
     this.id = monitor.getId();
     this.monitorName = monitor.getMonitorName();
-    this.labelSelector = monitor.getLabelSelector();
+
+    // ElementCollections return an empty collection if it was previously set to null
+    // We want this to display null to a customer instead of {}.
+    // This helps keep all API responses consistent.
+    if (StringUtils.isNotBlank(monitor.getResourceId())) {
+      this.labelSelector = null;
+    } else {
+      this.labelSelector = monitor.getLabelSelector();
+    }
+
     this.labelSelectorMethod = monitor.getLabelSelectorMethod();
     this.resourceId = monitor.getResourceId();
     this.tenantId = monitor.getTenantId();

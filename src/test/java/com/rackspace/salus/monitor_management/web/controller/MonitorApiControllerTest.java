@@ -686,9 +686,24 @@ public class MonitorApiControllerTest {
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
-        .andExpect(status().isBadRequest())
-        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
+        .andExpect(status().isCreated());
   }
+
+  @Test
+  public void testCreateMonitor_BothResourceIdAndNullLabels() throws Exception {
+    DetailedMonitorInput create = setupCreateMonitorTest();
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setLabelSelector(null);
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated());
+  }
+
   @Test
   public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
     DetailedMonitorInput create = setupCreateMonitorTest();

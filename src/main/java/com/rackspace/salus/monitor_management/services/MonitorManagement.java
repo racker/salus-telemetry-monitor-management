@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -96,6 +97,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -314,6 +316,34 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
     return monitor;
+  }
+
+  /**
+   * Validates that a valid combination of resourceId/labelSelector has been provided.
+   *
+   * Validators on the {@link com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput}
+   * take care of this for create operations, but for updates we must also compare against what is
+   * already set on the existing Monitor.
+   *
+   * @param monitor The existing monitor the update is being performed on.
+   * @param updatedValues The new values provided in the update request.
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   */
+  private void validateResourceSelector(Monitor monitor, MonitorCU updatedValues, boolean patchOperation)
+      throws IllegalArgumentException {
+
+    // For update requests where a null input value is ignored
+    if (!patchOperation) {
+      // if the resource id is set the label selector must be empty & vice versa
+      if ((StringUtils.isNotBlank(updatedValues.getResourceId()) &&
+          !CollectionUtils.isEmpty(monitor.getLabelSelector())) ||
+          (StringUtils.isNotBlank(monitor.getResourceId()) &&
+              !CollectionUtils.isEmpty(updatedValues.getLabelSelector())))
+      {
+        throw new IllegalArgumentException(ValidUpdateMonitor.DEFAULT_MESSAGE);
+      }
+      // Currently no extra checks need to be performed for PATCH operations
+    }
   }
 
   private void validateMonitoringZones(String tenantId, Monitor monitor, MonitorCU update) throws IllegalArgumentException {
@@ -620,17 +650,15 @@ public class MonitorManagement {
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
 
+    validateResourceSelector(monitor, updatedValues, patchOperation);
+
     validateMonitoringZones(tenantId, monitor, updatedValues);
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
-    String resourceId = monitor.getResourceId();
-    if(!Objects.equals(resourceId, updatedValues.getResourceId())) {
-      affectedEnvoys.addAll(processMonitorResourceIdModified(monitor, updatedValues.getResourceId()));
-      monitor.setResourceId(updatedValues.getResourceId());
-    }
+    affectedEnvoys.addAll(handleResourceIdChange(monitor, updatedValues.getResourceId(), patchOperation));
 
-    boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues);
+    boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues, patchOperation);
     boolean methodChanged = labelSelectorMethodChanged(monitor, updatedValues);
     if (labelSelectorChanged || methodChanged) {
       // Process potential changes to resource selection and therefore bindings
@@ -654,7 +682,11 @@ public class MonitorManagement {
       );
 
       // Finally, update the monitors labels
-      monitor.setLabelSelector(new HashMap<>(labels));
+      if (labels == null) {
+        monitor.setLabelSelector(null);
+      } else {
+        monitor.setLabelSelector(new HashMap<>(labels));
+      }
     }
     else if (monitor.getLabelSelector() != null) {
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
@@ -711,7 +743,7 @@ public class MonitorManagement {
     monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
 
     // test things again once metadata has been put in place
-    if (zonesChanged(monitor.getZones(), originalZones, patchOperation)) {
+    if (monitor.getZones() != null && zonesChanged(monitor.getZones(), originalZones, patchOperation)) {
       // Process potential changes to bound zones
       // we must perform this after the metadata has been set in case zones was set to null
       // and the default must first be populated.
@@ -725,6 +757,28 @@ public class MonitorManagement {
     sendMonitorBoundEvents(affectedEnvoys);
 
     return monitor;
+  }
+
+  /**
+   * If the resourceId has changed, set the new id on the monitor and return the list of
+   * affected envoys.
+   *
+   * @param monitor The original monitor to be updated.
+   * @param newResourceId The new resourceId to set.
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   * @return A list of envoy ids affected by the change.
+   */
+  private Set<String> handleResourceIdChange(Monitor monitor, String newResourceId, boolean patchOperation) {
+    // PUT operations are only handled if a resourceId is included
+    if (patchOperation || newResourceId != null) {
+      if (!Objects.equals(monitor.getResourceId(), newResourceId)) {
+
+        Set<String> envoyIds = processMonitorResourceIdModified(monitor, newResourceId);
+        monitor.setResourceId(newResourceId);
+        return envoyIds;
+      }
+    }
+    return Collections.emptySet();
   }
 
   /**
@@ -861,7 +915,10 @@ public class MonitorManagement {
             !updatedZones.containsAll(prevZones));
   }
 
-  private static boolean labelSelectorChanged(Monitor original, MonitorCU newValues) {
+  private boolean labelSelectorChanged(Monitor original, MonitorCU newValues, boolean patchOperation) {
+    if (patchOperation) {
+      return !Objects.equals(newValues.getLabelSelector(), original.getLabelSelector());
+    }
     return newValues.getLabelSelector() != null &&
         !newValues.getLabelSelector().equals(original.getLabelSelector());
   }
@@ -1015,14 +1072,23 @@ public class MonitorManagement {
     final Set<String> boundResourceIds =
         boundMonitorRepository.findResourceIdsBoundToMonitor(monitor.getId());
 
-    final List<ResourceDTO> selectedResources = resourceApi
-        .getResourcesWithLabels(tenantId, updatedLabelSelector, monitor.getLabelSelectorMethod());
+    final List<String> resourceIdsToUnbind = new ArrayList<>(boundResourceIds);
 
+    List<ResourceDTO> selectedResources = new ArrayList<>();
+    if (StringUtils.isNotBlank(monitor.getResourceId())) {
+      Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(tenantId, monitor.getResourceId());
+      if (r.isPresent()) {
+        selectedResources.add(new ResourceDTO(r.get()));
+      } else {
+        log.error("Resource not found for monitor configured with resourceId, monitor={}", monitor);
+      }
+    } else {
+      selectedResources = resourceApi
+          .getResourcesWithLabels(tenantId, updatedLabelSelector, monitor.getLabelSelectorMethod());
+    }
     final Set<String> selectedResourceIds = selectedResources.stream()
         .map(ResourceDTO::getResourceId)
         .collect(Collectors.toSet());
-
-    final List<String> resourceIdsToUnbind = new ArrayList<>(boundResourceIds);
     resourceIdsToUnbind.removeAll(selectedResourceIds);
 
     // process un-bindings
