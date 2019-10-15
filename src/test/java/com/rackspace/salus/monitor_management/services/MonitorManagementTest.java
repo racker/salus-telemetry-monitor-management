@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -185,6 +186,9 @@ public class MonitorManagementTest {
 
   @MockBean
   ZoneManagement zoneManagement;
+
+  @MockBean
+  PatchHelper patchHelper;
 
   @Autowired
   ObjectMapper objectMapper;

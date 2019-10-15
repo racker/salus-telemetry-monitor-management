@@ -63,6 +63,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -270,7 +271,7 @@ public class MonitorManagement {
       monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
     }
 
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
 
     monitor = monitorRepository.save(monitor);
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
@@ -599,15 +600,22 @@ public class MonitorManagement {
     return zones;
   }
 
+  public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
+    return updateMonitor(tenantId, id, updatedValues, false);
+  }
+
   /**
    * Update an existing monitor.
    *
-   * @param tenantId      The tenant to update the monitor for.
-   * @param id            The id of the existing monitor.
-   * @param updatedValues The new monitor parameters to store.
+   * @param tenantId       The tenant to update the monitor for.
+   * @param id             The id of the existing monitor.
+   * @param updatedValues  The new monitor parameters to store.
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   *                       null values are ignored for updates but utilized in patches.
+   *
    * @return The newly updated monitor.
    */
-  public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues) {
+  public Monitor updateMonitor(String tenantId, UUID id, @Valid MonitorCU updatedValues, boolean patchOperation) {
     Monitor monitor = getMonitor(tenantId, id).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
@@ -668,37 +676,49 @@ public class MonitorManagement {
       monitor.setContent(updatedValues.getContent());
     }
 
-    if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
-      // Process potential changes to bound zones
-
-      affectedEnvoys.addAll(
-          processMonitorZonesModified(tenantId, monitor, updatedValues.getZones())
-      );
-
-      // give JPA a modifiable copy of the given list
-      monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+    PropertyMapper map;
+    if (patchOperation) {
+      map = PropertyMapper.get();
+    } else {
+      map = PropertyMapper.get().alwaysApplyingWhenNonNull();
     }
-    else if (monitor.getZones() != null){
+    map.from(updatedValues.getMonitorName())
+        .to(monitor::setMonitorName);
+
+    // Detect and process interval changes
+    if (intervalChanged(updatedValues.getInterval(), monitor.getInterval(), patchOperation)) {
+      affectedEnvoys.addAll(
+          processIntervalChanged(monitor));
+      monitor.setInterval(updatedValues.getInterval());
+    }
+
+    // Detect zone changes
+    List<String> originalZones = monitor.getZones();
+    if (zonesChanged(updatedValues.getZones(), originalZones, patchOperation)) {
+      // give JPA a modifiable copy of the given list
+      if (updatedValues.getZones() == null) {
+        monitor.setZones(null);
+      } else {
+        monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+      }
+    } else if (monitor.getZones() != null) {
       // See above regarding:
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
 
-    if (updatedValues.getInterval() != null &&
-        !updatedValues.getInterval().equals(monitor.getInterval())) {
-      affectedEnvoys.addAll(
-          processIntervalChanged(monitor)
-      );
-      monitor.setInterval(updatedValues.getInterval());
-    }
-
-    PropertyMapper map = PropertyMapper.get();
-    map.from(updatedValues.getMonitorName())
-        .whenNonNull()
-        .to(monitor::setMonitorName);
-
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor);
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, patchOperation);
     monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
+
+    // test things again once metadata has been put in place
+    if (zonesChanged(monitor.getZones(), originalZones, patchOperation)) {
+      // Process potential changes to bound zones
+      // we must perform this after the metadata has been set in case zones was set to null
+      // and the default must first be populated.
+      affectedEnvoys.addAll(
+          processMonitorZonesModified(tenantId, monitor, originalZones)
+      );
+    }
 
     monitor = monitorRepository.save(monitor);
 
@@ -717,6 +737,10 @@ public class MonitorManagement {
    * @return The newly updated monitor.
    */
   public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues) {
+    return updatePolicyMonitor(id, updatedValues, false);
+  }
+
+  public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues, boolean patchOperation) {
     if (!StringUtils.isBlank(updatedValues.getResourceId())) {
       throw new IllegalArgumentException(
           "Policy Monitors must use label selectors and not a resourceId");
@@ -729,18 +753,19 @@ public class MonitorManagement {
 
     log.info("Updating policy monitor={} with new values={}", id, updatedValues);
 
-    PropertyMapper map = PropertyMapper.get();
+    PropertyMapper map;
+    if (patchOperation) {
+      map = PropertyMapper.get();
+    } else {
+      map = PropertyMapper.get().alwaysApplyingWhenNonNull();
+    }
     map.from(updatedValues.getMonitorName())
-        .whenNonNull()
         .to(monitor::setMonitorName);
     map.from(updatedValues.getContent())
-        .whenNonNull()
         .to(monitor::setContent);
     map.from(updatedValues.getLabelSelectorMethod())
-        .whenNonNull()
         .to(monitor::setLabelSelectorMethod);
     map.from(updatedValues.getInterval())
-        .whenNonNull()
         .to(monitor::setInterval);
 
     // PropertyMapper cannot efficiently handle these two fields.
@@ -754,10 +779,17 @@ public class MonitorManagement {
       // retrieved maps.
       monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
     }
-    if (zonesChanged(updatedValues.getZones(), monitor.getZones())) {
+
+    if (zonesChanged(updatedValues.getZones(), monitor.getZones(), patchOperation)) {
       // See above regarding:
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+      if (updatedValues.getZones() == null) {
+        // policy monitors cannot use metadata, so this value cannot be null.
+        // ignore the change and keep the original zones.
+        monitor.setZones(new ArrayList<>(monitor.getZones()));
+      } else {
+        monitor.setZones(new ArrayList<>(updatedValues.getZones()));
+      }
     } else if (monitor.getZones() != null) {
       monitor.setZones(new ArrayList<>(monitor.getZones()));
     }
@@ -811,7 +843,19 @@ public class MonitorManagement {
     sendMonitorBoundEvents(affectedEnvoys);
   }
 
-  private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones) {
+  private static boolean intervalChanged(Duration updatedInterval, Duration prevInterval, boolean patchOperation) {
+    if (patchOperation) {
+      return updatedInterval == null || !updatedInterval.equals(prevInterval);
+    }
+    return updatedInterval != null && !updatedInterval.equals(prevInterval);
+  }
+
+  private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones, boolean patchOperation) {
+    if (patchOperation) {
+      return updatedZones == null ||
+          ( updatedZones.size() != prevZones.size() ||
+              !updatedZones.containsAll(prevZones));
+    }
     return updatedZones != null &&
         ( updatedZones.size() != prevZones.size() ||
             !updatedZones.containsAll(prevZones));
@@ -833,17 +877,17 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   private Set<String> processMonitorZonesModified(String tenantId, Monitor monitor,
-      List<String> updatedZones) {
+      List<String> originalZones) {
 
     // determine new zones
-    final List<String> newZones = new ArrayList<>(updatedZones);
+    final List<String> newZones = new ArrayList<>(monitor.getZones());
     // ...by removing zones on currently stored monitor
-    newZones.removeAll(monitor.getZones());
+    newZones.removeAll(originalZones);
 
     // determine old zones
-    final List<String> oldZones = new ArrayList<>(monitor.getZones());
+    final List<String> oldZones = new ArrayList<>(originalZones);
     // ...by removing the ones still in the update
-    oldZones.removeAll(updatedZones);
+    oldZones.removeAll(monitor.getZones());
 
     // this will also delete the unbound bindings
     final Set<String> affectedEnvoys = unbindByMonitorAndZone(monitor.getId(), oldZones);

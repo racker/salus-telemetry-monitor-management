@@ -16,15 +16,21 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.isOneOf;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +40,7 @@ import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.services.MonitorManagement_MetadataPolicyTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -41,10 +48,12 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -85,6 +94,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -156,6 +166,9 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @MockBean
   ZoneManagement zoneManagement;
+
+  @MockBean
+  PatchHelper patchHelper;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -236,6 +249,216 @@ public class MonitorManagement_MetadataPolicyTest {
     exceptionRule.expect(TransactionSystemException.class);
     exceptionRule.expectCause(IsInstanceOf.instanceOf(RollbackException.class));
     monitorManagement.createMonitor(tenantId, create);
+  }
+
+  @Test
+  public void testPatchExistingMonitor_allNullValues() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(Map.of("zones",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("zones")
+                .setValue("public/defaultZone1,public/defaultZone2")
+                .setValueType(MetadataValueType.STRING_LIST),
+            "interval",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("interval")
+                .setValue("42")
+                .setValueType(MetadataValueType.DURATION)));
+
+    final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
+
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId(tenantId)
+        .setResourceId("r-1")
+        .setEnvoyId("e-new")
+        .setZoneName("z-1")
+        .setRenderedContent("address=something_else");
+
+    when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
+        .thenReturn(List.of(bound1));
+
+    // EXECUTE
+
+    // update will contain all null values
+    final MonitorCU update = new MonitorCU();
+    final Monitor updatedMonitor = monitorManagement.updateMonitor(
+        tenantId, monitor.getId(), update, true);
+
+    // VERIFY
+
+    // verify returned entity's field
+    assertThat(updatedMonitor.getInterval(), equalTo(Duration.ofSeconds(42)));
+    assertThat(updatedMonitor.getMonitorName(), nullValue());
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
+    assertThat(updatedMonitor.getZones(), hasSize(2));
+    assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+
+    // and verify the stored entity
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getInterval(), equalTo(Duration.ofSeconds(42)));
+    assertThat(retrieved.get().getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+
+    verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+    verify(boundMonitorRepository, times(1)).saveAll(any());
+
+    // only one event is sent
+    // since the same envoy is used in the existing bound monitor
+    // and in the new binding, it alone will be told to update its config.
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+
+    verifyNoMoreInteractions(monitorEventProducer);
+  }
+
+  @Test
+  public void testPatchExistingMonitor_someValueSetSomeValueNull() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(Map.of("zones",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("zones")
+                .setValue("public/defaultZone1,public/defaultZone2")
+                .setValueType(MetadataValueType.STRING_LIST),
+            "interval",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("interval")
+                .setValue("42")
+                .setValueType(MetadataValueType.DURATION)));
+
+    final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
+
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId(tenantId)
+        .setResourceId("r-1")
+        .setEnvoyId("e-new")
+        .setZoneName("z-1")
+        .setRenderedContent("address=something_else");
+
+    when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
+        .thenReturn(List.of(bound1));
+
+    // EXECUTE
+
+    // update will contain null zones but a new interval
+    final MonitorCU update = getBaseMonitorCUFromMonitor(monitor);
+
+    final Duration newInterval = monitor.getInterval().plusSeconds(120L);
+    update.setInterval(newInterval);
+    update.setZones(null);
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor(
+        tenantId, monitor.getId(), update, true);
+
+    // VERIFY
+
+    // new interval is set using provided value, not metadata
+    assertThat(updatedMonitor.getInterval(), equalTo(newInterval));
+    assertThat(updatedMonitor.getMonitorName(), nullValue());
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
+    assertThat(updatedMonitor.getZones(), hasSize(2));
+    // zones are set with metadata policy info
+    assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+
+    // and verify the stored entity
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getInterval(), equalTo(newInterval));
+    assertThat(retrieved.get().getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+
+    verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+    verify(boundMonitorRepository, times(1)).saveAll(any());
+
+    // only one event is sent
+    // since the same envoy is used in the existing bound monitor
+    // and in the new binding, it alone will be told to update its config.
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+
+    verifyNoMoreInteractions(monitorEventProducer);
+  }
+
+  @Test
+  public void testPatchExistingMonitor_allValuesSet() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    // ensure the provided zone is available to this tenant
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(new PageImpl<>(List.of(new Zone().setName("public/newZone1")), Pageable.unpaged(), 1));
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+        .thenReturn(Map.of("zones",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("zones")
+                .setValue("public/defaultZone1,public/defaultZone2")
+                .setValueType(MetadataValueType.STRING_LIST),
+            "interval",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("interval")
+                .setValue("42")
+                .setValueType(MetadataValueType.DURATION)));
+
+    final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
+
+    final BoundMonitor bound1 = new BoundMonitor()
+        .setMonitor(monitor)
+        .setTenantId(tenantId)
+        .setResourceId("r-1")
+        .setEnvoyId("e-new")
+        .setZoneName("z-1")
+        .setRenderedContent("address=something_else");
+
+    when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
+        .thenReturn(List.of(bound1));
+
+    // EXECUTE
+
+    // update will contain new zones and a new interval
+    final MonitorCU update = getBaseMonitorCUFromMonitor(monitor);
+
+    final Duration newInterval = monitor.getInterval().plusSeconds(120L);
+    update.setInterval(newInterval);
+    update.setZones(List.of("public/newZone1"));
+
+    final Monitor updatedMonitor = monitorManagement.updateMonitor(
+        tenantId, monitor.getId(), update, true);
+
+    // VERIFY
+
+    // new interval is set using provided value, not metadata
+    assertThat(updatedMonitor.getInterval(), equalTo(newInterval));
+    assertThat(updatedMonitor.getMonitorName(), nullValue());
+    assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
+    assertThat(updatedMonitor.getZones(), hasSize(1));
+    // new zones are set with provided value, not metadata
+    assertThat(updatedMonitor.getZones(), contains("public/newZone1"));
+
+    // and verify the stored entity
+    Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
+    assertTrue(retrieved.isPresent());
+    assertThat(retrieved.get().getInterval(), equalTo(newInterval));
+    assertThat(retrieved.get().getZones(), contains("public/newZone1"));
+
+    verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
+    verify(boundMonitorRepository, times(1)).saveAll(any());
+
+    // only one event is sent
+    // since the same envoy is used in the existing bound monitor
+    // and in the new binding, it alone will be told to update its config.
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+
+    verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
+
+    verifyNoMoreInteractions(monitorEventProducer, zoneManagement);
   }
 
   @Test
@@ -385,6 +608,21 @@ public class MonitorManagement_MetadataPolicyTest {
         .setResourceId(null)
         .setZones(null)
         .setInterval(null);
+  }
+
+  private MonitorCU getBaseMonitorCUFromMonitor(Monitor monitor) {
+    return new MonitorCU()
+        .setResourceId(monitor.getResourceId())
+        .setMonitorName(monitor.getMonitorName())
+        .setMonitorType(monitor.getMonitorType())
+        .setLabelSelector(monitor.getLabelSelector())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setContent(monitor.getContent())
+        .setInterval(monitor.getInterval())
+        .setAgentType(monitor.getAgentType())
+        .setSelectorScope(monitor.getSelectorScope())
+        .setZones(monitor.getZones())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
   }
 
   private List<Monitor> saveAssortmentOfPingMonitors(String tenantId) {

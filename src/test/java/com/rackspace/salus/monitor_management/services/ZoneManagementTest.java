@@ -9,6 +9,7 @@ import static org.mockito.Mockito.any;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
@@ -49,6 +50,9 @@ public class ZoneManagementTest {
 
     @MockBean
     MonitorManagement monitorManagement;
+
+    @MockBean
+    PatchHelper patchHelper;
 
     @MockBean
     ZoneStorage zoneStorage;

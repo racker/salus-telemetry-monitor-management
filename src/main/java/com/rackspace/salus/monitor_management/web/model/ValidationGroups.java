@@ -32,5 +32,6 @@ public class ValidationGroups {
    */
   public interface Create extends Default { }
   public interface Update extends Default { }
+  public interface Patch extends Default { }
 
 }

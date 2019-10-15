@@ -18,8 +18,10 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
+import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -30,6 +32,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -40,6 +43,10 @@ import java.io.InvalidClassException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonMergePatch;
+import javax.validation.ConstraintDeclarationException;
+import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -57,17 +64,20 @@ public class MonitorConversionService {
   private final MonitorConversionProperties properties;
   private final MonitorRepository monitorRepository;
   private final MetadataUtils metadataUtils;
+  private final PatchHelper patchHelper;
 
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties,
       PolicyApi policyApi,
       MonitorRepository monitorRepository,
-      MetadataUtils metadataUtils) {
+      MetadataUtils metadataUtils,
+      PatchHelper patchHelper) {
     this.objectMapper = objectMapper;
     this.properties = properties;
     this.monitorRepository = monitorRepository;
     this.metadataUtils = metadataUtils;
+    this.patchHelper = patchHelper;
   }
 
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
@@ -123,7 +133,64 @@ public class MonitorConversionService {
     return detailedMonitorOutput;
   }
 
-  public MonitorCU convertFromInput(String tenantId, UUID monitorId, DetailedMonitorInput input) {
+  /**
+   * Helper method for updates to perform a patch.
+   *
+   * @param tenantId  The tenant the monitor relates to.
+   * @param monitorId The id of the monitor if an update is being performed.
+   * @param monitor   The existing monitor object that will be updated
+   * @param patch     The individual changes to be made to the Monitor
+   * @return A MonitorCU object used to construct a Monitor
+   */
+  public MonitorCU convertFromPatchInput(String tenantId, UUID monitorId,
+                                        Monitor monitor, JsonMergePatch patch)
+      throws IllegalArgumentException {
+    // To apply a patch we must convert the existing monitor to a DetailedMonitorInput
+    // then write any new values we've received to that.
+    DetailedMonitorOutput output = convertToOutput(monitor);
+    DetailedMonitorInput input = new DetailedMonitorInput(output);
+
+    DetailedMonitorInput patchedInput;
+    try {
+      patchedInput = patchHelper.mergePatch(
+          patch,
+          input,
+          DetailedMonitorInput.class,
+          ValidationGroups.Patch.class);
+    } catch (ConstraintViolationException e) {
+      throw new IllegalArgumentException(e.getMessage());
+    }
+
+    return convertFromInput(tenantId, monitorId, patchedInput, true);
+  }
+
+  /**
+   * Helper method for updates that defaults to a non-patch update.
+   *
+   * @param tenantId  The tenant the monitor relates to.
+   * @param monitorId The id of the monitor if an update is being performed.
+   * @param input     The details provided to set on the Monitor
+   *
+   * @return A MonitorCU object used to construct a Monitor
+   */
+  public MonitorCU convertFromInput(String tenantId, UUID monitorId,
+      DetailedMonitorInput input) {
+    return convertFromInput(tenantId, monitorId, input, false);
+  }
+
+  /**
+   * Generates a monitor's string content from an input plugin object.
+   *
+   * @param tenantId       The tenant the monitor relates to.
+   * @param monitorId      The id of the monitor if an update is being performed.
+   * @param input          The details provided to set on the Monitor
+   * @param patchOperation Whether a patch or update/put is being performed. True for patch.
+   *                       null values are ignored for updates but utilized in patches.
+   *
+   * @return A MonitorCU object used to construct a Monitor
+   */
+  public MonitorCU convertFromInput(String tenantId, UUID monitorId,
+                                    DetailedMonitorInput input, boolean patchOperation) {
 
     validateInterval(input.getInterval());
 
@@ -150,7 +217,7 @@ public class MonitorConversionService {
 
       final LocalPlugin plugin = ((LocalMonitorDetails) details).getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(tenantId, input, monitor, plugin);
+      populateAgentConfigContent(tenantId, input, monitor, plugin, patchOperation);
     } else if (details instanceof RemoteMonitorDetails) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
 
@@ -159,7 +226,7 @@ public class MonitorConversionService {
 
       final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
       populateMonitorType(monitor, plugin);
-      populateAgentConfigContent(tenantId, input, monitor, plugin);
+      populateAgentConfigContent(tenantId, input, monitor, plugin, patchOperation);
     }
 
     return monitor;
@@ -184,7 +251,7 @@ public class MonitorConversionService {
   }
 
   private void populateAgentConfigContent(String tenantId, DetailedMonitorInput input, MonitorCU monitor,
-                                          Object plugin) {
+                                          Object plugin, boolean patchOperation) {
     final ApplicableAgentType applicableAgentType = plugin.getClass()
         .getAnnotation(ApplicableAgentType.class);
     if (applicableAgentType == null) {
@@ -197,7 +264,7 @@ public class MonitorConversionService {
 
     // Policy monitors should not use metadata
     if (!tenantId.equals(Monitor.POLICY_TENANT)) {
-      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin);
+      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin, patchOperation);
     }
 
     try {
