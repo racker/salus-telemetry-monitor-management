@@ -725,7 +725,8 @@ public class MonitorApiControllerTest {
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
-        .andExpect(status().isCreated());
+        .andExpect(status().isBadRequest())
+        .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
 
   @Test

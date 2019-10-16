@@ -336,9 +336,9 @@ public class MonitorManagement {
     if (!patchOperation) {
       // if the resource id is set the label selector must be empty & vice versa
       if ((StringUtils.isNotBlank(updatedValues.getResourceId()) &&
-          !CollectionUtils.isEmpty(monitor.getLabelSelector())) ||
+          monitor.getLabelSelector() != null) ||
           (StringUtils.isNotBlank(monitor.getResourceId()) &&
-              !CollectionUtils.isEmpty(updatedValues.getLabelSelector())))
+              updatedValues.getLabelSelector() != null))
       {
         throw new IllegalArgumentException(ValidUpdateMonitor.DEFAULT_MESSAGE);
       }

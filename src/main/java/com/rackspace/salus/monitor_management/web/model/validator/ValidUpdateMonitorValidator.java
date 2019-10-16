@@ -32,7 +32,7 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
    static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput) {
       Map<String, String > labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
-      return StringUtils.isNotBlank(resourceId) && !CollectionUtils.isEmpty(labelSelector);
+      return StringUtils.isNotBlank(resourceId) && labelSelector != null;
    }
 
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
