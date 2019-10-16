@@ -657,44 +657,7 @@ public class MonitorManagement {
     final Set<String> affectedEnvoys = new HashSet<>();
 
     affectedEnvoys.addAll(handleResourceIdChange(monitor, updatedValues.getResourceId(), patchOperation));
-
-    boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues, patchOperation);
-    boolean methodChanged = labelSelectorMethodChanged(monitor, updatedValues);
-    if (labelSelectorChanged || methodChanged) {
-      // Process potential changes to resource selection and therefore bindings
-      // ...only need to process removed and new bindings
-
-      // Set the new label selector
-      if (methodChanged) {
-        monitor.setLabelSelectorMethod(updatedValues.getLabelSelectorMethod());
-      }
-
-      // Determine what the newest labels are
-      Map<String, String> labels;
-      if (labelSelectorChanged) {
-        labels = updatedValues.getLabelSelector();
-      } else {
-        labels = monitor.getLabelSelector();
-      }
-
-      affectedEnvoys.addAll(
-          processMonitorLabelSelectorModified(tenantId, monitor, labels)
-      );
-
-      // Finally, update the monitors labels
-      if (labels == null) {
-        monitor.setLabelSelector(null);
-      } else {
-        monitor.setLabelSelector(new HashMap<>(labels));
-      }
-    }
-    else if (monitor.getLabelSelector() != null) {
-      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      // that has a field of type Map. It wants to clear the loaded map value, which is
-      // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
-      // retrieved maps.
-      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
-    }
+    affectedEnvoys.addAll(handleLabelSelectorChange(tenantId, monitor, updatedValues, patchOperation));
 
     if (updatedValues.getContent() != null &&
         !updatedValues.getContent().equals(monitor.getContent())) {
@@ -757,6 +720,47 @@ public class MonitorManagement {
     sendMonitorBoundEvents(affectedEnvoys);
 
     return monitor;
+  }
+
+  private Set<String> handleLabelSelectorChange(String tenantId, Monitor monitor, MonitorCU updatedValues, boolean patchOperation) {
+    Set<String> envoyIds = new HashSet<>();
+    boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues, patchOperation);
+    boolean methodChanged = labelSelectorMethodChanged(monitor, updatedValues);
+
+    if (labelSelectorChanged || methodChanged) {
+      // Process potential changes to resource selection and therefore bindings
+      // ...only need to process removed and new bindings
+
+      // Set the new label selector
+      if (methodChanged) {
+        monitor.setLabelSelectorMethod(updatedValues.getLabelSelectorMethod());
+      }
+
+      // Determine what the newest labels are
+      Map<String, String> labels;
+      if (labelSelectorChanged) {
+        labels = updatedValues.getLabelSelector();
+      } else {
+        labels = monitor.getLabelSelector();
+      }
+
+      envoyIds = processMonitorLabelSelectorModified(tenantId, monitor, labels);
+
+      // Finally, update the monitors labels
+      if (labels == null) {
+        monitor.setLabelSelector(null);
+      } else {
+        monitor.setLabelSelector(new HashMap<>(labels));
+      }
+    }
+    else if (monitor.getLabelSelector() != null) {
+      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+      // that has a field of type Map. It wants to clear the loaded map value, which is
+      // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+      // retrieved maps.
+      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+    }
+    return envoyIds;
   }
 
   /**
