@@ -1080,7 +1080,9 @@ public class MonitorManagement {
       if (r.isPresent()) {
         selectedResources.add(new ResourceDTO(r.get()));
       } else {
-        log.error("Resource not found for monitor configured with resourceId, monitor={}", monitor);
+        // It is possible to create monitors for resources that do not yet exist so this
+        // is only a warning, but many of them may signal a problem.
+        log.warn("Resource not found for monitor configured with resourceId, monitor={}", monitor);
       }
     } else {
       selectedResources = resourceApi

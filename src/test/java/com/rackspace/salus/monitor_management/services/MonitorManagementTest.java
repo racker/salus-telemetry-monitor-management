@@ -1293,7 +1293,7 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testUpdateExistingMonitor_removeLabelsSetResourceId() {
+  public void testPatchExistingMonitor_removeLabelsSetResourceId() {
     // Starts with one monitor-with-label-selector bound to two resources
     // updates it to use a resourceId
     // confirms monitor is updated, old bindings are removed, new binding is added
