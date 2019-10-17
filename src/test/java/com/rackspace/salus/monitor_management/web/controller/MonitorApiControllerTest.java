@@ -508,6 +508,45 @@ public class MonitorApiControllerTest {
   }
 
   @Test
+  public void testPatchPolicyMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setId(UUID.randomUUID());
+    monitor.setTenantId(POLICY_TENANT);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    // ensure only one of these is set
+    monitor.setResourceId(null);
+    monitor.setLabelSelector(Map.of("os", "linux"));
+    monitor.setInterval(Duration.ofSeconds(60));
+
+    when(monitorManagement.getPolicyMonitor(any()))
+        .thenReturn(Optional.of(monitor));
+    when(monitorManagement.updatePolicyMonitor(any(), any(), anyBoolean()))
+        .thenReturn(monitor);
+
+    UUID id = monitor.getId();
+    String url = String.format("/api/admin/policy-monitors/%s", id);
+
+    // send an update with a null name and a new interva
+    String update = "{\"name\":null,\"interval\":234}";
+
+    mockMvc.perform(patch(url)
+        .content(update)
+        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    // Basic verification that the expected method was called with the patchOperation value provided.
+    // In this case mockito had issues when argThat was used to validate params, so I opted
+    // for even more generic validation.
+    verify(monitorManagement).updatePolicyMonitor(any(), any(), anyBoolean());
+  }
+
+  @Test
   public void testGetAll() throws Exception {
     int numberOfMonitors = 20;
     // Use the APIs default Pageable settings
@@ -643,7 +682,7 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testCreateMonitor_ResourceId() throws Exception {
+  public void testCreateMonitor_ResourceIdAndNullLabels() throws Exception {
     DetailedMonitorInput create = setupCreateMonitorTest();
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     String url = String.format("/api/tenant/%s/monitors", tenantId);
@@ -689,6 +728,7 @@ public class MonitorApiControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(classValidationError(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
+
   @Test
   public void testCreateMonitor_NeitherResourceIdNorLabels() throws Exception {
     DetailedMonitorInput create = setupCreateMonitorTest();

@@ -48,6 +48,7 @@ import javax.json.JsonMergePatch;
 import javax.validation.ConstraintDeclarationException;
 import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
@@ -84,12 +85,20 @@ public class MonitorConversionService {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId(monitor.getId().toString())
         .setName(monitor.getMonitorName())
-        .setLabelSelector(monitor.getLabelSelector())
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
         .setInterval(monitor.getInterval())
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
         .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
+
+    // ElementCollections return an empty collection if it was previously set to null
+    // We want this to display null to a customer instead of {}.
+    // This helps keep all API responses consistent.
+    if (StringUtils.isNotBlank(monitor.getResourceId())) {
+      detailedMonitorOutput.setLabelSelector(null);
+    } else {
+      detailedMonitorOutput.setLabelSelector(monitor.getLabelSelector());
+    }
 
     final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
 

@@ -193,6 +193,7 @@ public class MonitorManagement_MetadataPolicyTest {
 
     List<ResourceDTO> resourceList = new ArrayList<>();
     resourceList.add(new ResourceDTO()
+        .setTenantId("abcde")
         .setResourceId(DEFAULT_RESOURCE_ID)
         .setLabels(Collections.singletonMap("os", "LINUX"))
         .setAssociatedWithEnvoy(true)
@@ -295,15 +296,21 @@ public class MonitorManagement_MetadataPolicyTest {
     assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
     assertThat(updatedMonitor.getZones(), hasSize(2));
     assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    // null gets returned when we store the value, but {} gets retrieved when we do a get (as shown farther below)
+    // the null does not get exposed via the api
+    assertThat(updatedMonitor.getLabelSelector(), nullValue());
 
     // and verify the stored entity
     Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getInterval(), equalTo(Duration.ofSeconds(42)));
     assertThat(retrieved.get().getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    // Retrieving nothing/null from an element collection leads to an empty collection being returned
+    assertThat(retrieved.get().getLabelSelector(), equalTo(Collections.emptyMap()));
 
     verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
-    verify(boundMonitorRepository, times(1)).saveAll(any());
+    // one save when changing zones and one for label selector change
+    verify(boundMonitorRepository, times(2)).saveAll(any());
 
     // only one event is sent
     // since the same envoy is used in the existing bound monitor
