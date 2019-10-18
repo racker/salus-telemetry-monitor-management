@@ -17,7 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
-import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_MERGE_PATCH_TYPE;
+import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.test.WebTestUtils.classValidationError;
 import static com.rackspace.salus.test.WebTestUtils.httpMessageNotReadable;
@@ -469,11 +469,12 @@ public class MonitorApiControllerTest {
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
     // send an update with a new name and a null interval
-    String update = "{\"name\":\"newName1234\",\"interval\":null}";
+    String update = "[{\"op\":\"replace\",\"path\": \"/name\",\"value\":\"newName\"},"
+        + "{\"op\":\"replace\",\"path\": \"/interval\",\"value\":null}]";
 
     mockMvc.perform(patch(url)
         .content(update)
-        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .contentType(MediaType.valueOf(JSON_PATCH_TYPE))
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andDo(print())
         .andExpect(status().isOk())
@@ -492,12 +493,12 @@ public class MonitorApiControllerTest {
     UUID id = UUID.randomUUID();
     String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
 
-    // send an update with a new name and a null interval
-    String update = "{\"name\":\"newName1234\",\"interval\":null}";
+    // send an update with a new name
+    String update = "[{\"op\":\"replace\",\"path\": \"/name\",\"value\":\"newName\"}]";
 
     mockMvc.perform(patch(url)
         .content(update)
-        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .contentType(MediaType.valueOf(JSON_PATCH_TYPE))
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isNotFound())
         .andExpect(content()
@@ -528,12 +529,13 @@ public class MonitorApiControllerTest {
     UUID id = monitor.getId();
     String url = String.format("/api/admin/policy-monitors/%s", id);
 
-    // send an update with a null name and a new interva
-    String update = "{\"name\":null,\"interval\":234}";
+    // send an update with a null name and a new interval
+    String update = "[{\"op\":\"replace\",\"path\": \"/name\",\"value\":null},"
+        + "{\"op\":\"replace\",\"path\": \"/interval\",\"value\":234}]";
 
     mockMvc.perform(patch(url)
         .content(update)
-        .contentType(MediaType.valueOf(JSON_MERGE_PATCH_TYPE))
+        .contentType(MediaType.valueOf(JSON_PATCH_TYPE))
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andDo(print())
         .andExpect(status().isOk())

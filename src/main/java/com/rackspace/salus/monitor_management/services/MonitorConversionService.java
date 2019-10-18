@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
@@ -35,6 +34,7 @@ import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -43,9 +43,8 @@ import java.io.InvalidClassException;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-import javax.json.Json;
-import javax.json.JsonMergePatch;
-import javax.validation.ConstraintDeclarationException;
+import javax.json.JsonException;
+import javax.json.JsonPatch;
 import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -81,6 +80,29 @@ public class MonitorConversionService {
     this.patchHelper = patchHelper;
   }
 
+  /**
+   * Converts a monitor object to an equivalent {@link DetailedMonitorInput}
+   *
+   * @param monitor The monitor to convert.
+   * @return The corresponding input object.
+   */
+  private DetailedMonitorInput convertToInput(Monitor monitor) {
+    final DetailedMonitorInput detailedMonitorInput = new DetailedMonitorInput()
+        .setName(monitor.getMonitorName())
+        .setInterval(monitor.getInterval())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setResourceId(monitor.getResourceId())
+        .setDetails(convertContentToDetails(monitor));
+
+    if (StringUtils.isNotBlank(monitor.getResourceId())) {
+      detailedMonitorInput.setLabelSelector(null);
+    } else {
+      detailedMonitorInput.setLabelSelector(monitor.getLabelSelector());
+    }
+
+    return detailedMonitorInput;
+  }
+
   public DetailedMonitorOutput convertToOutput(Monitor monitor) {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId(monitor.getId().toString())
@@ -88,6 +110,7 @@ public class MonitorConversionService {
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
         .setInterval(monitor.getInterval())
+        .setDetails(convertContentToDetails(monitor))
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
         .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
 
@@ -98,45 +121,6 @@ public class MonitorConversionService {
       detailedMonitorOutput.setLabelSelector(null);
     } else {
       detailedMonitorOutput.setLabelSelector(monitor.getLabelSelector());
-    }
-
-    final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
-
-    if (selectorScope == ConfigSelectorScope.LOCAL) {
-      final LocalMonitorDetails monitorDetails = new LocalMonitorDetails();
-      detailedMonitorOutput.setDetails(monitorDetails);
-
-      final LocalPlugin localPlugin;
-
-      try {
-        localPlugin = objectMapper
-            .readValue(monitor.getContent(), LocalPlugin.class);
-      } catch (IOException e) {
-        log.warn("Failed to deserialize LocalPlugin for monitor={}", monitor, e);
-        throw new IllegalStateException("Failed to deserialize LocalPlugin");
-      }
-
-      assertPluginAgentType(monitor, localPlugin);
-
-      monitorDetails.setPlugin(localPlugin);
-    } else if (selectorScope == ConfigSelectorScope.REMOTE) {
-      final RemoteMonitorDetails monitorDetails = new RemoteMonitorDetails();
-      detailedMonitorOutput.setDetails(monitorDetails);
-
-      monitorDetails.setMonitoringZones(monitor.getZones());
-
-      final RemotePlugin remotePlugin;
-
-      try {
-        remotePlugin = objectMapper.readValue(monitor.getContent(), RemotePlugin.class);
-      } catch (IOException e) {
-        log.warn("Failed to deserialize RemotePlugin for monitor={}", monitor, e);
-        throw new IllegalStateException("Failed to deserialize RemotePlugin");
-      }
-
-      assertPluginAgentType(monitor, remotePlugin);
-
-      monitorDetails.setPlugin(remotePlugin);
     }
 
     return detailedMonitorOutput;
@@ -152,22 +136,25 @@ public class MonitorConversionService {
    * @return A MonitorCU object used to construct a Monitor
    */
   public MonitorCU convertFromPatchInput(String tenantId, UUID monitorId,
-                                        Monitor monitor, JsonMergePatch patch)
+                                        Monitor monitor, JsonPatch patch)
       throws IllegalArgumentException {
     // To apply a patch we must convert the existing monitor to a DetailedMonitorInput
     // then write any new values we've received to that.
-    DetailedMonitorOutput output = convertToOutput(monitor);
-    DetailedMonitorInput input = new DetailedMonitorInput(output);
+    DetailedMonitorInput input = convertToInput(monitor);
 
     DetailedMonitorInput patchedInput;
     try {
-      patchedInput = patchHelper.mergePatch(
+      patchedInput = patchHelper.patch(
           patch,
           input,
           DetailedMonitorInput.class,
           ValidationGroups.Patch.class);
     } catch (ConstraintViolationException e) {
       throw new IllegalArgumentException(e.getMessage());
+    } catch (JsonException e) {
+      // This occurs when the PATCH "test" operation fails.
+      throw new MissingRequirementException(e.getMessage());
+      // change this to do this for test failures but an Illegal Argument for anything else?
     }
 
     return convertFromInput(tenantId, monitorId, patchedInput, true);
@@ -329,5 +316,49 @@ public class MonitorConversionService {
     }
 
     return objectMapper.writeValueAsString(plugin);
+  }
+
+  private MonitorDetails convertContentToDetails(Monitor monitor) {
+    final ConfigSelectorScope selectorScope = monitor.getSelectorScope();
+
+    if (selectorScope == ConfigSelectorScope.LOCAL) {
+      final LocalMonitorDetails monitorDetails = new LocalMonitorDetails();
+      final LocalPlugin localPlugin;
+
+      try {
+        localPlugin = objectMapper
+            .readValue(monitor.getContent(), LocalPlugin.class);
+      } catch (IOException e) {
+        log.warn("Failed to deserialize LocalPlugin for monitor={}", monitor, e);
+        throw new IllegalStateException("Failed to deserialize LocalPlugin");
+      }
+
+      assertPluginAgentType(monitor, localPlugin);
+
+      monitorDetails.setPlugin(localPlugin);
+      return monitorDetails;
+
+    } else if (selectorScope == ConfigSelectorScope.REMOTE) {
+      final RemoteMonitorDetails monitorDetails = new RemoteMonitorDetails();
+
+      monitorDetails.setMonitoringZones(monitor.getZones());
+
+      final RemotePlugin remotePlugin;
+
+      try {
+        remotePlugin = objectMapper.readValue(monitor.getContent(), RemotePlugin.class);
+      } catch (IOException e) {
+        log.warn("Failed to deserialize RemotePlugin for monitor={}", monitor, e);
+        throw new IllegalStateException("Failed to deserialize RemotePlugin");
+      }
+
+      assertPluginAgentType(monitor, remotePlugin);
+
+      monitorDetails.setPlugin(remotePlugin);
+      return monitorDetails;
+    } else {
+      // this will only ever get hit by tests that do not provide the full monitor info
+      return null;
+    }
   }
 }

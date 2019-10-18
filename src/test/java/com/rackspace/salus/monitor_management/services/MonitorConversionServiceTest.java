@@ -67,13 +67,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.json.Json;
-import javax.json.JsonMergePatch;
+import javax.json.JsonPatch;
 import javax.json.JsonValue;
 import javax.validation.ConstraintViolation;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -382,11 +383,12 @@ public class MonitorConversionServiceTest {
         .thenReturn(expectedPolicy);
 
     // Create the plugin that will be converted to the monitor's contents
+    // timeout is set to null to show we can set values that were not set before
     final Ping plugin = new Ping()
         .setUrls(Collections.singletonList("localhost"))
         .setCount(1)
         .setPingInterval(2)
-        .setTimeout(3);
+        .setTimeout(null);
 
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
@@ -409,18 +411,60 @@ public class MonitorConversionServiceTest {
         .setUpdatedTimestamp(Instant.EPOCH);
 
     // Create the patch payload which only contains the fields to change
-    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
-        .add("interval", JsonValue.NULL)
-        .add("details", Json.createObjectBuilder()
-            .add("monitoringZones", JsonValue.NULL)
-            .add("plugin", Json.createObjectBuilder()
-              .add("count", JsonValue.NULL)
-              .add("pingInterval", JsonValue.NULL)
-              .add("timeout", 33)))
+    // It builds out the following:
+    /*
+    [
+      {
+        "op": "replace",
+        "path": "/interval",
+        "value": null
+      },
+      {
+        "op": "replace",
+        "path": "/details/monitoringZones",
+        "value": null
+      },
+      {
+        "op": "replace",
+        "path": "/details/plugin/count",
+        "value": null
+      },
+      {
+        "op": "replace",
+        "path": "/details/plugin/pingInterval",
+        "value": null
+      },
+      {
+        "op": "replace",
+        "path": "/details/plugin/timeout",
+        "value": 33
+      }
+    ]*/
+    JsonPatch patch = Json.createPatch(Json.createArrayBuilder()
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/interval")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/monitoringZones")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/plugin/count")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/plugin/pingInterval")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/plugin/timeout")
+            .add("value", 33))
         .build());
 
     final MonitorCU result = conversionService.convertFromPatchInput(
-        tenantId, monitorId, monitor, mergePatch);
+        tenantId, monitorId, monitor, patch);
 
     assertThat(result).isNotNull();
     // unchanged fields
@@ -473,14 +517,20 @@ public class MonitorConversionServiceTest {
 
     // Create the patch payload which only contains the fields to change
     // Details has non-null validation and should trigger an exception
-    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
-        .add("interval", JsonValue.NULL)
-        .add("details", JsonValue.NULL)
+    JsonPatch patch = Json.createPatch(Json.createArrayBuilder()
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/interval")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details")
+            .add("value", JsonValue.NULL))
         .build());
 
     exceptionRule.expect(IllegalArgumentException.class);
     exceptionRule.expectMessage("details: must not be null");
-    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, mergePatch);
+    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, patch);
   }
 
   @Test
@@ -518,17 +568,24 @@ public class MonitorConversionServiceTest {
 
     // Create the patch payload which only contains the fields to change
     // Urls has non-empty validation and should trigger an exception
-    JsonMergePatch mergePatch = Json.createMergePatch(Json.createObjectBuilder()
-        .add("interval", JsonValue.NULL)
-        .add("details", Json.createObjectBuilder()
-            .add("monitoringZones", JsonValue.NULL)
-            .add("plugin", Json.createObjectBuilder()
-                .add("urls", JsonValue.NULL)))
+    JsonPatch patch = Json.createPatch(Json.createArrayBuilder()
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/interval")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/monitoringZones")
+            .add("value", JsonValue.NULL))
+        .add(Json.createObjectBuilder()
+            .add("op", "replace")
+            .add("path", "/details/plugin/urls")
+            .add("value", JsonValue.NULL))
         .build());
 
     exceptionRule.expect(IllegalArgumentException.class);
     exceptionRule.expectMessage("details.plugin.urls: must not be empty");
-    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, mergePatch);
+    conversionService.convertFromPatchInput(tenantId, monitorId, monitor, patch);
   }
 
   @Test
