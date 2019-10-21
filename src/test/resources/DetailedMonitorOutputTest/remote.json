@@ -17,7 +17,8 @@
       "count": 5,
       "deadline": 10,
       "pingInterval": 15,
-      "timeout": 20
+      "timeout": 20,
+      "interfaceOrAddress": null
     }
   },
   "createdTimestamp": "1970-01-01T00:00:00Z",

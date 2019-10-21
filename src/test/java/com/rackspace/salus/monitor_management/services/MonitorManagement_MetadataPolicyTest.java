@@ -517,7 +517,10 @@ public class MonitorManagement_MetadataPolicyTest {
     // The below tests that the "count" was updated where applicable.
     // Interval is not updated even though it is a policy field since this metadata event did not relate to it.
 
-    String expectedPolicyUpdateContent = "{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":" + UPDATED_COUNT_VALUE + "}";
+    String expectedPolicyUpdateContent = "{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":" + UPDATED_COUNT_VALUE
+        + ",\"pingInterval\":null,\"timeout\":null,\"deadline\":null,\"interfaceOrAddress\":null}";
+    // due to content being stored as a string and the details of unmodified monitors are not regenerated,
+    // for the purpose of this test all the `null` values seen in te updated monitor are excluded here.
     String expectedOriginalContent = "{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":72}";
 
     // monitor 1 had a custom count value, but count was in its pluginMetadata so it should now be
