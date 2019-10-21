@@ -1,4 +1,9 @@
 {
   "type": "ping",
-  "urls": ["localhost"]
+  "urls": ["localhost"],
+  "count": null,
+  "deadline": null,
+  "interfaceOrAddress": null,
+  "pingInterval": null,
+  "timeout": null
 }

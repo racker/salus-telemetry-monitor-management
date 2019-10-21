@@ -2,5 +2,8 @@
   "type": "ping",
   "urls": ["localhost"],
   "count": 63,
-  "pingInterval": 2
+  "pingInterval": 2,
+  "deadline": null,
+  "interfaceOrAddress": null,
+  "timeout": null
 }
