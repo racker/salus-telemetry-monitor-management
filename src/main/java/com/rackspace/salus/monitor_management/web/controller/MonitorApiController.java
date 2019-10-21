@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_MERGE_PATCH_TYPE;
+import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
@@ -41,7 +41,7 @@ import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.json.JsonMergePatch;
+import javax.json.JsonPatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -177,11 +177,11 @@ public class MonitorApiController {
   }
 
   @PatchMapping(path = "/admin/policy-monitors/{uuid}",
-                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_MERGE_PATCH_TYPE})
+                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_PATCH_TYPE})
   @ApiOperation(value = "Patch specific Policy Monitor")
   @JsonView(View.Admin.class)
   public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
-                                                  @RequestBody final JsonMergePatch input)
+                                                  @RequestBody final JsonPatch input)
       throws IllegalArgumentException {
 
     Monitor monitor = monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
@@ -273,12 +273,12 @@ public class MonitorApiController {
   }
 
   @PatchMapping(path = "/tenant/{tenantId}/monitors/{uuid}",
-                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_MERGE_PATCH_TYPE})
+                consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_PATCH_TYPE})
   @ApiOperation(value = "Updates specific Monitor for Tenant")
   @JsonView(View.Public.class)
   public DetailedMonitorOutput patch(@PathVariable String tenantId,
       @PathVariable UUID uuid,
-      @RequestBody final JsonMergePatch input)
+      @RequestBody final JsonPatch input)
       throws IllegalArgumentException {
 
     Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
