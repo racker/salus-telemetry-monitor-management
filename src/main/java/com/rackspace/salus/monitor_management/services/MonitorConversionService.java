@@ -34,7 +34,6 @@ import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -152,9 +151,10 @@ public class MonitorConversionService {
     } catch (ConstraintViolationException e) {
       throw new IllegalArgumentException(e.getMessage());
     } catch (JsonException e) {
-      // This occurs when the PATCH "test" operation fails.
-      throw new MissingRequirementException(e.getMessage());
-      // change this to do this for test failures but an Illegal Argument for anything else?
+      // This can occur when the PATCH "test" operation fails or if an invalid value is provided.
+      // A 422 is more accurate for the "test" failure, but there is not a way to distinguish
+      // between them other than the message contents, so we'll stick with a 400.
+      throw new IllegalArgumentException(e.getMessage());
     }
 
     return convertFromInput(tenantId, monitorId, patchedInput, true);
