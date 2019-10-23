@@ -16,10 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.converter;
 
-import static com.rackspace.salus.monitor_management.config.JsonConfig.IGNORE_JSON_INCLUDE_ANNOTATIONS;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr353.JSR353Module;
 import java.util.Set;
 import javax.json.JsonMergePatch;
 import javax.json.JsonPatch;
@@ -38,19 +35,12 @@ public class PatchHelper {
   public static final String JSON_PATCH_TYPE = "application/json-patch+json";
 
   private final ObjectMapper objectMapper;
-  private final ObjectMapper objectMapperAllowNulls;
   private final Validator validator;
 
   @Autowired
   public PatchHelper(ObjectMapper objectMapper, Validator validator) {
     this.objectMapper = objectMapper;
     this.validator = validator;
-    // A custom object mapper is required for patches to ensure fields that are normally
-    // excluded if nullare not excluded here.
-    // These null fields must be available to allow new values to be set.
-    this.objectMapperAllowNulls = new ObjectMapper()
-        .setAnnotationIntrospector(IGNORE_JSON_INCLUDE_ANNOTATIONS)
-        .registerModule(new JSR353Module());
   }
 
   /**
@@ -63,7 +53,7 @@ public class PatchHelper {
    * @return patched object
    */
   public <T> T patch(JsonPatch patch, T targetBean, Class<T> beanClass, Class<?>... groups) {
-    JsonStructure target = objectMapperAllowNulls.convertValue(targetBean, JsonStructure.class);
+    JsonStructure target = objectMapper.convertValue(targetBean, JsonStructure.class);
     JsonValue patched = applyPatch(patch, target);
     return convertAndValidate(patched, beanClass, groups);
   }
