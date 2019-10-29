@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
@@ -48,6 +49,7 @@ public class BoundMonitorDTOJsonTest {
     final BoundMonitorDTO dto = new BoundMonitorDTO()
         .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -68,6 +70,7 @@ public class BoundMonitorDTOJsonTest {
     final BoundMonitorDTO dto = new BoundMonitorDTO()
         .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -88,6 +91,7 @@ public class BoundMonitorDTOJsonTest {
     final BoundMonitorDTO dto = new BoundMonitorDTO()
         .setZoneName("z-1")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
+        .setMonitorType(MonitorType.cpu)
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)

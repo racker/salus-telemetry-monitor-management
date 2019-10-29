@@ -1,5 +1,6 @@
 {
   "monitorId": "00000000-0000-0000-0001-000000000000",
+  "monitorType": "cpu",
   "tenantId": "t-1",
   "resourceId": "r-1",
   "selectorScope": "REMOTE",
