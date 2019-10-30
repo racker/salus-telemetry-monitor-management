@@ -29,6 +29,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
+import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
 @JsonSubTypes({
@@ -40,7 +41,8 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
     @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
     @Type(name = "postgresql", value = Postgresql.class),
-    @Type(name = "sqlserver", value = SqlServer.class)
+    @Type(name = "sqlserver", value = SqlServer.class),
+    @Type(name = "system", value = System.class)
 })
 public abstract class LocalPlugin {
 
