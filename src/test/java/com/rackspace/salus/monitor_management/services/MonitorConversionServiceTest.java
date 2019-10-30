@@ -45,6 +45,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
+import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -229,6 +230,49 @@ public class MonitorConversionServiceTest {
 
     DetailedMonitorInput input = new DetailedMonitorInput()
         .setLabelSelector(Collections.singletonMap("os","linux"))
+        .setDetails(details);
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
+
+    assertThat(result).isNotNull();
+    JSONAssert.assertEquals(content, result.getContent(), true);
+  }
+
+  @Test
+  public void convertToOutput_system() throws IOException {
+    final String content = readContent("/MonitorConversionServiceTest_system.json");
+
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(Collections.singletonMap("os", "linux"))
+        .setContent(content)
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+
+    final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
+    assertThat(plugin).isInstanceOf(System.class);
+    // no config to validate
+  }
+
+  @Test
+  public void convertFromInput_system() throws JSONException, IOException {
+    final String content = readContent("/MonitorConversionServiceTest_system.json");
+
+    final System plugin = new System();
+    // no config to set
+
+    final LocalMonitorDetails details = new LocalMonitorDetails();
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setLabelSelector(Collections.singletonMap("os", "linux"))
         .setDetails(details);
     final MonitorCU result = conversionService.convertFromInput(
         RandomStringUtils.randomAlphabetic(10), null, input);
