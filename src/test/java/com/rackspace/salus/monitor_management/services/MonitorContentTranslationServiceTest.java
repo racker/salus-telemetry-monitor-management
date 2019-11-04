@@ -200,12 +200,14 @@ public class MonitorContentTranslationServiceTest {
   public void testTranslate_match_byMonitorType() throws JsonProcessingException {
     final List<MonitorTranslationOperator> operators = List.of(
         new MonitorTranslationOperator()
+            .setName("match")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
             .setTranslatorSpec(buildRenameSpec("matches", "afterMatch"))
             // TEST matching monitor type
             .setMonitorType(MonitorType.cpu),
         new MonitorTranslationOperator()
+            .setName("dontMatch")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
             .setTranslatorSpec(buildRenameSpec("dontMatch", "neverUsed"))
@@ -248,12 +250,14 @@ public class MonitorContentTranslationServiceTest {
   public void testTranslate_match_bySelectorScope() throws JsonProcessingException {
     final List<MonitorTranslationOperator> operators = List.of(
         new MonitorTranslationOperator()
+            .setName("match")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
             .setTranslatorSpec(buildRenameSpec("matches", "afterMatch"))
             // TEST matching selector scope
             .setSelectorScope(ConfigSelectorScope.LOCAL),
         new MonitorTranslationOperator()
+            .setName("dontMatch")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
             .setTranslatorSpec(buildRenameSpec("dontMatch", "neverUsed"))
@@ -381,6 +385,7 @@ public class MonitorContentTranslationServiceTest {
                                                              String renameFromField) {
     return List.of(
         new MonitorTranslationOperator()
+            .setName("rename-"+renameFromField)
             .setAgentType(agentType)
             .setAgentVersions(agentVersions)
             .setTranslatorSpec(buildRenameSpec(renameFromField, "new_field"))

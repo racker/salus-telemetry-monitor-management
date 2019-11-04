@@ -173,6 +173,7 @@ public class MonitorTranslationApiControllerTest {
 
     verify(monitorContentTranslationService).create(
         new MonitorTranslationOperatorCreate()
+        .setName("rename-cpu")
         .setAgentType(AgentType.TELEGRAF)
         .setAgentVersions(">= 1.12.0")
         .setMonitorType(MonitorType.cpu)
@@ -214,6 +215,7 @@ public class MonitorTranslationApiControllerTest {
                                                    MonitorType monitorType,
                                                    ConfigSelectorScope selectorScope, UUID id) {
     return new MonitorTranslationOperator()
+        .setName("rename-"+monitorType.toString())
         .setAgentType(AgentType.TELEGRAF)
         .setAgentVersions(agentVersions)
         .setMonitorType(monitorType)

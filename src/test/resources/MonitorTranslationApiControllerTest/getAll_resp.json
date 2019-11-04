@@ -2,6 +2,7 @@
   "content": [
     {
       "id": "00000001-ffcf-40d2-8684-95cb0362ae6d",
+      "name": "rename-cpu",
       "agentType": "TELEGRAF",
       "agentVersions": ">= 1.12.0",
       "monitorType": "cpu",
@@ -14,6 +15,7 @@
     },
     {
       "id": "00000002-ffcf-40d2-8684-95cb0362ae6d",
+      "name": "rename-http_response",
       "agentType": "TELEGRAF",
       "agentVersions": "< 1.12.0",
       "monitorType": "http_response",
