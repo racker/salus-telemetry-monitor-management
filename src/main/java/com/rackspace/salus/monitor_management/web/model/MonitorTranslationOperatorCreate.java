@@ -21,6 +21,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -28,6 +29,9 @@ import lombok.Data;
 public class MonitorTranslationOperatorCreate {
   @NotNull
   AgentType agentType;
+
+  @NotBlank
+  String name;
 
   /**
    * Optional field that conveys applicable version ranges

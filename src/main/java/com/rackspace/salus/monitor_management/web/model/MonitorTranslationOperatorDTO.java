@@ -29,6 +29,8 @@ import lombok.NoArgsConstructor;
 public class MonitorTranslationOperatorDTO {
   UUID id;
 
+  String name;
+
   AgentType agentType;
 
   String agentVersions;
@@ -41,6 +43,7 @@ public class MonitorTranslationOperatorDTO {
 
   public MonitorTranslationOperatorDTO(MonitorTranslationOperator entity) {
     this.id = entity.getId();
+    this.name = entity.getName();
     this.agentType = entity.getAgentType();
     this.agentVersions = entity.getAgentVersions();
     this.monitorType = entity.getMonitorType();
