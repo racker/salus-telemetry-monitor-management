@@ -16,38 +16,47 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 
 public class MonitorContentRendererTest {
 
+  final ObjectMapper objectMapper = new ObjectMapper();
+
   @Test
-  public void testRenderTypical() throws InvalidTemplateException {
+  public void testRenderTypical() throws InvalidTemplateException, IOException {
     Map<String, String> labels = new HashMap<>();
 
-    final Map<String, String> metadata = new HashMap<>();
+    final Map<String, Object> metadata = new HashMap<>();
     metadata.put("public_ip", "150.1.2.3");
+    metadata.put("dirs", List.of("/tmp", "/usr"));
+    metadata.put("count", 5);
 
     final ResourceDTO resource = new ResourceDTO()
         .setLabels(labels)
         .setMetadata(metadata);
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
-    final String rendered = renderer.render(
-        "{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}",
-        resource
-    );
-    assertThat(rendered, equalTo("{\"type\": \"ping\", \"urls\": [\"150.1.2.3\"]}"));
+    final String content = readContent("/MonitorContentRendererTest_content.json");
+
+    final String rendered = renderer.render(content, resource);
+
+    final String expected = readContent("/MonitorContentRendererTest_rendered.json");
+    assertThat(rendered, equalTo(expected));
   }
 
   @Test(expected = InvalidTemplateException.class)
@@ -57,7 +66,7 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "address=${resource.metadata.address}",
@@ -72,7 +81,7 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.singletonMap("nullness", null));
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "value=${resource.metadata.nullness}",
@@ -87,7 +96,7 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "value=${nothere.novalue}",
@@ -102,7 +111,7 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "value=${resource.wrong.reference}",
@@ -117,7 +126,7 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         // Attempt #1, resolves to default, empty string
@@ -129,7 +138,7 @@ public class MonitorContentRendererTest {
         resource
     );
 
-    assertThat(rendered, equalTo("os=linux"));
+    assertThat(rendered, equalTo("os=\"linux\""));
   }
 
   @Test
@@ -139,14 +148,14 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "os=${resource.labels.agent_discovered_os}",
         resource
     );
 
-    assertThat(rendered, equalTo("os=linux"));
+    assertThat(rendered, equalTo("os=\"linux\""));
   }
 
   @Test
@@ -156,13 +165,13 @@ public class MonitorContentRendererTest {
         .setMetadata(Collections.emptyMap());
 
     final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties, objectMapper);
 
     final String rendered = renderer.render(
         "os=${resource.labels.agent-discovered-os}",
         resource
     );
 
-    assertThat(rendered, equalTo("os=linux"));
+    assertThat(rendered, equalTo("os=\"linux\""));
   }
 }
