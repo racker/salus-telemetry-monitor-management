@@ -1,0 +1,6 @@
+{
+  "type": "rman",
+  "exclusionCodes": ["RMAN-1234"],
+  "filePath": "./oracleDatabaseOutput",
+  "databaseNames": ["backupDB", "prodDB"]
+}

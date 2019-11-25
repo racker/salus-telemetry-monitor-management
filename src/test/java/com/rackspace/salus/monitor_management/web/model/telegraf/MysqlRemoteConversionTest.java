@@ -16,8 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
-import static com.rackspace.salus.monitor_management.web.model.telegraf.ConversionHelpers.assertCommonRemote;
-import static com.rackspace.salus.monitor_management.web.model.telegraf.ConversionHelpers.createMonitor;
+import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommonRemote;
+import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
