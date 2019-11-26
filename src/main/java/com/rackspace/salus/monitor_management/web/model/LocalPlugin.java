@@ -20,6 +20,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.rackspace.salus.monitor_management.web.model.oracle.Dataguard;
+import com.rackspace.salus.monitor_management.web.model.oracle.Rman;
+import com.rackspace.salus.monitor_management.web.model.oracle.Tablespace;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
@@ -42,7 +45,10 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.System;
     @Type(name = "mysql", value = Mysql.class),
     @Type(name = "postgresql", value = Postgresql.class),
     @Type(name = "sqlserver", value = SqlServer.class),
-    @Type(name = "system", value = System.class)
+    @Type(name = "system", value = System.class),
+    @Type(name = "oracle_rman", value = Rman.class),
+    @Type(name = "oracle_tablespace", value = Tablespace.class),
+    @Type(name = "oracle_dataguard", value = Dataguard.class)
 })
 public abstract class LocalPlugin {
 

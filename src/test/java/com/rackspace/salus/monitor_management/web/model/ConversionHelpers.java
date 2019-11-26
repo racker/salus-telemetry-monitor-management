@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.telegraf;
+package com.rackspace.salus.monitor_management.web.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,12 +31,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-class ConversionHelpers {
+public class ConversionHelpers {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
   private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
-  static <T> T assertCommon(DetailedMonitorOutput result,
+  public static <T> T assertCommon(DetailedMonitorOutput result,
                             Monitor monitor, Class<T> pluginClass, String scenario) {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitor.getId().toString());
@@ -50,7 +50,7 @@ class ConversionHelpers {
     return ((T) plugin);
   }
 
-  static <T> T assertCommonRemote(DetailedMonitorOutput result,
+  public static <T> T assertCommonRemote(DetailedMonitorOutput result,
                             Monitor monitor, Class<T> pluginClass, String scenario) {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitor.getId().toString());
@@ -64,7 +64,7 @@ class ConversionHelpers {
     return ((T) plugin);
   }
 
-  static Monitor createMonitor(String content, String scenario, AgentType agentType,
+  public static Monitor createMonitor(String content, String scenario, AgentType agentType,
                                ConfigSelectorScope scope) {
     Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");

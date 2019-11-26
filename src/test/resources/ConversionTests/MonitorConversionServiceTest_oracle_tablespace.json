@@ -1,0 +1,5 @@
+{
+  "type": "oracle_tablespace",
+  "filePath": "./oracleDatabaseOutput",
+  "databaseNames": ["backupDB", "prodDB"]
+}
