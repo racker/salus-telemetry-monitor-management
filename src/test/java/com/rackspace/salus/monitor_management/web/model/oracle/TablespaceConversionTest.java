@@ -38,9 +38,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 @JsonTest
 @Import({MonitorConversionService.class, MetadataUtils.class})
 public class TablespaceConversionTest {
-  @Configuration
-  public static class TestConfig { }
-
   @MockBean
   PatchHelper patchHelper;
 

@@ -38,8 +38,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 @JsonTest
 @Import({MonitorConversionService.class, MetadataUtils.class})
 public class DataguardConversionTest {
-  @Configuration
-  public static class TestConfig { }
 
   @MockBean
   PatchHelper patchHelper;
@@ -57,7 +55,7 @@ public class DataguardConversionTest {
   MetadataUtils metadataUtils;
 
   @Test
-  public void convertToOutput_rman() throws IOException {
+  public void convertToOutput_dataguard() throws IOException {
     final String content = readContent("/ConversionTests/MonitorConversionServiceTest_dataguard.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
