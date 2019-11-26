@@ -30,7 +30,6 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -54,7 +53,7 @@ public class TablespaceConversionTest {
   MetadataUtils metadataUtils;
 
   @Test
-  public void convertToOutput_rman() throws IOException {
+  public void convertToOutput_tablespace() throws IOException {
     final String content = readContent("/ConversionTests/MonitorConversionServiceTest_tablespace.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
@@ -64,12 +63,15 @@ public class TablespaceConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Tablespace tablespacePlugin = assertCommon(result, monitor, Tablespace.class, "convertToOutput");
-    assertThat(tablespacePlugin.getFilePath());
-    assertThat(tablespacePlugin.getDatabaseNames());
+    assertThat(tablespacePlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
+    final List<String> databaseNames = new LinkedList<>();
+    databaseNames.add("backupDB");
+    databaseNames.add("prodDB");
+    assertThat(tablespacePlugin.getDatabaseNames()).isEqualTo(databaseNames);
   }
 
   @Test
-  public void convertFromInput_Tablespace() throws IOException, JSONException {
+  public void convertFromInput_tablespace() throws IOException, JSONException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");

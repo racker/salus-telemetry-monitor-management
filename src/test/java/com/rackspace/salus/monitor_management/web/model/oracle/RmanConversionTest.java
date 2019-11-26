@@ -30,7 +30,6 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -64,14 +63,19 @@ public class RmanConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Rman rmanPlugin = assertCommon(result, monitor, Rman.class, "convertToOutput");
-    assertThat(rmanPlugin.getFilePath());
-    assertThat(rmanPlugin.getDatabaseNames());
-    assertThat(rmanPlugin.getExclusionCodes());
+    assertThat(rmanPlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
+    final List<String> databaseNames = new LinkedList<>();
+    databaseNames.add("backupDB");
+    databaseNames.add("prodDB");
+    assertThat(rmanPlugin.getDatabaseNames()).isEqualTo(databaseNames);
+    final List<String> exclusionCodes = new LinkedList<>();
+    exclusionCodes.add("RMAN-1234");
+    assertThat(rmanPlugin.getExclusionCodes()).isEqualTo(exclusionCodes);
   }
 
 
   @Test
-  public void convertFromInput_Rman() throws IOException, JSONException {
+  public void convertFromInput_rman() throws IOException, JSONException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");

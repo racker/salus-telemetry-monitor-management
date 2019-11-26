@@ -30,7 +30,6 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -65,8 +64,11 @@ public class DataguardConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Dataguard dataguardPlugin = assertCommon(result, monitor, Dataguard.class, "convertToOutput");
-    assertThat(dataguardPlugin.getFilePath());
-    assertThat(dataguardPlugin.getDatabaseNames());
+    assertThat(dataguardPlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
+    final List<String> databaseNames = new LinkedList<>();
+    databaseNames.add("backupDB");
+    databaseNames.add("prodDB");
+    assertThat(dataguardPlugin.getDatabaseNames()).isEqualTo(databaseNames);
   }
 
   @Test
