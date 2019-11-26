@@ -1,5 +1,5 @@
 {
-  "type": "dataguard",
+  "type": "oracle_dataguard",
   "filePath": "./oracleDatabaseOutput",
   "databaseNames": ["backupDB", "prodDB"]
 }

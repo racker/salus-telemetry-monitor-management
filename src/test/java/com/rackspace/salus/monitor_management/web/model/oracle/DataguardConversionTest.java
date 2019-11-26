@@ -55,7 +55,7 @@ public class DataguardConversionTest {
 
   @Test
   public void convertToOutput_dataguard() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_dataguard.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_dataguard.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
         ConfigSelectorScope.LOCAL
@@ -65,10 +65,8 @@ public class DataguardConversionTest {
 
     final Dataguard dataguardPlugin = assertCommon(result, monitor, Dataguard.class, "convertToOutput");
     assertThat(dataguardPlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
-    assertThat(dataguardPlugin.getDatabaseNames()).isEqualTo(databaseNames);
+
+    assertThat(dataguardPlugin.getDatabaseNames()).containsExactlyInAnyOrder("backupDB", "prodDB");
   }
 
   @Test
@@ -80,9 +78,8 @@ public class DataguardConversionTest {
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Dataguard plugin = new Dataguard();
     plugin.setFilePath("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
+    final List<String> databaseNames = List.of("backupDB", "prodDB");
+
     plugin.setDatabaseNames(databaseNames);
     details.setPlugin(plugin);
 
@@ -98,7 +95,7 @@ public class DataguardConversionTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.ORACLE);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_dataguard.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_dataguard.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 

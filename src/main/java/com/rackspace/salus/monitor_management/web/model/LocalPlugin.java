@@ -46,9 +46,9 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.System;
     @Type(name = "postgresql", value = Postgresql.class),
     @Type(name = "sqlserver", value = SqlServer.class),
     @Type(name = "system", value = System.class),
-    @Type(name = "rman", value = Rman.class),
-    @Type(name = "tablespace", value = Tablespace.class),
-    @Type(name = "dataguard", value = Dataguard.class)
+    @Type(name = "oracle_rman", value = Rman.class),
+    @Type(name = "oracle_tablespace", value = Tablespace.class),
+    @Type(name = "oracle_dataguard", value = Dataguard.class)
 })
 public abstract class LocalPlugin {
 

@@ -54,7 +54,7 @@ public class RmanConversionTest {
 
   @Test
   public void convertToOutput_rman() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_rman.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
         ConfigSelectorScope.LOCAL
@@ -67,10 +67,10 @@ public class RmanConversionTest {
     final List<String> databaseNames = new LinkedList<>();
     databaseNames.add("backupDB");
     databaseNames.add("prodDB");
-    assertThat(rmanPlugin.getDatabaseNames()).isEqualTo(databaseNames);
+    assertThat(rmanPlugin.getDatabaseNames()).containsExactlyInAnyOrder("backupDB", "prodDB");
     final List<String> exclusionCodes = new LinkedList<>();
     exclusionCodes.add("RMAN-1234");
-    assertThat(rmanPlugin.getExclusionCodes()).isEqualTo(exclusionCodes);
+    assertThat(rmanPlugin.getExclusionCodes()).containsExactlyInAnyOrder("RMAN-1234");
   }
 
 
@@ -82,13 +82,12 @@ public class RmanConversionTest {
 
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Rman plugin = new Rman();
-    final List<String> exclusionCodes = new LinkedList<>();
-    exclusionCodes.add("RMAN-1234");
+    final List<String> exclusionCodes = List.of("RMAN-1234");
+
     plugin.setExclusionCodes(exclusionCodes);
     plugin.setFilePath("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
+    final List<String> databaseNames = List.of("backupDB", "prodDB");
+
     plugin.setDatabaseNames(databaseNames);
     details.setPlugin(plugin);
 
@@ -104,7 +103,7 @@ public class RmanConversionTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.ORACLE);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_rman.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 }

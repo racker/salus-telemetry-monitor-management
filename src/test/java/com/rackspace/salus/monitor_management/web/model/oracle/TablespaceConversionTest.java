@@ -54,7 +54,7 @@ public class TablespaceConversionTest {
 
   @Test
   public void convertToOutput_tablespace() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_tablespace.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_tablespace.json");
 
     Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
         ConfigSelectorScope.LOCAL
@@ -64,10 +64,8 @@ public class TablespaceConversionTest {
 
     final Tablespace tablespacePlugin = assertCommon(result, monitor, Tablespace.class, "convertToOutput");
     assertThat(tablespacePlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
-    assertThat(tablespacePlugin.getDatabaseNames()).isEqualTo(databaseNames);
+
+    assertThat(tablespacePlugin.getDatabaseNames()).containsExactlyInAnyOrder("backupDB", "prodDB");
   }
 
   @Test
@@ -79,9 +77,8 @@ public class TablespaceConversionTest {
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final Tablespace plugin = new Tablespace();
     plugin.setFilePath("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
+    final List<String> databaseNames = List.of("backupDB", "prodDB");
+
     plugin.setDatabaseNames(databaseNames);
     details.setPlugin(plugin);
 
@@ -97,7 +94,7 @@ public class TablespaceConversionTest {
     assertThat(result.getAgentType()).isEqualTo(AgentType.ORACLE);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_tablespace.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_tablespace.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 

@@ -1,5 +1,6 @@
 {
-  "type": "tablespace",
+  "type": "oracle_rman",
+  "exclusionCodes": ["RMAN-1234"],
   "filePath": "./oracleDatabaseOutput",
   "databaseNames": ["backupDB", "prodDB"]
 }
