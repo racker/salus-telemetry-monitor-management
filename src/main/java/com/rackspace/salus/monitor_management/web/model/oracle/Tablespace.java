@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.ORACLE)
-@ApplicableMonitorType(MonitorType.tablespace)
+@ApplicableMonitorType(MonitorType.oracle_tablespace)
 public class Tablespace extends LocalPlugin {
   List<String> databaseNames;
   String filePath;

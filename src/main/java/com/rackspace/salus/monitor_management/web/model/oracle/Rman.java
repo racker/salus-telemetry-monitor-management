@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.ORACLE)
-@ApplicableMonitorType(MonitorType.rman)
+@ApplicableMonitorType(MonitorType.oracle_rman)
 public class Rman extends LocalPlugin {
   List<String> exclusionCodes;
   List<String> databaseNames;

@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.ORACLE)
-@ApplicableMonitorType(MonitorType.dataguard)
+@ApplicableMonitorType(MonitorType.oracle_dataguard)
 public class Dataguard extends LocalPlugin {
   List<String> databaseNames;
   String filePath;
