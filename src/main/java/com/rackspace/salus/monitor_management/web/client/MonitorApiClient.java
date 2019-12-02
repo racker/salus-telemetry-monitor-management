@@ -20,6 +20,7 @@ import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExcep
 
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
@@ -27,10 +28,14 @@ import java.util.Map;
 import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * This client component provides a small subset of Monitor Management REST operations that
@@ -112,5 +117,27 @@ public class MonitorApiClient implements MonitorApi {
           }
         }
     );
+  }
+
+  @Override
+  public DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers) {
+    String uriString = UriComponentsBuilder
+        .fromUriString("/api/tenant/{tenantId}/monitors")
+        .buildAndExpand(tenantId)
+        .toUriString();
+
+    HttpHeaders reqHeaders = new HttpHeaders();
+    reqHeaders.setContentType(MediaType.APPLICATION_JSON);
+    if (headers != null) {
+      reqHeaders.addAll(headers);
+    }
+
+    return mapRestClientExceptions(
+        SERVICE_NAME,
+        () -> restTemplate.postForEntity(
+            uriString,
+            new HttpEntity<>(input, reqHeaders),
+            DetailedMonitorOutput.class
+        ).getBody());
   }
 }
