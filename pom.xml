@@ -109,6 +109,10 @@
       <version>1.6</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-artifact</artifactId>
+    </dependency>
+    <dependency>
         <groupId>com.rackspace.salus</groupId>
         <artifactId>salus-telemetry-etcd-adapter</artifactId>
         <version>0.1.0-SNAPSHOT</version>

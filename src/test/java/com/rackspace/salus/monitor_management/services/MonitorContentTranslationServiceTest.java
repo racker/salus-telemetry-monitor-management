@@ -95,7 +95,7 @@ public class MonitorContentTranslationServiceTest {
   @Test
   public void testTranslate_versionRange_match() throws JsonProcessingException {
     final List<MonitorTranslationOperator> operators =
-        buildOperatorList(AgentType.TELEGRAF, ">=1.11.2 & <1.12.0", "old_field");
+        buildOperatorList(AgentType.TELEGRAF, "[1.11.2,1.12.0)", "old_field");
 
     when(repository.findAllByAgentType(any()))
         .thenReturn(operators);
@@ -119,7 +119,7 @@ public class MonitorContentTranslationServiceTest {
   @Test
   public void testTranslate_versionRange_notMatch() throws JsonProcessingException {
     final List<MonitorTranslationOperator> operators =
-        buildOperatorList(AgentType.TELEGRAF, ">=1.11.2 & <1.12.0", "old_field");
+        buildOperatorList(AgentType.TELEGRAF, "[1.11.2,1.12.0)", "old_field");
 
     when(repository.findAllByAgentType(any()))
         .thenReturn(operators);
@@ -135,6 +135,31 @@ public class MonitorContentTranslationServiceTest {
 
     assertThat(dtos).hasSize(1);
     final String renderedContent = dtos.get(0).getRenderedContent();
+    assertNoRenameTranslation(renderedContent);
+
+    verify(repository).findAllByAgentType(AgentType.TELEGRAF);
+  }
+
+  @Test
+  public void testTranslate_versionRange_notValid() throws JsonProcessingException {
+    final List<MonitorTranslationOperator> operators =
+        buildOperatorList(AgentType.TELEGRAF, "[1.0.0", "old_field");
+
+    when(repository.findAllByAgentType(any()))
+        .thenReturn(operators);
+
+    final List<BoundMonitor> boundMonitors = buildBoundMonitors();
+
+    // EXECUTE
+
+    final List<BoundMonitorDTO> dtos =
+        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "2.0.0"));
+
+    // VERIFY
+
+    assertThat(dtos).hasSize(1);
+    final String renderedContent = dtos.get(0).getRenderedContent();
+    // operator didn't match since it was invalid, so no translation should have occurred
     assertNoRenameTranslation(renderedContent);
 
     verify(repository).findAllByAgentType(AgentType.TELEGRAF);
@@ -350,6 +375,31 @@ public class MonitorContentTranslationServiceTest {
     // VERIFY
 
     assertThat(dtos).isEmpty();
+
+    verify(repository).findAllByAgentType(AgentType.TELEGRAF);
+  }
+
+  @Test
+  public void testTranslate_nonSemVer() throws JsonProcessingException {
+    when(repository.findAllByAgentType(any()))
+        .thenReturn(
+            // simulate query with no matches
+            List.of()
+        );
+
+    final List<BoundMonitor> boundMonitors = buildBoundMonitors();
+
+    // EXECUTE
+
+    final List<BoundMonitorDTO> dtos =
+        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "0.1"));
+
+    // VERIFY
+
+    assertThat(dtos).hasSize(1);
+    final String renderedContent = dtos.get(0).getRenderedContent();
+    // content was left as is
+    assertNoRenameTranslation(renderedContent);
 
     verify(repository).findAllByAgentType(AgentType.TELEGRAF);
   }
