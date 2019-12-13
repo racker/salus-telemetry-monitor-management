@@ -88,6 +88,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -130,6 +131,8 @@ public class MonitorManagement {
   private JdbcTemplate jdbcTemplate;
 
   // metrics counters
+  private final Counter boundMonitorSaveAllErrors;
+  private final Counter boundMonitorSaveErrors;
   private final Counter monitorMetadataContentUpdateErrors;
   private final Counter invalidTemplateErrors;
 
@@ -167,6 +170,10 @@ public class MonitorManagement {
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
+    boundMonitorSaveAllErrors = meterRegistry.counter("errors",
+        "operation", "boundMonitorSaveAll");
+    boundMonitorSaveErrors = meterRegistry.counter("errors",
+        "operation", "boundMonitorSave");
     monitorMetadataContentUpdateErrors = meterRegistry.counter("errors",
         "operation", "updateMonitorContentWithPolicy");
     invalidTemplateErrors = meterRegistry.counter("errors",
@@ -276,6 +283,7 @@ public class MonitorManagement {
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
 
     monitor = monitorRepository.save(monitor);
+
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
     sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
@@ -457,7 +465,7 @@ public class MonitorManagement {
 
     if (!boundMonitors.isEmpty()) {
       log.debug("Saving boundMonitors={} from monitor={}", boundMonitors, monitor);
-      boundMonitorRepository.saveAll(boundMonitors);
+      saveBoundMonitors(boundMonitors);
 
     }
     else {
@@ -465,6 +473,37 @@ public class MonitorManagement {
     }
 
     return extractEnvoyIds(boundMonitors);
+  }
+
+  /**
+   * Saves all bound monitors to the database.
+   *
+   * Attempts to optimize by using the repository's saveAll method, but if that fails
+   * it falls back to an individual save for each entry.
+   *
+   * @param boundMonitors The bound monitors to save.
+   */
+  private void saveBoundMonitors(List<BoundMonitor> boundMonitors) {
+    // A race condition can occur where a ResourceEvent causes monitors to be bound
+    // before this logic gets hit.  This will cause the saveAll to fail due to duplicate entries
+    // and the txn to be rolled back.
+    // If that happens try to save each monitor individually to ensure all that don't already
+    // exist will also be created.
+    try {
+      boundMonitorRepository.saveAll(boundMonitors);
+    } catch (DataIntegrityViolationException e) {
+      log.warn("BoundMonitor saveAll failed. Retrying monitor saves individually.", e);
+      boundMonitorSaveAllErrors.increment();
+      for (BoundMonitor bound : boundMonitors) {
+        try {
+          // save does not fail if the entry already exists, it will act like an update instead.
+          boundMonitorRepository.save(bound);
+        } catch (Exception ex) {
+          log.error("Failed to save boundMonitor={}", bound, ex);
+          boundMonitorSaveErrors.increment();
+        }
+      }
+    }
   }
 
   private void sendMonitorBoundEvent(String envoyId) {
@@ -570,7 +609,7 @@ public class MonitorManagement {
     if (!assigned.isEmpty()) {
       log.debug("Assigned existing bound monitors to envoys: {}", assigned);
 
-      boundMonitorRepository.saveAll(assigned);
+      saveBoundMonitors(assigned);
 
       sendMonitorBoundEvents(extractEnvoyIds(assigned));
     }
@@ -593,8 +632,7 @@ public class MonitorManagement {
         boundMonitor.setEnvoyId(toEnvoyId);
       }
 
-      boundMonitorRepository.saveAll(boundToPrev);
-
+      saveBoundMonitors(boundToPrev);
 
       zoneStorage.changeBoundCount(
           createPrivateZone(tenantId, zoneName),
@@ -1008,7 +1046,7 @@ public class MonitorManagement {
 
     if (!modified.isEmpty()) {
       log.debug("Saving bound monitors with re-rendered content: {}", modified);
-      boundMonitorRepository.saveAll(modified);
+      saveBoundMonitors(modified);
     }
 
     return extractEnvoyIds(modified);
@@ -1392,7 +1430,7 @@ public class MonitorManagement {
           boundMonitor.setEnvoyId(envoyId)
       );
 
-      boundMonitorRepository.saveAll(bound);
+      saveBoundMonitors(bound);
 
       // now that the re-binding is saved
       // ...tell any previous envoys about loss of binding
@@ -1507,7 +1545,7 @@ public class MonitorManagement {
     if (!boundMonitors.isEmpty()) {
       log.debug("Saving boundMonitors={} due to binding of monitors={} to resource={}",
           boundMonitors, monitors, resource);
-      boundMonitorRepository.saveAll(boundMonitors);
+      saveBoundMonitors(boundMonitors);
     } else {
       log.debug("None of monitors={} needed to be bound to resource={}",
           monitors, resource);
@@ -1700,7 +1738,7 @@ public class MonitorManagement {
       boundMonitor.setEnvoyId(null);
     }
 
-    boundMonitorRepository.saveAll(boundMonitors);
+    saveBoundMonitors(boundMonitors);
     handleNewEnvoyInZone(zoneTenantId, zoneName);
   }
 
@@ -1801,7 +1839,7 @@ public class MonitorManagement {
 
     // "unassign" the bound monitors
     overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
-    boundMonitorRepository.saveAll(overAssigned);
+    saveBoundMonitors(overAssigned);
 
     // tell previous envoys to stop unassigned monitors
     sendMonitorBoundEvents(overassignedEnvoyIds);
