@@ -52,7 +52,10 @@ public class MonitorContentRenderer {
     try {
       return template.execute(context);
     } catch (MustacheException e) {
-      throw new InvalidTemplateException("Unable to render monitor content template", e);
+      throw new InvalidTemplateException(
+          String.format("Unable to render monitor content template, content=%s, resource=%s",
+              rawContent, resource),
+          e);
     }
   }
 }

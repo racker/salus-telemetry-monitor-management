@@ -1850,24 +1850,43 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testEmptyLabelsException() {
-    final Map<String, String> labels = new HashMap<>();
-
-    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
-    create.setZones(Collections.emptyList());
-    create.setLabelSelector(labels);
-    create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    String tenantId = RandomStringUtils.randomAlphanumeric(10);
-
+  public void testEmptyLabelsLookup() {
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(Page.empty());
 
-    monitorManagement.createMonitor(tenantId, create);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    // create a monitor with no labels or resource id
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setResourceId(null);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelector(Collections.emptyMap());
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    UUID id = monitorManagement.createMonitor(tenantId, create).getId();
+
+    // create a monitor with a resource id
+    create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setResourceId(RandomStringUtils.random(10));
+    create.setZones(Collections.emptyList());
+    create.setLabelSelector(Collections.emptyMap());
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitorManagement.createMonitor(tenantId, create).getId();
+
+    // create a monitor with some labels
+    create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setResourceId(null);
+    create.setZones(Collections.emptyList());
+    create.setLabelSelector(Map.of("key", "value"));
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitorManagement.createMonitor(tenantId, create).getId();
+
     entityManager.flush();
 
-    exceptionRule.expect(IllegalArgumentException.class);
-    exceptionRule.expectMessage("Labels must be provided for search");
-    monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    // lookup monitors that match a resource with no labels set
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(Collections.emptyMap(), tenantId, Pageable.unpaged());
+    assertThat(monitors.getNumberOfElements(), equalTo(1));
+    Monitor foundMonitor = monitors.get().findFirst().get();
+    assertThat(foundMonitor.getId(), equalTo(id));
   }
 
   @Test
