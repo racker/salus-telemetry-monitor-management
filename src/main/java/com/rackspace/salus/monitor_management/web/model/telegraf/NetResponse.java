@@ -37,7 +37,7 @@ public class NetResponse extends RemotePlugin {
   }
 
   @NotNull
-  Protocol protocol;
+  Protocol protocol = Protocol.tcp;
 
   @NotNull
   @ValidHostAndPort
