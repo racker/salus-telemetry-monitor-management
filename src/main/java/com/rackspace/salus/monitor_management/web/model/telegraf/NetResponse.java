@@ -40,6 +40,7 @@ public class NetResponse extends RemotePlugin {
   Protocol protocol = Protocol.tcp;
 
   @NotNull
+  @ValidHostAndPort
   String address;
 
   @ValidGoDuration
