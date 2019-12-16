@@ -19,7 +19,6 @@ package com.rackspace.salus.monitor_management.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.zafarkhaja.semver.Version;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -36,6 +35,10 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
+import org.apache.maven.artifact.versioning.VersionRange;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -191,15 +194,26 @@ public class MonitorContentTranslationService {
    * and narrows those results by those that have a version range that satisfies the given agentVersion
    */
   private List<MonitorTranslationOperator> loadOperators(AgentType agentType, String agentVersion) {
-    final Version agentSemVer = Version.valueOf(agentVersion);
+    final ArtifactVersion agentSemVer = new DefaultArtifactVersion(agentVersion);
 
     return
         monitorTranslationOperatorRepository.findAllByAgentType(agentType).stream()
             .filter(op ->
-                // match any
-                op.getAgentVersions() == null ||
-                    // or match within range
-                    agentSemVer.satisfies(op.getAgentVersions())
+                {
+                  // match any
+                  if (op.getAgentVersions() == null) {
+                    return true;
+                  }
+
+                  // or match within range
+                  try {
+                    return VersionRange.createFromVersionSpec(op.getAgentVersions())
+                            .containsVersion(agentSemVer);
+                  } catch (InvalidVersionSpecificationException e) {
+                    log.warn("op={} contained an invalid version range specification", op, e);
+                    return false;
+                  }
+                }
             )
             .sorted(MonitorContentTranslationService::highestPrecedenceFirst)
             .collect(Collectors.toList());
