@@ -145,4 +145,56 @@ public class ValidHostAndPortValidatorTest {
         equalTo(ValidHostAndPort.class)
     );
   }
+
+  @Test
+  public void testValidation_validMetadata() {
+    final WithRequiredAddress obj = new WithRequiredAddress("${resource.metadata.ping_ip}");
+
+    final Set<ConstraintViolation<WithRequiredAddress>> result = validatorFactoryBean
+        .validate(obj);
+
+    assertThat(result, hasSize(0));
+  }
+
+  @Test
+  public void testValidation_invalidMetadata() {
+    final WithRequiredAddress obj = new WithRequiredAddress("start${resource.metadata.ping_ip}end");
+
+    final Set<ConstraintViolation<WithRequiredAddress>> result = validatorFactoryBean
+        .validate(obj);
+
+    assertThat(result, hasSize(1));
+    assertThat(
+        result.iterator().next().getConstraintDescriptor().getAnnotation().annotationType(),
+        equalTo(ValidHostAndPort.class)
+    );
+  }
+
+  @Test
+  public void testValidation_invalidMetadata_notClosed() {
+    final WithRequiredAddress obj = new WithRequiredAddress("${resource.metadata.ping_ip");
+
+    final Set<ConstraintViolation<WithRequiredAddress>> result = validatorFactoryBean
+        .validate(obj);
+
+    assertThat(result, hasSize(1));
+    assertThat(
+        result.iterator().next().getConstraintDescriptor().getAnnotation().annotationType(),
+        equalTo(ValidHostAndPort.class)
+    );
+  }
+
+  @Test
+  public void testValidation_invalidMetadata_missingDollar() {
+    final WithRequiredAddress obj = new WithRequiredAddress("{resource.metadata.ping_ip}");
+
+    final Set<ConstraintViolation<WithRequiredAddress>> result = validatorFactoryBean
+        .validate(obj);
+
+    assertThat(result, hasSize(1));
+    assertThat(
+        result.iterator().next().getConstraintDescriptor().getAnnotation().annotationType(),
+        equalTo(ValidHostAndPort.class)
+    );
+  }
 }
