@@ -33,7 +33,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
-import com.rackspace.salus.telemetry.translators.RenameFieldTranslator;
+import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -443,7 +443,7 @@ public class MonitorContentTranslationServiceTest {
   }
 
   private MonitorTranslator buildRenameSpec(String from, String to) {
-    return new RenameFieldTranslator().setFrom(from).setTo(to);
+    return new RenameFieldKeyTranslator().setFrom(from).setTo(to);
   }
 
   private String buildRenderedContent(String type, String... fieldAndValue)
