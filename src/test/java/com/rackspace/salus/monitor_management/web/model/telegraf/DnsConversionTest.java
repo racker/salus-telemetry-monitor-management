@@ -19,23 +19,24 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
-import com.rackspace.salus.monitor_management.web.model.Protocol;
-import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.RecordType;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -53,12 +54,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 @RunWith(SpringRunner.class)
 @JsonTest
 @Import({MonitorConversionService.class, MetadataUtils.class})
-public class NetResponseConversionTest {
+public class DnsConversionTest {
   @Configuration
   public static class TestConfig { }
-
-  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
-  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
   @MockBean
   PatchHelper patchHelper;
@@ -80,13 +78,10 @@ public class NetResponseConversionTest {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
 
-    final NetResponse plugin = new NetResponse()
-        .setAddress("localhost:80")
-        .setProtocol(Protocol.tcp)
-        .setTimeout("5s")
-        .setReadTimeout("10s")
-        .setSend("request")
-        .setExpect("response");
+    final Dns plugin = new Dns()
+        .setDomains(List.of("rackspace.com"))
+        .setRecordType(RecordType.NS)
+        .setServers(List.of("192.0.0.1"));
 
     final RemoteMonitorDetails details = new RemoteMonitorDetails()
         .setPlugin(plugin);
@@ -100,7 +95,7 @@ public class NetResponseConversionTest {
     assertThat(result).isNotNull();
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
-    final String content = readContent("/ConversionTests/net_response.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_dns.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 
@@ -109,7 +104,7 @@ public class NetResponseConversionTest {
     Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
 
-    final String content = readContent("/ConversionTests/net_response.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_dns.json");
 
     final UUID monitorId = UUID.randomUUID();
 
@@ -119,8 +114,8 @@ public class NetResponseConversionTest {
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setLabelSelector(labels)
         .setContent(content)
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
@@ -129,17 +124,14 @@ public class NetResponseConversionTest {
     assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
 
     final RemoteMonitorDetails monitorDetails = (RemoteMonitorDetails) result.getDetails();
-    final RemotePlugin remotePlugin = monitorDetails.getPlugin();
-    assertThat(remotePlugin).isInstanceOf(NetResponse.class);
+    final RemotePlugin plugin = monitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(Dns.class);
 
-    final NetResponse expected = new NetResponse()
-        .setAddress("localhost:80")
-        .setProtocol(Protocol.tcp)
-        .setTimeout("5s")
-        .setReadTimeout("10s")
-        .setSend("request")
-        .setExpect("response");
-    assertThat(remotePlugin).isEqualTo(expected);
+    final Dns expected = new Dns()
+        .setDomains(List.of("rackspace.com"))
+        .setRecordType(RecordType.NS)
+        .setServers(List.of("192.0.0.1"));
+    assertThat(plugin).isEqualTo(expected);
   }
 
 }
