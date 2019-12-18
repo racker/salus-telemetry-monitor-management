@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.model.validator;
 
 import com.google.common.net.HostAndPort;
+import java.util.regex.Pattern;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,10 @@ public class ValidHostAndPortValidator implements ConstraintValidator<ValidHostA
    public boolean isValid(String value, ConstraintValidatorContext context) {
       if (value == null) {
          // to allow for optional fields
+         return true;
+      }
+
+      if (isValidMetadata(value)) {
          return true;
       }
 
@@ -53,6 +58,11 @@ public class ValidHostAndPortValidator implements ConstraintValidator<ValidHostA
          return false;
       }
       return true;
+   }
+
+   private boolean isValidMetadata(String value) {
+      Pattern metadataRegex = Pattern.compile("^\\$\\{(.+?)}$");
+      return metadataRegex.matcher(value).matches();
    }
 
 }

@@ -35,7 +35,6 @@ import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.io.InvalidClassException;
@@ -68,7 +67,6 @@ public class MonitorConversionService {
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
   @Autowired
   public MonitorConversionService(ObjectMapper objectMapper, MonitorConversionProperties properties,
-      PolicyApi policyApi,
       MonitorRepository monitorRepository,
       MetadataUtils metadataUtils,
       PatchHelper patchHelper) {
