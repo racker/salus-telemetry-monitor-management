@@ -36,7 +36,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.translators.RenameFieldTranslator;
+import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
 import java.util.List;
 import java.util.UUID;
 import org.junit.Test;
@@ -179,7 +179,7 @@ public class MonitorTranslationApiControllerTest {
         .setMonitorType(MonitorType.cpu)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setTranslatorSpec(
-            new RenameFieldTranslator()
+            new RenameFieldKeyTranslator()
             .setFrom(FROM_FIELD)
             .setTo(TO_FIELD)
         )
@@ -221,7 +221,7 @@ public class MonitorTranslationApiControllerTest {
         .setMonitorType(monitorType)
         .setSelectorScope(selectorScope)
         .setId(id)
-        .setTranslatorSpec(new RenameFieldTranslator()
+        .setTranslatorSpec(new RenameFieldKeyTranslator()
             .setFrom(FROM_FIELD)
             .setTo(TO_FIELD)
         );

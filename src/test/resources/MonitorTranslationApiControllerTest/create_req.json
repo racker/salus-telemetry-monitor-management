@@ -5,7 +5,7 @@
   "monitorType": "cpu",
   "selectorScope": "LOCAL",
   "translatorSpec": {
-    "type": "renameField",
+    "type": "renameFieldKey",
     "from": "from-field",
     "to": "to-field"
   }
