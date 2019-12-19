@@ -31,6 +31,8 @@ public class MonitorTranslationOperatorDTO {
 
   String name;
 
+  String description;
+
   AgentType agentType;
 
   String agentVersions;
@@ -44,6 +46,7 @@ public class MonitorTranslationOperatorDTO {
   public MonitorTranslationOperatorDTO(MonitorTranslationOperator entity) {
     this.id = entity.getId();
     this.name = entity.getName();
+    this.description = entity.getDescription();
     this.agentType = entity.getAgentType();
     this.agentVersions = entity.getAgentVersions();
     this.monitorType = entity.getMonitorType();

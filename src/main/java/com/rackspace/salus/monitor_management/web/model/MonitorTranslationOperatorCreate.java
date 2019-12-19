@@ -34,6 +34,12 @@ public class MonitorTranslationOperatorCreate {
   String name;
 
   /**
+   * Optional field used to add a more detailed description to the operation.
+   * Can be used to document why the translation is required.
+   */
+  String description;
+
+  /**
    * Optional field that conveys applicable version ranges
    * <a href="https://github.com/zafarkhaja/jsemver#external-dsl"></a>in the form of jsemver's external DSL</a>
    */
