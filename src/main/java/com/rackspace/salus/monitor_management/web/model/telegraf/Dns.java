@@ -19,34 +19,35 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
+import com.rackspace.salus.monitor_management.web.model.RecordType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidHostAndPort;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.util.List;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.net_response)
-public class NetResponse extends RemotePlugin {
+@ApplicableMonitorType(MonitorType.dns)
+public class Dns extends RemotePlugin {
+
+  List<String> servers;
+
+  List<String> domains;
 
   @NotNull
-  Protocol protocol = Protocol.tcp;
+  Protocol network = Protocol.udp;
 
   @NotNull
-  @ValidHostAndPort
-  String address;
+  RecordType recordType = RecordType.A;
+
+  @NotNull
+  int port = 53;
 
   @ValidGoDuration
   String timeout;
-
-  @ValidGoDuration
-  String readTimeout;
-
-  String send;
-
-  String expect;
 }

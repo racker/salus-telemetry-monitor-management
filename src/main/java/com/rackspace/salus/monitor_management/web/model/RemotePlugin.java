@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Dns;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.MysqlRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
@@ -36,7 +37,8 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
     @Type(name = "net_response", value = NetResponse.class),
     @Type(name = "mysql", value = MysqlRemote.class),
     @Type(name = "postgresql", value = PostgresqlRemote.class),
-    @Type(name = "sqlserver", value = SqlServerRemote.class)
+    @Type(name = "sqlserver", value = SqlServerRemote.class),
+    @Type(name = "dns", value = Dns.class)
 })
 public abstract class RemotePlugin {
 

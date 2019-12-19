@@ -33,7 +33,7 @@ import javax.validation.Payload;
 @Documented
 @Constraint(validatedBy = ValidHostAndPortValidator.class)
 public @interface ValidHostAndPort {
-  String message() default "Must be a host:port";
+  String message() default "Must be a host:port or template variable";
   Class<?>[] groups() default {};
   Class<? extends Payload>[] payload() default {};
 }
