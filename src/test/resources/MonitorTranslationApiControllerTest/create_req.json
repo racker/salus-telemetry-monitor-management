@@ -1,5 +1,6 @@
 {
   "name": "rename-cpu",
+  "description": "test cpu description",
   "agentType": "TELEGRAF",
   "agentVersions": ">= 1.12.0",
   "monitorType": "cpu",

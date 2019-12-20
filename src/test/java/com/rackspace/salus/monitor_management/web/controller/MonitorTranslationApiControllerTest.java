@@ -69,12 +69,14 @@ public class MonitorTranslationApiControllerTest {
     List<MonitorTranslationOperator> content = List.of(
         buildOperator(
             ">= 1.12.0", MonitorType.cpu, ConfigSelectorScope.LOCAL,
-            UUID.fromString("00000001-ffcf-40d2-8684-95cb0362ae6d")
+            UUID.fromString("00000001-ffcf-40d2-8684-95cb0362ae6d"),
+            null
         ),
         buildOperator(
             "< 1.12.0", MonitorType.http_response,
             ConfigSelectorScope.REMOTE,
-            UUID.fromString("00000002-ffcf-40d2-8684-95cb0362ae6d")
+            UUID.fromString("00000002-ffcf-40d2-8684-95cb0362ae6d"),
+            null
         )
     );
     Page<MonitorTranslationOperator> page = new PageImpl<>(content, PageRequest.of(1, 2), 10);
@@ -107,7 +109,7 @@ public class MonitorTranslationApiControllerTest {
 
     MonitorTranslationOperator operator =
         buildOperator(
-            ">= 1.12.0", MonitorType.cpu, ConfigSelectorScope.LOCAL, id
+            ">= 1.12.0", MonitorType.cpu, ConfigSelectorScope.LOCAL, id, null
         );
 
     when(monitorContentTranslationService.getById(any()))
@@ -150,7 +152,8 @@ public class MonitorTranslationApiControllerTest {
 
     MonitorTranslationOperator operator =
         buildOperator(
-            ">= 1.12.0", MonitorType.cpu, ConfigSelectorScope.LOCAL, id
+            ">= 1.12.0", MonitorType.cpu, ConfigSelectorScope.LOCAL, id,
+            "test cpu description"
         );
 
     when(monitorContentTranslationService.create(any()))
@@ -174,6 +177,7 @@ public class MonitorTranslationApiControllerTest {
     verify(monitorContentTranslationService).create(
         new MonitorTranslationOperatorCreate()
         .setName("rename-cpu")
+        .setDescription("test cpu description")
         .setAgentType(AgentType.TELEGRAF)
         .setAgentVersions(">= 1.12.0")
         .setMonitorType(MonitorType.cpu)
@@ -213,9 +217,11 @@ public class MonitorTranslationApiControllerTest {
 
   private MonitorTranslationOperator buildOperator(String agentVersions,
                                                    MonitorType monitorType,
-                                                   ConfigSelectorScope selectorScope, UUID id) {
+                                                   ConfigSelectorScope selectorScope, UUID id,
+                                                   String description) {
     return new MonitorTranslationOperator()
         .setName("rename-"+monitorType.toString())
+        .setDescription(description)
         .setAgentType(AgentType.TELEGRAF)
         .setAgentVersions(agentVersions)
         .setMonitorType(monitorType)
