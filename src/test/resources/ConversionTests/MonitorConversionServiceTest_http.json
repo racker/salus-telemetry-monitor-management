@@ -1,5 +1,5 @@
 {
-  "type": "http_response",
+  "type": "http",
   "address": "http://localhost",
   "httpProxy": "http://localhost:8888",
   "responseTimeout": "5s",

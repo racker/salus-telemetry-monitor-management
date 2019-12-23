@@ -81,7 +81,7 @@ public class DetailedMonitorOutputTest {
         .setDetails(new RemoteMonitorDetails()
             .setMonitoringZones(List.of("z-1"))
             .setPlugin(new Ping()
-                .setUrls(List.of("localhost:22"))
+                .setTarget("localhost:22")
                 .setCount(5)
                 .setDeadline(10)
                 .setPingInterval(15)

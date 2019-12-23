@@ -23,8 +23,6 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuratio
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
 import lombok.Data;
@@ -55,9 +53,6 @@ public class MysqlRemote extends RemotePlugin {
   boolean gatherPerfEventsStatements;
   @ValidGoDuration
   String intervalSlow;
-  @Min(2)
-  @Max(2)
-  Integer metricVersion = 2;
   String tlsCa;
   String tlsCert;
   String tlsKey;

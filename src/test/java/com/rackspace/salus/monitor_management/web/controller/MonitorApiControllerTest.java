@@ -361,7 +361,7 @@ public class MonitorApiControllerTest {
     create.setDetails(new RemoteMonitorDetails()
         .setMonitoringZones(monitor.getZones())
         .setPlugin(new Ping()
-            .setUrls(Collections.singletonList("my.test.url.com"))))
+            .setTarget("my.test.url.com")))
         .setResourceId("");
 
     mockMvc.perform(post(url)
@@ -382,7 +382,7 @@ public class MonitorApiControllerTest {
         .setMonitoringZones(Collections.singletonList("myzone"))
         .setPlugin(new Ping()
             // If no urls are set validation should fail
-            .setUrls(Collections.emptyList())))
+            .setTarget(null)))
         .setResourceId("");
 
     mockMvc.perform(post(url)
@@ -390,7 +390,7 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(validationError("details.plugin.urls", "must not be empty"));
+        .andExpect(validationError("details.plugin.target", "must not be empty"));
   }
 
   @Test

@@ -1,6 +1,6 @@
 {
   "type": "diskio",
-  "devices": ["sda"],
+  "device": "sda",
   "skipSerialNumber": true,
   "deviceTags": ["ID_FS_TYPE"],
   "nameTemplates": ["$ID_FS_LABEL"]

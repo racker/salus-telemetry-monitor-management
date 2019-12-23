@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
@@ -24,8 +23,6 @@ import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
 import lombok.Data;
@@ -39,12 +36,9 @@ public class SqlServer extends LocalPlugin {
   public static final String ERR_MESSAGE = "invalid sqlserver db connection string";
   @NotEmpty
   List<@ValidLocalHost @Pattern(regexp = SqlServer.REGEXP, message = SqlServer.ERR_MESSAGE)String> servers;
-  @JsonProperty("query_version")
-  @Min(2)
-  @Max(2)
-  Integer queryVersion = 2;
   boolean azuredb;
-  // Jackson seems to exclude serialiation of fields whose names start with 'exclude' unless:
-  @JsonProperty("exclude_query")
-  List<String> excludeQuery;
+  // Jackson excludes serialization of camelCase fields whose names start with 'exclude'
+  // we are able to bypass this by renaming the field here and using a MonitorTranslator
+  // to rename the field again when passing it down to telegraf.
+  List<String> queryExclusions;
 }

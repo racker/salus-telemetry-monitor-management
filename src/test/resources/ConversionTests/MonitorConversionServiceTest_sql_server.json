@@ -1,7 +1,6 @@
 {
   "type": "sqlserver",
   "servers": ["1", "2"],
-  "query_version": 2,
   "azuredb": true,
-  "exclude_query": ["3", "4"]
+  "queryExclusions": ["3", "4"]
 }

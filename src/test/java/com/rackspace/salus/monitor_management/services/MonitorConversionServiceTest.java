@@ -144,7 +144,7 @@ public class MonitorConversionServiceTest {
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final Ping plugin = new Ping();
-    plugin.setUrls(Collections.singletonList("localhost"));
+    plugin.setTarget("localhost");
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
@@ -196,7 +196,7 @@ public class MonitorConversionServiceTest {
     // Create the plugin that will be converted to the monitor's contents
     // timeout is set to null to show we can set values that were not set before
     final Ping plugin = new Ping()
-        .setUrls(Collections.singletonList("localhost"))
+        .setTarget("localhost")
         .setCount(1)
         .setPingInterval(2)
         .setTimeout(null);
@@ -301,7 +301,7 @@ public class MonitorConversionServiceTest {
 
     // Create the plugin that will be converted to the monitor's contents
     final Ping plugin = new Ping()
-        .setUrls(Collections.singletonList("localhost"))
+        .setTarget("localhost")
         .setCount(1)
         .setPingInterval(2)
         .setTimeout(3);
@@ -352,7 +352,7 @@ public class MonitorConversionServiceTest {
 
     // Create the plugin that will be converted to the monitor's contents
     final Ping plugin = new Ping()
-        .setUrls(Collections.singletonList("localhost"))
+        .setTarget("localhost")
         .setCount(1)
         .setPingInterval(2)
         .setTimeout(3);
@@ -390,12 +390,12 @@ public class MonitorConversionServiceTest {
             .add("value", JsonValue.NULL))
         .add(Json.createObjectBuilder()
             .add("op", "replace")
-            .add("path", "/details/plugin/urls")
+            .add("path", "/details/plugin/target")
             .add("value", JsonValue.NULL))
         .build());
 
     exceptionRule.expect(IllegalArgumentException.class);
-    exceptionRule.expectMessage("details.plugin.urls: must not be empty");
+    exceptionRule.expectMessage("details.plugin.target: must not be empty");
     conversionService.convertFromPatchInput(tenantId, monitorId, monitor, patch);
   }
 

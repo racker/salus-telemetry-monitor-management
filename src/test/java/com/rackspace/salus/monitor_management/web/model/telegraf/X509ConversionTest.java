@@ -115,7 +115,7 @@ public class X509ConversionTest {
     assertThat(plugin).isInstanceOf(X509Cert.class);
 
     final X509Cert x509Plugin = (X509Cert) plugin;
-    assertThat(x509Plugin.getSources()).contains("/etc/ssl/certs/ssl-cert-snakeoil.pem");
+    assertThat(x509Plugin.getTarget()).isEqualTo("/etc/ssl/certs/ssl-cert-snakeoil.pem");
     assertThat(x509Plugin.getTimeout()).isEqualTo("5s");
     assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
     assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
@@ -139,13 +139,11 @@ public class X509ConversionTest {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput_x509");
-    final List<String> sources = new LinkedList<>();
-    sources.add("/etc/ssl/certs/ssl-cert-snakeoil.pem");
 
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final X509Cert plugin = new X509Cert();
-    plugin.setSources(sources);
+    plugin.setTarget("/etc/ssl/certs/ssl-cert-snakeoil.pem");
     plugin.setTimeout("5s");
     plugin.setTlsCa("/etc/telegraf/ca.pem");
     plugin.setTlsCert("/etc/telegraf/cert.pem");

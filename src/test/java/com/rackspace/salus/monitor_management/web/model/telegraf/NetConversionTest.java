@@ -81,7 +81,7 @@ public class NetConversionTest {
     labels.put("os", "linux");
 
     final Net plugin = new Net()
-        .setInterfaces(Arrays.asList("eth*", "enp0s[0-1]"))
+        .setMonitoredInterface("eth*")
         .setIgnoreProtocolStats(true);
 
     final LocalMonitorDetails details = new LocalMonitorDetails()
@@ -129,7 +129,7 @@ public class NetConversionTest {
     assertThat(plugin).isInstanceOf(Net.class);
 
     final Net expected = new Net()
-        .setInterfaces(Arrays.asList("eth*", "enp0s[0-1]"))
+        .setMonitoredInterface("eth*")
         .setIgnoreProtocolStats(true);
     assertThat(plugin).isEqualTo(expected);
   }

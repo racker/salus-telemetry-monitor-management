@@ -103,7 +103,6 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherFileEventsStats()).isTrue();
     assertThat(mysqlPlugin.isGatherPerfEventsStatements()).isFalse();
     assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo("3s");
-    assertThat(mysqlPlugin.getMetricVersion()).isEqualTo(2);
     assertThat(mysqlPlugin.getTlsCa()).isEqualTo("tlsCa");
     assertThat(mysqlPlugin.getTlsCert()).isEqualTo("tlsCert");
     assertThat(mysqlPlugin.getTlsKey()).isEqualTo("tlsKey");
@@ -139,7 +138,6 @@ public class MysqlRemoteConversionTest {
     assertThat(mysqlPlugin.isGatherFileEventsStats()).isFalse();
     assertThat(mysqlPlugin.isGatherPerfEventsStatements()).isFalse();
     assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo(null);
-    assertThat(mysqlPlugin.getMetricVersion()).isEqualTo(2);
     assertThat(mysqlPlugin.getTlsCa()).isEqualTo(null);
     assertThat(mysqlPlugin.getTlsCert()).isEqualTo(null);
     assertThat(mysqlPlugin.getTlsKey()).isEqualTo(null);
@@ -174,7 +172,6 @@ public class MysqlRemoteConversionTest {
     plugin.setGatherFileEventsStats(true);
     plugin.setGatherPerfEventsStatements(false);
     plugin.setIntervalSlow("3s");
-    plugin.setMetricVersion(2);
     plugin.setTlsCa("tlsCa");
     plugin.setTlsCert("tlsCert");
     plugin.setTlsKey("tlsKey");

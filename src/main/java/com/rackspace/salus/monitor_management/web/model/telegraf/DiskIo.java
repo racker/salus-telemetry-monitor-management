@@ -29,7 +29,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.diskio)
 public class DiskIo extends LocalPlugin {
-  List<String> devices;
+  String device;
   Boolean skipSerialNumber;
   List<String> deviceTags;
   List<String> nameTemplates;

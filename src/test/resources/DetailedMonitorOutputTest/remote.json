@@ -13,12 +13,11 @@
     "monitoringZones": ["z-1"],
     "plugin": {
       "type": "ping",
-      "urls": ["localhost:22"],
+      "target": "localhost:22",
       "count": 5,
       "deadline": 10,
       "pingInterval": 15,
-      "timeout": 20,
-      "interfaceOrAddress": null
+      "timeout": 20
     }
   },
   "createdTimestamp": "1970-01-01T00:00:00Z",

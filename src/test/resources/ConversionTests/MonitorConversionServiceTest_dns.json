@@ -1,7 +1,7 @@
 {
   "type": "dns",
-  "domains": ["rackspace.com"],
-  "servers": ["192.0.0.1"],
+  "domain": "rackspace.com",
+  "dnsServer": "192.0.0.1",
   "network": "udp",
   "port": 53,
   "recordType": "NS",

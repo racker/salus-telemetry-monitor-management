@@ -86,9 +86,8 @@ public class SqlServerConversionTest {
     List<String> l = List.of("1","2");
     List<String> l2 = List.of("3","4");
     assertThat(sqlServerPlugin.getServers()).isEqualTo(l);
-    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo(2);
     assertThat(sqlServerPlugin.isAzuredb()).isTrue();
-    assertThat(sqlServerPlugin.getExcludeQuery()).isEqualTo(l2);
+    assertThat(sqlServerPlugin.getQueryExclusions()).isEqualTo(l2);
   }
 
   @Test
@@ -103,9 +102,8 @@ public class SqlServerConversionTest {
 
     final SqlServer sqlServerPlugin = assertCommon(result, monitor, SqlServer.class, "convertToOutput_defaults");
     assertThat(sqlServerPlugin.getServers()).isEqualTo(null);
-    assertThat(sqlServerPlugin.getQueryVersion()).isEqualTo(2);
     assertThat(sqlServerPlugin.isAzuredb()).isFalse();
-    assertThat(sqlServerPlugin.getExcludeQuery()).isEqualTo(null);
+    assertThat(sqlServerPlugin.getQueryExclusions()).isEqualTo(null);
 
   }
 
@@ -120,9 +118,8 @@ public class SqlServerConversionTest {
     final LocalMonitorDetails details = new LocalMonitorDetails();
     final SqlServer plugin = new SqlServer();
     plugin.setServers(l);
-    plugin.setQueryVersion(2);
     plugin.setAzuredb(true);
-    plugin.setExcludeQuery(l2);
+    plugin.setQueryExclusions(l2);
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()

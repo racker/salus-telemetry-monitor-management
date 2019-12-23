@@ -97,7 +97,7 @@ public class DiskIoConversionTest {
     assertThat(plugin).isInstanceOf(DiskIo.class);
 
     final DiskIo specificPlugin = (DiskIo) plugin;
-    assertThat(specificPlugin.getDevices()).contains("sda");
+    assertThat(specificPlugin.getDevice()).isEqualTo("sda");
     assertThat(specificPlugin.getSkipSerialNumber()).isTrue();
     assertThat(specificPlugin.getDeviceTags()).contains("ID_FS_TYPE");
     assertThat(specificPlugin.getNameTemplates()).contains("$ID_FS_LABEL");
@@ -112,7 +112,7 @@ public class DiskIoConversionTest {
         "/ConversionTests/MonitorConversionServiceTest_diskio.json");
 
     final DiskIo plugin = new DiskIo();
-    plugin.setDevices(Collections.singletonList("sda"));
+    plugin.setDevice("sda");
     plugin.setSkipSerialNumber(true);
     plugin.setDeviceTags(Collections.singletonList("ID_FS_TYPE"));
     plugin.setNameTemplates(Collections.singletonList("$ID_FS_LABEL"));

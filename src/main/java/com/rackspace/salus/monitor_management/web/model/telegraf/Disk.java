@@ -31,7 +31,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.disk)
 public class Disk extends LocalPlugin {
-  List<String> mountPoints;
+  String mount;
   @JsonProperty(defaultValue = "[\"tmpfs\", \"devtmpfs\", \"devfs\", \"iso9660\", \"overlay\", \"aufs\", \"squashfs\"]")
   List<String> ignoreFs = Arrays.asList("tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs");
 }

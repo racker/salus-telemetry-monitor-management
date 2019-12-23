@@ -1,5 +1,5 @@
 {
   "type": "disk",
-  "mountPoints": ["/var/lib"],
+  "mount": "/var/lib",
   "ignoreFs": ["/dev"]
 }

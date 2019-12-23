@@ -1,9 +1,8 @@
 {
   "type": "ping",
-  "urls": ["localhost"],
+  "target": "localhost",
   "count": 5,
   "deadline": null,
-  "interfaceOrAddress": null,
   "pingInterval": 2,
   "timeout": null
 }
