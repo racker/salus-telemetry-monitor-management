@@ -16,20 +16,17 @@
 
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.translators.MonitorTranslator;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 
-/**
- * Indicates that an issue was encountered with either a {@link MonitorTranslator} or the
- * {@link BoundMonitor}'s rendered content that prevented translation.
- */
-class MonitorContentTranslationException extends Exception {
+@TestConfiguration
+public class MeterRegistryTestConfig {
 
-  MonitorContentTranslationException(String message) {
-    super(message);
+  @Bean
+  public MeterRegistry meterRegistry() {
+    return new SimpleMeterRegistry();
   }
 
-  MonitorContentTranslationException(String message, Throwable cause) {
-    super(message, cause);
-  }
 }
