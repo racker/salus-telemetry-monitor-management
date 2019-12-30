@@ -1,6 +1,7 @@
 {
   "type": "net_response",
-  "address": "localhost:80",
+  "host": "localhost",
+  "port": 80,
   "protocol": "tcp",
   "timeout": "5s",
   "readTimeout": "10s",

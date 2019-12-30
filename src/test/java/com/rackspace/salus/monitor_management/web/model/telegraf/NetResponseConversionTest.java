@@ -81,7 +81,8 @@ public class NetResponseConversionTest {
     labels.put("os", "linux");
 
     final NetResponse plugin = new NetResponse()
-        .setAddress("localhost:80")
+        .setHost("localhost")
+        .setPort(80)
         .setProtocol(Protocol.tcp)
         .setTimeout("5s")
         .setReadTimeout("10s")
@@ -133,7 +134,8 @@ public class NetResponseConversionTest {
     assertThat(remotePlugin).isInstanceOf(NetResponse.class);
 
     final NetResponse expected = new NetResponse()
-        .setAddress("localhost:80")
+        .setHost("localhost")
+        .setPort(80)
         .setProtocol(Protocol.tcp)
         .setTimeout("5s")
         .setReadTimeout("10s")
