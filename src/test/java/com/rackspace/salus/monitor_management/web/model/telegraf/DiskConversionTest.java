@@ -82,7 +82,6 @@ public class DiskConversionTest {
         assertCommon(result, monitor, Disk.class, "convertToOutput");
 
     assertThat(specificPlugin.getMount()).isEqualTo("/var/lib");
-    assertThat(specificPlugin.getIgnoreFs()).contains("/dev");
   }
 
   @Test
@@ -98,8 +97,6 @@ public class DiskConversionTest {
         assertCommon(result, monitor, Disk.class, "convertToOutput_defaults");
 
     assertThat(specificPlugin.getMount()).isNull();
-    assertThat(specificPlugin.getIgnoreFs()).containsExactly(
-        "tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs");
   }
 
   @Test
@@ -110,7 +107,6 @@ public class DiskConversionTest {
 
     final Disk plugin = new Disk();
     plugin.setMount("/var/lib");
-    plugin.setIgnoreFs(Collections.singletonList("/dev"));
 
     final LocalMonitorDetails details = new LocalMonitorDetails();
     details.setPlugin(plugin);
