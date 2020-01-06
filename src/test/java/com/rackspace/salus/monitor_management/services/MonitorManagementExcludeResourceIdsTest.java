@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,9 +36,11 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -46,6 +49,7 @@ import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -64,10 +68,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Contains unit tests that use an embedded JPA database rather than mocking the repository
- * interactions in {@link MonitorManagementTest}.
- */
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = {
     DatabaseConfig.class,
@@ -78,7 +78,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureTestDatabase
 @AutoConfigureTestEntityManager
 @Transactional
-public class MonitorManagementWithDbTest {
+public class MonitorManagementExcludeResourceIdsTest {
 
   @Autowired
   MonitorManagement monitorManagement;
@@ -120,7 +120,7 @@ public class MonitorManagementWithDbTest {
   ResourceApi resourceApi;
 
   @Test
-  public void testCreate_excludedResourceIds_noResources() {
+  public void testCreate_noResources() {
     final Monitor monitor = monitorManagement.createMonitor(
         "t-1",
         new MonitorCU()
@@ -138,7 +138,7 @@ public class MonitorManagementWithDbTest {
   }
 
   @Test
-  public void testCreate_excludedResourceIds_withResources() {
+  public void testCreate_withResources() {
     when(resourceApi.getResourcesWithLabels(any(), any(), any()))
         .thenReturn(List.of(
             new ResourceDTO()
@@ -190,7 +190,7 @@ public class MonitorManagementWithDbTest {
   }
 
   @Test
-  public void testUpdate_excludedResourceIds_noResources() {
+  public void testUpdate_noResources() {
     // JPA needs a mutable collection
     final Set<String> originalExcludes = new HashSet<>(Set.of("r-3", "r-5"));
     final UUID existingId = entityManager.persistAndGetId(
@@ -224,7 +224,7 @@ public class MonitorManagementWithDbTest {
   }
 
   @Test
-  public void testUpdate_excludedResourceIds_withResources() throws InvalidTemplateException {
+  public void testUpdate_withResources() throws InvalidTemplateException {
     /*
     Test cases with the four resources
     r-exclude-include : excluded at first, but not after update
@@ -320,9 +320,11 @@ public class MonitorManagementWithDbTest {
   }
 
   @Test
-  public void testUpdate_excludedResourceIds_labelChangeSelectsExcluded() throws InvalidTemplateException {
+  public void testUpdate_labelChangeSelectsExcluded()
+      throws InvalidTemplateException {
 
-    when(resourceApi.getResourcesWithLabels("t-1", Map.of("stage","before"), LabelSelectorMethod.AND))
+    when(resourceApi
+        .getResourcesWithLabels("t-1", Map.of("stage", "before"), LabelSelectorMethod.AND))
         .thenReturn(List.of(
             new ResourceDTO()
                 // a "control" resource that'll be bound in both cases
@@ -330,7 +332,8 @@ public class MonitorManagementWithDbTest {
                 .setTenantId("t-1")
                 .setAssociatedWithEnvoy(true)
         ));
-    when(resourceApi.getResourcesWithLabels("t-1", Map.of("stage","after"), LabelSelectorMethod.AND))
+    when(resourceApi
+        .getResourcesWithLabels("t-1", Map.of("stage", "after"), LabelSelectorMethod.AND))
         .thenReturn(List.of(
             new ResourceDTO()
                 .setResourceId("r-include-include")
@@ -358,7 +361,7 @@ public class MonitorManagementWithDbTest {
         new MonitorCU()
             // setup the exclusion that comes into play after labels get changed
             .setExcludedResourceIds(Set.of("r-absent-exclude"))
-            .setLabelSelector(Map.of("stage","before"))
+            .setLabelSelector(Map.of("stage", "before"))
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setMonitorType(MonitorType.cpu)
             .setAgentType(AgentType.TELEGRAF)
@@ -383,7 +386,7 @@ public class MonitorManagementWithDbTest {
         "t-1",
         original.getId(),
         new MonitorCU()
-            .setLabelSelector(Map.of("stage","after"))
+            .setLabelSelector(Map.of("stage", "after"))
             .setMonitorType(MonitorType.cpu)
             .setAgentType(AgentType.TELEGRAF)
     );
@@ -407,15 +410,118 @@ public class MonitorManagementWithDbTest {
     );
 
     verify(resourceApi)
-        .getResourcesWithLabels("t-1", Map.of("stage","before"), LabelSelectorMethod.AND);
+        .getResourcesWithLabels("t-1", Map.of("stage", "before"), LabelSelectorMethod.AND);
     verify(resourceApi)
-        .getResourcesWithLabels("t-1", Map.of("stage","after"), LabelSelectorMethod.AND);
+        .getResourcesWithLabels("t-1", Map.of("stage", "after"), LabelSelectorMethod.AND);
 
     verify(envoyResourceManagement).getOne("t-1", "r-include-include");
     verify(envoyResourceManagement).getOne("t-1", "r-absent-include");
     verify(envoyResourceManagement, never()).getOne("t-1", "r-absent-exclude");
 
     verifyNoMoreInteractions(resourceApi, envoyResourceManagement, monitorEventProducer);
+  }
+
+  @Test
+  public void testResourceEvent() throws InvalidTemplateException {
+    final UUID excludingMonitorId = entityManager.persistAndGetId(
+        new Monitor()
+            // JPA needs a mutable collection
+            .setExcludedResourceIds(new HashSet<>(Set.of("r-new")))
+            .setTenantId("t-1")
+            .setMonitorType(MonitorType.cpu)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setAgentType(AgentType.TELEGRAF)
+            .setInterval(Duration.ofSeconds(60))
+            .setLabelSelector(new HashMap<>(Map.of("testing", "true")))
+            .setContent("{}"),
+        UUID.class
+    );
+    final UUID inclusiveMonitorId = entityManager.persistAndGetId(
+        new Monitor()
+            .setTenantId("t-1")
+            .setMonitorType(MonitorType.cpu)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setAgentType(AgentType.TELEGRAF)
+            .setInterval(Duration.ofSeconds(60))
+            .setLabelSelector(new HashMap<>(Map.of("testing", "true")))
+            .setContent("{}"),
+        UUID.class
+    );
+
+    entityManager.persist(
+        new Resource()
+            .setResourceId("r-new")
+            .setAssociatedWithEnvoy(true)
+            .setTenantId("t-1")
+            // Hibernate needs a mutable map
+            .setLabels(new HashMap<>(Map.of("testing", "true")))
+            .setPresenceMonitoringEnabled(false)
+    );
+
+    setupEnvoyResourceManagement();
+    setupMonitorContentRenderer();
+
+    // EXECUTE
+
+    monitorManagement.handleResourceChangeEvent(
+        new ResourceEvent()
+            .setTenantId("t-1")
+            .setResourceId("r-new")
+    );
+
+    // VERIFY
+
+    final List<BoundMonitor> bound = boundMonitorRepository
+        .findAllByMonitor_TenantIdAndMonitor_IdIn(
+            "t-1", List.of(excludingMonitorId, inclusiveMonitorId));
+
+    assertThat(bound).hasSize(1);
+    assertThat(bound).extracting(boundMonitor -> boundMonitor.getMonitor().getId())
+        .containsExactlyInAnyOrder(inclusiveMonitorId);
+  }
+
+  @Test
+  public void testUpdate_disallowExclusionAfterResourceId() {
+    final UUID monitorId = entityManager.persistAndGetId(
+        new Monitor()
+            .setTenantId("t-1")
+            .setResourceId("r-specific")
+            .setMonitorType(MonitorType.cpu)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setAgentType(AgentType.TELEGRAF)
+            .setInterval(Duration.ofSeconds(60))
+            .setContent("{}"),
+        UUID.class
+    );
+
+    assertThatThrownBy(() -> {
+      monitorManagement.updateMonitor("t-1", monitorId,
+          new MonitorCU()
+          .setExcludedResourceIds(Set.of("r-excluded"))
+      );
+    }).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void testUpdate_disallowResourceIdAfterExclusion() {
+    final UUID monitorId = entityManager.persistAndGetId(
+        new Monitor()
+            .setTenantId("t-1")
+            .setExcludedResourceIds(new HashSet<>(Set.of("r-excluded")))
+            .setMonitorType(MonitorType.cpu)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setAgentType(AgentType.TELEGRAF)
+            .setInterval(Duration.ofSeconds(60))
+            .setContent("{}"),
+        UUID.class
+    );
+
+    assertThatThrownBy(() -> {
+      monitorManagement.updateMonitor("t-1", monitorId,
+          new MonitorCU()
+              .setResourceId("r-specific")
+      );
+    }).isInstanceOf(IllegalArgumentException.class);
   }
 
   private void setupMonitorContentRenderer() throws InvalidTemplateException {
@@ -433,11 +539,4 @@ public class MonitorManagementWithDbTest {
                 .setEnvoyId("envoy-" + invocationOnMock.getArgument(1))
         ));
   }
-
-  /*
-  TODO test excluded resource bindings
-  - on resource event
-  - invalid update, was using resource ID selector, now adding exclusions
-  - invalid update, was using exclusions, now adding resource ID selector
-   */
 }

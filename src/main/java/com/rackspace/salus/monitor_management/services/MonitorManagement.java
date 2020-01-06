@@ -1467,8 +1467,13 @@ public class MonitorManagement {
       }
 
       // Get all relevant account monitors
-      List<Monitor> labelMonitors = getMonitorsFromLabels(resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent();
-      selectedMonitors = new ArrayList<>(labelMonitors);
+      selectedMonitors = getMonitorsFromLabels(
+          resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent()
+          .stream()
+          // but filter to include only monitors that don't exclude this resource
+          .filter(monitor -> monitor.getExcludedResourceIds() == null ||
+              !monitor.getExcludedResourceIds().contains(resourceId))
+          .collect(Collectors.toList());
       selectedMonitors.addAll(monitorsWithResourceId);
       // Append all relevant policy monitors
       selectedMonitors.addAll(getPolicyMonitorsForResource(resource.get()));
