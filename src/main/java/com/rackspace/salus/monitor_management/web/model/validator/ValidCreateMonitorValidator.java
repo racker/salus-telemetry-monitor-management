@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,9 @@ public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCre
       Map<String, String> labelSelector = monitorInput.getLabelSelector();
       String resourceId = monitorInput.getResourceId();
       if (ValidUpdateMonitorValidator.bothResourceAndLabelsSet(monitorInput)) {
+         return false;
+      }
+      if (ValidUpdateMonitorValidator.bothResourceAndExcludedSet(monitorInput)) {
          return false;
       }
       // Valid if either resourceId or labelSelector exists
