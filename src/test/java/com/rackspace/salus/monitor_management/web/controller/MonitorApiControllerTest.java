@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -336,6 +336,7 @@ public class MonitorApiControllerTest {
     DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
     create.setLabelSelector(null);
+    create.setExcludedResourceIds(null);
 
     mockMvc.perform(post(url)
         .content(objectMapper.writeValueAsString(create))
@@ -408,6 +409,7 @@ public class MonitorApiControllerTest {
 
     DetailedMonitorInput update = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     update.setLabelSelector(null);
+    update.setExcludedResourceIds(null);
     update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
 
     mockMvc.perform(put(url)
@@ -458,6 +460,7 @@ public class MonitorApiControllerTest {
     // ensure only one of these is set
     monitor.setResourceId(RandomStringUtils.randomAlphabetic(10));
     monitor.setLabelSelector(null);
+    monitor.setExcludedResourceIds(null);
 
     when(monitorManagement.getMonitor(anyString(), any()))
         .thenReturn(Optional.of(monitor));
@@ -680,6 +683,7 @@ public class MonitorApiControllerTest {
 
     DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
     create.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    create.setExcludedResourceIds(null);
     return create;
   }
 

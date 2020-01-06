@@ -1023,10 +1023,15 @@ public class MonitorManagement {
   }
 
   private static boolean excludedResourceIdsChanged(Set<String> updated, Set<String> prev, boolean patchOperation) {
-    if (patchOperation) {
-      return updated == null || !updated.equals(prev);
+    // JPA will populate the absence of values as an empty set
+    if (prev != null && prev.isEmpty()) {
+      // ...but let's simplify comparison by treating as null
+      prev = null;
     }
-    return updated != null && !updated.equals(prev);
+    if (patchOperation) {
+      return !Objects.equals(updated, prev);
+    }
+    return updated != null && !Objects.equals(updated, prev);
   }
 
   private boolean labelSelectorChanged(Monitor original, MonitorCU newValues, boolean patchOperation) {
