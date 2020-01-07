@@ -313,7 +313,7 @@ public class MonitorManagementExcludeResourceIdsTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-exclude-include");
     verify(envoyResourceManagement).getOne("t-1", "r-include-exclude");
-    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-include-include");
+    verify(envoyResourceManagement).getOne("t-1", "r-include-include");
     verify(envoyResourceManagement, never()).getOne("t-1", "r-exclude-exclude");
 
     verifyNoMoreInteractions(resourceApi, envoyResourceManagement, monitorEventProducer);
