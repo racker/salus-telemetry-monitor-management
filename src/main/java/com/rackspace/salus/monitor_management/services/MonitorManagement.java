@@ -1207,15 +1207,13 @@ public class MonitorManagement {
                                                   Map<String, String> labelSelector,
                                                   @NotNull LabelSelectorMethod labelSelectorMethod,
                                                   Set<String> excludedResourceIds) {
-    List<ResourceDTO> selectedResources;
-    selectedResources = resourceApi
+    return resourceApi
         .getResourcesWithLabels(tenantId, labelSelector, labelSelectorMethod)
         .stream()
         // filter to keep resources that are not in the given exclusion set
         .filter(resourceDTO -> excludedResourceIds == null ||
             !excludedResourceIds.contains(resourceDTO.getResourceId()))
         .collect(Collectors.toList());
-    return selectedResources;
   }
 
   /**
