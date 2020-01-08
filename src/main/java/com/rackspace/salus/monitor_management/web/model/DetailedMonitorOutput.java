@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import io.swagger.annotations.ApiModelProperty;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import lombok.Data;
 
 @Data
@@ -31,6 +32,7 @@ public class DetailedMonitorOutput {
     Map<String,String> labelSelector;
     LabelSelectorMethod labelSelectorMethod;
     String resourceId;
+    Set<String> excludedResourceIds;
     Duration interval;
     @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.util.CollectionUtils;
 
 @Slf4j
 public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpdateMonitor, DetailedMonitorInput> {
@@ -35,8 +34,15 @@ public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpd
       return StringUtils.isNotBlank(resourceId) && labelSelector != null;
    }
 
+   static boolean bothResourceAndExcludedSet(DetailedMonitorInput monitorInput) {
+      return StringUtils.isNotBlank(monitorInput.getResourceId()) &&
+          monitorInput.getExcludedResourceIds() != null &&
+          !monitorInput.getExcludedResourceIds().isEmpty();
+   }
+
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
-      return !bothResourceAndLabelsSet(monitorInput);
+      return !bothResourceAndLabelsSet(monitorInput) &&
+          !bothResourceAndExcludedSet(monitorInput);
    }
 
 }

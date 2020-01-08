@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -51,6 +52,8 @@ public class MonitorDTO {
 
   String resourceId;
 
+  Set<String> excludedResourceIds;
+
   String createdTimestamp;
 
   String updatedTimestamp;
@@ -70,6 +73,7 @@ public class MonitorDTO {
 
     this.labelSelectorMethod = monitor.getLabelSelectorMethod();
     this.resourceId = monitor.getResourceId();
+    this.excludedResourceIds = monitor.getExcludedResourceIds();
     this.tenantId = monitor.getTenantId();
     this.content = monitor.getContent();
     this.agentType = monitor.getAgentType();

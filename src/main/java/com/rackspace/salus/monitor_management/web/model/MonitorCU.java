@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.Data;
 
 // This annotation doesn't work with podam
@@ -55,6 +56,8 @@ public class MonitorCU implements Serializable {
     ConfigSelectorScope selectorScope = ConfigSelectorScope.LOCAL;
 
     List<String> zones;
+
+    Set<String> excludedResourceIds;
 
     String resourceId;
 

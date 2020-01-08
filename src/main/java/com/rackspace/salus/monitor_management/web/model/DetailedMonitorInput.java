@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -46,6 +47,12 @@ public class DetailedMonitorInput {
 
   String resourceId;
 
+  /**
+   * Resource IDs specified will be excluded from binding of this monitor. This can be used in
+   * combination with more specific monitors that select the resource IDs excluded here.
+   */
+  Set<String> excludedResourceIds;
+
   Duration interval;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")
@@ -58,6 +65,7 @@ public class DetailedMonitorInput {
     this.labelSelector = output.getLabelSelector();
     this.labelSelectorMethod = output.getLabelSelectorMethod();
     this.resourceId = output.getResourceId();
+    this.excludedResourceIds = output.getExcludedResourceIds();
     this.interval = output.getInterval();
     this.details = output.getDetails();
   }

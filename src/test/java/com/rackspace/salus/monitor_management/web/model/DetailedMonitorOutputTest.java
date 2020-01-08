@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.skyscreamer.jsonassert.JSONCompareMode;
@@ -46,6 +47,7 @@ public class DetailedMonitorOutputTest {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId("m-1")
         .setResourceId("r-1")
+        .setExcludedResourceIds(Set.of("r-excluded"))
         .setName("name-1")
         .setLabelSelector(
             Map.of("key1", "val1", "key2", "val2")
@@ -72,6 +74,7 @@ public class DetailedMonitorOutputTest {
     final DetailedMonitorOutput detailedMonitorOutput = new DetailedMonitorOutput()
         .setId("m-1")
         .setResourceId("r-1")
+        .setExcludedResourceIds(Set.of("r-excluded"))
         .setName("name-1")
         .setLabelSelector(
             Map.of("key1", "val1", "key2", "val2")
