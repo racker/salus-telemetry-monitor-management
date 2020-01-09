@@ -121,9 +121,9 @@ public class MonitorContentTranslationService {
     return boundMonitors.stream()
         .map(boundMonitor -> {
           try {
-            return translateOne(
+            return translateBoundMonitor(
                 boundMonitor,
-                operatorsByAgentType.get(boundMonitor.getMonitor().getAgentType())
+                getOperatorsForMonitor(operatorsByAgentType, boundMonitor)
             );
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
@@ -134,7 +134,16 @@ public class MonitorContentTranslationService {
         .collect(Collectors.toList());
   }
 
-  private BoundMonitorDTO translateOne(BoundMonitor boundMonitor,
+  /**
+   * Converts a bound monitor's content from the format received via an api request
+   * to what is expected by the agent that will run it (e.g. telegraf).
+   *
+   * @param boundMonitor The bound monitor to convert
+   * @param operators The list of translate operations to perform on the monitor.
+   * @return The bound monitor with an updated content string.
+   * @throws MonitorContentTranslationException
+   */
+  private BoundMonitorDTO translateBoundMonitor(BoundMonitor boundMonitor,
                                        List<MonitorTranslationOperator> operators)
       throws MonitorContentTranslationException {
 
@@ -156,16 +165,6 @@ public class MonitorContentTranslationService {
     }
 
     for (MonitorTranslationOperator operator : operators) {
-      if (operator.getMonitorType() != null &&
-          !operator.getMonitorType().equals(boundMonitor.getMonitor().getMonitorType())) {
-        continue;
-      }
-
-      if (operator.getSelectorScope() != null &&
-          !operator.getSelectorScope().equals(boundMonitor.getMonitor().getSelectorScope())) {
-        continue;
-      }
-
       operator.getTranslatorSpec().translate(contentTree);
     }
 
@@ -217,6 +216,17 @@ public class MonitorContentTranslationService {
             )
             .sorted(MonitorContentTranslationService::highestPrecedenceFirst)
             .collect(Collectors.toList());
+  }
+
+  private List<MonitorTranslationOperator> getOperatorsForMonitor(
+      Map<AgentType, List<MonitorTranslationOperator>> operatorsByAgentType,
+      BoundMonitor bound) {
+
+    List<MonitorTranslationOperator> operators = operatorsByAgentType.get(bound.getMonitor().getAgentType());
+    return operators.stream()
+        .filter(o -> o.getMonitorType() == null || o.getMonitorType() == bound.getMonitor().getMonitorType())
+        .filter(o -> o.getSelectorScope() == null || o.getSelectorScope() == bound.getMonitor().getSelectorScope())
+        .collect(Collectors.toList());
   }
 
   private static int highestPrecedenceFirst(MonitorTranslationOperator lhs,
