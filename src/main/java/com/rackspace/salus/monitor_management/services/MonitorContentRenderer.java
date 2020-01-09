@@ -93,10 +93,9 @@ public class MonitorContentRenderer {
     //
     //   "${resource.metadata.url}"
     //
-    // It then has a matching group to group the is best explained with an example:
     // if the delimiters is configured with the following, note the required space between delimiters
     //   ${ }
-    // then the regex pattern becomes
+    // then the final regex pattern becomes
     //   "\$\{(.+?)\}"
     quotedPlaceholderPattern = Pattern.compile("\"" +
         escapeRegexChars(properties.getPlaceholderDelimiters())
