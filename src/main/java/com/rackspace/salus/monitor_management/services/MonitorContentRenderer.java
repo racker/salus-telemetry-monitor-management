@@ -26,7 +26,6 @@ import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Mustache.Compiler;
 import com.samskivert.mustache.Mustache.Formatter;
 import com.samskivert.mustache.MustacheException;
-import com.samskivert.mustache.Template;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -38,28 +37,67 @@ import org.springframework.stereotype.Service;
 public class MonitorContentRenderer {
 
   private static final String CTX_RESOURCE = "resource";
+  private static final String REDELIM_L = "[[";
+  private static final String REDELIM_R = "]]";
+  private static final String REDELIMS = REDELIM_L + " " + REDELIM_R;
 
-  private final Compiler mustacheCompiler;
-  private final Pattern quotedPlaceholderPattern;
   private final ObjectMapper objectMapper;
+  /**
+   * This template compiler will be run first to replace quoted placeholder variable usage with the JSON
+   * rendered value itself. For example, if the metadata hosts is a list of host1,host2,host3
+   * this JSON provided by the user:
+   *
+   *    "pluginHosts": "${resource.metadata.hosts}"
+   *
+   * becomes
+   *
+   *    "pluginHosts": ["host1","host2","host3"]
+   */
+  private final Compiler mustacheWholeValueCompiler;
+  /**
+   * In contrast to the previous, this template compiler will only look for the regular delimited
+   * placeholders and also strip any quotes from the rendered placeholder value. With the same
+   * metadata, this user provided JSON:
+   *
+   *     "description": "Hosts will be ${resource.metadata.hosts}"
+   *
+   * becomes
+   *
+   *     "description": "Hosts will be [host1,host2,host3]"
+   */
+  private final Compiler mustacheEmbeddedCompiler;
+  private final Pattern quotedPlaceholderPattern;
 
   @Autowired
   public MonitorContentRenderer(MonitorContentProperties properties, ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
-    mustacheCompiler = Mustache.compiler()
+
+    mustacheWholeValueCompiler = Mustache.compiler()
+        .withEscaper(Escapers.NONE)
+        // Use a delimiter that differs from the configured one
+        .withDelims(REDELIMS)
+        .withFormatter(new JsonValueFormatter(false));
+    mustacheEmbeddedCompiler = Mustache.compiler()
         .withEscaper(Escapers.NONE)
         .withDelims(properties.getPlaceholderDelimiters())
-        .withFormatter(new JsonValueFormatter());
+        // tell formatter to strip quotes since these replacements would happen within an already
+        // quoted field
+        .withFormatter(new JsonValueFormatter(true));
 
-    // The following is best explained with an example:
+    // The following regex is looking for placeholder variables that are immediately surrounded
+    // by double quotes, such as
+    //
+    //   "${resource.metadata.url}"
+    //
+    // It then has a matching group to group the is best explained with an example:
     // if the delimiters is configured with the following, note the required space between delimiters
     //   ${ }
     // then the regex pattern becomes
-    //   "(\$\{.+?\})"
-    quotedPlaceholderPattern = Pattern.compile("\"(" +
+    //   "\$\{(.+?)\}"
+    quotedPlaceholderPattern = Pattern.compile("\"" +
         escapeRegexChars(properties.getPlaceholderDelimiters())
-            .replace(" ", ".+?")
-        + ")\"");
+            .replace(" ", "(.+?)")
+        + "\"");
   }
 
   private static String escapeRegexChars(String raw) {
@@ -71,89 +109,64 @@ public class MonitorContentRenderer {
     return raw.replaceAll("[${}[\\\\]]", "\\\\$0");
   }
 
-  String render(String rawContent, ResourceDTO resource) throws InvalidTemplateException {
-
-    final Template template = mustacheCompiler.compile(
-        unquotePlaceholders(rawContent)
-    );
-
+  String render(String content, ResourceDTO resource) throws InvalidTemplateException {
     final Map<String, Object> context = new HashMap<>();
     context.put(CTX_RESOURCE, resource);
 
+    content = redelimitQuotedPlaceholders(content);
+
     try {
-      return template.execute(context);
+      // First pass using the broader whole-value template compiler
+      content = mustacheWholeValueCompiler
+          .compile(content).execute(context);
+
+      // Second pass using the template compiler with the original delimiters
+      content = mustacheEmbeddedCompiler
+          .compile(content).execute(context);
+
+      return content;
     } catch (MustacheException e) {
       throw new InvalidTemplateException(
           String.format("Unable to render monitor content template, content=%s, resource=%s",
-              rawContent, resource),
+              content, resource),
           e);
     }
   }
 
-  /**
-   * This method works in conjunction with {@link JsonValueFormatter} by preparing the following
-   * type of content block:
-   * <pre>
-   *   {
-   *     "interval": "${resource.metadata.per_resource_interval}",
-   *     "host": "${resource.metadata.custom_host}"
-   *   }
-   * </pre>
-   * into
-   * <pre>
-   *   {
-   *     "interval": ${resource.metadata.per_resource_interval},
-   *     "host": ${resource.metadata.custom_host}
-   *   }
-   * </pre>
-   * so that non-string metadata values can be rendered correctly along with string values. Given
-   * this metadata:
-   * <pre>
-   *   {
-   *     "metadata": {
-   *       "per_resource_interval": 30,
-   *       "custom_host": "host-123"
-   *     }
-   *   }
-   * </pre>
-   * ...the content is rendered into:
-   * <pre>
-   *   {
-   *     "interval" 30,
-   *     "host": "host-123"
-   *   }
-   * </pre>
-   * @param rawContent
-   * @return
-   */
-  private String unquotePlaceholders(String rawContent) {
+  private String redelimitQuotedPlaceholders(String rawContent) {
     final Matcher m = quotedPlaceholderPattern.matcher(rawContent);
 
     final StringBuilder result = new StringBuilder();
 
     while (m.find()) {
-      m.appendReplacement(result, "$1");
+      m.appendReplacement(result, REDELIM_L+"$1"+REDELIM_R);
     }
     m.appendTail(result);
 
     return result.toString();
   }
 
-  /**
-   * This formatter performs the second half of the processing described in
-   * {@link MonitorContentRenderer#unquotePlaceholders(String)}. Each value is formatting using
-   * a JSON {@link ObjectMapper} to ensure JSON compatible rendering of scalar and non-scalar types.
-   */
   private class JsonValueFormatter implements Formatter {
+
+    private final boolean stripQuotes;
+
+    public JsonValueFormatter(boolean stripQuotes) {
+      this.stripQuotes = stripQuotes;
+    }
 
     @Override
     public String format(Object value) {
       try {
-        return objectMapper.writeValueAsString(value);
+        String content = objectMapper.writeValueAsString(value);
+        if (stripQuotes) {
+          content = content.replaceAll("\"", "");
+        }
+        return content;
       } catch (JsonProcessingException e) {
         throw new IllegalArgumentException(
             String.format("Unable to format the value '%s' while rendering monitor content", value), e);
       }
     }
   }
+
 }

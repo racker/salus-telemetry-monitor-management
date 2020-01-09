@@ -2,6 +2,7 @@
   "host": "${resource.metadata.public_ip}",
   "embedded_string": "value=${resource.metadata.public_ip}",
   "dirs": "${resource.metadata.dirs}",
+  "embedded_list": "List is ${resource.metadata.dirs}",
   "count": "${resource.metadata.count}",
   "embedded_int": "value=${resource.metadata.count}"
 }

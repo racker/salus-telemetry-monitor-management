@@ -138,7 +138,7 @@ public class MonitorContentRendererTest {
         resource
     );
 
-    assertThat(rendered, equalTo("os=\"linux\""));
+    assertThat(rendered, equalTo("os=linux"));
   }
 
   @Test
@@ -155,7 +155,7 @@ public class MonitorContentRendererTest {
         resource
     );
 
-    assertThat(rendered, equalTo("os=\"linux\""));
+    assertThat(rendered, equalTo("os=linux"));
   }
 
   @Test
@@ -172,6 +172,6 @@ public class MonitorContentRendererTest {
         resource
     );
 
-    assertThat(rendered, equalTo("os=\"linux\""));
+    assertThat(rendered, equalTo("os=linux"));
   }
 }
