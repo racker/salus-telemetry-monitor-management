@@ -72,6 +72,10 @@ public class MonitorContentRenderer {
   public MonitorContentRenderer(MonitorContentProperties properties, ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
 
+    if (REDELIMS.equals(properties.getPlaceholderDelimiters())) {
+      throw new IllegalStateException("Configured placeholder delimiters clash with re-delimiters");
+    }
+
     mustacheWholeValueCompiler = Mustache.compiler()
         .withEscaper(Escapers.NONE)
         // Use a delimiter that differs from the configured one
