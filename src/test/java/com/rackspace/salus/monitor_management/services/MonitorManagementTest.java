@@ -859,7 +859,7 @@ public class MonitorManagementTest {
     reset(envoyResourceManagement, resourceApi);
 
     // This resource will result in a change to rendered content
-    final Map<String, String> r1metadata = new HashMap<>();
+    final Map<String, Object> r1metadata = new HashMap<>();
     r1metadata.put("ping_ip", "something_else");
     r1metadata.put("address", "localhost");
     final ResourceDTO r1 = new ResourceDTO()
@@ -872,7 +872,7 @@ public class MonitorManagementTest {
         .thenReturn(r1);
 
     // ...and this resource will NOT since both metadata values are the same
-    final Map<String, String> r2metadata = new HashMap<>();
+    final Map<String, Object> r2metadata = new HashMap<>();
     r2metadata.put("ping_ip", "localhost");
     r2metadata.put("address", "localhost");
     final ResourceDTO r2 = new ResourceDTO()

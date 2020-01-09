@@ -1,0 +1,8 @@
+{
+  "host": "150.1.2.3",
+  "embedded_string": "value=150.1.2.3",
+  "dirs": ["/tmp","/usr"],
+  "embedded_list": "List is [/tmp,/usr]",
+  "count": 5,
+  "embedded_int": "value=5"
+}
