@@ -111,7 +111,7 @@ public class HttpResponseConversionTest {
     assertThat(plugin).isInstanceOf(HttpResponse.class);
 
     final HttpResponse httpPlugin = (HttpResponse) plugin;
-    assertThat(httpPlugin.getAddress()).isEqualTo("http://localhost");
+    assertThat(httpPlugin.getUrl()).isEqualTo("http://localhost");
     assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
     assertThat(httpPlugin.getResponseTimeout()).isEqualTo("5s");
     assertThat(httpPlugin.getMethod()).isEqualTo("GET");
@@ -145,7 +145,7 @@ public class HttpResponseConversionTest {
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final HttpResponse plugin = new HttpResponse();
-    plugin.setAddress("http://localhost");
+    plugin.setUrl("http://localhost");
     plugin.setHttpProxy("http://localhost:8888");
     plugin.setResponseTimeout("5s");
     plugin.setMethod("GET");
