@@ -283,7 +283,7 @@ public class MonitorContentTranslationServiceTest {
             // TEST type is renamed
             .setMonitorType(MonitorType.cpu),
         new MonitorTranslationOperator()
-            .setName("dontMatch")
+            .setName("renameField")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
             .setTranslatorSpec(buildRenameFieldSpec("beforeTranslate", "afterTranslate"))
