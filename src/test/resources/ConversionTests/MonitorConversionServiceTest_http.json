@@ -1,6 +1,6 @@
 {
   "type": "http",
-  "address": "http://localhost",
+  "url": "http://localhost",
   "httpProxy": "http://localhost:8888",
   "responseTimeout": "5s",
   "method": "GET",

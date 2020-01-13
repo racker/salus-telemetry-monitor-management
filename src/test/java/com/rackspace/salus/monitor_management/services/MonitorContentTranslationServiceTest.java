@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
+import com.rackspace.salus.telemetry.translators.RenameTypeTranslator;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -229,14 +230,14 @@ public class MonitorContentTranslationServiceTest {
             .setName("match")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
-            .setTranslatorSpec(buildRenameSpec("matches", "afterMatch"))
+            .setTranslatorSpec(buildRenameFieldSpec("matches", "afterMatch"))
             // TEST matching monitor type
             .setMonitorType(MonitorType.cpu),
         new MonitorTranslationOperator()
             .setName("dontMatch")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
-            .setTranslatorSpec(buildRenameSpec("dontMatch", "neverUsed"))
+            .setTranslatorSpec(buildRenameFieldSpec("dontMatch", "neverUsed"))
             // TEST mismatching monitor type
             .setMonitorType(MonitorType.mem)
     );
@@ -273,20 +274,69 @@ public class MonitorContentTranslationServiceTest {
   }
 
   @Test
+  public void testTranslate_match_byMonitorType_afterRename() throws JsonProcessingException {
+    final List<MonitorTranslationOperator> operators = List.of(
+        new MonitorTranslationOperator()
+            .setName("renameType")
+            .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions(null)
+            .setTranslatorSpec(buildRenameTypeSpec("newType"))
+            // TEST type is renamed
+            .setMonitorType(MonitorType.cpu),
+        new MonitorTranslationOperator()
+            .setName("renameField")
+            .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions(null)
+            .setTranslatorSpec(buildRenameFieldSpec("beforeTranslate", "afterTranslate"))
+            // TEST translation still matches when original type has been altered
+            .setMonitorType(MonitorType.cpu)
+    );
+
+    when(repository.findAllByAgentType(any()))
+        .thenReturn(operators);
+
+    final List<BoundMonitor> boundMonitors = List.of(new BoundMonitor()
+        .setMonitor(
+            new Monitor()
+                .setContent("not used")
+                .setAgentType(AgentType.TELEGRAF)
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setMonitorType(MonitorType.cpu)
+        )
+        .setRenderedContent(buildRenderedContent("cpu",
+            "beforeTranslate", "value-matches"))
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH));
+
+    // EXECUTE
+
+    final List<BoundMonitorDTO> dtos =
+        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+
+    assertThat(dtos).hasSize(1);
+
+    final JsonContent<Object> jsonContent = json.from(dtos.get(0).getRenderedContent());
+    assertThat(jsonContent).hasJsonPathValue("$.type", "newType");
+    assertThat(jsonContent).hasJsonPathValue("$.afterTranslate", "value-matches");
+    assertThat(jsonContent).hasEmptyJsonPathValue("$.beforeTranslate");
+    assertThat(jsonContent).hasEmptyJsonPathValue("$.neverUsed");
+  }
+
+  @Test
   public void testTranslate_match_bySelectorScope() throws JsonProcessingException {
     final List<MonitorTranslationOperator> operators = List.of(
         new MonitorTranslationOperator()
             .setName("match")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
-            .setTranslatorSpec(buildRenameSpec("matches", "afterMatch"))
+            .setTranslatorSpec(buildRenameFieldSpec("matches", "afterMatch"))
             // TEST matching selector scope
             .setSelectorScope(ConfigSelectorScope.LOCAL),
         new MonitorTranslationOperator()
             .setName("dontMatch")
             .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
-            .setTranslatorSpec(buildRenameSpec("dontMatch", "neverUsed"))
+            .setTranslatorSpec(buildRenameFieldSpec("dontMatch", "neverUsed"))
             // TEST mismatching scope
             .setSelectorScope(ConfigSelectorScope.REMOTE)
     );
@@ -439,12 +489,16 @@ public class MonitorContentTranslationServiceTest {
             .setName("rename-"+renameFromField)
             .setAgentType(agentType)
             .setAgentVersions(agentVersions)
-            .setTranslatorSpec(buildRenameSpec(renameFromField, "new_field"))
+            .setTranslatorSpec(buildRenameFieldSpec(renameFromField, "new_field"))
     );
   }
 
-  private MonitorTranslator buildRenameSpec(String from, String to) {
+  private MonitorTranslator buildRenameFieldSpec(String from, String to) {
     return new RenameFieldKeyTranslator().setFrom(from).setTo(to);
+  }
+
+  private MonitorTranslator buildRenameTypeSpec(String to) {
+    return new RenameTypeTranslator().setValue(to);
   }
 
   private String buildRenderedContent(String type, String... fieldAndValue)

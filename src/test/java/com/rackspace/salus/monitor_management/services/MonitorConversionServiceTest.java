@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -442,6 +442,29 @@ public class MonitorConversionServiceTest {
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
     assertThat(result.getResourceId()).isEqualTo(monitor.getResourceId());
+  }
+
+  @Test
+  public void testConvertFrom_ExcludedResourceIds() {
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setExcludedResourceIds(Set.of("r-1","r-2"))
+        .setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
+    final MonitorCU result = conversionService.convertFromInput(
+        RandomStringUtils.randomAlphabetic(10), null, input);
+    assertThat(result.getExcludedResourceIds()).containsExactlyInAnyOrder("r-1", "r-2");
+  }
+
+  @Test
+  public void testConvertTo_ExcludedResourceIds() {
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setExcludedResourceIds(Set.of("r-1","r-2"))
+        .setId(monitorId)
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.getExcludedResourceIds()).containsExactlyInAnyOrder("r-1", "r-2");
   }
 
   @Test

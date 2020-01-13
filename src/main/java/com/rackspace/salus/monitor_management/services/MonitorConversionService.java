@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,6 +89,7 @@ public class MonitorConversionService {
         .setInterval(monitor.getInterval())
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
+        .setExcludedResourceIds(monitor.getExcludedResourceIds())
         .setDetails(convertContentToDetails(monitor));
 
     if (StringUtils.isNotBlank(monitor.getResourceId())) {
@@ -106,6 +107,7 @@ public class MonitorConversionService {
         .setName(monitor.getMonitorName())
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
+        .setExcludedResourceIds(monitor.getExcludedResourceIds())
         .setInterval(monitor.getInterval())
         .setDetails(convertContentToDetails(monitor))
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
@@ -193,6 +195,7 @@ public class MonitorConversionService {
         .setLabelSelector(input.getLabelSelector())
         .setLabelSelectorMethod(input.getLabelSelectorMethod())
         .setResourceId(input.getResourceId())
+        .setExcludedResourceIds(input.getExcludedResourceIds())
         .setInterval(input.getInterval());
 
     // Policy monitors should not use metadata

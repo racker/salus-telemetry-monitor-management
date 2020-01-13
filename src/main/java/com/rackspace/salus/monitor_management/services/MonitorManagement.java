@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static org.springframework.util.CollectionUtils.isEmpty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
@@ -84,6 +85,7 @@ import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,7 +100,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -269,6 +270,7 @@ public class MonitorManagement {
         .setMonitorType(newMonitor.getMonitorType())
         .setLabelSelector(newMonitor.getLabelSelector())
         .setResourceId(newMonitor.getResourceId())
+        .setExcludedResourceIds(newMonitor.getExcludedResourceIds())
         .setInterval(newMonitor.getInterval())
         .setContent(newMonitor.getContent())
         .setAgentType(newMonitor.getAgentType())
@@ -342,13 +344,19 @@ public class MonitorManagement {
 
     // For update requests where a null input value is ignored
     if (!patchOperation) {
-      // if the resource id is set the label selector must be empty & vice versa
-      if ((StringUtils.isNotBlank(updatedValues.getResourceId()) &&
-          monitor.getLabelSelector() != null) ||
-          (StringUtils.isNotBlank(monitor.getResourceId()) &&
-              updatedValues.getLabelSelector() != null))
-      {
-        throw new IllegalArgumentException(ValidUpdateMonitor.DEFAULT_MESSAGE);
+      // if the resource id is set the label selector and excluded resource IDs must be empty & vice versa
+
+      // switching to resource ID selection?
+      if (StringUtils.isNotBlank(updatedValues.getResourceId())) {
+        if (monitor.getLabelSelector() != null || !isEmpty(monitor.getExcludedResourceIds())) {
+          throw new IllegalArgumentException(ValidUpdateMonitor.DEFAULT_MESSAGE);
+        }
+      }
+      // was already using resource ID selection?
+      else if (StringUtils.isNotBlank(monitor.getResourceId())) {
+        if (updatedValues.getLabelSelector() != null || !isEmpty(updatedValues.getExcludedResourceIds())) {
+          throw new IllegalArgumentException(ValidUpdateMonitor.DEFAULT_MESSAGE);
+        }
       }
       // Currently no extra checks need to be performed for PATCH operations
     }
@@ -411,8 +419,9 @@ public class MonitorManagement {
       resources = new ArrayList<>();
       r.ifPresent(resource -> resources.add(new ResourceDTO(resource)));
     } else {
-      resources = resourceApi.getResourcesWithLabels(
-          tenantId, monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
+      resources = findResourcesByLabels(
+          tenantId, monitor.getLabelSelector(), monitor.getLabelSelectorMethod(),
+          monitor.getExcludedResourceIds());
     }
 
     log.debug("Distributing new monitor={} to resources={}", monitor, resources);
@@ -519,7 +528,6 @@ public class MonitorManagement {
    * @param envoyIds envoy IDs to target
    */
   void sendMonitorBoundEvents(Set<String> envoyIds) {
-    log.info("Sending monitor bound events for {} envoys", envoyIds.size());
     envoyIds.stream()
         .map(envoyId -> new MonitorBoundEvent().setEnvoyId(envoyId))
         .forEach(monitorEventProducer::sendMonitorEvent);
@@ -694,8 +702,10 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
-    affectedEnvoys.addAll(handleResourceIdChange(monitor, updatedValues.getResourceId(), patchOperation));
-    affectedEnvoys.addAll(handleLabelSelectorChange(tenantId, monitor, updatedValues, patchOperation));
+    affectedEnvoys.addAll(
+        processResourceIdChange(monitor, updatedValues.getResourceId(), patchOperation));
+    affectedEnvoys.addAll(
+        processLabelSelectorChange(tenantId, monitor, updatedValues, patchOperation));
 
     if (updatedValues.getContent() != null &&
         !updatedValues.getContent().equals(monitor.getContent())) {
@@ -760,18 +770,29 @@ public class MonitorManagement {
     return monitor;
   }
 
-  private Set<String> handleLabelSelectorChange(String tenantId, Monitor monitor, MonitorCU updatedValues, boolean patchOperation) {
+  private Set<String> processLabelSelectorChange(String tenantId, Monitor monitor, MonitorCU updatedValues, boolean patchOperation) {
     Set<String> envoyIds = new HashSet<>();
     boolean labelSelectorChanged = labelSelectorChanged(monitor, updatedValues, patchOperation);
     boolean methodChanged = labelSelectorMethodChanged(monitor, updatedValues);
+    boolean exclusionsChanged = excludedResourceIdsChanged(
+        updatedValues.getExcludedResourceIds(), monitor.getExcludedResourceIds(), patchOperation);
 
-    if (labelSelectorChanged || methodChanged) {
+    if (labelSelectorChanged || methodChanged || exclusionsChanged) {
       // Process potential changes to resource selection and therefore bindings
       // ...only need to process removed and new bindings
 
       // Set the new label selector
       if (methodChanged) {
         monitor.setLabelSelectorMethod(updatedValues.getLabelSelectorMethod());
+      }
+
+      // Apply updated exclusions before computing label selector bindings
+      if (exclusionsChanged) {
+        // give JPA a mutable copy
+        monitor.setExcludedResourceIds(new HashSet<>(updatedValues.getExcludedResourceIds()));
+      } else if (monitor.getExcludedResourceIds() != null) {
+        // give JPA a fresh, mutable copy
+        monitor.setExcludedResourceIds(new HashSet<>(monitor.getExcludedResourceIds()));
       }
 
       // Determine what the newest labels are
@@ -782,21 +803,29 @@ public class MonitorManagement {
         labels = monitor.getLabelSelector();
       }
 
+      // Compute and adjust bindings based on label selector and/or exclusions
       envoyIds = processMonitorLabelSelectorModified(tenantId, monitor, labels);
 
-      // Finally, update the monitors labels
+      // Apply label updates to the persisted monitor
       if (labels == null) {
         monitor.setLabelSelector(null);
       } else {
         monitor.setLabelSelector(new HashMap<>(labels));
       }
-    }
-    else if (monitor.getLabelSelector() != null) {
-      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      // that has a field of type Map. It wants to clear the loaded map value, which is
-      // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
-      // retrieved maps.
-      monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+    } else {
+      // no changes, just propagate collection-based fields
+
+      if (monitor.getLabelSelector() != null) {
+        // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
+        // that has a field of type Map. It wants to clear the loaded map value, which is
+        // disallowed by the org.hibernate.collection.internal.PersistentMap it uses for
+        // retrieved maps.
+        monitor.setLabelSelector(new HashMap<>(monitor.getLabelSelector()));
+      }
+      if (monitor.getExcludedResourceIds() != null) {
+        // ...and same for excluded
+        monitor.setExcludedResourceIds(new HashSet<>(monitor.getExcludedResourceIds()));
+      }
     }
     return envoyIds;
   }
@@ -810,7 +839,7 @@ public class MonitorManagement {
    * @param patchOperation Whether a patch or update/put is being performed. True for patch.
    * @return A list of envoy ids affected by the change.
    */
-  private Set<String> handleResourceIdChange(Monitor monitor, String newResourceId, boolean patchOperation) {
+  private Set<String> processResourceIdChange(Monitor monitor, String newResourceId, boolean patchOperation) {
     // PUT operations are only handled if a resourceId is included
     if (patchOperation || newResourceId != null) {
       if (!Objects.equals(monitor.getResourceId(), newResourceId)) {
@@ -949,12 +978,26 @@ public class MonitorManagement {
   private static boolean zonesChanged(List<String> updatedZones, List<String> prevZones, boolean patchOperation) {
     if (patchOperation) {
       return updatedZones == null ||
+          // use size and containsAll to allow order difference
           ( updatedZones.size() != prevZones.size() ||
               !updatedZones.containsAll(prevZones));
     }
     return updatedZones != null &&
+        // use size and containsAll to allow order difference
         ( updatedZones.size() != prevZones.size() ||
             !updatedZones.containsAll(prevZones));
+  }
+
+  private static boolean excludedResourceIdsChanged(Set<String> updated, Set<String> prev, boolean patchOperation) {
+    // JPA will populate the absence of values as an empty set
+    if (prev != null && prev.isEmpty()) {
+      // ...but let's simplify comparison by treating as null
+      prev = null;
+    }
+    if (patchOperation) {
+      return !Objects.equals(updated, prev);
+    }
+    return updated != null && !Objects.equals(updated, prev);
   }
 
   private boolean labelSelectorChanged(Monitor original, MonitorCU newValues, boolean patchOperation) {
@@ -1127,8 +1170,9 @@ public class MonitorManagement {
         log.warn("Resource not found for monitor configured with resourceId, monitor={}", monitor);
       }
     } else {
-      selectedResources = resourceApi
-          .getResourcesWithLabels(tenantId, updatedLabelSelector, monitor.getLabelSelectorMethod());
+      selectedResources = findResourcesByLabels(tenantId, updatedLabelSelector,
+          monitor.getLabelSelectorMethod(), monitor.getExcludedResourceIds()
+      );
     }
     final Set<String> selectedResourceIds = selectedResources.stream()
         .map(ResourceDTO::getResourceId)
@@ -1153,6 +1197,23 @@ public class MonitorManagement {
         );
 
     return affectedEnvoys;
+  }
+
+  /**
+   * Queries the resource API for resource selected by the given label selector and also applies
+   * resource ID exclusions specified by the monitor.
+   */
+  private List<ResourceDTO> findResourcesByLabels(String tenantId,
+                                                  Map<String, String> labelSelector,
+                                                  @NotNull LabelSelectorMethod labelSelectorMethod,
+                                                  Set<String> excludedResourceIds) {
+    return resourceApi
+        .getResourcesWithLabels(tenantId, labelSelector, labelSelectorMethod)
+        .stream()
+        // filter to keep resources that are not in the given exclusion set
+        .filter(resourceDTO -> excludedResourceIds == null ||
+            !excludedResourceIds.contains(resourceDTO.getResourceId()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -1375,8 +1436,13 @@ public class MonitorManagement {
       }
 
       // Get all relevant account monitors
-      List<Monitor> labelMonitors = getMonitorsFromLabels(resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent();
-      selectedMonitors = new ArrayList<>(labelMonitors);
+      selectedMonitors = getMonitorsFromLabels(
+          resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent()
+          .stream()
+          // but filter to include only monitors that don't exclude this resource
+          .filter(monitor -> monitor.getExcludedResourceIds() == null ||
+              !monitor.getExcludedResourceIds().contains(resourceId))
+          .collect(Collectors.toList());
       selectedMonitors.addAll(monitorsWithResourceId);
       // Append all relevant policy monitors
       selectedMonitors.addAll(getPolicyMonitorsForResource(resource.get()));

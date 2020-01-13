@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,5 +117,23 @@ public class ValidCreateMonitorValidatorTest {
     assertThat(new ArrayList<>(errors).get(0).getMessage(), containsString(ValidCreateMonitor.DEFAULT_MESSAGE));
   }
 
+  @Test
+  public void testInvalid_BothResourceAndExcluded() {
+    final Mem plugin = new Mem();
 
+    final LocalMonitorDetails details = new LocalMonitorDetails();
+    details.setPlugin(plugin);
+
+    DetailedMonitorInput input = new DetailedMonitorInput()
+        .setDetails(details)
+        .setResourceId("r-1")
+        .setExcludedResourceIds(Set.of("r-2"));
+
+    final Set<ConstraintViolation<DetailedMonitorInput>> errors = validatorFactoryBean.validate(input,
+        ValidationGroups.Create.class);
+
+    assertThat(errors, hasSize(1));
+    assertThat(new ArrayList<>(errors).get(0).getMessage(), containsString(ValidCreateMonitor.DEFAULT_MESSAGE));
+
+  }
 }

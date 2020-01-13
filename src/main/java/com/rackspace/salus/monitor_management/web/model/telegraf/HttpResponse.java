@@ -33,7 +33,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.http)
 public class HttpResponse extends RemotePlugin {
   @NotEmpty
-  String address;
+  String url;
   String httpProxy;
   @ValidGoDuration
   String responseTimeout;
