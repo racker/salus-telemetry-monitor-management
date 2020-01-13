@@ -53,8 +53,10 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
@@ -392,6 +394,27 @@ public class MonitorApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
         .andExpect(validationError("details.plugin.target", "must not be empty"));
+  }
+
+  @Test
+  public void testCreateRemoteNetResponseMonitor_NoPort() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new RemoteMonitorDetails()
+        .setMonitoringZones(Collections.singletonList("myzone"))
+        .setPlugin(new NetResponse()
+            // If no port is set validation should fail
+            .setProtocol(Protocol.tcp)
+            .setHost(RandomStringUtils.randomAlphabetic(10))))
+        .setResourceId("");
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(validationError("details.plugin.port", "must not be null"));
   }
 
   @Test
