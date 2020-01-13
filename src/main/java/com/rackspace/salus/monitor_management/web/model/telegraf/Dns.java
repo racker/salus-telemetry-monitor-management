@@ -22,10 +22,9 @@ import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RecordType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidHostAndPort;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import java.util.List;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -34,20 +33,16 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.dns)
 public class Dns extends RemotePlugin {
-
-  List<String> servers;
-
-  List<String> domains;
-
+  @NotBlank
+  String dnsServer;
+  @NotBlank
+  String domain;
   @NotNull
   Protocol network = Protocol.udp;
-
   @NotNull
   RecordType recordType = RecordType.A;
-
   @NotNull
   int port = 53;
-
   @ValidGoDuration
   String timeout;
 }

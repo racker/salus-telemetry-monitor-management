@@ -32,8 +32,8 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 @JsonTypeInfo(use = Id.NAME, property = "type")
 @JsonSubTypes({
     @Type(name = "ping", value = Ping.class),
-    @Type(name = "x509_cert", value = X509Cert.class),
-    @Type(name = "http_response", value = HttpResponse.class),
+    @Type(name = "ssl", value = X509Cert.class),
+    @Type(name = "http", value = HttpResponse.class),
     @Type(name = "net_response", value = NetResponse.class),
     @Type(name = "mysql", value = MysqlRemote.class),
     @Type(name = "postgresql", value = PostgresqlRemote.class),

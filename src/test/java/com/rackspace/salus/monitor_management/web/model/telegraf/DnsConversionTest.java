@@ -79,9 +79,9 @@ public class DnsConversionTest {
     labels.put("os", "linux");
 
     final Dns plugin = new Dns()
-        .setDomains(List.of("rackspace.com"))
+        .setDomain("rackspace.com")
         .setRecordType(RecordType.NS)
-        .setServers(List.of("192.0.0.1"));
+        .setDnsServer("192.0.0.1");
 
     final RemoteMonitorDetails details = new RemoteMonitorDetails()
         .setPlugin(plugin);
@@ -128,9 +128,9 @@ public class DnsConversionTest {
     assertThat(plugin).isInstanceOf(Dns.class);
 
     final Dns expected = new Dns()
-        .setDomains(List.of("rackspace.com"))
+        .setDomain("rackspace.com")
         .setRecordType(RecordType.NS)
-        .setServers(List.of("192.0.0.1"));
+        .setDnsServer("192.0.0.1");
     assertThat(plugin).isEqualTo(expected);
   }
 

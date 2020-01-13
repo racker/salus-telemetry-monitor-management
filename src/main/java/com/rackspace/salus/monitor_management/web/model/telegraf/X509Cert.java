@@ -22,17 +22,16 @@ import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import java.util.List;
-import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.x509_cert)
+@ApplicableMonitorType(MonitorType.ssl)
 public class X509Cert extends RemotePlugin {
-  @NotEmpty
-  List<String> sources;
+  @NotBlank
+  String target;
   @ValidGoDuration
   String timeout;
   String tlsCa;

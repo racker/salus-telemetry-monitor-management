@@ -21,9 +21,9 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidHostAndPort;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -36,9 +36,11 @@ public class NetResponse extends RemotePlugin {
   @NotNull
   Protocol protocol = Protocol.tcp;
 
+  @NotBlank
+  String host;
+
   @NotNull
-  @ValidHostAndPort
-  String address;
+  int port;
 
   @ValidGoDuration
   String timeout;

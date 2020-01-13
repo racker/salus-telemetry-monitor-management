@@ -30,7 +30,7 @@ import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.http_response)
+@ApplicableMonitorType(MonitorType.http)
 public class HttpResponse extends RemotePlugin {
   @NotEmpty
   String url;

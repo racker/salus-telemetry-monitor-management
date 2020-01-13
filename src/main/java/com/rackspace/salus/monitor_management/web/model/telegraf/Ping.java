@@ -21,7 +21,6 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -31,12 +30,11 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.ping)
 public class Ping extends RemotePlugin {
   @NotEmpty
-  List<String> urls;
+  String target;
   Integer count;
   Integer pingInterval;
   Integer timeout;
   Integer deadline;
-  String interfaceOrAddress;
 
   // DO NOT include 'binary' or 'arguments' from telegraf raw config since those would expose an
   // exploitable attack vector on the customer servers

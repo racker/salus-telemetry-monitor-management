@@ -517,11 +517,11 @@ public class MonitorManagement_MetadataPolicyTest {
     // The below tests that the "count" was updated where applicable.
     // Interval is not updated even though it is a policy field since this metadata event did not relate to it.
 
-    String expectedPolicyUpdateContent = "{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":" + UPDATED_COUNT_VALUE
-        + ",\"pingInterval\":null,\"timeout\":null,\"deadline\":null,\"interfaceOrAddress\":null}";
+    String expectedPolicyUpdateContent = "{\"type\":\"ping\",\"target\":\"localhost\",\"count\":" + UPDATED_COUNT_VALUE
+        + ",\"pingInterval\":null,\"timeout\":null,\"deadline\":null}";
     // due to content being stored as a string and the details of unmodified monitors are not regenerated,
     // for the purpose of this test all the `null` values seen in te updated monitor are excluded here.
-    String expectedOriginalContent = "{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":72}";
+    String expectedOriginalContent = "{\"type\":\"ping\",\"target\":\"localhost\",\"count\":72}";
 
     // monitor 1 had a custom count value, but count was in its pluginMetadata so it should now be
     // using the policy metadata value
@@ -640,7 +640,7 @@ public class MonitorManagement_MetadataPolicyTest {
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
-            .setContent("{\"type\": \"ping\", \"urls\": [\"localhost\"]}")
+            .setContent("{\"type\": \"ping\", \"target\": \"localhost\"}")
             .setTenantId(tenantId)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
@@ -652,7 +652,7 @@ public class MonitorManagement_MetadataPolicyTest {
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
-            .setContent("{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":72}")
+            .setContent("{\"type\":\"ping\",\"target\":\"localhost\",\"count\":72}")
             .setTenantId(tenantId)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))
@@ -664,7 +664,7 @@ public class MonitorManagement_MetadataPolicyTest {
         new Monitor()
             .setAgentType(AgentType.TELEGRAF)
             .setMonitorType(MonitorType.ping)
-            .setContent("{\"type\":\"ping\",\"urls\":[\"localhost\"],\"count\":" + UPDATED_COUNT_VALUE + "}")
+            .setContent("{\"type\":\"ping\",\"target\":\"localhost\",\"count\":" + UPDATED_COUNT_VALUE + "}")
             .setTenantId(tenantId)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setZones(Collections.singletonList("public/z-1"))

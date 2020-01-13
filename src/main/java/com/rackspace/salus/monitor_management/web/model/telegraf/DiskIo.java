@@ -21,7 +21,6 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -29,8 +28,6 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.diskio)
 public class DiskIo extends LocalPlugin {
-  List<String> devices;
+  String device;
   Boolean skipSerialNumber;
-  List<String> deviceTags;
-  List<String> nameTemplates;
 }

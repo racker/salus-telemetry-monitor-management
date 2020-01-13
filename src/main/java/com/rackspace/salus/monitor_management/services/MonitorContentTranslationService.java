@@ -23,10 +23,13 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
+import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -65,12 +68,18 @@ public class MonitorContentTranslationService {
   private final MonitorTranslationOperatorRepository monitorTranslationOperatorRepository;
   private final ObjectMapper objectMapper;
 
+  // metric counters
+  private final Counter monitorTranslateErrors;
+
   @Autowired
   public MonitorContentTranslationService(
       MonitorTranslationOperatorRepository monitorTranslationOperatorRepository,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper, MeterRegistry meterRegistry) {
     this.monitorTranslationOperatorRepository = monitorTranslationOperatorRepository;
     this.objectMapper = objectMapper;
+
+    this.monitorTranslateErrors = meterRegistry.counter("errors",
+        "operation", "monitorTranslate");
   }
 
   public MonitorTranslationOperator create(MonitorTranslationOperatorCreate in) {
@@ -127,6 +136,7 @@ public class MonitorContentTranslationService {
             );
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
+            monitorTranslateErrors.increment();
             return null;
           }
         })

@@ -110,11 +110,10 @@ public class PingConversionTest {
     assertThat(plugin).isInstanceOf(Ping.class);
 
     final Ping pingPlugin = (Ping) plugin;
-    assertThat(pingPlugin.getUrls()).contains("localhost");
+    assertThat(pingPlugin.getTarget()).isEqualTo("localhost");
     assertThat(pingPlugin.getCount()).isEqualTo(5);
     assertThat(pingPlugin.getPingInterval()).isEqualTo(2);
     assertThat(pingPlugin.getDeadline()).isNull();
-    assertThat(pingPlugin.getInterfaceOrAddress()).isNull();
     assertThat(pingPlugin.getTimeout()).isNull();
   }
 
@@ -127,7 +126,7 @@ public class PingConversionTest {
     final RemoteMonitorDetails details = new RemoteMonitorDetails();
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final Ping plugin = new Ping();
-    plugin.setUrls(Collections.singletonList("localhost"));
+    plugin.setTarget("localhost");
     plugin.setCount(5);
     plugin.setPingInterval(2);
     details.setPlugin(plugin);

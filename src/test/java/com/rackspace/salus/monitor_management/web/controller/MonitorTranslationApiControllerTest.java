@@ -73,7 +73,7 @@ public class MonitorTranslationApiControllerTest {
             null
         ),
         buildOperator(
-            "< 1.12.0", MonitorType.http_response,
+            "< 1.12.0", MonitorType.http,
             ConfigSelectorScope.REMOTE,
             UUID.fromString("00000002-ffcf-40d2-8684-95cb0362ae6d"),
             null
