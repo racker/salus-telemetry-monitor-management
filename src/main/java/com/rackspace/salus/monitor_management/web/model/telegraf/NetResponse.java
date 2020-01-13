@@ -40,7 +40,7 @@ public class NetResponse extends RemotePlugin {
   String host;
 
   @NotNull
-  int port;
+  Integer port;
 
   @ValidGoDuration
   String timeout;
