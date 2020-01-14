@@ -23,6 +23,8 @@ import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -40,6 +42,8 @@ public class NetResponse extends RemotePlugin {
   String host;
 
   @NotNull
+  @Min(1)
+  @Max(65535)
   Integer port;
 
   @ValidGoDuration
