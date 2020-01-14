@@ -42,7 +42,7 @@ public class Dns extends RemotePlugin {
   @NotNull
   RecordType recordType = RecordType.A;
   @NotNull
-  int port = 53;
+  Integer port = 53;
   @ValidGoDuration
   String timeout;
 }
