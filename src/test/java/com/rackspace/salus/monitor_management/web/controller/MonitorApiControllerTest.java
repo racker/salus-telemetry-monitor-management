@@ -418,6 +418,28 @@ public class MonitorApiControllerTest {
   }
 
   @Test
+  public void testCreateRemoteNetResponseMonitor_InvalidPort() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/monitors", tenantId);
+    DetailedMonitorInput create = podamFactory.manufacturePojo(DetailedMonitorInput.class);
+    create.setDetails(new RemoteMonitorDetails()
+        .setMonitoringZones(Collections.singletonList("myzone"))
+        .setPlugin(new NetResponse()
+            // If an invalid port is set validation should fail
+            .setPort(123456789)
+            .setProtocol(Protocol.tcp)
+            .setHost(RandomStringUtils.randomAlphabetic(10))))
+        .setResourceId("");
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(validationError("details.plugin.port", "must be less than or equal to 65535"));
+  }
+
+  @Test
   public void testUpdateMonitor() throws Exception {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
