@@ -47,9 +47,6 @@ import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -133,14 +130,15 @@ public class ZoneApiControllerTest {
                 .thenReturn(Optional.of(expectedZone));
 
         mvc.perform(get(
-                "/api/tenant/{tenantId}/zones/{name}", "t-1", "z-1")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(content()
-                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(
-                    readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
+            "/api/tenant/{tenantId}/zones/{name}",
+            "t-1", RandomStringUtils.randomAlphanumeric(10))
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
     @Test
@@ -178,8 +176,9 @@ public class ZoneApiControllerTest {
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
 
+        final String zoneName = "public/" + RandomStringUtils.randomAlphabetic(6);
         mvc.perform(get(
-            "/api/admin/zones/{name}", "public/z-1")
+            "/api/admin/zones/{name}", zoneName)
             .contentType(MediaType.APPLICATION_JSON))
             .andDo(print())
             .andExpect(status().isOk())
@@ -273,11 +272,13 @@ public class ZoneApiControllerTest {
 
     @Test
     public void testCreateDuplicatePrivateZone() throws Exception {
-        String error = "Zone already exists with name z-1 on tenant t-1";
+        ZoneCreatePrivate create = newZoneCreatePrivate();
+        String error = String.format(
+            "Zone already exists with name %s on tenant t-1", create.getName());
+
         when(zoneManagement.createPrivateZone(any(), any()))
             .thenThrow(new AlreadyExistsException(error));
 
-        ZoneCreatePrivate create = newZoneCreatePrivate();
 
         mvc.perform(post(
             "/api/tenant/{tenantId}/zones", "t-1")
@@ -416,7 +417,7 @@ public class ZoneApiControllerTest {
     public void testDeletePrivateZone() throws Exception {
         mvc.perform(delete(
                 "/api/tenant/{tenantId}/zones/{name}",
-                "t-1", "z-1"))
+                "t-1", RandomStringUtils.randomAlphanumeric(10)))
                 .andDo(print())
                 .andExpect(status().isNoContent());
     }
@@ -430,7 +431,8 @@ public class ZoneApiControllerTest {
         ZoneCreatePrivate create = newZoneCreatePrivate();
 
         mvc.perform(delete(
-            "/api/tenant/{tenantId}/zones/{name}", "t-1", "z-1")
+            "/api/tenant/{tenantId}/zones/{name}",
+            "t-1", RandomStringUtils.randomAlphanumeric(10))
             .content(objectMapper.writeValueAsString(create))
             .contentType(MediaType.APPLICATION_JSON)
             .characterEncoding(StandardCharsets.UTF_8.name()))
@@ -449,9 +451,10 @@ public class ZoneApiControllerTest {
         when(monitorManagement.getZoneAssignmentCounts(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(expected));
 
+        final String zoneName = RandomStringUtils.randomAlphanumeric(10);
         final MvcResult result = mvc.perform(
             get("/api/tenant/{tenantId}/zone-assignment-counts/{name}",
-                "t-1", "z-1"))
+                "t-1", zoneName))
             // CompletableFuture return value, so the request is asynchronous
             .andExpect(request().asyncStarted())
             .andReturn();
@@ -464,8 +467,8 @@ public class ZoneApiControllerTest {
                 readContent("ZoneApiControllerTest/privateZoneAssignmentCounts_valid.json"),
                 true));
 
-        verify(zoneManagement).exists("t-1", "z-1");
-        verify(monitorManagement).getZoneAssignmentCounts("t-1", "z-1");
+        verify(zoneManagement).exists("t-1", zoneName);
+        verify(monitorManagement).getZoneAssignmentCounts("t-1", zoneName);
 
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
@@ -493,9 +496,10 @@ public class ZoneApiControllerTest {
         when(monitorManagement.rebalanceZone(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(3));
 
+        final String zoneName = RandomStringUtils.randomAlphabetic(10);
         final MvcResult result = mvc.perform(
             post("/api/tenant/{tenantId}/rebalance-zone/{name}",
-                "t-1", "z-1"
+                "t-1", zoneName
             )
         )
             .andExpect(request().asyncStarted())
@@ -507,8 +511,8 @@ public class ZoneApiControllerTest {
                 .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.reassigned", equalTo(3)));
 
-        verify(zoneManagement).exists("t-1", "z-1");
-        verify(monitorManagement).rebalanceZone("t-1", "z-1");
+        verify(zoneManagement).exists("t-1", zoneName);
+        verify(monitorManagement).rebalanceZone("t-1", zoneName);
 
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
@@ -518,14 +522,15 @@ public class ZoneApiControllerTest {
         when(zoneManagement.exists(any(), any()))
             .thenReturn(false);
 
+        final String zoneName = RandomStringUtils.randomAlphabetic(10);
         mvc.perform(
             post("/api/tenant/{tenantId}/rebalance-zone/{name}",
-                "t-1", "z-1"
+                "t-1", zoneName
             )
         )
             .andExpect(status().isNotFound());
 
-        verify(zoneManagement).exists("t-1", "z-1");
+        verify(zoneManagement).exists("t-1", zoneName);
 
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
