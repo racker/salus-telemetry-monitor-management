@@ -21,5 +21,6 @@
   "intervalSlow": "3s",
   "tlsCa": "tlsCa",
   "tlsCert": "tlsCert",
-  "tlsKey": "tlsKey"
+  "tlsKey": "tlsKey",
+  "insecureSkipVerify": null
 }

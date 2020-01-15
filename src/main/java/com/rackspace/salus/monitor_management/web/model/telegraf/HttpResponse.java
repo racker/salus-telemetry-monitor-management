@@ -28,7 +28,7 @@ import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = true)
+@Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.http)
 public class HttpResponse extends RemotePlugin {
@@ -36,7 +36,7 @@ public class HttpResponse extends RemotePlugin {
   String url;
   String httpProxy;
   @ValidGoDuration
-  String responseTimeout;
+  String timeout;
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
   String method;
   boolean followRedirects;
@@ -45,6 +45,6 @@ public class HttpResponse extends RemotePlugin {
   String tlsCa;
   String tlsCert;
   String tlsKey;
-  boolean insecureSkipVerify;
+  Boolean insecureSkipVerify;
   Map<String, String> headers;
 }

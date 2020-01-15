@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 import javax.validation.Constraint;
 
 @Data
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.procstat)
 @JsonInclude(JsonInclude.Include.NON_NULL)

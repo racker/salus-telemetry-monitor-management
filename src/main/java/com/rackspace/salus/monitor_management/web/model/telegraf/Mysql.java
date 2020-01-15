@@ -29,7 +29,7 @@ import javax.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = true)
+@Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.mysql)
 public class Mysql extends LocalPlugin {
@@ -59,4 +59,5 @@ public class Mysql extends LocalPlugin {
   String tlsCa;
   String tlsCert;
   String tlsKey;
+  Boolean insecureSkipVerify;
 }

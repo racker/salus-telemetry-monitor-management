@@ -113,7 +113,7 @@ public class HttpResponseConversionTest {
     final HttpResponse httpPlugin = (HttpResponse) plugin;
     assertThat(httpPlugin.getUrl()).isEqualTo("http://localhost");
     assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
-    assertThat(httpPlugin.getResponseTimeout()).isEqualTo("5s");
+    assertThat(httpPlugin.getTimeout()).isEqualTo("5s");
     assertThat(httpPlugin.getMethod()).isEqualTo("GET");
     assertThat(httpPlugin.isFollowRedirects()).isEqualTo(false);
     assertThat(httpPlugin.getBody()).isEqualTo("{'fake':'data'}");
@@ -121,7 +121,7 @@ public class HttpResponseConversionTest {
     assertThat(httpPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
     assertThat(httpPlugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
     assertThat(httpPlugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
-    assertThat(httpPlugin.isInsecureSkipVerify()).isEqualTo(false);
+    assertThat(httpPlugin.getInsecureSkipVerify()).isEqualTo(false);
     assertThat(httpPlugin.getHeaders().get("host")).isEqualTo("github.com");
 
     final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
@@ -147,7 +147,7 @@ public class HttpResponseConversionTest {
     final HttpResponse plugin = new HttpResponse();
     plugin.setUrl("http://localhost");
     plugin.setHttpProxy("http://localhost:8888");
-    plugin.setResponseTimeout("5s");
+    plugin.setTimeout("5s");
     plugin.setMethod("GET");
     plugin.setFollowRedirects(false);
     plugin.setBody("{'fake':'data'}");

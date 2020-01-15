@@ -26,7 +26,7 @@ import javax.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = true)
+@Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.ssl)
 public class X509Cert extends RemotePlugin {
@@ -37,5 +37,5 @@ public class X509Cert extends RemotePlugin {
   String tlsCa;
   String tlsCert;
   String tlsKey;
-  boolean insecureSkipVerify;
+  Boolean insecureSkipVerify;
 }
