@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.rackspace.salus.monitor_management.web.model.oracle.Dataguard;
 import com.rackspace.salus.monitor_management.web.model.oracle.Rman;
 import com.rackspace.salus.monitor_management.web.model.oracle.Tablespace;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Apache;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
@@ -36,6 +37,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
 @JsonSubTypes({
+    @Type(name = "apache", value = Apache.class),
     @Type(name = "cpu", value = Cpu.class),
     @Type(name = "disk", value = Disk.class),
     @Type(name = "diskio", value = DiskIo.class),
