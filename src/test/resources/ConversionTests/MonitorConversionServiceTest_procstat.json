@@ -1,5 +1,11 @@
 {
   "type" : "procstat",
   "pidFile" : "/path/to/file",
+  "user": null,
+  "exe": null,
+  "pattern": null,
+  "systemdUnit": null,
+  "cgroup": null,
+  "winService": null,
   "processName" : "thisIsAProcess"
 }
