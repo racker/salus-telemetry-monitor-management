@@ -55,7 +55,7 @@ import org.springframework.test.context.junit4.SpringRunner;
     MeterRegistryTestConfig.class
 })
 @AutoConfigureJson
-public class MonitorContentTranslationServiceTest {
+public class MonitorContentTranslationService_Translations_Test {
 
   private static final String OLD_FIELD_VALUE = "value-1";
 
