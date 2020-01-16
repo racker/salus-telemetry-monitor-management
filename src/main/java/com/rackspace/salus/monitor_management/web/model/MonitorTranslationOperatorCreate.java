@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ public class MonitorTranslationOperatorCreate {
   /**
    * Optional field, when set, indicates that the translation should only apply to monitors of this type.
    */
+  @NotNull
   MonitorType monitorType;
 
   /**
