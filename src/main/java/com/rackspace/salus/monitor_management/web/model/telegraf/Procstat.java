@@ -16,7 +16,6 @@ import javax.validation.Constraint;
 @EqualsAndHashCode(callSuper = true)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.procstat)
-@JsonInclude(JsonInclude.Include.NON_NULL)
 @ProcstatValidator.OneOf()
 public class Procstat extends LocalPlugin {
     String pidFile;
