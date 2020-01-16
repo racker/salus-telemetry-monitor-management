@@ -24,7 +24,7 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@Data @EqualsAndHashCode(callSuper = true)
+@Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.diskio)
 public class DiskIo extends LocalPlugin {

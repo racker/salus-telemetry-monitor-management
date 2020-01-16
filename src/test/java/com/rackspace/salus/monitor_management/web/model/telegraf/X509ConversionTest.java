@@ -120,7 +120,7 @@ public class X509ConversionTest {
     assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
     assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
     assertThat(x509Plugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
-    assertThat(x509Plugin.isInsecureSkipVerify()).isEqualTo(false);
+    assertThat(x509Plugin.getInsecureSkipVerify()).isEqualTo(false);
 
     final LocalValidatorFactoryBean validatorFactoryBean = new LocalValidatorFactoryBean();
     validatorFactoryBean.afterPropertiesSet();
