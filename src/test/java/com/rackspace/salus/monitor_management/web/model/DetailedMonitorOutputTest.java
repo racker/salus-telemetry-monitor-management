@@ -88,7 +88,7 @@ public class DetailedMonitorOutputTest {
                 .setCount(5)
                 .setDeadline(10)
                 .setPingInterval(15)
-                .setTimeout(20)
+                .setTimeout("20s")
             )
         )
         .setCreatedTimestamp(Instant.EPOCH.toString())

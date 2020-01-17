@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import javax.validation.constraints.NotEmpty;
@@ -33,7 +34,8 @@ public class Ping extends RemotePlugin {
   String target;
   Integer count;
   Integer pingInterval;
-  Integer timeout;
+  @ValidGoDuration
+  String timeout;
   Integer deadline;
 
   // DO NOT include 'binary' or 'arguments' from telegraf raw config since those would expose an

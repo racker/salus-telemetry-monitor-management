@@ -72,7 +72,7 @@ public class MetadataUtilsTest {
   public void getMetadataFieldsForUpdate_Ping() {
     Ping ping = new Ping()
         .setCount(3)
-        .setTimeout(10)
+        .setTimeout("10s")
         .setPingInterval(20);
 
     Map<String, MonitorMetadataPolicyDTO> policies = Map.of(
@@ -82,8 +82,8 @@ public class MetadataUtilsTest {
             .setValue("5"),
         "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("timeout")
-            .setValueType(MetadataValueType.INT)
-            .setValue("10")
+            .setValueType(MetadataValueType.STRING)
+            .setValue("10s")
     );
 
     // count has a different value than the policy.  even though it was previously using metadata, it is now excluded

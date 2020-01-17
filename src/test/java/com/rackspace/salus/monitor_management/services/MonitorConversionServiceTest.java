@@ -271,7 +271,7 @@ public class MonitorConversionServiceTest {
         .add(Json.createObjectBuilder()
             .add("op", "replace")
             .add("path", "/details/plugin/timeout")
-            .add("value", 33))
+            .add("value", "33s"))
         .build());
 
     final MonitorCU result = conversionService.convertFromPatchInput(
@@ -304,7 +304,7 @@ public class MonitorConversionServiceTest {
         .setTarget("localhost")
         .setCount(1)
         .setPingInterval(2)
-        .setTimeout(3);
+        .setTimeout("3s");
 
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
@@ -355,7 +355,7 @@ public class MonitorConversionServiceTest {
         .setTarget("localhost")
         .setCount(1)
         .setPingInterval(2)
-        .setTimeout(3);
+        .setTimeout("3s");
 
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");

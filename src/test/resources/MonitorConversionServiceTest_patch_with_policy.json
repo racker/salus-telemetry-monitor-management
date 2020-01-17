@@ -3,6 +3,6 @@
   "target": "localhost",
   "count": 63,
   "pingInterval": 2,
-  "timeout": 33,
+  "timeout": "33s",
   "deadline": null
 }
