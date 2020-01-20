@@ -72,8 +72,8 @@ public class MetadataUtilsTest {
   public void getMetadataFieldsForUpdate_Ping() {
     Ping ping = new Ping()
         .setCount(3)
-        .setTimeout(10)
-        .setPingInterval(20);
+        .setTimeout(Duration.ofSeconds(10))
+        .setPingInterval(Duration.ofSeconds(20));
 
     Map<String, MonitorMetadataPolicyDTO> policies = Map.of(
         "count", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
@@ -82,7 +82,7 @@ public class MetadataUtilsTest {
             .setValue("5"),
         "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("timeout")
-            .setValueType(MetadataValueType.INT)
+            .setValueType(MetadataValueType.DURATION)
             .setValue("10")
     );
 
@@ -103,7 +103,7 @@ public class MetadataUtilsTest {
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("interval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("12"));
+            .setValue("PT12S"));
 
     MetadataUtils.setNewMetadataValues(monitor, metadataFields, policyMetadata);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(12));
@@ -148,23 +148,23 @@ public class MetadataUtilsTest {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = Map.of("pingInterval",
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
-            .setValueType(MetadataValueType.INT)
-            .setValue("67"));
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT67S"));
 
     MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
-    assertThat(plugin.getPingInterval()).isEqualTo(67);
+    assertThat(plugin.getPingInterval()).isEqualTo(Duration.ofSeconds(67));
   }
 
   @Test
   public void setUpdateMetadataValue_INT() {
     Ping plugin = new Ping();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-        .setKey("pingInterval")
+        .setKey("count")
         .setValueType(MetadataValueType.INT)
-        .setValue("61");
+        .setValue("43");
 
     MetadataUtils.updateMetadataValue(plugin, policy);
-    assertThat(plugin.getPingInterval()).isEqualTo(61);
+    assertThat(plugin.getCount()).isEqualTo(43);
   }
 
   @Test
@@ -186,7 +186,7 @@ public class MetadataUtilsTest {
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
         .setKey("interval")
         .setValueType(MetadataValueType.DURATION)
-        .setValue("44");
+        .setValue("PT44S");
 
     MetadataUtils.updateMetadataValue(monitor, policy);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(44));
@@ -210,7 +210,7 @@ public class MetadataUtilsTest {
         .thenReturn(Map.of(
             "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.DURATION)
-                .setValue("1")
+                .setValue("PT1S")
                 .setKey("interval"),
             "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.STRING_LIST)

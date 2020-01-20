@@ -3,8 +3,8 @@
   "host": "localhost",
   "port": 80,
   "protocol": "tcp",
-  "timeout": "5s",
-  "readTimeout": "10s",
+  "timeout": "PT5S",
+  "readTimeout": "PT10S",
   "send": "request",
   "expect": "response"
 }

@@ -21,9 +21,9 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RecordType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -43,6 +43,5 @@ public class Dns extends RemotePlugin {
   RecordType recordType = RecordType.A;
   @NotNull
   Integer port = 53;
-  @ValidGoDuration
-  String timeout;
+  Duration timeout;
 }

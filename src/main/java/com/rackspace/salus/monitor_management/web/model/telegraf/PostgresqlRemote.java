@@ -19,10 +19,10 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.monitor_management.web.validator.PostgresqlRemoteValidator.AtMostOneOf;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -38,8 +38,7 @@ public class PostgresqlRemote extends RemotePlugin {
   @Pattern(regexp = Postgresql.REGEXP, message = Postgresql.ERR_MESSAGE)
   String address;
   String outputaddress;
-  @ValidGoDuration
-  String maxLifetime;
+  Duration maxLifetime;
   List<String> ignoredDatabases;
   List<String> databases;
 }

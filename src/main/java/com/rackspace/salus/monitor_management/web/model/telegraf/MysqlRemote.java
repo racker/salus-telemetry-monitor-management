@@ -19,9 +19,9 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -51,8 +51,7 @@ public class MysqlRemote extends RemotePlugin {
   boolean gatherTableSchema;
   boolean gatherFileEventsStats;
   boolean gatherPerfEventsStatements;
-  @ValidGoDuration
-  String intervalSlow;
+  Duration intervalSlow;
   String tlsCa;
   String tlsCert;
   String tlsKey;

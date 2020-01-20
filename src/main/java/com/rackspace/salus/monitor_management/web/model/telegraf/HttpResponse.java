@@ -19,9 +19,9 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import java.util.Map;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -35,8 +35,7 @@ public class HttpResponse extends RemotePlugin {
   @NotEmpty
   String url;
   String httpProxy;
-  @ValidGoDuration
-  String timeout;
+  Duration timeout;
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
   String method;
   boolean followRedirects;

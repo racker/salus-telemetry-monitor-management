@@ -131,8 +131,8 @@ public class MonitorConversionServiceTest {
             .setValue("63"),
         "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
-            .setValueType(MetadataValueType.INT)
-            .setValue("2"));
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT2S"));
 
     when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(expectedPolicy);
@@ -179,12 +179,12 @@ public class MonitorConversionServiceTest {
             .setValue("63"),
         "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
-            .setValueType(MetadataValueType.INT)
-            .setValue("2"),
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT2S"),
         "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("interval")
-            .setValueType(MetadataValueType.INT)
-            .setValue("44"),
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT44S"),
         "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("zones")
             .setValueType(MetadataValueType.STRING_LIST)
@@ -198,7 +198,7 @@ public class MonitorConversionServiceTest {
     final Ping plugin = new Ping()
         .setTarget("localhost")
         .setCount(1)
-        .setPingInterval(2)
+        .setPingInterval(Duration.ofSeconds(2))
         .setTimeout(null);
 
     final Map<String, String> labels = new HashMap<>();
@@ -303,8 +303,8 @@ public class MonitorConversionServiceTest {
     final Ping plugin = new Ping()
         .setTarget("localhost")
         .setCount(1)
-        .setPingInterval(2)
-        .setTimeout(3);
+        .setPingInterval(Duration.ofSeconds(2))
+        .setTimeout(Duration.ofSeconds(3));
 
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
@@ -354,8 +354,8 @@ public class MonitorConversionServiceTest {
     final Ping plugin = new Ping()
         .setTarget("localhost")
         .setCount(1)
-        .setPingInterval(2)
-        .setTimeout(3);
+        .setPingInterval(Duration.ofSeconds(2))
+        .setTimeout(Duration.ofSeconds(3));
 
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
