@@ -103,7 +103,7 @@ public class MetadataUtilsTest {
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("interval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("12"));
+            .setValue("PT12S"));
 
     MetadataUtils.setNewMetadataValues(monitor, metadataFields, policyMetadata);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(12));
@@ -149,7 +149,7 @@ public class MetadataUtilsTest {
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("67"));
+            .setValue("PT67S"));
 
     MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
     assertThat(plugin.getPingInterval()).isEqualTo(Duration.ofSeconds(67));
@@ -186,7 +186,7 @@ public class MetadataUtilsTest {
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
         .setKey("interval")
         .setValueType(MetadataValueType.DURATION)
-        .setValue("44");
+        .setValue("PT44S");
 
     MetadataUtils.updateMetadataValue(monitor, policy);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(44));
@@ -210,7 +210,7 @@ public class MetadataUtilsTest {
         .thenReturn(Map.of(
             "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.DURATION)
-                .setValue("1")
+                .setValue("PT1S")
                 .setKey("interval"),
             "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.STRING_LIST)
