@@ -3,6 +3,6 @@
   "target": "localhost",
   "count": 5,
   "deadline": null,
-  "pingInterval": 2,
+  "pingInterval": "PT2S",
   "timeout": null
 }

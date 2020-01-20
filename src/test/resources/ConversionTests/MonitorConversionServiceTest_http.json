@@ -2,7 +2,7 @@
   "type": "http",
   "url": "http://localhost",
   "httpProxy": "http://localhost:8888",
-  "timeout": "5s",
+  "timeout": "PT5S",
   "method": "GET",
   "followRedirects": false,
   "body": "{'fake':'data'}",

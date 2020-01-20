@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,7 +88,7 @@ public class PostgresqlRemoteConversionTest {
     List<String> l2 = List.of("3","4");
     assertThat(postgresqlPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
     assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo("db1");
-    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo("0s");
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo(Duration.ofSeconds(0));
     assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(l);
     assertThat(postgresqlPlugin.getDatabases()).isEqualTo(l2);
   }
@@ -123,7 +124,7 @@ public class PostgresqlRemoteConversionTest {
     final PostgresqlRemote plugin = new PostgresqlRemote();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setOutputaddress("db1");
-    plugin.setMaxLifetime("0s");
+    plugin.setMaxLifetime(Duration.ofSeconds(0));
     plugin.setIgnoredDatabases(l);
     plugin.setDatabases(l2);
     details.setPlugin(plugin);

@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,7 +117,7 @@ public class X509ConversionTest {
 
     final X509Cert x509Plugin = (X509Cert) plugin;
     assertThat(x509Plugin.getTarget()).isEqualTo("/etc/ssl/certs/ssl-cert-snakeoil.pem");
-    assertThat(x509Plugin.getTimeout()).isEqualTo("5s");
+    assertThat(x509Plugin.getTimeout()).isEqualTo(Duration.ofSeconds(2));
     assertThat(x509Plugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
     assertThat(x509Plugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
     assertThat(x509Plugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
@@ -126,10 +127,10 @@ public class X509ConversionTest {
     validatorFactoryBean.afterPropertiesSet();
     Set<ConstraintViolation<X509Cert>> violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 0);
-    x509Plugin.setTimeout("xx");
+    x509Plugin.setTarget("");
     violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 1);
-    x509Plugin.setTimeout("300ms");
+    x509Plugin.setTarget("test");
     violations = validatorFactoryBean.validate(x509Plugin);
     assertEquals(violations.size(), 0);
   }
@@ -144,7 +145,7 @@ public class X509ConversionTest {
     details.setMonitoringZones(Collections.singletonList("z-1"));
     final X509Cert plugin = new X509Cert();
     plugin.setTarget("/etc/ssl/certs/ssl-cert-snakeoil.pem");
-    plugin.setTimeout("5s");
+    plugin.setTimeout(Duration.ofSeconds(2));
     plugin.setTlsCa("/etc/telegraf/ca.pem");
     plugin.setTlsCert("/etc/telegraf/cert.pem");
     plugin.setTlsKey("/etc/telegraf/key.pem");

@@ -18,7 +18,7 @@
   "gatherTableSchema": false,
   "gatherFileEventsStats": true,
   "gatherPerfEventsStatements": false,
-  "intervalSlow": "3s",
+  "intervalSlow": "PT3S",
   "tlsCa": "tlsCa",
   "tlsCert": "tlsCert",
   "tlsKey": "tlsKey",

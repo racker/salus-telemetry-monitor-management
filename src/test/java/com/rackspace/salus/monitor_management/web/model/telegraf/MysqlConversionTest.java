@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +103,7 @@ public class MysqlConversionTest {
     assertThat(mysqlPlugin.isGatherTableSchema()).isFalse();
     assertThat(mysqlPlugin.isGatherFileEventsStats()).isTrue();
     assertThat(mysqlPlugin.isGatherPerfEventsStatements()).isFalse();
-    assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo("3s");
+    assertThat(mysqlPlugin.getIntervalSlow()).isEqualTo(Duration.ofSeconds(3));
     assertThat(mysqlPlugin.getTlsCa()).isEqualTo("tlsCa");
     assertThat(mysqlPlugin.getTlsCert()).isEqualTo("tlsCert");
     assertThat(mysqlPlugin.getTlsKey()).isEqualTo("tlsKey");
@@ -171,7 +172,7 @@ public class MysqlConversionTest {
     plugin.setGatherTableSchema(false);
     plugin.setGatherFileEventsStats(true);
     plugin.setGatherPerfEventsStatements(false);
-    plugin.setIntervalSlow("3s");
+    plugin.setIntervalSlow(Duration.ofSeconds(3));
     plugin.setTlsCa("tlsCa");
     plugin.setTlsCert("tlsCert");
     plugin.setTlsKey("tlsKey");
