@@ -230,7 +230,7 @@ public class MonitorManagement_MetadataPolicyTest {
         .thenReturn(Map.of("interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
-                .setValue("60")
+                .setValue("PT60S")
                 .setValueType(MetadataValueType.DURATION)));
 
     String tenantId = RandomStringUtils.randomAlphabetic(10);
@@ -265,7 +265,7 @@ public class MonitorManagement_MetadataPolicyTest {
             "interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
-                .setValue("42")
+                .setValue("PT42S")
                 .setValueType(MetadataValueType.DURATION)));
 
     final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
@@ -575,7 +575,7 @@ public class MonitorManagement_MetadataPolicyTest {
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setMonitorType(MonitorType.ping)
                 .setKey("interval")
-                .setValue(Long.toString(UPDATED_DURATION_VALUE.getSeconds()))
+                .setValue(UPDATED_DURATION_VALUE.toString())
                 .setValueType(MetadataValueType.DURATION)
                 .setTargetClassName(TargetClassName.Monitor)
                 .setId(policyId)));

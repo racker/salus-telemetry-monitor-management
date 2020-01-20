@@ -132,7 +132,7 @@ public class MonitorConversionServiceTest {
         "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("2"));
+            .setValue("PT2S"));
 
     when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(expectedPolicy);
@@ -180,11 +180,11 @@ public class MonitorConversionServiceTest {
         "pingInterval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("2"),
+            .setValue("PT2S"),
         "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("interval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("44"),
+            .setValue("PT44S"),
         "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("zones")
             .setValueType(MetadataValueType.STRING_LIST)

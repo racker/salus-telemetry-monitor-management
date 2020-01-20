@@ -160,7 +160,7 @@ public class MetadataUtils {
           f.set(object, Integer.parseInt(policy.getValue()));
           break;
         case DURATION:
-          f.set(object, Duration.ofSeconds(Long.parseLong(policy.getValue())));
+          f.set(object, Duration.parse(policy.getValue()));
           break;
       }
     } catch (IllegalAccessException|NoSuchFieldException e) {
