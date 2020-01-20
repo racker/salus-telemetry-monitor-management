@@ -1,0 +1,6 @@
+{
+  "type": "packages",
+  "includeRpm": false,
+  "includeDebian": true,
+  "failWhenNotSupported": false
+}
