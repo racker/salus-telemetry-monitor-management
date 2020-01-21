@@ -1,0 +1,9 @@
+{
+  "type": "redis",
+  "url": "tcp://localhost:123",
+  "password": "myPass",
+  "tlsCa": "/etc/telegraf/ca.pem",
+  "tlsCert": "/etc/telegraf/cert.pem",
+  "tlsKey": "/etc/telegraf/key.pem",
+  "insecureSkipVerify": false
+}
