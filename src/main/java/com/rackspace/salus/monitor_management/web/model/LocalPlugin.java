@@ -33,6 +33,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Net;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Redis;
 import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
 import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
@@ -47,6 +48,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.System;
     @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
     @Type(name = "postgresql", value = Postgresql.class),
+    @Type(name = "redis", value = Redis.class),
     @Type(name = "sqlserver", value = SqlServer.class),
     @Type(name = "system", value = System.class),
     @Type(name = "oracle_rman", value = Rman.class),

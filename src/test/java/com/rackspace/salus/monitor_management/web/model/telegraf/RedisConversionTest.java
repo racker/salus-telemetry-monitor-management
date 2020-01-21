@@ -25,8 +25,8 @@ import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
-import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -34,7 +34,6 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -86,8 +85,7 @@ public class RedisConversionTest {
         .setId(monitorId)
         .setMonitorName("name-a")
         .setAgentType(AgentType.TELEGRAF)
-        .setSelectorScope(ConfigSelectorScope.REMOTE)
-        .setZones(Collections.singletonList("z-1"))
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelector(labels)
         .setContent(content)
         .setCreatedTimestamp(Instant.EPOCH)
@@ -99,11 +97,10 @@ public class RedisConversionTest {
     assertThat(result.getId()).isEqualTo(monitorId.toString());
     assertThat(result.getName()).isEqualTo("name-a");
     assertThat(result.getLabelSelector()).isEqualTo(labels);
-    assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
 
-    final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) result.getDetails();
-    assertThat(remoteMonitorDetails.getMonitoringZones()).contains("z-1");
-    final RemotePlugin plugin = remoteMonitorDetails.getPlugin();
+    final LocalMonitorDetails localMonitorDetails = (LocalMonitorDetails) result.getDetails();
+    final LocalPlugin plugin = localMonitorDetails.getPlugin();
     assertThat(plugin).isInstanceOf(Redis.class);
 
     final Redis redisPlugin = (Redis) plugin;
@@ -121,8 +118,7 @@ public class RedisConversionTest {
     labels.put("os", "linux");
     labels.put("test", "convertFromInput_http");
 
-    final RemoteMonitorDetails details = new RemoteMonitorDetails();
-    details.setMonitoringZones(Collections.singletonList("z-1"));
+    final LocalMonitorDetails details = new LocalMonitorDetails();
     final Redis plugin = new Redis();
     plugin.setUrl("tcp://localhost:123");
     plugin.setPassword("myPass");
@@ -143,7 +139,7 @@ public class RedisConversionTest {
     assertThat(result.getLabelSelector()).isEqualTo(labels);
     assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
-    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.REMOTE);
+    assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
     final String content = SpringResourceUtils.readContent(
         "/ConversionTests/MonitorConversionServiceTest_redis.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
