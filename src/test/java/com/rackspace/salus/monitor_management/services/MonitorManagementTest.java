@@ -1782,10 +1782,13 @@ public class MonitorManagementTest {
     // Create monitors which do have the labels we care about
     createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
+    // Create a "select all" type of monitor where label selector is empty
+    createMonitorsForTenant(1, tenantId, Collections.emptyMap());
+
     entityManager.flush();
 
     Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    assertEquals(monitorsWithLabels, monitors.getTotalElements());
+    assertEquals(monitorsWithLabels+1, monitors.getTotalElements());
     assertNotNull(monitors);
   }
 
