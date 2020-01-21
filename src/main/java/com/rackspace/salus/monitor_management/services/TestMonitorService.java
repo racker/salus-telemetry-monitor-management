@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ import org.springframework.util.CollectionUtils;
 @Slf4j
 public class TestMonitorService {
 
-  private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set.of(AgentType.TELEGRAF);
+  private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set.of(AgentType.TELEGRAF, AgentType.PACKAGES);
 
   private final MonitorConversionService monitorConversionService;
   private final ResourceRepository resourceRepository;
