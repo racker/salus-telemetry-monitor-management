@@ -1,5 +1,3 @@
--- So the problem is that we are promptly JOINing against monitor_label_selectors
-
 SELECT            monitors.id
 FROM              monitors
 LEFT OUTER JOIN   monitor_label_selectors AS ml ON monitors.id = ml.monitor_id
