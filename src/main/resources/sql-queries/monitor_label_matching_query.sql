@@ -4,7 +4,8 @@ SELECT            monitors.id
 FROM              monitors
 LEFT OUTER JOIN   monitor_label_selectors AS ml ON monitors.id = ml.monitor_id
 where             monitors.label_selector_method = 'AND'
-AND               monitors.tenant_id = :tenantId -- means adding another parameter
+AND               monitors.tenant_id = :tenantId
+AND               monitors.resource_id IS NULL
 AND               (ml.monitor_id IS NULL OR monitors.id IN
          (
     SELECT first_ml.monitor_id

@@ -1435,7 +1435,7 @@ public class MonitorManagement {
         // continue with normal processing, assuming it got revived concurrently
       }
 
-      // Get all relevant account monitors
+      // Grab all monitors using labels first
       selectedMonitors = getMonitorsFromLabels(
           resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent()
           .stream()
@@ -1443,6 +1443,7 @@ public class MonitorManagement {
           .filter(monitor -> monitor.getExcludedResourceIds() == null ||
               !monitor.getExcludedResourceIds().contains(resourceId))
           .collect(Collectors.toList());
+      //grab monitors that are using resourceId instead of labels
       selectedMonitors.addAll(monitorsWithResourceId);
       // Append all relevant policy monitors
       selectedMonitors.addAll(getPolicyMonitorsForResource(resource.get()));

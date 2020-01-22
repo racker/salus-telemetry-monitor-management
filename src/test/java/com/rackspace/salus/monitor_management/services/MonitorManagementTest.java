@@ -272,6 +272,7 @@ public class MonitorManagementTest {
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setMonitorType(MonitorType.cpu);
       create.setInterval(Duration.ofSeconds(60));
+      create.setResourceId(null);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -285,6 +286,7 @@ public class MonitorManagementTest {
       create.setLabelSelector(labels);
       create.setMonitorType(MonitorType.cpu);
       create.setInterval(Duration.ofSeconds(60));
+      create.setResourceId(null);
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -1793,6 +1795,38 @@ public class MonitorManagementTest {
   }
 
   @Test
+  public void testGetMonitorsFromLabelsOnlyReturnsTenantMonitors() {
+    int monitorsWithLabels = new Random().nextInt(10) + 10;
+    int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+
+    Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
+
+    // Create monitors which don't have the labels we care about
+    createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+
+    // Create monitors which do have the labels we care about
+    createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
+
+    // Create a "select all" type of monitor where label selector is empty
+    createMonitorsForTenant(1, tenantId, Collections.emptyMap());
+
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setZones(Collections.emptyList());
+    create.setResourceId(RandomStringUtils.randomAlphabetic(10));
+    String tenantId2 = RandomStringUtils.randomAlphabetic(10);
+    monitorManagement.createMonitor(tenantId2, create);
+
+    entityManager.flush();
+
+    Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
+    assertEquals(monitorsWithLabels+1, monitors.getTotalElements());
+    assertNotNull(monitors);
+  }
+
+
+  @Test
   public void testGetMonitorsFromLabelsPaginated() {
     int monitorsWithLabels = new Random().nextInt(10) + 10;
     int monitorsWithoutLabels = new Random().nextInt(10) + 20;
@@ -1826,6 +1860,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setResourceId(null);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1901,6 +1936,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setResourceId(null);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
@@ -1927,6 +1963,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setResourceId(null);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2004,6 +2041,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.OR);
+    create.setResourceId(null);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2083,6 +2121,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setResourceId(null);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2113,6 +2152,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(monitorLabels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setResourceId(null);
     create.setLabelSelectorMethod(LabelSelectorMethod.OR);
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
