@@ -10,21 +10,9 @@ AND                 (ml.monitor_id IS NULL OR monitors.id IN
   FROM   monitor_label_selectors
   WHERE  monitors.id IN
   (
-    SELECT first_monitors.id
-    FROM   monitors AS first_monitors
-    WHERE  tenant_id = :tenantId
-  )
-  AND monitors.id IN
-  (
     SELECT monitor_label_selectors.monitor_id
     FROM   monitor_label_selectors
-    WHERE  monitor_label_selectors.monitor_id IN
-    (
-      SELECT inner_monitors.id
-      FROM   monitors AS inner_monitors
-      WHERE  tenant_id = :tenantId
-    )
-    AND monitors.id IN
+    WHERE  monitors.id IN
     (
       SELECT   monitor_label_selectors.monitor_id
       FROM     monitor_label_selectors

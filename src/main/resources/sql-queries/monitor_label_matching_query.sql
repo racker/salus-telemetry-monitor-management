@@ -9,11 +9,6 @@ AND               (ml.monitor_id IS NULL OR monitors.id IN
     SELECT first_ml.monitor_id
     FROM   monitor_label_selectors AS first_ml
     WHERE  monitors.id IN
-       (
-          SELECT first_monitors.id
-          FROM   monitors AS first_monitors
-          WHERE  tenant_id = :tenantId)
-    AND    monitors.id IN
         (
             SELECT   search_labels.monitor_id
             FROM   (
