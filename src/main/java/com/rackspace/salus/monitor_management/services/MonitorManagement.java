@@ -1728,7 +1728,7 @@ public class MonitorManagement {
    */
   @SuppressWarnings("Duplicates")
   public Page<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, Pageable page) {
-    if(labels.size() == 0) {
+    if(labels == null || labels.isEmpty()) {
       return monitorRepository.findByTenantIdAndResourceIdIsNullAndLabelSelectorIsNull(tenantId, page);
     }
 
