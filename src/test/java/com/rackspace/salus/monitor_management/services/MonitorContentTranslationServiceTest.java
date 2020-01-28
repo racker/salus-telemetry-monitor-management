@@ -27,11 +27,11 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
 import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
+import com.rackspace.salus.test.EnableTestContainersDatabase;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEntityManager;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
@@ -45,8 +45,8 @@ import org.springframework.test.context.junit4.SpringRunner;
     DatabaseConfig.class,
     ObjectMapper.class
 })
+@EnableTestContainersDatabase
 @AutoConfigureDataJpa
-@AutoConfigureTestDatabase
 @AutoConfigureTestEntityManager
 public class MonitorContentTranslationServiceTest {
 
