@@ -47,6 +47,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
+import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.HashMap;
@@ -59,7 +60,6 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEntityManager;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
@@ -74,8 +74,8 @@ import org.springframework.transaction.annotation.Transactional;
     MonitorManagement.class,
     ZonesProperties.class
 })
+@EnableTestContainersDatabase
 @AutoConfigureDataJpa
-@AutoConfigureTestDatabase
 @AutoConfigureTestEntityManager
 @Transactional
 public class MonitorManagementExcludeResourceIdsTest {
