@@ -1788,6 +1788,7 @@ public class MonitorManagementTest {
   public void testGetMonitorsFromLabels() {
     int monitorsWithLabels = new Random().nextInt(10) + 10;
     int monitorsWithMismatchedLabels = new Random().nextInt(10) + 20;
+    int monitorsWithNoLabels = new Random().nextInt(10) + 20;
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
@@ -1799,12 +1800,12 @@ public class MonitorManagementTest {
     createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
 
     // Create a "select all" type of monitor where label selector is empty
-    createMonitorsForTenant(1, tenantId, Collections.emptyMap());
+    createMonitorsForTenant(monitorsWithNoLabels, tenantId, Collections.emptyMap());
 
     entityManager.flush();
 
     Page<Monitor> monitors = monitorManagement.getMonitorsFromLabels(labels, tenantId, Pageable.unpaged());
-    assertEquals(monitorsWithLabels+1, monitors.getTotalElements());
+    assertEquals(monitorsWithLabels+monitorsWithNoLabels, monitors.getTotalElements());
     assertNotNull(monitors);
   }
 
