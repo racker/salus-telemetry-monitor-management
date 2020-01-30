@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,19 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommonRemote;
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
+import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.nullableSummaryValue;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
-import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -82,7 +83,8 @@ public class MysqlRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final MysqlRemote mysqlPlugin = assertCommonRemote(result, monitor, MysqlRemote.class, "convertToOutput");
+    final MysqlRemote mysqlPlugin = assertCommonRemote(result, monitor, MysqlRemote.class, "convertToOutput",
+        Map.of("servers", "[1, 2]"));
 
     List<String> l = List.of("1","2");
     assertThat(mysqlPlugin.getServers()).isEqualTo(l);
@@ -119,7 +121,8 @@ public class MysqlRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final MysqlRemote mysqlPlugin = assertCommonRemote(result, monitor, MysqlRemote.class, "convertToOutput_defaults");
+    final MysqlRemote mysqlPlugin = assertCommonRemote(result, monitor, MysqlRemote.class, "convertToOutput_defaults",
+        nullableSummaryValue("servers"));
     assertThat(mysqlPlugin.getServers()).isEqualTo(null);
     assertThat(mysqlPlugin.getPerfEventsStatementsDigestTextLimit()).isEqualTo(null);
     assertThat(mysqlPlugin.getPerfEventsStatementsLimit()).isEqualTo(null);

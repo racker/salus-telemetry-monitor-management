@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,25 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommon;
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
+import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.nullableSummaryValue;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
-import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Test;
@@ -79,7 +81,7 @@ public class DiskConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Disk specificPlugin =
-        assertCommon(result, monitor, Disk.class, "convertToOutput");
+        assertCommon(result, monitor, Disk.class, "convertToOutput", Map.of("mount", "/var/lib"));
 
     assertThat(specificPlugin.getMount()).isEqualTo("/var/lib");
   }
@@ -94,7 +96,7 @@ public class DiskConversionTest {
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
     final Disk specificPlugin =
-        assertCommon(result, monitor, Disk.class, "convertToOutput_defaults");
+        assertCommon(result, monitor, Disk.class, "convertToOutput_defaults", nullableSummaryValue("mount"));
 
     assertThat(specificPlugin.getMount()).isNull();
   }

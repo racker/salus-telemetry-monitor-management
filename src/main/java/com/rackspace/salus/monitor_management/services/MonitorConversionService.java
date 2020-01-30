@@ -31,21 +31,29 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.json.JsonException;
 import javax.json.JsonPatch;
 import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
@@ -122,7 +130,54 @@ public class MonitorConversionService {
       detailedMonitorOutput.setLabelSelector(monitor.getLabelSelector());
     }
 
+    detailedMonitorOutput.setSummary(buildSummaryFromDetails(detailedMonitorOutput.getDetails()));
+
     return detailedMonitorOutput;
+  }
+
+  private Map<String, String> buildSummaryFromDetails(MonitorDetails details) {
+    if (details instanceof LocalMonitorDetails) {
+      return buildSummaryFromPlugin(((LocalMonitorDetails) details).getPlugin());
+    } else if (details instanceof RemoteMonitorDetails) {
+      return buildSummaryFromPlugin(((RemoteMonitorDetails) details).getPlugin());
+    } else if (details == null) {
+      return Map.of();
+    } else {
+      throw new IllegalStateException(String.format("Unexpected MonitorDetails type: %s", details.getClass()));
+    }
+  }
+
+  private Map<String, String> buildSummaryFromPlugin(Object plugin) {
+    final Map<String, String> summary = new HashMap<>();
+
+    final Class<?> pluginClass = plugin.getClass();
+
+    for (Field field : pluginClass.getDeclaredFields()) {
+      if (field.getAnnotation(SummaryField.class) != null) {
+        final String fieldName = field.getName();
+
+        final PropertyDescriptor propertyDescriptor = BeanUtils
+            .getPropertyDescriptor(pluginClass, fieldName);
+
+        if (propertyDescriptor != null) {
+          final Method readMethod = propertyDescriptor.getReadMethod();
+          if (readMethod != null) {
+            try {
+              final Object value = readMethod.invoke(plugin);
+              summary.put(fieldName, value != null ? value.toString() : null);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+              log.warn("Unable to read summary field {} from {}", fieldName, plugin);
+            }
+          } else {
+            log.warn("Summary field {} was not readable from {}", fieldName, plugin);
+          }
+        } else {
+          log.warn("Summary field {} was not a proper property in {}", fieldName, plugin);
+        }
+      }
+    }
+
+    return summary;
   }
 
   /**
@@ -142,6 +197,7 @@ public class MonitorConversionService {
     DetailedMonitorInput input = convertToInput(monitor);
 
     DetailedMonitorInput patchedInput;
+    //noinspection TryWithIdenticalCatches
     try {
       patchedInput = patchHelper.patch(
           patch,

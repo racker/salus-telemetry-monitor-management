@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.packages;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import lombok.Data;
@@ -29,7 +30,9 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.PACKAGES)
 @ApplicableMonitorType(MonitorType.packages)
 public class Packages extends LocalPlugin {
+  @SummaryField
   boolean includeRpm = true;
+  @SummaryField
   boolean includeDebian = true;
   boolean failWhenNotSupported;
 }

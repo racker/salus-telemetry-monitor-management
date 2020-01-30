@@ -80,7 +80,8 @@ public class PackagesConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput");
+    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput",
+        Map.of("includeRpm", "false", "includeDebian", "true"));
 
     assertThat(plugin.isIncludeDebian()).isTrue();
     assertThat(plugin.isIncludeRpm()).isFalse();
@@ -97,7 +98,8 @@ public class PackagesConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput_defaults");
+    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput_defaults",
+        Map.of("includeRpm", "true", "includeDebian", "true"));
 
     assertThat(plugin.isIncludeRpm()).isTrue();
     assertThat(plugin.isIncludeDebian()).isTrue();

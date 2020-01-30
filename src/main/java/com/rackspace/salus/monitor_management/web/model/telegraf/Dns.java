@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RecordType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.time.Duration;
@@ -35,6 +36,7 @@ import lombok.EqualsAndHashCode;
 public class Dns extends RemotePlugin {
   @NotBlank
   String dnsServer;
+  @SummaryField
   @NotBlank
   String domain;
   @NotNull

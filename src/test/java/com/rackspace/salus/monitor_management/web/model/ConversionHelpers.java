@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,6 @@ package com.rackspace.salus.monitor_management.web.model;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
-import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import java.time.Instant;
@@ -37,12 +32,14 @@ public class ConversionHelpers {
   private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
 
   public static <T> T assertCommon(DetailedMonitorOutput result,
-                            Monitor monitor, Class<T> pluginClass, String scenario) {
+                                   Monitor monitor, Class<T> pluginClass, String scenario,
+                                   Map<String, Object> summary) {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitor.getId().toString());
     assertThat(result.getName()).isEqualTo(scenario);
     assertThat(result.getLabelSelector()).isEqualTo(monitor.getLabelSelector());
     assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+    assertThat(result.getSummary()).isEqualTo(summary);
 
     final LocalPlugin plugin = ((LocalMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
@@ -51,12 +48,14 @@ public class ConversionHelpers {
   }
 
   public static <T> T assertCommonRemote(DetailedMonitorOutput result,
-                            Monitor monitor, Class<T> pluginClass, String scenario) {
+                                         Monitor monitor, Class<T> pluginClass, String scenario,
+                                         Map<String, Object> summary) {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(monitor.getId().toString());
     assertThat(result.getName()).isEqualTo(scenario);
     assertThat(result.getLabelSelector()).isEqualTo(monitor.getLabelSelector());
     assertThat(result.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+    assertThat(result.getSummary()).isEqualTo(summary);
 
     final RemotePlugin plugin = ((RemoteMonitorDetails) result.getDetails()).getPlugin();
     assertThat(plugin).isInstanceOf(pluginClass);
@@ -81,5 +80,15 @@ public class ConversionHelpers {
         .setContent(content)
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+  }
+
+  /**
+   * Since {@link Map#of(Object, Object)} doesn't allow for null values we need a helper method
+   * to create expected summary objects for default plugin cases.
+   */
+  public static Map<String,Object> nullableSummaryValue(String key) {
+    final Map<String,Object> summary = new HashMap<>(1);
+    summary.put(key, null);
+    return summary;
   }
 }

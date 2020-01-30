@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
@@ -34,6 +35,7 @@ import lombok.EqualsAndHashCode;
 public class SqlServer extends LocalPlugin {
   public static final String REGEXP = "^(sqlserver://.+)|(([^?;]+=[^;]+;)*([^?;]+=[^;]+);?)$";
   public static final String ERR_MESSAGE = "invalid sqlserver db connection string";
+  @SummaryField
   @NotEmpty
   List<@ValidLocalHost @Pattern(regexp = SqlServer.REGEXP, message = SqlServer.ERR_MESSAGE)String> servers;
   boolean azuredb;
