@@ -1787,13 +1787,13 @@ public class MonitorManagementTest {
   @Test
   public void testGetMonitorsFromLabels() {
     int monitorsWithLabels = new Random().nextInt(10) + 10;
-    int monitorsWithoutLabels = new Random().nextInt(10) + 20;
+    int monitorsWithMismatchedLabels = new Random().nextInt(10) + 20;
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     Map<String, String> labels = Collections.singletonMap("mykey", "myvalue");
 
     // Create monitors which don't have the labels we care about
-    createMonitorsForTenant(monitorsWithoutLabels, tenantId);
+    createMonitorsForTenant(monitorsWithMismatchedLabels, tenantId, Map.of("key", "nomatch"));
 
     // Create monitors which do have the labels we care about
     createMonitorsForTenant(monitorsWithLabels, tenantId, labels);
