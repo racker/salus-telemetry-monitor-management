@@ -23,7 +23,10 @@ import java.lang.annotation.Target;
 
 /**
  * This annotation is used to mark one or more fields of a {@link LocalPlugin} or {@link RemotePlugin}
- * subclass to be included in the summary field of a {@link DetailedMonitorOutput}.
+ * subclass to be included in the summary field of a {@link DetailedMonitorOutput}. Good fields
+ * to annotate are ones that are meaningful to the end user and help differentiate between several
+ * monitors of the same type. Things like http url, DNS domain, and server address are examples
+ * of fields that should be annotated.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
