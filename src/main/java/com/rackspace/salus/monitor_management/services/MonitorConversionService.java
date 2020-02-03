@@ -37,12 +37,9 @@ import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -53,7 +50,6 @@ import javax.json.JsonPatch;
 import javax.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
@@ -151,26 +147,16 @@ public class MonitorConversionService {
     final Class<?> pluginClass = plugin.getClass();
 
     for (Field field : pluginClass.getDeclaredFields()) {
-      if (field.getAnnotation(SummaryField.class) != null) {
+      if (field.isAnnotationPresent(SummaryField.class)) {
         final String fieldName = field.getName();
 
-        final PropertyDescriptor propertyDescriptor = BeanUtils
-            .getPropertyDescriptor(pluginClass, fieldName);
+        field.setAccessible(true);
 
-        if (propertyDescriptor != null) {
-          final Method readMethod = propertyDescriptor.getReadMethod();
-          if (readMethod != null) {
-            try {
-              final Object value = readMethod.invoke(plugin);
-              summary.put(fieldName, value != null ? value.toString() : null);
-            } catch (IllegalAccessException | InvocationTargetException e) {
-              log.warn("Unable to read summary field {} from {}", fieldName, plugin);
-            }
-          } else {
-            log.warn("Summary field {} was not readable from {}", fieldName, plugin);
-          }
-        } else {
-          log.warn("Summary field {} was not a proper property in {}", fieldName, plugin);
+        try {
+          final Object value = field.get(plugin);
+          summary.put(fieldName, value != null ? value.toString() : null);
+        } catch (IllegalAccessException e) {
+          log.warn("Unable to read summary field {} from {}", fieldName, plugin);
         }
       }
     }
