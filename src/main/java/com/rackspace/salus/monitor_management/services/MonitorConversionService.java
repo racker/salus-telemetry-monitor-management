@@ -140,9 +140,7 @@ public class MonitorConversionService {
       return buildSummaryFromPlugin(((LocalMonitorDetails) details).getPlugin());
     } else if (details instanceof RemoteMonitorDetails) {
       return buildSummaryFromPlugin(((RemoteMonitorDetails) details).getPlugin());
-    } else if (details == null) {
-      return Map.of();
-    } else {
+    } {
       throw new IllegalStateException(String.format("Unexpected MonitorDetails type: %s", details.getClass()));
     }
   }
