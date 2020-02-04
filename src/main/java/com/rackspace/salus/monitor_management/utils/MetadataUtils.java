@@ -107,7 +107,13 @@ public class MetadataUtils {
                 break;
               case DURATION:
                 Duration durationValue = (Duration) f.get(object);
-                if (durationValue.getSeconds() == Long.parseLong(policy.getValue())) {
+                if (durationValue.equals(Duration.parse(policy.getValue()))) {
+                  metadataFields.add(f.getName());
+                }
+                break;
+              case BOOL:
+                Boolean boolValue = (Boolean) f.get(object);
+                if (boolValue == Boolean.parseBoolean(policy.getValue())) {
                   metadataFields.add(f.getName());
                 }
                 break;
@@ -161,6 +167,9 @@ public class MetadataUtils {
           break;
         case DURATION:
           f.set(object, Duration.parse(policy.getValue()));
+          break;
+        case BOOL:
+          f.set(object, Boolean.parseBoolean(policy.getValue()));
           break;
       }
     } catch (IllegalAccessException|NoSuchFieldException e) {
