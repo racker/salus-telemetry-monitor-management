@@ -62,6 +62,7 @@ public class DetailedMonitorOutputTest {
                 .setTotalcpu(true)
             )
         )
+        .setSummary(Map.of("key", "value"))
         .setCreatedTimestamp(Instant.EPOCH.toString())
         .setUpdatedTimestamp(Instant.EPOCH.plusSeconds(1).toString());
 
@@ -91,6 +92,7 @@ public class DetailedMonitorOutputTest {
                 .setTimeout(Duration.ofSeconds(20))
             )
         )
+        .setSummary(Map.of("key", "value"))
         .setCreatedTimestamp(Instant.EPOCH.toString())
         .setUpdatedTimestamp(Instant.EPOCH.plusSeconds(1).toString());
 

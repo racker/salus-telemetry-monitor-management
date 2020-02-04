@@ -38,4 +38,6 @@ public class DetailedMonitorOutput {
     MonitorDetails details;
     String createdTimestamp;
     String updatedTimestamp;
+
+    Map<String,String> summary;
 }

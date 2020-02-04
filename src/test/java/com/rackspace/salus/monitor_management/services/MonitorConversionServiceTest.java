@@ -438,6 +438,9 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setResourceId("r-1")
         .setId(monitorId)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -461,6 +464,9 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setExcludedResourceIds(Set.of("r-1","r-2"))
         .setId(monitorId)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -474,6 +480,9 @@ public class MonitorConversionServiceTest {
     Monitor monitor = new Monitor()
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setId(monitorId)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
@@ -498,6 +507,9 @@ public class MonitorConversionServiceTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setId(monitorId)
         .setInterval(Duration.ofSeconds(60))
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
