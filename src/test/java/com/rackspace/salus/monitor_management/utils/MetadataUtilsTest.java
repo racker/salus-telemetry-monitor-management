@@ -117,7 +117,7 @@ public class MetadataUtilsTest {
             .setValue("true")
     );
 
-    // url has a different value than the policy.  even though it was previously using metadata, it is now excluded
+    // url is set and has no policy value.  even though it was previously using metadata, it is now excluded
     // body has a different value than the policy, but is now null so will continue to use metadata regardless
     // timeout has the same value as the metadata and was previously set using it, so it remains as metadata
     // any field that was not previously metadata and is now null will be set to metadata
