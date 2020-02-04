@@ -850,6 +850,9 @@ public class MonitorApiControllerTest {
 
     final Monitor stubMonitorResp = new Monitor()
         .setId(UUID.randomUUID())
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     when(monitorManagement.createMonitor(any(), any()))

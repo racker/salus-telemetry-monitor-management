@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
+import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -72,8 +73,8 @@ public class MetadataUtilsTest {
   public void getMetadataFieldsForUpdate_Ping() {
     Ping ping = new Ping()
         .setCount(3)
-        .setTimeout(10)
-        .setPingInterval(20);
+        .setTimeout(Duration.ofSeconds(10))
+        .setPingInterval(Duration.ofSeconds(20));
 
     Map<String, MonitorMetadataPolicyDTO> policies = Map.of(
         "count", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
@@ -82,8 +83,8 @@ public class MetadataUtilsTest {
             .setValue("5"),
         "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("timeout")
-            .setValueType(MetadataValueType.INT)
-            .setValue("10")
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT10S")
     );
 
     // count has a different value than the policy.  even though it was previously using metadata, it is now excluded
@@ -96,6 +97,48 @@ public class MetadataUtilsTest {
   }
 
   @Test
+  public void getMetadataFieldsForUpdate_Http() {
+    HttpResponse ping = new HttpResponse()
+        .setUrl("localhost")
+        .setTimeout(Duration.ofSeconds(12));
+
+    Map<String, MonitorMetadataPolicyDTO> policies = Map.of(
+        "body", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("body")
+            .setValueType(MetadataValueType.STRING)
+            .setValue("httpbody"),
+        "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("timeout")
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT12S"),
+        "followRedirects", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("followRedirects")
+            .setValueType(MetadataValueType.BOOL)
+            .setValue("true")
+    );
+
+    // url is set and has no policy value.  even though it was previously using metadata, it is now excluded
+    // body has a different value than the policy, but is now null so will continue to use metadata regardless
+    // timeout has the same value as the metadata and was previously set using it, so it remains as metadata
+    // any field that was not previously metadata and is now null will be set to metadata
+    List<String> fields = MetadataUtils.getMetadataFieldsForUpdate(
+        ping, List.of("url", "body", "timeout", "followRedirects"), policies);
+
+    assertThat(fields).hasSize(10);
+    assertThat(fields).containsAll(List.of(
+        "httpProxy",
+        "timeout",
+        "followRedirects",
+        "body",
+        "responseStringMatch",
+        "tlsCa",
+        "tlsCert",
+        "tlsKey",
+        "insecureSkipVerify",
+        "headers"));
+  }
+
+  @Test
   public void setNewMetadataValues_monitor() {
     Monitor monitor = new Monitor();
     List<String> metadataFields = List.of("interval");
@@ -103,7 +146,7 @@ public class MetadataUtilsTest {
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("interval")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("12"));
+            .setValue("PT12S"));
 
     MetadataUtils.setNewMetadataValues(monitor, metadataFields, policyMetadata);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(12));
@@ -148,23 +191,23 @@ public class MetadataUtilsTest {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = Map.of("pingInterval",
         (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("pingInterval")
-            .setValueType(MetadataValueType.INT)
-            .setValue("67"));
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT67S"));
 
     MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
-    assertThat(plugin.getPingInterval()).isEqualTo(67);
+    assertThat(plugin.getPingInterval()).isEqualTo(Duration.ofSeconds(67));
   }
 
   @Test
   public void setUpdateMetadataValue_INT() {
     Ping plugin = new Ping();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-        .setKey("pingInterval")
+        .setKey("count")
         .setValueType(MetadataValueType.INT)
-        .setValue("61");
+        .setValue("43");
 
     MetadataUtils.updateMetadataValue(plugin, policy);
-    assertThat(plugin.getPingInterval()).isEqualTo(61);
+    assertThat(plugin.getCount()).isEqualTo(43);
   }
 
   @Test
@@ -186,7 +229,7 @@ public class MetadataUtilsTest {
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
         .setKey("interval")
         .setValueType(MetadataValueType.DURATION)
-        .setValue("44");
+        .setValue("PT44S");
 
     MetadataUtils.updateMetadataValue(monitor, policy);
     assertThat(monitor.getInterval()).isEqualTo(Duration.ofSeconds(44));
@@ -210,7 +253,7 @@ public class MetadataUtilsTest {
         .thenReturn(Map.of(
             "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.DURATION)
-                .setValue("1")
+                .setValue("PT1S")
                 .setKey("interval"),
             "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.STRING_LIST)

@@ -23,24 +23,21 @@ import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.model.validator.ValidLocalHost;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import java.util.List;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Pattern;
+import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data @EqualsAndHashCode(callSuper = false)
 @ApplicableAgentType(AgentType.TELEGRAF)
-@ApplicableMonitorType(MonitorType.sqlserver)
-public class SqlServer extends LocalPlugin {
-  public static final String REGEXP = "^(sqlserver://.+)|(([^?;]+=[^;]+;)*([^?;]+=[^;]+);?)$";
-  public static final String ERR_MESSAGE = "invalid sqlserver db connection string";
+@ApplicableMonitorType(MonitorType.redis)
+public class Redis extends LocalPlugin {
   @SummaryField
-  @NotEmpty
-  List<@ValidLocalHost @Pattern(regexp = SqlServer.REGEXP, message = SqlServer.ERR_MESSAGE)String> servers;
-  boolean azuredb;
-  // Jackson excludes serialization of camelCase fields whose names start with 'exclude'
-  // we are able to bypass this by renaming the field here and using a MonitorTranslator
-  // to rename the field again when passing it down to telegraf.
-  List<String> queryExclusions;
+  @NotNull
+  @ValidLocalHost
+  String url;
+  String password;
+  String tlsCa;
+  String tlsCert;
+  String tlsKey;
+  Boolean insecureSkipVerify;
 }

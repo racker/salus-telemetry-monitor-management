@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -76,6 +77,7 @@ import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -99,6 +101,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -118,7 +121,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
@@ -126,6 +128,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @SuppressWarnings("SameParameterValue")
 @RunWith(SpringRunner.class)
+@EnableTestContainersDatabase
 @DataJpaTest(showSql = false)
 @Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
     MonitorContentRenderer.class,
@@ -249,6 +252,13 @@ public class MonitorManagementTest {
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    // transactional rollback should take care of purging test data, but do a deleteAll to be sure
+    monitorRepository.deleteAll();
+    entityManager.flush();
   }
 
   private void createMonitors(int count) {
@@ -4055,10 +4065,12 @@ public class MonitorManagementTest {
     final MultiValueMap<String, String> results = monitorManagement
         .getTenantMonitorLabelSelectors("t-1");
 
-    final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
-    expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
-    expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
-    expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
-    assertThat(results, equalTo(expected));
+    assertThat(results.size(), equalTo(3));
+    assertThat(results, hasKey("key1"));
+    assertThat(results, hasKey("key2"));
+    assertThat(results, hasKey("key3"));
+    assertThat(results.get("key1"), containsInAnyOrder("value-1-1", "value-1-2"));
+    assertThat(results.get("key2"), containsInAnyOrder("value-2-1", "value-2-2"));
+    assertThat(results.get("key3"), containsInAnyOrder("value-3-1", "value-3-2"));
   }
 }

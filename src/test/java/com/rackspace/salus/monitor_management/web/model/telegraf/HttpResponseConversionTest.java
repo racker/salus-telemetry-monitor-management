@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -113,9 +114,9 @@ public class HttpResponseConversionTest {
     final HttpResponse httpPlugin = (HttpResponse) plugin;
     assertThat(httpPlugin.getUrl()).isEqualTo("http://localhost");
     assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
-    assertThat(httpPlugin.getTimeout()).isEqualTo("5s");
+    assertThat(httpPlugin.getTimeout()).isEqualTo(Duration.ofSeconds(5));
     assertThat(httpPlugin.getMethod()).isEqualTo("GET");
-    assertThat(httpPlugin.isFollowRedirects()).isEqualTo(false);
+    assertThat(httpPlugin.getFollowRedirects()).isEqualTo(false);
     assertThat(httpPlugin.getBody()).isEqualTo("{'fake':'data'}");
     assertThat(httpPlugin.getResponseStringMatch()).isEqualTo("\"service_status\": \"up\"");
     assertThat(httpPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
@@ -147,7 +148,7 @@ public class HttpResponseConversionTest {
     final HttpResponse plugin = new HttpResponse();
     plugin.setUrl("http://localhost");
     plugin.setHttpProxy("http://localhost:8888");
-    plugin.setTimeout("5s");
+    plugin.setTimeout(Duration.ofSeconds(5));
     plugin.setMethod("GET");
     plugin.setFollowRedirects(false);
     plugin.setBody("{'fake':'data'}");

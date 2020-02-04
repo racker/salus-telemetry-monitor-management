@@ -72,4 +72,29 @@ public class ValidLocalHostTest {
         containsString(ValidLocalHost.DEFAULT_MESSAGE));
 
   }
+
+  @Test
+  public void testEmpty() {
+    List<String> l = new ArrayList<>();
+    l.add("");
+    final WithLocalHost obj = new WithLocalHost(l);
+
+    final Set<ConstraintViolation<WithLocalHost>> results = validatorFactoryBean.validate(obj);
+
+    assertThat(results, hasSize(1));
+    assertThat(new ArrayList<>(results).get(0).getMessage(),
+        containsString(ValidLocalHost.DEFAULT_MESSAGE));
+
+  }
+
+  @Test
+  public void testNull() {
+    List<String> l = new ArrayList<>();
+    l.add(null);
+    final WithLocalHost obj = new WithLocalHost(l);
+
+    final Set<ConstraintViolation<WithLocalHost>> results = validatorFactoryBean.validate(obj);
+
+    assertThat(results, hasSize(0));
+  }
 }

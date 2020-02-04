@@ -62,6 +62,7 @@ public class DetailedMonitorOutputTest {
                 .setTotalcpu(true)
             )
         )
+        .setSummary(Map.of("key", "value"))
         .setCreatedTimestamp(Instant.EPOCH.toString())
         .setUpdatedTimestamp(Instant.EPOCH.plusSeconds(1).toString());
 
@@ -86,11 +87,12 @@ public class DetailedMonitorOutputTest {
             .setPlugin(new Ping()
                 .setTarget("localhost:22")
                 .setCount(5)
-                .setDeadline(10)
-                .setPingInterval(15)
-                .setTimeout(20)
+                .setDeadline(Duration.ofSeconds(10))
+                .setPingInterval(Duration.ofSeconds(15))
+                .setTimeout(Duration.ofSeconds(20))
             )
         )
+        .setSummary(Map.of("key", "value"))
         .setCreatedTimestamp(Instant.EPOCH.toString())
         .setUpdatedTimestamp(Instant.EPOCH.plusSeconds(1).toString());
 

@@ -26,6 +26,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.MysqlRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.telegraf.PostgresqlRemote;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Redis;
 import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServerRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 

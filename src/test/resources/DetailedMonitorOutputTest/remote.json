@@ -16,11 +16,12 @@
       "type": "ping",
       "target": "localhost:22",
       "count": 5,
-      "deadline": 10,
-      "pingInterval": 15,
-      "timeout": 20
+      "deadline": "PT10S",
+      "pingInterval": "PT15S",
+      "timeout": "PT20S"
     }
   },
+  "summary": {"key": "value"},
   "createdTimestamp": "1970-01-01T00:00:00Z",
   "updatedTimestamp": "1970-01-01T00:00:01Z"
 }

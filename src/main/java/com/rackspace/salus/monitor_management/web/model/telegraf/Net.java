@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import lombok.Data;
@@ -29,6 +30,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.net)
 public class Net extends LocalPlugin {
+  @SummaryField
   @JsonProperty("interface")
   String monitoredInterface;
   @JsonProperty(defaultValue = "true")

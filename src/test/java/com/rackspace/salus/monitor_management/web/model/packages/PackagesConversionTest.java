@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.oracle;
+package com.rackspace.salus.monitor_management.web.model.packages;
 
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommon;
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
@@ -35,8 +35,6 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
@@ -46,13 +44,17 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @JsonTest
 @Import({MonitorConversionService.class, MetadataUtils.class})
-public class RmanConversionTest {
+public class PackagesConversionTest {
+  @Configuration
+  public static class TestConfig { }
+
   @MockBean
   PatchHelper patchHelper;
 
@@ -69,43 +71,52 @@ public class RmanConversionTest {
   MetadataUtils metadataUtils;
 
   @Test
-  public void convertToOutput_rman() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
+  public void convertToOutput_packages() throws IOException {
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_packages.json");
 
-    Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
+    Monitor monitor = createMonitor(content, "convertToOutput", AgentType.PACKAGES,
         ConfigSelectorScope.LOCAL
     );
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Rman rmanPlugin = assertCommon(result, monitor, Rman.class, "convertToOutput",
-        Map.of("databaseNames", "[backupDB, prodDB]"));
-    assertThat(rmanPlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
-    assertThat(rmanPlugin.getDatabaseNames()).containsExactlyInAnyOrder("backupDB", "prodDB");
-    final List<String> exclusionCodes = new LinkedList<>();
-    exclusionCodes.add("RMAN-1234");
-    assertThat(rmanPlugin.getExclusionCodes()).containsExactlyInAnyOrder("RMAN-1234");
+    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput",
+        Map.of("includeRpm", "false", "includeDebian", "true"));
+
+    assertThat(plugin.isIncludeDebian()).isTrue();
+    assertThat(plugin.isIncludeRpm()).isFalse();
+    assertThat(plugin.isFailWhenNotSupported()).isFalse();
   }
 
+  @Test
+  public void convertToOutput_packages_defaults() {
+    final String content = "{\"type\": \"packages\"}";
+
+    Monitor monitor = createMonitor(content, "convertToOutput_defaults", AgentType.PACKAGES,
+        ConfigSelectorScope.LOCAL
+    );
+
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+
+    final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput_defaults",
+        Map.of("includeRpm", "true", "includeDebian", "true"));
+
+    assertThat(plugin.isIncludeRpm()).isTrue();
+    assertThat(plugin.isIncludeDebian()).isTrue();
+    assertThat(plugin.isFailWhenNotSupported()).isFalse();
+  }
 
   @Test
-  public void convertFromInput_rman() throws IOException, JSONException {
+  public void convertFromInput_packages() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
     labels.put("test", "convertFromInput");
 
     final LocalMonitorDetails details = new LocalMonitorDetails();
-    final Rman plugin = new Rman();
-    final List<String> exclusionCodes = List.of("RMAN-1234");
-
-    plugin.setExclusionCodes(exclusionCodes);
-    plugin.setFilePath("./oracleDatabaseOutput");
-    final List<String> databaseNames = List.of("backupDB", "prodDB");
-
-    plugin.setDatabaseNames(databaseNames);
+    final Packages plugin = new Packages();
+    plugin.setIncludeDebian(true);
+    plugin.setIncludeRpm(false);
+    plugin.setFailWhenNotSupported(false);
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
@@ -117,10 +128,11 @@ public class RmanConversionTest {
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
-    assertThat(result.getAgentType()).isEqualTo(AgentType.ORACLE);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.PACKAGES);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
+    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_packages.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
+
 }

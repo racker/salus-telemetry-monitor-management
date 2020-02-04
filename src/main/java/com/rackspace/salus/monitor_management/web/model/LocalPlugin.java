@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,15 +23,17 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.rackspace.salus.monitor_management.web.model.oracle.Dataguard;
 import com.rackspace.salus.monitor_management.web.model.oracle.Rman;
 import com.rackspace.salus.monitor_management.web.model.oracle.Tablespace;
+import com.rackspace.salus.monitor_management.web.model.packages.Packages;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Apache;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.DiskIo;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Net;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Postgresql;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Procstat;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Mysql;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Redis;
 import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
 import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
@@ -46,11 +48,13 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.System;
     @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
     @Type(name = "postgresql", value = Postgresql.class),
+    @Type(name = "redis", value = Redis.class),
     @Type(name = "sqlserver", value = SqlServer.class),
     @Type(name = "system", value = System.class),
     @Type(name = "oracle_rman", value = Rman.class),
     @Type(name = "oracle_tablespace", value = Tablespace.class),
-    @Type(name = "oracle_dataguard", value = Dataguard.class)
+    @Type(name = "oracle_dataguard", value = Dataguard.class),
+    @Type(name = "packages", value = Packages.class)
 })
 public abstract class LocalPlugin {
 

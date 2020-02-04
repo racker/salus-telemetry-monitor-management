@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,8 +85,8 @@ public class NetResponseConversionTest {
         .setHost("localhost")
         .setPort(80)
         .setProtocol(Protocol.tcp)
-        .setTimeout("5s")
-        .setReadTimeout("10s")
+        .setTimeout(Duration.ofSeconds(5))
+        .setReadTimeout(Duration.ofSeconds(10))
         .setSend("request")
         .setExpect("response");
 
@@ -137,8 +138,8 @@ public class NetResponseConversionTest {
         .setHost("localhost")
         .setPort(80)
         .setProtocol(Protocol.tcp)
-        .setTimeout("5s")
-        .setReadTimeout("10s")
+        .setTimeout(Duration.ofSeconds(5))
+        .setReadTimeout(Duration.ofSeconds(10))
         .setSend("request")
         .setExpect("response");
     assertThat(remotePlugin).isEqualTo(expected);

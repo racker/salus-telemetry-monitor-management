@@ -14,30 +14,29 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.oracle;
+package com.rackspace.salus.monitor_management.web.model.telegraf;
 
-import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommon;
-import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
-import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;
 import org.junit.Test;
@@ -46,13 +45,17 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @JsonTest
 @Import({MonitorConversionService.class, MetadataUtils.class})
-public class RmanConversionTest {
+public class RedisConversionTest {
+  @Configuration
+  public static class TestConfig { }
+
   @MockBean
   PatchHelper patchHelper;
 
@@ -69,43 +72,60 @@ public class RmanConversionTest {
   MetadataUtils metadataUtils;
 
   @Test
-  public void convertToOutput_rman() throws IOException {
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
+  public void convertToOutput() throws IOException {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("os", "linux");
+    labels.put("test", "convertToOutput");
 
-    Monitor monitor = createMonitor(content, "convertToOutput", AgentType.ORACLE,
-        ConfigSelectorScope.LOCAL
-    );
+    final String content = SpringResourceUtils.readContent(
+        "/ConversionTests/MonitorConversionServiceTest_redis.json");
+    final UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = new Monitor()
+        .setId(monitorId)
+        .setMonitorName("name-a")
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelector(labels)
+        .setContent(content)
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final Rman rmanPlugin = assertCommon(result, monitor, Rman.class, "convertToOutput",
-        Map.of("databaseNames", "[backupDB, prodDB]"));
-    assertThat(rmanPlugin.getFilePath()).isEqualTo("./oracleDatabaseOutput");
-    final List<String> databaseNames = new LinkedList<>();
-    databaseNames.add("backupDB");
-    databaseNames.add("prodDB");
-    assertThat(rmanPlugin.getDatabaseNames()).containsExactlyInAnyOrder("backupDB", "prodDB");
-    final List<String> exclusionCodes = new LinkedList<>();
-    exclusionCodes.add("RMAN-1234");
-    assertThat(rmanPlugin.getExclusionCodes()).containsExactlyInAnyOrder("RMAN-1234");
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(monitorId.toString());
+    assertThat(result.getName()).isEqualTo("name-a");
+    assertThat(result.getLabelSelector()).isEqualTo(labels);
+    assertThat(result.getDetails()).isInstanceOf(LocalMonitorDetails.class);
+
+    final LocalMonitorDetails localMonitorDetails = (LocalMonitorDetails) result.getDetails();
+    final LocalPlugin plugin = localMonitorDetails.getPlugin();
+    assertThat(plugin).isInstanceOf(Redis.class);
+
+    final Redis redisPlugin = (Redis) plugin;
+    assertThat(redisPlugin.getUrl()).isEqualTo("tcp://localhost:123");
+    assertThat(redisPlugin.getPassword()).isEqualTo("myPass");
+    assertThat(redisPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");
+    assertThat(redisPlugin.getTlsCert()).isEqualTo("/etc/telegraf/cert.pem");
+    assertThat(redisPlugin.getTlsKey()).isEqualTo("/etc/telegraf/key.pem");
+    assertThat(redisPlugin.getInsecureSkipVerify()).isEqualTo(false);
   }
 
-
   @Test
-  public void convertFromInput_rman() throws IOException, JSONException {
+  public void convertFromInput() throws JSONException, IOException {
     final Map<String, String> labels = new HashMap<>();
     labels.put("os", "linux");
-    labels.put("test", "convertFromInput");
+    labels.put("test", "convertFromInput_http");
 
     final LocalMonitorDetails details = new LocalMonitorDetails();
-    final Rman plugin = new Rman();
-    final List<String> exclusionCodes = List.of("RMAN-1234");
-
-    plugin.setExclusionCodes(exclusionCodes);
-    plugin.setFilePath("./oracleDatabaseOutput");
-    final List<String> databaseNames = List.of("backupDB", "prodDB");
-
-    plugin.setDatabaseNames(databaseNames);
+    final Redis plugin = new Redis();
+    plugin.setUrl("tcp://localhost:123");
+    plugin.setPassword("myPass");
+    plugin.setTlsCa("/etc/telegraf/ca.pem");
+    plugin.setTlsCert("/etc/telegraf/cert.pem");
+    plugin.setTlsKey("/etc/telegraf/key.pem");
+    plugin.setInsecureSkipVerify(false);
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()
@@ -117,10 +137,11 @@ public class RmanConversionTest {
 
     assertThat(result).isNotNull();
     assertThat(result.getLabelSelector()).isEqualTo(labels);
-    assertThat(result.getAgentType()).isEqualTo(AgentType.ORACLE);
+    assertThat(result.getAgentType()).isEqualTo(AgentType.TELEGRAF);
     assertThat(result.getMonitorName()).isEqualTo("name-a");
     assertThat(result.getSelectorScope()).isEqualTo(ConfigSelectorScope.LOCAL);
-    final String content = readContent("/ConversionTests/MonitorConversionServiceTest_oracle_rman.json");
+    final String content = SpringResourceUtils.readContent(
+        "/ConversionTests/MonitorConversionServiceTest_redis.json");
     JSONAssert.assertEquals(content, result.getContent(), true);
   }
 }

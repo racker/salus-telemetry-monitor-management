@@ -34,6 +34,7 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -112,7 +113,7 @@ public class PingConversionTest {
     final Ping pingPlugin = (Ping) plugin;
     assertThat(pingPlugin.getTarget()).isEqualTo("localhost");
     assertThat(pingPlugin.getCount()).isEqualTo(5);
-    assertThat(pingPlugin.getPingInterval()).isEqualTo(2);
+    assertThat(pingPlugin.getPingInterval()).isEqualTo(Duration.ofSeconds(2));
     assertThat(pingPlugin.getDeadline()).isNull();
     assertThat(pingPlugin.getTimeout()).isNull();
   }
@@ -128,7 +129,7 @@ public class PingConversionTest {
     final Ping plugin = new Ping();
     plugin.setTarget("localhost");
     plugin.setCount(5);
-    plugin.setPingInterval(2);
+    plugin.setPingInterval(Duration.ofSeconds(2));
     details.setPlugin(plugin);
 
     DetailedMonitorInput input = new DetailedMonitorInput()

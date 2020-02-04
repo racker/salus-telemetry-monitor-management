@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import java.util.Map;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -32,14 +33,15 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.http)
 public class HttpResponse extends RemotePlugin {
+  @SummaryField
   @NotEmpty
   String url;
   String httpProxy;
-  @ValidGoDuration
-  String timeout;
+  Duration timeout;
+  @SummaryField
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
-  String method;
-  boolean followRedirects;
+  String method = "GET";
+  Boolean followRedirects;
   String body;
   String responseStringMatch;
   String tlsCa;

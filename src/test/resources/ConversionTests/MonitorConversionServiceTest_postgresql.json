@@ -2,7 +2,7 @@
   "type": "postgresql",
   "address": "host=localhost user=postgres sslmode=disable",
   "outputaddress": "db1",
-  "maxLifetime": "0s",
+  "maxLifetime": "PT0S",
   "ignoredDatabases": ["1", "2"],
   "databases": ["3", "4"]
 }

@@ -31,6 +31,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
@@ -38,8 +39,11 @@ import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
 import java.io.InvalidClassException;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.json.JsonException;
 import javax.json.JsonPatch;
@@ -122,7 +126,42 @@ public class MonitorConversionService {
       detailedMonitorOutput.setLabelSelector(monitor.getLabelSelector());
     }
 
+    detailedMonitorOutput.setSummary(buildSummaryFromDetails(detailedMonitorOutput.getDetails()));
+
     return detailedMonitorOutput;
+  }
+
+  private Map<String, String> buildSummaryFromDetails(MonitorDetails details) {
+    if (details instanceof LocalMonitorDetails) {
+      return buildSummaryFromPlugin(((LocalMonitorDetails) details).getPlugin());
+    } else if (details instanceof RemoteMonitorDetails) {
+      return buildSummaryFromPlugin(((RemoteMonitorDetails) details).getPlugin());
+    } {
+      throw new IllegalStateException(String.format("Unexpected MonitorDetails type: %s", details.getClass()));
+    }
+  }
+
+  private Map<String, String> buildSummaryFromPlugin(Object plugin) {
+    final Map<String, String> summary = new HashMap<>();
+
+    final Class<?> pluginClass = plugin.getClass();
+
+    for (Field field : pluginClass.getDeclaredFields()) {
+      if (field.isAnnotationPresent(SummaryField.class)) {
+        final String fieldName = field.getName();
+
+        field.setAccessible(true);
+
+        try {
+          final Object value = field.get(plugin);
+          summary.put(fieldName, value != null ? value.toString() : null);
+        } catch (IllegalAccessException e) {
+          log.warn("Unable to read summary field {} from {}", fieldName, plugin);
+        }
+      }
+    }
+
+    return summary;
   }
 
   /**
@@ -142,6 +181,7 @@ public class MonitorConversionService {
     DetailedMonitorInput input = convertToInput(monitor);
 
     DetailedMonitorInput patchedInput;
+    //noinspection TryWithIdenticalCatches
     try {
       patchedInput = patchHelper.patch(
           patch,

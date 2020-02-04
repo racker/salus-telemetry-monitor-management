@@ -19,9 +19,10 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import javax.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -31,12 +32,12 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.apache)
 public class Apache extends LocalPlugin {
+  @SummaryField
   @NotBlank
   String url;
   String username;
   String password;
-  @ValidGoDuration
-  String timeout;
+  Duration timeout;
   String tlsCa;
   String tlsCert;
   String tlsKey;

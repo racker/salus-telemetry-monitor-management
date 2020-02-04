@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.validator.PostgresqlRemoteValidator.AtMostOneOf;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -34,12 +35,12 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.postgresql)
 @AtMostOneOf
 public class PostgresqlRemote extends RemotePlugin {
+  @SummaryField
   @NotEmpty
   @Pattern(regexp = Postgresql.REGEXP, message = Postgresql.ERR_MESSAGE)
   String address;
   String outputaddress;
-  @ValidGoDuration
-  String maxLifetime;
+  Duration maxLifetime;
   List<String> ignoredDatabases;
   List<String> databases;
 }

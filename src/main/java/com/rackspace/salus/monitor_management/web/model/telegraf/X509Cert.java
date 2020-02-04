@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidGoDuration;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import javax.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -30,10 +31,10 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.ssl)
 public class X509Cert extends RemotePlugin {
+  @SummaryField
   @NotBlank
   String target;
-  @ValidGoDuration
-  String timeout;
+  Duration timeout;
   String tlsCa;
   String tlsCert;
   String tlsKey;

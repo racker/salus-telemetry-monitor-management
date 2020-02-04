@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,24 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.assertCommonRemote;
 import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.createMonitor;
+import static com.rackspace.salus.monitor_management.web.model.ConversionHelpers.nullableSummaryValue;
 import static com.rackspace.salus.test.JsonTestUtils.readContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
-import com.rackspace.salus.policy.manage.web.client.PolicyApi;
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,13 +83,14 @@ public class PostgresqlRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput");
+    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput",
+        Map.of("address", "host=localhost user=postgres sslmode=disable"));
 
     List<String> l = List.of("1","2");
     List<String> l2 = List.of("3","4");
     assertThat(postgresqlPlugin.getAddress()).isEqualTo("host=localhost user=postgres sslmode=disable");
     assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo("db1");
-    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo("0s");
+    assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo(Duration.ofSeconds(0));
     assertThat(postgresqlPlugin.getIgnoredDatabases()).isEqualTo(l);
     assertThat(postgresqlPlugin.getDatabases()).isEqualTo(l2);
   }
@@ -102,7 +105,8 @@ public class PostgresqlRemoteConversionTest {
 
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
 
-    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput_defaults");
+    final PostgresqlRemote postgresqlPlugin = assertCommonRemote(result, monitor, PostgresqlRemote.class, "convertToOutput_defaults",
+        nullableSummaryValue("address"));
     assertThat(postgresqlPlugin.getAddress()).isEqualTo(null);
     assertThat(postgresqlPlugin.getOutputaddress()).isEqualTo(null);
     assertThat(postgresqlPlugin.getMaxLifetime()).isEqualTo(null);
@@ -123,7 +127,7 @@ public class PostgresqlRemoteConversionTest {
     final PostgresqlRemote plugin = new PostgresqlRemote();
     plugin.setAddress("host=localhost user=postgres sslmode=disable");
     plugin.setOutputaddress("db1");
-    plugin.setMaxLifetime("0s");
+    plugin.setMaxLifetime(Duration.ofSeconds(0));
     plugin.setIgnoredDatabases(l);
     plugin.setDatabases(l2);
     details.setPlugin(plugin);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@ package com.rackspace.salus.monitor_management.web.model.telegraf;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
+import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import java.time.Duration;
 import javax.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,12 +31,13 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.ping)
 public class Ping extends RemotePlugin {
+  @SummaryField
   @NotEmpty
   String target;
   Integer count;
-  Integer pingInterval;
-  Integer timeout;
-  Integer deadline;
+  Duration pingInterval;
+  Duration timeout;
+  Duration deadline;
 
   // DO NOT include 'binary' or 'arguments' from telegraf raw config since those would expose an
   // exploitable attack vector on the customer servers

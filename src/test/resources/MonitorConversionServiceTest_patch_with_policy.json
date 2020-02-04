@@ -2,7 +2,7 @@
   "type": "ping",
   "target": "localhost",
   "count": 63,
-  "pingInterval": 2,
-  "timeout": 33,
+  "pingInterval": "PT2S",
+  "timeout": "PT33S",
   "deadline": null
 }

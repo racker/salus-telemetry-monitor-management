@@ -85,8 +85,11 @@ public class MonitorContentTranslationService {
   public MonitorTranslationOperator create(MonitorTranslationOperatorCreate in) {
     final MonitorTranslationOperator operator = new MonitorTranslationOperator()
         .setName(in.getName())
+        .setDescription(in.getDescription())
         .setAgentType(in.getAgentType())
         .setAgentVersions(in.getAgentVersions())
+        .setMonitorType(in.getMonitorType())
+        .setSelectorScope(in.getSelectorScope())
         .setTranslatorSpec(in.getTranslatorSpec());
 
     log.info("Creating new monitorTranslationOperator={}", operator);
