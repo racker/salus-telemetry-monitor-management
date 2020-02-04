@@ -116,7 +116,7 @@ public class HttpResponseConversionTest {
     assertThat(httpPlugin.getHttpProxy()).isEqualTo("http://localhost:8888");
     assertThat(httpPlugin.getTimeout()).isEqualTo(Duration.ofSeconds(5));
     assertThat(httpPlugin.getMethod()).isEqualTo("GET");
-    assertThat(httpPlugin.isFollowRedirects()).isEqualTo(false);
+    assertThat(httpPlugin.getFollowRedirects()).isEqualTo(false);
     assertThat(httpPlugin.getBody()).isEqualTo("{'fake':'data'}");
     assertThat(httpPlugin.getResponseStringMatch()).isEqualTo("\"service_status\": \"up\"");
     assertThat(httpPlugin.getTlsCa()).isEqualTo("/etc/telegraf/ca.pem");

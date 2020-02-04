@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
+import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -83,7 +84,7 @@ public class MetadataUtilsTest {
         "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
             .setKey("timeout")
             .setValueType(MetadataValueType.DURATION)
-            .setValue("10")
+            .setValue("PT10S")
     );
 
     // count has a different value than the policy.  even though it was previously using metadata, it is now excluded
@@ -93,6 +94,48 @@ public class MetadataUtilsTest {
     // interfaceOrAddress is set to null so it will be set to metadata
     assertThat(MetadataUtils.getMetadataFieldsForUpdate(ping, List.of("count", "timeout"), policies))
         .containsAll(List.of("timeout", "deadline"));
+  }
+
+  @Test
+  public void getMetadataFieldsForUpdate_Http() {
+    HttpResponse ping = new HttpResponse()
+        .setUrl("localhost")
+        .setTimeout(Duration.ofSeconds(12));
+
+    Map<String, MonitorMetadataPolicyDTO> policies = Map.of(
+        "body", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("body")
+            .setValueType(MetadataValueType.STRING)
+            .setValue("httpbody"),
+        "timeout", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("timeout")
+            .setValueType(MetadataValueType.DURATION)
+            .setValue("PT12S"),
+        "followRedirects", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+            .setKey("followRedirects")
+            .setValueType(MetadataValueType.BOOL)
+            .setValue("true")
+    );
+
+    // url is set and has no policy value.  even though it was previously using metadata, it is now excluded
+    // body has a different value than the policy, but is now null so will continue to use metadata regardless
+    // timeout has the same value as the metadata and was previously set using it, so it remains as metadata
+    // any field that was not previously metadata and is now null will be set to metadata
+    List<String> fields = MetadataUtils.getMetadataFieldsForUpdate(
+        ping, List.of("url", "body", "timeout", "followRedirects"), policies);
+
+    assertThat(fields).hasSize(10);
+    assertThat(fields).containsAll(List.of(
+        "httpProxy",
+        "timeout",
+        "followRedirects",
+        "body",
+        "responseStringMatch",
+        "tlsCa",
+        "tlsCert",
+        "tlsKey",
+        "insecureSkipVerify",
+        "headers"));
   }
 
   @Test

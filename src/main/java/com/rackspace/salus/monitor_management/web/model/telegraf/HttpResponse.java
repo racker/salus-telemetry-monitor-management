@@ -40,8 +40,8 @@ public class HttpResponse extends RemotePlugin {
   Duration timeout;
   @SummaryField
   @Pattern(regexp = "GET|PUT|POST|DELETE|HEAD|OPTIONS|PATCH|TRACE", message = "invalid http method")
-  String method;
-  boolean followRedirects;
+  String method = "GET";
+  Boolean followRedirects;
   String body;
   String responseStringMatch;
   String tlsCa;
