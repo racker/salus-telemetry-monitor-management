@@ -39,6 +39,7 @@ public class DetailedMonitorInput {
   /**
    * This key-value mapping of labels specifies what resources will be monitored by this monitor.
    * For a resource to be selected, it must contain at least all of the labels given here.
+   * If labelSelector is empty then this monitor will match all of this tenants resources.
    */
   @ValidLabelKeys
   Map<String,String> labelSelector;
