@@ -2598,6 +2598,8 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
         .setEnvoyId("e-2"));
 
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPrivateZone("t-1", "z-1");
+
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
   }
 
@@ -2620,7 +2622,7 @@ public class MonitorManagementTest {
 
     // EXECUTE
 
-    // The main thing being tested is that a null zone tenant ID
+    // The main thing being tested is that a null zone tenant ID...
     monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "r-1", "e-1", "e-2");
 
     // VERIFY
@@ -2650,6 +2652,112 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
         .setEnvoyId("e-2"));
 
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/1");
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
+  }
+
+  /**
+   * This does the same as above except also verifies bound monitors not assigned
+   * to any envoy will get picked up by a pre-existing envoy reconnecting.
+   */
+  @Test
+  public void testHandleZoneResourceChanged_publicZone_unassignedMonitors() {
+    // set up bound monitors that were previously bound to this envoy
+    List<BoundMonitor> preBoundMonitors = Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-3")
+    );
+
+    when(boundMonitorRepository.findWithEnvoyInPublicZone(any(), any(), any()))
+        .thenReturn(preBoundMonitors);
+
+    // set up bound monitors that have never been assigned to an envoy
+    // using 4 to make clear where the numbers in the asserts below came from
+    List<BoundMonitor> unBoundMonitors = Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-4"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-5"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-6"),
+        new BoundMonitor()
+            .setEnvoyId("e-1")
+            .setResourceId("r-7")
+    );
+
+    when(boundMonitorRepository.findAllWithoutEnvoyInPublicZone(anyString()))
+        .thenReturn(unBoundMonitors);
+
+    when(zoneStorage.findLeastLoadedEnvoy(any()))
+        .thenReturn(CompletableFuture.completedFuture(
+            Optional.of(new EnvoyResourcePair()
+            .setEnvoyId("e-2")
+            .setResourceId("r-1"))));
+
+    // EXECUTE
+
+    monitorManagement.handleEnvoyResourceChangedInZone(null, "public/1", "r-1", "e-1", "e-2");
+
+    // VERIFY
+
+    // first verify the operations performed due to a pre-existing envoy picking up
+    // its previously bound monitors
+    verify(boundMonitorRepository).findWithEnvoyInPublicZone(
+        "public/1", "e-1", null);
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-1"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-2"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-3")
+    ));
+
+    verify(zoneStorage).changeBoundCount(
+        createPublicZone("public/1"),
+        "r-1",
+        3
+    );
+
+    // then verify that it picks up the other unbound monitors
+    verify(boundMonitorRepository).findAllWithoutEnvoyInPublicZone("public/1");
+    verify(zoneStorage, times(4)).findLeastLoadedEnvoy(createPublicZone("public/1"));
+    verify(zoneStorage, times(4)).incrementBoundCount(createPublicZone("public/1"), "r-1");
+
+    verify(boundMonitorRepository).saveAll(Arrays.asList(
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-4"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-5"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-6"),
+        new BoundMonitor()
+            .setEnvoyId("e-2")
+            .setResourceId("r-7")
+    ));
+
+    // one event for preexisting and one for unassigned monitors
+    verify(monitorEventProducer, times(2)).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-2"));
+    
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer, boundMonitorRepository);
   }
 
