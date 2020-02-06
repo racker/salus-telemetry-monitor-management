@@ -655,7 +655,7 @@ public class MonitorManagement {
     }
 
     // Also check to make sure there are no unassigned bound monitors
-    // This can happen if new monitors are created while all monitors in a zone are down
+    // This can happen if new monitors are created while all poller-envoys in a zone are down
     handleNewEnvoyInZone(tenantId, zoneName);
   }
 
