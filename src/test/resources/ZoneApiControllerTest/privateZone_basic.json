@@ -5,6 +5,7 @@
   "providerRegion":"p-r-1",
   "sourceIpAddresses":[],
   "public":false,
+  "state":"ACTIVE",
   "createdTimestamp": "1970-01-02T03:46:40Z",
   "updatedTimestamp": "1970-01-02T03:46:40Z"
 }
