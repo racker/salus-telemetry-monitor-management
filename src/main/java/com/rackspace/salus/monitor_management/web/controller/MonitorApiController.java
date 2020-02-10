@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ package com.rackspace.salus.monitor_management.web.controller;
 import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.services.SchemaService;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -76,14 +78,17 @@ public class MonitorApiController {
   private MonitorManagement monitorManagement;
   private MonitorConversionService monitorConversionService;
   private final MonitorContentTranslationService monitorContentTranslationService;
+  private final SchemaService schemaService;
 
   @Autowired
   public MonitorApiController(MonitorManagement monitorManagement,
                               MonitorConversionService monitorConversionService,
-                              MonitorContentTranslationService monitorContentTranslationService) {
+                              MonitorContentTranslationService monitorContentTranslationService,
+                              SchemaService schemaService) {
     this.monitorManagement = monitorManagement;
     this.monitorConversionService = monitorConversionService;
     this.monitorContentTranslationService = monitorContentTranslationService;
+    this.schemaService = schemaService;
   }
 
   @GetMapping("/admin/monitors")
@@ -320,5 +325,11 @@ public class MonitorApiController {
   @JsonView(View.Public.class)
   public MultiValueMap<String, String> getMonitorLabelSelectors(@PathVariable String tenantId) {
     return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
+  }
+
+  @GetMapping("/tenant/{tenantId}/monitor-plugins-schema")
+  @JsonView(View.Public.class)
+  public JsonNode getMonitorPluginsSchema() {
+    return schemaService.getMonitorPluginsSchema();
   }
 }

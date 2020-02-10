@@ -47,6 +47,7 @@ import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.services.SchemaService;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
@@ -106,7 +107,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
-@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class})
+@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class,
+    SchemaService.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -716,6 +718,20 @@ public class MonitorApiControllerTest {
     verify(monitorManagement).getTenantMonitorLabelSelectors("t-1");
 
     verifyNoMoreInteractions(monitorManagement);
+  }
+
+  @Test
+  public void testGetMonitorPluginsSchema() throws Exception {
+    final String expectedSubset = readContent("MonitorApiControllerTest/monitor_plugins_schema_partial.json");
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/monitor-plugins-schema",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(expectedSubset, false));
+
   }
 
   private DetailedMonitorInput setupCreateMonitorTest() {
