@@ -1,6 +1,6 @@
 package com.rackspace.salus.monitor_management.services;
 
-import static com.rackspace.salus.common.messaging.KafkaMessageKeyBuilder.buildMessageKey;
+import static com.rackspace.salus.telemetry.messaging.KafkaMessageKeyBuilder.buildMessageKey;
 
 import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;

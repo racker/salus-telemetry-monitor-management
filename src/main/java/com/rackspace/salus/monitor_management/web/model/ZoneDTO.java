@@ -17,7 +17,7 @@ package com.rackspace.salus.monitor_management.web.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.telemetry.entities.Zone;
-import com.rackspace.salus.telemetry.model.View;
+import com.rackspace.salus.common.web.View;
 import com.rackspace.salus.telemetry.model.ZoneState;
 import java.time.format.DateTimeFormatter;
 import lombok.Data;

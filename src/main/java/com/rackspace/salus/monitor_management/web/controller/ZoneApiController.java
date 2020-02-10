@@ -31,7 +31,7 @@ import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.telemetry.model.View;
+import com.rackspace.salus.common.web.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
@@ -79,7 +79,6 @@ public class ZoneApiController {
 
   @GetMapping("/tenant/{tenantId}/zones/**")
   @ApiOperation(value = "Gets specific zone by tenant id and zone name")
-  @JsonView(View.Public.class)
   public ZoneDTO getAvailableZone(@PathVariable String tenantId, HttpServletRequest request) {
     String name = extractZoneNameFromUri(request);
     return getByZoneName(tenantId, name);
@@ -98,7 +97,6 @@ public class ZoneApiController {
 
   @GetMapping("/admin/zones/**")
   @ApiOperation(value = "Gets specific public zone by name")
-  @JsonView(View.Admin.class)
   public ZoneDTO getPublicZone(HttpServletRequest request) {
     String name = extractZoneNameFromUri(request);
     return getByZoneName(null, name);
@@ -138,7 +136,6 @@ public class ZoneApiController {
 
   @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
-  @JsonView(View.Public.class)
   public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
       @PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
 
@@ -151,7 +148,6 @@ public class ZoneApiController {
 
   @GetMapping("/admin/zone-assignment-counts/**")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
-  @JsonView(View.Admin.class)
   public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
       HttpServletRequest request) {
 
@@ -167,7 +163,6 @@ public class ZoneApiController {
   @PostMapping("/tenant/{tenantId}/zones")
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation(value = "Creates a new private zone for the tenant")
-  @JsonView(View.Public.class)
   public ZoneDTO create(@PathVariable String tenantId, @Valid @RequestBody ZoneCreatePrivate zone)
           throws AlreadyExistsException {
     return new ZoneDTO(zoneManagement.createPrivateZone(tenantId, zone));
@@ -176,7 +171,6 @@ public class ZoneApiController {
   @PostMapping("/admin/zones")
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation(value = "Creates a new public zone")
-  @JsonView(View.Admin.class)
   public ZoneDTO create(@Valid @RequestBody ZoneCreatePublic zone)
       throws AlreadyExistsException {
     return new ZoneDTO(zoneManagement.createPublicZone(zone));
@@ -184,14 +178,12 @@ public class ZoneApiController {
 
   @PutMapping("/tenant/{tenantId}/zones/{name}")
   @ApiOperation(value = "Updates a specific private zone for the tenant")
-  @JsonView(View.Public.class)
   public ZoneDTO update(@PathVariable String tenantId, @PathVariable String name, @Valid @RequestBody ZoneUpdate zone) {
     return new ZoneDTO(zoneManagement.updatePrivateZone(tenantId, name, zone));
   }
 
   @PutMapping("/admin/zones/**")
   @ApiOperation(value = "Updates a specific public zone")
-  @JsonView(View.Admin.class)
   public ZoneDTO update(HttpServletRequest request, @Valid @RequestBody ZoneUpdate zone) {
     String name = extractPublicZoneNameFromUri(request);
     return new ZoneDTO(zoneManagement.updatePublicZone(name, zone));
@@ -199,7 +191,6 @@ public class ZoneApiController {
 
   @PostMapping("/tenant/{tenantId}/rebalance-zone/{name}")
   @ApiOperation(value = "Rebalances a private zone")
-  @JsonView(View.Public.class)
   public CompletableFuture<RebalanceResult> rebalancePrivateZone(@PathVariable String tenantId,
                                                                  @PathVariable @PrivateZoneName String name) {
     if (!zoneManagement.exists(tenantId, name)) {
@@ -212,7 +203,6 @@ public class ZoneApiController {
 
   @PostMapping("/admin/rebalance-zone/**")
   @ApiOperation(value = "Rebalances a public zone")
-  @JsonView(View.Admin.class)
   public CompletableFuture<RebalanceResult> rebalancePublicZone(HttpServletRequest request) {
     String name = extractPublicZoneNameFromUri(request);
 
@@ -227,7 +217,6 @@ public class ZoneApiController {
   @DeleteMapping("/tenant/{tenantId}/zones/{name}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiOperation(value = "Deletes a specific private zone for the tenant")
-  @JsonView(View.Public.class)
   public void delete(@PathVariable String tenantId,
                      @PathVariable @PrivateZoneName String name) {
     zoneManagement.removePrivateZone(tenantId, name);
@@ -236,7 +225,6 @@ public class ZoneApiController {
   @DeleteMapping("/admin/zones/**")
   @ApiOperation(value = "Deletes a specific public zone")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @JsonView(View.Admin.class)
   public void delete(HttpServletRequest request) {
     String name = extractPublicZoneNameFromUri(request);
     zoneManagement.removePublicZone(name);
@@ -244,7 +232,6 @@ public class ZoneApiController {
 
   @GetMapping("/tenant/{tenantId}/zones")
   @ApiOperation(value = "Gets all zones available to be used in the tenant's monitor configurations")
-  @JsonView(View.Public.class)
   public PagedContent<ZoneDTO> getAvailableZones(@PathVariable String tenantId, Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getAvailableZonesForTenant(tenantId, pageable)
@@ -253,7 +240,6 @@ public class ZoneApiController {
 
   @GetMapping("/admin/zones")
   @ApiOperation(value = "Gets all public zones")
-  @JsonView(View.Admin.class)
   public PagedContent<ZoneDTO> getAllPublicZones(Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getAllPublicZones(pageable)
@@ -262,7 +248,6 @@ public class ZoneApiController {
 
   @GetMapping("/tenant/{tenantId}/monitors-by-zone/{zone}")
   @ApiOperation(value = "Gets all monitors in a given zone for a specific tenant")
-  @JsonView(View.Public.class)
   public PagedContent<MonitorDTO> getMonitorsForZone(@PathVariable String tenantId, @PathVariable String zone, Pageable pageable) {
     return PagedContent.fromPage(
         zoneManagement.getMonitorsForZone(tenantId, zone, pageable)
