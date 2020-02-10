@@ -63,18 +63,19 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.util.FileCopyUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(ZoneApiController.class)
+@ActiveProfiles("test")
 public class ZoneApiControllerTest {
 
     // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
@@ -91,7 +92,6 @@ public class ZoneApiControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
-
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -141,8 +141,9 @@ public class ZoneApiControllerTest {
                 readContent("ZoneApiControllerTest/privateZone_basic.json"), true));
     }
 
+    @WithMockUser(roles = "CUSTOMER")
     @Test
-    public void testGetAvailablePublicZoneForTenant() throws Exception {
+    public void testGetAvailablePublicZoneForTenantAsCustomer() throws Exception {
         final Zone expectedZone = new Zone()
             .setId(UUID.randomUUID())
             .setName("public/zone-1")
@@ -170,8 +171,68 @@ public class ZoneApiControllerTest {
                 readContent("ZoneApiControllerTest/publicZone_as_customer.json"), true));
     }
 
+    @WithMockUser(roles = "EMPLOYEE")
     @Test
-    public void testGetAvailablePublicZoneAsAdmin() throws Exception {
+    public void testGetAvailablePublicZoneForTenantAsEmployee() throws Exception {
+        final Zone expectedZone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("public/zone-1")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(true)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"))
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+
+        when(zoneManagement.getPublicZone(any()))
+            .thenReturn(Optional.of(expectedZone));
+
+        mvc.perform(get(
+            "/api/tenant/{tenantId}/zones/{name}", "t-1", "public/zone-1")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                // the STATE field should not be included
+                readContent("ZoneApiControllerTest/publicZone_as_admin.json"), true));
+    }
+
+    @WithMockUser(roles = "ENGINEER")
+    @Test
+    public void testGetAvailablePublicZoneForTenantAsAdmin() throws Exception {
+        final Zone expectedZone = new Zone()
+            .setId(UUID.randomUUID())
+            .setName("public/zone-1")
+            .setPollerTimeout(Duration.ofSeconds(60))
+            .setProvider("p-1")
+            .setProviderRegion("p-r-1")
+            .setPublic(true)
+            .setState(ZoneState.ACTIVE)
+            .setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"))
+            .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+            .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
+
+        when(zoneManagement.getPublicZone(any()))
+            .thenReturn(Optional.of(expectedZone));
+
+        mvc.perform(get(
+            "/api/tenant/{tenantId}/zones/{name}", "t-1", "public/zone-1")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                // the STATE field should not be included
+                readContent("ZoneApiControllerTest/publicZone_as_admin.json"), true));
+    }
+
+    @Test
+    public void testGetAvailablePublicZoneAdminApi() throws Exception {
         final Zone expectedZone = podamFactory.manufacturePojo(Zone.class);
         when(zoneManagement.getPublicZone(any()))
             .thenReturn(Optional.of(expectedZone));
