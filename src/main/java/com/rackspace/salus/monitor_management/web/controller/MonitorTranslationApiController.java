@@ -16,12 +16,10 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.common.web.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;

@@ -15,8 +15,6 @@
  */
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
@@ -26,12 +24,12 @@ import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.common.web.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
