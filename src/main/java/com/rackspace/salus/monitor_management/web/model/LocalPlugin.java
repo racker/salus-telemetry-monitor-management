@@ -38,23 +38,24 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
 import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
+// NOTE: when adding a new sub-type, place the new entry in alphabetical order by 'name'
 @JsonSubTypes({
     @Type(name = "apache", value = Apache.class),
     @Type(name = "cpu", value = Cpu.class),
     @Type(name = "disk", value = Disk.class),
     @Type(name = "diskio", value = DiskIo.class),
     @Type(name = "mem", value = Mem.class),
-    @Type(name = "net", value = Net.class),
-    @Type(name = "procstat", value = Procstat.class),
     @Type(name = "mysql", value = Mysql.class),
-    @Type(name = "postgresql", value = Postgresql.class),
-    @Type(name = "redis", value = Redis.class),
-    @Type(name = "sqlserver", value = SqlServer.class),
-    @Type(name = "system", value = System.class),
+    @Type(name = "net", value = Net.class),
+    @Type(name = "oracle_dataguard", value = Dataguard.class),
     @Type(name = "oracle_rman", value = Rman.class),
     @Type(name = "oracle_tablespace", value = Tablespace.class),
-    @Type(name = "oracle_dataguard", value = Dataguard.class),
-    @Type(name = "packages", value = Packages.class)
+    @Type(name = "packages", value = Packages.class),
+    @Type(name = "postgresql", value = Postgresql.class),
+    @Type(name = "procstat", value = Procstat.class),
+    @Type(name = "redis", value = Redis.class),
+    @Type(name = "sqlserver", value = SqlServer.class),
+    @Type(name = "system", value = System.class)
 })
 public abstract class LocalPlugin {
 

@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "monitor-plugins-scopes",
+  "description": "Conveys monitor scopes and plugin definitions for each",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "local": {
+    },
+    "remote": {
+    }
+  },
+  "definitions": {
+    "Ping": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {},
+      "title": "ping",
+      "required": [
+        "type",
+        "target"
+      ]
+    },
+    "Cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "cpu"
+          ],
+          "default": "cpu"
+        },
+        "percpu": {
+          "type": "boolean"
+        },
+        "totalcpu": {
+          "type": "boolean"
+        },
+        "collectCpuTime": {
+          "type": "boolean"
+        },
+        "reportActive": {
+          "type": "boolean"
+        }
+      },
+      "title": "cpu",
+      "required": [
+        "type",
+        "percpu",
+        "totalcpu",
+        "collectCpuTime",
+        "reportActive"
+      ]
+    }
+  }
+}
