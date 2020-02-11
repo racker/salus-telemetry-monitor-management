@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/schema/monitor")
+@RequestMapping("/schema")
 public class MonitorSchemaController {
   private final SchemaService schemaService;
 
@@ -35,7 +35,7 @@ public class MonitorSchemaController {
     this.schemaService = schemaService;
   }
 
-  @GetMapping("/plugins")
+  @GetMapping("/monitor-plugins")
   @JsonView(View.Public.class)
   public JsonNode getMonitorPluginsSchema() {
     return schemaService.getMonitorPluginsSchema();

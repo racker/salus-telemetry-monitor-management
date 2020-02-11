@@ -44,7 +44,7 @@ public class MonitorSchemaControllerTest {
         "MonitorSchemaControllerTest/monitor_plugins_schema_partial.json");
 
     mockMvc.perform(get(
-        "/schema/monitor/plugins",
+        "/schema/monitor-plugins",
         "t-1"
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
