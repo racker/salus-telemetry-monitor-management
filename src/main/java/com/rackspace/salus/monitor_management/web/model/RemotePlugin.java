@@ -30,6 +30,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServerRemote
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
+// NOTE: when adding a new sub-type, place the new entry in alphabetical order by 'name'
 @JsonSubTypes({
     @Type(name = "dns", value = Dns.class),
     @Type(name = "http", value = HttpResponse.class),

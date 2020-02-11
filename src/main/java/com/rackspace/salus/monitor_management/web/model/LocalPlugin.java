@@ -38,6 +38,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServer;
 import com.rackspace.salus.monitor_management.web.model.telegraf.System;
 
 @JsonTypeInfo(use = Id.NAME, property = "type")
+// NOTE: when adding a new sub-type, place the new entry in alphabetical order by 'name'
 @JsonSubTypes({
     @Type(name = "apache", value = Apache.class),
     @Type(name = "cpu", value = Cpu.class),
