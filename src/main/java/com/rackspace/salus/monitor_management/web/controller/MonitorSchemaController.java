@@ -16,10 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.rackspace.salus.monitor_management.services.SchemaService;
-import com.rackspace.salus.telemetry.model.View;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,7 +34,6 @@ public class MonitorSchemaController {
   }
 
   @GetMapping("/monitor-plugins")
-  @JsonView(View.Public.class)
   public JsonNode getMonitorPluginsSchema() {
     return schemaService.getMonitorPluginsSchema();
   }
