@@ -18,7 +18,6 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -31,7 +30,6 @@ import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -88,7 +86,6 @@ public class MonitorApiController {
 
   @GetMapping("/admin/monitors")
   @ApiOperation(value = "Gets all Monitors irrespective of Tenant")
-  @JsonView(View.Admin.class)
   public PagedContent<DetailedMonitorOutput> getAll(Pageable pageable) {
 
     return PagedContent.fromPage(monitorManagement.getAllMonitors(pageable)
@@ -98,7 +95,6 @@ public class MonitorApiController {
   @PostMapping("/admin/bound-monitors")
   @ApiOperation(value = "Queries BoundMonitors attached to a particular Envoy"
       + " and translates the content for the given agent types and versions")
-  @JsonView(View.Admin.class)
   public List<BoundMonitorDTO> queryBoundMonitors(@RequestBody @Validated BoundMonitorsRequest query) {
     final List<BoundMonitor> boundMonitors = monitorManagement
         .getAllBoundMonitorsByEnvoyId(query.getEnvoyId());
@@ -111,7 +107,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/monitors/{uuid}")
   @ApiOperation(value = "Gets specific Monitor for Tenant")
-  @JsonView(View.Public.class)
   public DetailedMonitorOutput getById(@PathVariable String tenantId,
                                        @PathVariable UUID uuid) throws NotFoundException {
     Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(
@@ -123,7 +118,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/policy-monitors")
   @ApiOperation(value = "Gets all Policy Monitors for Tenant")
-  @JsonView(View.Public.class)
   public PagedContent<DetailedMonitorOutput> getAllPolicyMonitorsForTenant(
       @PathVariable String tenantId, Pageable pageable)
       throws NotFoundException {
@@ -134,7 +128,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/policy-monitors/{uuid}")
   @ApiOperation(value = "Gets specific Policy Monitor for Tenant")
-  @JsonView(View.Public.class)
   public DetailedMonitorOutput getPolicyMonitorForTenant(
       @PathVariable String tenantId, @PathVariable UUID uuid)
       throws NotFoundException {
@@ -144,7 +137,6 @@ public class MonitorApiController {
 
   @GetMapping("/admin/policy-monitors")
   @ApiOperation(value = "Gets all Policy Monitors")
-  @JsonView(View.Admin.class)
   public PagedContent<DetailedMonitorOutput> getAllPolicyMonitors(Pageable pageable) {
     return PagedContent.fromPage(monitorManagement.getAllPolicyMonitors(pageable)
         .map(monitorConversionService::convertToOutput));
@@ -152,7 +144,6 @@ public class MonitorApiController {
 
   @GetMapping("/admin/policy-monitors/{uuid}")
   @ApiOperation(value = "Get specific Policy Monitor by Id")
-  @JsonView(View.Admin.class)
   public DetailedMonitorOutput getPolicyMonitorById(@PathVariable UUID uuid)
       throws NotFoundException {
     Monitor monitor = monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
@@ -163,7 +154,6 @@ public class MonitorApiController {
 
   @PutMapping("/admin/policy-monitors/{uuid}")
   @ApiOperation(value = "Updates specific Policy Monitor")
-  @JsonView(View.Admin.class)
   public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
                                                    @Validated(ValidationGroups.Update.class)
                                                    @RequestBody final DetailedMonitorInput input)
@@ -179,7 +169,6 @@ public class MonitorApiController {
   @PatchMapping(path = "/admin/policy-monitors/{uuid}",
                 consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_PATCH_TYPE})
   @ApiOperation(value = "Patch specific Policy Monitor")
-  @JsonView(View.Admin.class)
   public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
                                                   @RequestBody final JsonPatch input)
       throws IllegalArgumentException {
@@ -199,7 +188,6 @@ public class MonitorApiController {
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation(value = "Creates new Policy Monitor")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully Created Policy Monitor")})
-  @JsonView(View.Admin.class)
   public DetailedMonitorOutput createPolicyMonitor(
       @Validated(ValidationGroups.Create.class)
       @RequestBody final DetailedMonitorInput input)
@@ -213,13 +201,11 @@ public class MonitorApiController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiOperation(value = "Deletes specific Policy Monitor")
   @ApiResponses(value = {@ApiResponse(code = 204, message = "Policy Monitor Deleted")})
-  @JsonView(View.Admin.class)
   public void deletePolicyMonitor(@PathVariable UUID uuid) {
     monitorManagement.removePolicyMonitor(uuid);
   }
 
   @GetMapping("/tenant/{tenantId}/bound-monitors")
-  @JsonView(View.Public.class)
   public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
                                                                  Pageable pageable) {
     return PagedContent.fromPage(
@@ -230,7 +216,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/monitors")
   @ApiOperation(value = "Gets all Monitors for Tenant")
-  @JsonView(View.Public.class)
   public PagedContent<DetailedMonitorOutput> getAllForTenant(@PathVariable String tenantId,
                                                              Pageable pageable) {
 
@@ -242,7 +227,6 @@ public class MonitorApiController {
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation(value = "Creates new Monitor for Tenant")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully Created Monitor")})
-  @JsonView(View.Public.class)
   public DetailedMonitorOutput create(@PathVariable String tenantId,
                                       @Validated(ValidationGroups.Create.class)
                                       @RequestBody final DetailedMonitorInput input)
@@ -257,7 +241,6 @@ public class MonitorApiController {
 
   @PutMapping("/tenant/{tenantId}/monitors/{uuid}")
   @ApiOperation(value = "Updates specific Monitor for Tenant")
-  @JsonView(View.Public.class)
   public DetailedMonitorOutput update(@PathVariable String tenantId,
                                       @PathVariable UUID uuid,
                                       @Validated(ValidationGroups.Update.class)
@@ -275,7 +258,6 @@ public class MonitorApiController {
   @PatchMapping(path = "/tenant/{tenantId}/monitors/{uuid}",
                 consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_PATCH_TYPE})
   @ApiOperation(value = "Updates specific Monitor for Tenant")
-  @JsonView(View.Public.class)
   public DetailedMonitorOutput patch(@PathVariable String tenantId,
       @PathVariable UUID uuid,
       @RequestBody final JsonPatch input)
@@ -299,7 +281,6 @@ public class MonitorApiController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiOperation(value = "Deletes specific Monitor for Tenant")
   @ApiResponses(value = {@ApiResponse(code = 204, message = "Resource Deleted")})
-  @JsonView(View.Public.class)
   public void delete(@PathVariable String tenantId,
                      @PathVariable UUID uuid) {
     monitorManagement.removeMonitor(tenantId, uuid);
@@ -307,7 +288,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/monitor-labels")
   @ApiOperation(value = "Gets all Monitors that match labels. All labels must match to retrieve relevant Monitors.")
-  @JsonView(View.Public.class)
   public PagedContent<DetailedMonitorOutput> getMonitorsWithLabels(@PathVariable String tenantId,
                                                                    @RequestBody Map<String, String> labels,
                                                                    Pageable pageable) {
@@ -317,7 +297,6 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/monitor-label-selectors")
   @ApiOperation("Lists the label selector keys and the values for each that are currently in use on monitors")
-  @JsonView(View.Public.class)
   public MultiValueMap<String, String> getMonitorLabelSelectors(@PathVariable String tenantId) {
     return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
   }

@@ -18,16 +18,17 @@ package com.rackspace.salus.monitor_management;
 
 import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
 import com.rackspace.salus.common.util.DumpConfigProperties;
-import com.rackspace.salus.common.web.ExtendedErrorAttributesConfig;
+import com.rackspace.salus.common.web.EnableExtendedErrorAttributes;
+import com.rackspace.salus.common.web.EnableRoleBasedJsonViews;
 import com.rackspace.salus.telemetry.etcd.EnableEtcd;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
 @EnableSalusKafkaMessaging
 @EnableEtcd
-@Import(ExtendedErrorAttributesConfig.class)
+@EnableRoleBasedJsonViews
+@EnableExtendedErrorAttributes
 public class TelemetryMonitorManagementApplication {
 
   public static void main(String[] args) {

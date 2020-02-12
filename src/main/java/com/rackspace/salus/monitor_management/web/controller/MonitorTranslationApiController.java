@@ -16,12 +16,10 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -64,7 +62,6 @@ public class MonitorTranslationApiController {
 
   @GetMapping("/admin/monitor-translations")
   @ApiOperation("Gets all monitor translation operators")
-  @JsonView(View.Admin.class)
   public PagedContent<MonitorTranslationOperatorDTO> getAll(Pageable pageable) {
     return PagedContent.fromPage(monitorContentTranslationService.getAll(pageable))
         .map(MonitorTranslationOperatorDTO::new);
@@ -72,7 +69,6 @@ public class MonitorTranslationApiController {
 
   @GetMapping("/admin/monitor-translations/{id}")
   @ApiOperation("Gets a specific monitor translation operator")
-  @JsonView(View.Admin.class)
   public MonitorTranslationOperatorDTO getById(@PathVariable UUID id) {
     return new MonitorTranslationOperatorDTO(
         monitorContentTranslationService.getById(id)
@@ -83,7 +79,6 @@ public class MonitorTranslationApiController {
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation("Create a new monitor translation operator")
   @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully created")})
-  @JsonView(View.Admin.class)
   public MonitorTranslationOperatorDTO create(@RequestBody @Valid MonitorTranslationOperatorCreate in) {
     return new MonitorTranslationOperatorDTO(
         monitorContentTranslationService.create(in)
@@ -94,7 +89,6 @@ public class MonitorTranslationApiController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiOperation("Delete a monitor translation operator")
   @ApiResponses(value = {@ApiResponse(code = 204, message = "Successfully deleted")})
-  @JsonView(View.Admin.class)
   public void delete(@PathVariable UUID id) {
     monitorContentTranslationService.delete(id);
   }
