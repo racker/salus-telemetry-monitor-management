@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management;
 
+import com.rackspace.salus.common.config.AutoConfigureSalusAppMetrics;
 import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
 import com.rackspace.salus.common.util.DumpConfigProperties;
 import com.rackspace.salus.common.web.EnableExtendedErrorAttributes;
@@ -29,6 +30,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @EnableEtcd
 @EnableRoleBasedJsonViews
 @EnableExtendedErrorAttributes
+@AutoConfigureSalusAppMetrics
 public class TelemetryMonitorManagementApplication {
 
   public static void main(String[] args) {
