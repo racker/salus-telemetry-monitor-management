@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,11 +71,21 @@ public class ZoneApiClient implements ZoneApi {
   @Override
   public ZoneDTO getByZoneName(String tenantId, String name) {
     try {
-      return restTemplate.getForObject(
-          "/api/tenant/{tenantId}/zones/{name}",
-          ZoneDTO.class,
-          tenantId, name
-      );
+      if (tenantId == null) {
+        // Public zones do not have an owning tenant, so use the admin, public zone API
+
+        return restTemplate.getForObject(
+            // can't use regular URL placeholders since it would URL-encode the slash in the zone name
+            String.format("/api/admin/zones/%s", name),
+            ZoneDTO.class
+        );
+      } else {
+        return restTemplate.getForObject(
+            "/api/tenant/{tenantId}/zones/{name}",
+            ZoneDTO.class,
+            tenantId, name
+        );
+      }
     } catch (HttpClientErrorException e) {
       if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
         return null;
