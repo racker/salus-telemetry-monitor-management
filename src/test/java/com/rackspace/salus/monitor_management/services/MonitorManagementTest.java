@@ -408,9 +408,12 @@ public class MonitorManagementTest {
     create.setZones(null);
     create.setLabelSelector(null);
 
-    String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+    create.setResourceId(resourceId);
     final Resource resource = podamFactory.manufacturePojo(Resource.class);
+    resource.setResourceId(resourceId);
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), any()))
         .thenReturn(Optional.of(resource));
     when(envoyResourceManagement.getOne(anyString(), anyString()))
@@ -457,8 +460,10 @@ public class MonitorManagementTest {
     create.setInterval(interval);
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
 
     final Resource resource = podamFactory.manufacturePojo(Resource.class);
+    resource.setResourceId(resourceId);
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), any()))
         .thenReturn(Optional.of(resource));
     when(envoyResourceManagement.getOne(anyString(), anyString()))
