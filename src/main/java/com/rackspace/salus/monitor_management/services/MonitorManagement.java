@@ -1216,7 +1216,8 @@ public class MonitorManagement {
         .stream()
         // filter to keep resources that are not in the given exclusion set
         .filter(resourceDTO -> excludedResourceIds == null ||
-            !excludedResourceIds.contains(resourceDTO.getResourceId()))
+            !excludedResourceIds.stream().map(String::toLowerCase).collect(Collectors.toList()).contains(resourceDTO.getResourceId().toLowerCase()))
+            //!excludedResourceIds.contains(resourceDTO.getResourceId()))
         .collect(Collectors.toList());
   }
 
@@ -1445,7 +1446,9 @@ public class MonitorManagement {
           .stream()
           // but filter to include only monitors that don't exclude this resource
           .filter(monitor -> monitor.getExcludedResourceIds() == null ||
-              !monitor.getExcludedResourceIds().contains(resourceId))
+              !monitor.getExcludedResourceIds().stream().map(String::toLowerCase).collect(
+                  Collectors.toList()).contains(resourceId.toLowerCase()))
+              //!monitor.getExcludedResourceIds().contains(resourceId))
           .collect(Collectors.toList());
       //grab monitors that are using resourceId instead of labels
       selectedMonitors.addAll(monitorsWithResourceId);
