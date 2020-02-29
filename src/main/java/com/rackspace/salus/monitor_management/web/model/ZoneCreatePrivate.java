@@ -30,7 +30,7 @@ import org.hibernate.validator.constraints.NotBlank;
 public class ZoneCreatePrivate implements Serializable {
 
     @NotBlank
-    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "Only alphanumeric and underscore characters can be used")
+    @Pattern(regexp = "^[a-z0-9_]+$", message = "Only lowercase alphanumeric and underscore characters can be used")
     @PrivateZoneName
     String name;
 
