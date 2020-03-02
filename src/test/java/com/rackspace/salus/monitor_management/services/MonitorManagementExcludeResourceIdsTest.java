@@ -360,7 +360,7 @@ public class MonitorManagementExcludeResourceIdsTest {
         "t-1",
         new MonitorCU()
             // setup the exclusion that comes into play after labels get changed
-            .setExcludedResourceIds(Set.of("r-absent-exclude"))
+            .setExcludedResourceIds(Set.of("r-absent-Exclude"))
             .setLabelSelector(Map.of("stage", "before"))
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setMonitorType(MonitorType.cpu)
