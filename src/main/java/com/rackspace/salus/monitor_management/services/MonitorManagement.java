@@ -1211,15 +1211,16 @@ public class MonitorManagement {
                                                   Map<String, String> labelSelector,
                                                   @NotNull LabelSelectorMethod labelSelectorMethod,
                                                   Set<String> excludedResourceIds) {
+    Set<String> finalExcludedResourceIds = excludedResourceIds.stream()
+        .map(String::toLowerCase)
+        .collect(Collectors.toSet());
+
     return resourceApi
         .getResourcesWithLabels(tenantId, labelSelector, labelSelectorMethod)
         .stream()
         // filter to keep resources that are not in the given exclusion set
-        .filter(resourceDTO -> excludedResourceIds == null ||
-            !excludedResourceIds.stream()
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet())
-                .contains(resourceDTO.getResourceId().toLowerCase()))
+        .filter(resourceDTO -> finalExcludedResourceIds == null ||
+                finalExcludedResourceIds.contains(resourceDTO.getResourceId().toLowerCase()))
         .collect(Collectors.toList());
   }
 
