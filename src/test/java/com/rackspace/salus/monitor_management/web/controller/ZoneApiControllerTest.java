@@ -98,14 +98,14 @@ public class ZoneApiControllerTest {
     private ZoneCreatePrivate newZoneCreatePrivate() {
         Random random = new Random();
         return new ZoneCreatePrivate()
-                .setName(RandomStringUtils.randomAlphanumeric(10))
+                .setName(RandomStringUtils.randomAlphanumeric(10).toLowerCase())
                 .setPollerTimeout(random.nextInt(1000) + 30L);
     }
 
     private ZoneCreatePublic newZoneCreatePublic() {
         Random random = new Random();
         return new ZoneCreatePublic()
-            .setName(ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphanumeric(6))
+            .setName(ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphanumeric(6).toLowerCase())
             .setProvider(RandomStringUtils.randomAlphanumeric(6))
             .setProviderRegion(RandomStringUtils.randomAlphanumeric(6))
             .setPollerTimeout(random.nextInt(1000) + 30L)
@@ -393,7 +393,7 @@ public class ZoneApiControllerTest {
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isBadRequest())
             .andExpect(validationError("name",
-                "Only alphanumeric and underscore characters can be used"));
+                "Only lowercase alphanumeric and underscore characters can be used"));
     }
 
     @Test

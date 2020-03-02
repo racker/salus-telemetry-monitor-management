@@ -31,7 +31,7 @@ import org.hibernate.validator.constraints.NotBlank;
 public class ZoneCreatePublic implements Serializable {
 
   @NotBlank
-  @Pattern(regexp = "^[A-Za-z0-9_/]+$", message = "Only alphanumeric, underscores, and slashes can be used")
+  @Pattern(regexp = "^[a-z0-9_/]+$", message = "Only lowercase alphanumeric, underscores, and slashes can be used")
   @PublicZoneName
   String name;
 

@@ -1211,12 +1211,20 @@ public class MonitorManagement {
                                                   Map<String, String> labelSelector,
                                                   @NotNull LabelSelectorMethod labelSelectorMethod,
                                                   Set<String> excludedResourceIds) {
+    final Set<String> finalExcludedResourceIds;
+    if(excludedResourceIds != null) {
+      finalExcludedResourceIds = excludedResourceIds.stream()
+          .map(String::toLowerCase)
+          .collect(Collectors.toSet());
+    }else {
+      finalExcludedResourceIds = null;
+    }
     return resourceApi
         .getResourcesWithLabels(tenantId, labelSelector, labelSelectorMethod)
         .stream()
         // filter to keep resources that are not in the given exclusion set
-        .filter(resourceDTO -> excludedResourceIds == null ||
-            !excludedResourceIds.contains(resourceDTO.getResourceId()))
+        .filter(resourceDTO -> finalExcludedResourceIds == null ||
+                !finalExcludedResourceIds.contains(resourceDTO.getResourceId().toLowerCase()))
         .collect(Collectors.toList());
   }
 
@@ -1438,14 +1446,15 @@ public class MonitorManagement {
         log.warn("Resource change event indicated deletion, but resource is present: {}", resource);
         // continue with normal processing, assuming it got revived concurrently
       }
-
+      String lowerResourceId = resourceId.toLowerCase();
       // Grab all monitors using labels first
       selectedMonitors = getMonitorsFromLabels(
           resource.get().getLabels(), tenantId, Pageable.unpaged()).getContent()
           .stream()
           // but filter to include only monitors that don't exclude this resource
           .filter(monitor -> monitor.getExcludedResourceIds() == null ||
-              !monitor.getExcludedResourceIds().contains(resourceId))
+              !monitor.getExcludedResourceIds().stream().map(String::toLowerCase).collect(
+                  Collectors.toSet()).contains(lowerResourceId))
           .collect(Collectors.toList());
       //grab monitors that are using resourceId instead of labels
       selectedMonitors.addAll(monitorsWithResourceId);

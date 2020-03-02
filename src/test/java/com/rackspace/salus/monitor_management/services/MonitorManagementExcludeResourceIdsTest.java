@@ -360,7 +360,7 @@ public class MonitorManagementExcludeResourceIdsTest {
         "t-1",
         new MonitorCU()
             // setup the exclusion that comes into play after labels get changed
-            .setExcludedResourceIds(Set.of("r-absent-exclude"))
+            .setExcludedResourceIds(Set.of("r-absent-Exclude"))
             .setLabelSelector(Map.of("stage", "before"))
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setMonitorType(MonitorType.cpu)
@@ -426,7 +426,7 @@ public class MonitorManagementExcludeResourceIdsTest {
     final UUID excludingMonitorId = entityManager.persistAndGetId(
         new Monitor()
             // JPA needs a mutable collection
-            .setExcludedResourceIds(new HashSet<>(Set.of("r-new")))
+            .setExcludedResourceIds(new HashSet<>(Set.of("r-NEW")))
             .setTenantId("t-1")
             .setMonitorType(MonitorType.cpu)
             .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -485,7 +485,7 @@ public class MonitorManagementExcludeResourceIdsTest {
     final UUID monitorId = entityManager.persistAndGetId(
         new Monitor()
             .setTenantId("t-1")
-            .setResourceId("r-specific")
+            .setResourceId("r-SPECIFIC")
             .setMonitorType(MonitorType.cpu)
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setAgentType(AgentType.TELEGRAF)
@@ -507,7 +507,7 @@ public class MonitorManagementExcludeResourceIdsTest {
     final UUID monitorId = entityManager.persistAndGetId(
         new Monitor()
             .setTenantId("t-1")
-            .setExcludedResourceIds(new HashSet<>(Set.of("r-excluded")))
+            .setExcludedResourceIds(new HashSet<>(Set.of("r-EXCLUDED")))
             .setMonitorType(MonitorType.cpu)
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setAgentType(AgentType.TELEGRAF)
