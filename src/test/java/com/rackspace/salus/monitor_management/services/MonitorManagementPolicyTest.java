@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -283,7 +284,7 @@ public class MonitorManagementPolicyTest {
             .setInterval(Duration.ofSeconds(60)));
 
     // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(List.of(monitor.getId()));
 
     Monitor returned = monitorManagement.getPolicyMonitorForTenant(tenantId, monitor.getId());
@@ -291,7 +292,7 @@ public class MonitorManagementPolicyTest {
     assertThat(returned, notNullValue());
     assertThat(returned, equalTo(monitor));
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, true);
     verifyNoMoreInteractions(policyApi);
   }
 
@@ -325,7 +326,7 @@ public class MonitorManagementPolicyTest {
     UUID monitorId = UUID.randomUUID();
 
     // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(Collections.emptyList());
 
     exceptionRule.expect(NotFoundException.class);
@@ -383,7 +384,7 @@ public class MonitorManagementPolicyTest {
         .map(Monitor::getId).collect(Collectors.toList());
 
     // Use two of the three saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitorIds);
 
     Page<Monitor> results = monitorManagement.getAllPolicyMonitorsForTenant(tenantId,
@@ -393,7 +394,7 @@ public class MonitorManagementPolicyTest {
     assertThat(results.getTotalElements(), equalTo(2L));
     assertThat(results.getContent(), containsInAnyOrder(monitors.toArray()));
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, true);
     verifyNoMoreInteractions(policyApi);
   }
 
@@ -681,7 +682,7 @@ public class MonitorManagementPolicyTest {
         .map(Monitor::getId).collect(Collectors.toList());
 
     // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitorIds);
 
     // No prior monitors exist so return an empty list
@@ -737,7 +738,7 @@ public class MonitorManagementPolicyTest {
     org.assertj.core.api.Assertions.assertThat(found)
         .containsExactlyInAnyOrderElementsOf(expectedBound);
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
 
     // Verify events were sent out (to be consumed by ambassador)
     verify(monitorEventProducer).sendMonitorEvent(
@@ -780,7 +781,7 @@ public class MonitorManagementPolicyTest {
         .map(Monitor::getId).collect(Collectors.toList());
 
     // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitorIds);
 
     // Define the resources the policy will be applied to
@@ -829,7 +830,7 @@ public class MonitorManagementPolicyTest {
     // VERIFY
 
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
 
     // no bound monitor saves or event producer sends should happen.
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
@@ -868,7 +869,7 @@ public class MonitorManagementPolicyTest {
         .map(Monitor::getId).collect(Collectors.toList());
 
     // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitorIds);
 
     // Define the resources the policy will be applied to
@@ -929,7 +930,7 @@ public class MonitorManagementPolicyTest {
     org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
         .containsExactlyInAnyOrderElementsOf(newBound);
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
 
     // Verify events were sent out (to be consumed by ambassador)
     verify(monitorEventProducer).sendMonitorEvent(
@@ -970,7 +971,7 @@ public class MonitorManagementPolicyTest {
     List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
 
     // Use the first monitor, which means the policy for the second was removed.
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(Collections.singletonList(savedMonitors.get(0).getId()));
 
     // Define the resources the policy will be applied to
@@ -1030,7 +1031,7 @@ public class MonitorManagementPolicyTest {
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(
         tenantId, Set.of(savedMonitors.get(1).getId()));
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId);
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
 
     verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
     org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
@@ -1226,7 +1227,7 @@ public class MonitorManagementPolicyTest {
         .setTenantId(RandomStringUtils.randomAlphabetic(10))
         .setLabels(Map.of("os", "linux", "env", "dev"));
 
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString()))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitors
             .stream()
             .map(Monitor::getId)
@@ -1239,7 +1240,7 @@ public class MonitorManagementPolicyTest {
     assertThat(effectiveMonitors, hasSize(2));
     assertThat(effectiveMonitors, containsInAnyOrder(monitors.subList(0,2).toArray()));
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(resource.getTenantId());
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(resource.getTenantId(), true);
     verifyNoMoreInteractions(policyApi);
   }
 
@@ -1291,7 +1292,7 @@ public class MonitorManagementPolicyTest {
         .setTenantId(RandomStringUtils.randomAlphabetic(10))
         .setLabels(Map.of("os", "linux", "env", "dev"));
 
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString()))
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(monitors
             .stream()
             .map(Monitor::getId)
@@ -1304,7 +1305,7 @@ public class MonitorManagementPolicyTest {
     assertThat(effectiveMonitors, hasSize(3));
     assertThat(effectiveMonitors, containsInAnyOrder(monitors.subList(0,3).toArray()));
 
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(resource.getTenantId());
+    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(resource.getTenantId(), true);
     verifyNoMoreInteractions(policyApi);
   }
 

@@ -1276,7 +1276,7 @@ public class MonitorManagement {
     log.info("Handling metadata policy event={}", event);
 
     String tenantId = event.getTenantId();
-    List<MonitorMetadataPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorMetadataPolicies(tenantId);
+    List<MonitorMetadataPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorMetadataPolicies(tenantId, false);
 
     Optional<MonitorMetadataPolicyDTO> policyOptional = effectivePolicies.stream()
         .filter(p -> p.getId().equals(event.getPolicyId()))
@@ -1359,7 +1359,7 @@ public class MonitorManagement {
     final Set<String> affectedEnvoys = new HashSet<>();
 
     // Get effective monitors
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, false);
     List<UUID> boundPolicyMonitorIds = getAllBoundPolicyMonitorsByTenantId(tenantId)
         .stream().map(b -> b.getMonitor().getId()).collect(Collectors.toList());
 
@@ -1956,7 +1956,7 @@ public class MonitorManagement {
         new NotFoundException(String.format("No policy monitor found for %s on tenant %s",
             monitorId, tenantId)));
 
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
 
     // If the policy monitor exists but is not in use by this account, do not return it.
     if (!policyMonitorIds.contains(monitorId)) {
@@ -1974,7 +1974,7 @@ public class MonitorManagement {
    * @return A list of monitors.
    */
   public Page<Monitor> getAllPolicyMonitorsForTenant(String tenantId, Pageable page) {
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
 
     return monitorRepository.findByIdIn(policyMonitorIds, page);
   }
@@ -1986,7 +1986,7 @@ public class MonitorManagement {
    */
   List<Monitor> getPolicyMonitorsForResource(Resource resource) {
     String tenantId = resource.getTenantId();
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId);
+    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
 
     List<Monitor> resourcePolicies = monitorRepository.findByIdIn(policyMonitorIds)
         .stream()

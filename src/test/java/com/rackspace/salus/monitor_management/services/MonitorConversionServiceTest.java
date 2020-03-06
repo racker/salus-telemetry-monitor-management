@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -134,7 +135,7 @@ public class MonitorConversionServiceTest {
             .setValueType(MetadataValueType.DURATION)
             .setValue("PT2S"));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(expectedPolicy);
 
     final Map<String, String> labels = new HashMap<>();
@@ -190,7 +191,7 @@ public class MonitorConversionServiceTest {
             .setValueType(MetadataValueType.STRING_LIST)
             .setValue("defaultZone1,defaultZone2"));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(expectedPolicy);
 
     // Create the plugin that will be converted to the monitor's contents
@@ -567,7 +568,7 @@ public class MonitorConversionServiceTest {
             .setValueType(MetadataValueType.DURATION)
             .setValue("300"));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(expectedPolicy);
 
     final MonitorCU result = conversionService.convertFromInput(
@@ -592,7 +593,7 @@ public class MonitorConversionServiceTest {
             .setValueType(MetadataValueType.DURATION)
             .setValue("300"));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(expectedPolicy);
 
     final MonitorCU result = conversionService.convertFromInput(
@@ -602,6 +603,6 @@ public class MonitorConversionServiceTest {
     assertThat(result.getInterval()).isNull();
 
     // ping has metadata fields so the api would have been called
-    verify(policyApi).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.RemotePlugin, MonitorType.ping);
+    verify(policyApi).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.RemotePlugin, MonitorType.ping, true);
   }
 }
