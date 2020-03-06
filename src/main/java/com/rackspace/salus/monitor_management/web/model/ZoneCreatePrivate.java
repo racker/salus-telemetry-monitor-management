@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.monitor_management.web.model.validator.ValidCidrList;
+import com.rackspace.salus.monitor_management.web.validator.ValidCidrList;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.model.ZoneState;
 import java.io.Serializable;

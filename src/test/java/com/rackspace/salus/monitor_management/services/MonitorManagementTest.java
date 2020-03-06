@@ -54,7 +54,7 @@ import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
+import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;

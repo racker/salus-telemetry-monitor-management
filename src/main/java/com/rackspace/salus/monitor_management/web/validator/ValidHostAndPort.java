@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
+package com.rackspace.salus.monitor_management.web.validator;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -23,22 +23,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import javax.validation.Constraint;
 import javax.validation.Payload;
-import javax.validation.constraints.Pattern;
 
 /**
- * Indicates that the string is a simplified Go duration formed as an integer value followed by a
- * time unit suffix of "ms", "s", "m", or "h".
+ * Indicates that a string must be of the form host:port where host is a valid IP address or
+ * domain name and port is a valid integer.
  */
-@Pattern(regexp = "([0-9]+)(h|m|s|ms)", message = "invalid duration")
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Constraint(validatedBy = {}/*composite*/)
-public @interface ValidGoDuration {
-  String message() default "invalid duration";
-
-  Class<?>[] groups() default { };
-
-  Class<? extends Payload>[] payload() default { };
-
+@Constraint(validatedBy = ValidHostAndPortValidator.class)
+public @interface ValidHostAndPort {
+  String message() default "Must be a host:port or template variable";
+  Class<?>[] groups() default {};
+  Class<? extends Payload>[] payload() default {};
 }

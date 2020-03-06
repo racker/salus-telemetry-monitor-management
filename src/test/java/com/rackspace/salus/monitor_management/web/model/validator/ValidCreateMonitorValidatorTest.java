@@ -24,6 +24,7 @@ import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.monitor_management.web.validator.ValidCreateMonitor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Set;

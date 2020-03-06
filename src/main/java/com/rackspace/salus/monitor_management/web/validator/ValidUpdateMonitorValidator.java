@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
+package com.rackspace.salus.monitor_management.web.validator;
 
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import java.util.Map;
@@ -24,21 +24,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 @Slf4j
-public class ValidCreateMonitorValidator implements ConstraintValidator<ValidCreateMonitor, DetailedMonitorInput> {
-   public void initialize(ValidCreateMonitor constraint) {
+public class ValidUpdateMonitorValidator implements ConstraintValidator<ValidUpdateMonitor, DetailedMonitorInput> {
+   public void initialize(ValidUpdateMonitor constraint) {
+   }
+
+   static boolean bothResourceAndLabelsSet(DetailedMonitorInput monitorInput) {
+      Map<String, String > labelSelector = monitorInput.getLabelSelector();
+      String resourceId = monitorInput.getResourceId();
+      return StringUtils.isNotBlank(resourceId) && labelSelector != null;
+   }
+
+   static boolean bothResourceAndExcludedSet(DetailedMonitorInput monitorInput) {
+      return StringUtils.isNotBlank(monitorInput.getResourceId()) &&
+          monitorInput.getExcludedResourceIds() != null &&
+          !monitorInput.getExcludedResourceIds().isEmpty();
    }
 
    public boolean isValid(DetailedMonitorInput monitorInput, ConstraintValidatorContext context) {
-      Map<String, String> labelSelector = monitorInput.getLabelSelector();
-      String resourceId = monitorInput.getResourceId();
-      if (ValidUpdateMonitorValidator.bothResourceAndLabelsSet(monitorInput)) {
-         return false;
-      }
-      if (ValidUpdateMonitorValidator.bothResourceAndExcludedSet(monitorInput)) {
-         return false;
-      }
-      // Valid if either resourceId or labelSelector exists
-      return (labelSelector != null || StringUtils.isNotBlank(resourceId));
+      return !bothResourceAndLabelsSet(monitorInput) &&
+          !bothResourceAndExcludedSet(monitorInput);
    }
 
 }
