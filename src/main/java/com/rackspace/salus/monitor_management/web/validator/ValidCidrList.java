@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
+package com.rackspace.salus.monitor_management.web.validator;
+
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -25,16 +26,17 @@ import javax.validation.Constraint;
 import javax.validation.Payload;
 
 /**
- * Indicates that a Monitor may not contain both a label selector and a resourceId.
+ * Indicates that an annotated <code>List</code> must only contain <code>String</code>
+ * values that match valid CIDR notation.
  */
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
 @Documented
-@Constraint(validatedBy = ValidUpdateMonitorValidator.class)
-public @interface ValidUpdateMonitor {
-  String DEFAULT_MESSAGE = "Exactly one of the label selector field or resourceId field must be set, but not both.";
-  String message() default DEFAULT_MESSAGE;
+@Constraint(validatedBy = ValidCidrListValidator.class)
+public @interface ValidCidrList {
+  String message() default "All values must be valid CIDR notation";
+
   Class<?>[] groups() default {};
-  @SuppressWarnings("unused")
+
   Class<? extends Payload>[] payload() default {};
 }

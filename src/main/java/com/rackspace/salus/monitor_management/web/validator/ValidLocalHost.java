@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
-
+package com.rackspace.salus.monitor_management.web.validator;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -24,19 +23,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import javax.validation.Constraint;
 import javax.validation.Payload;
+import javax.validation.constraints.Pattern;
 
-/**
- * Indicates that an annotated <code>List</code> must only contain <code>String</code>
- * values that match valid CIDR notation.
- */
+@Pattern(regexp = ".*(localhost|127.0.0.1).*", message = "address must point to localhost")
+@Target({ElementType.FIELD, ElementType.TYPE_USE})
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
 @Documented
-@Constraint(validatedBy = ValidCidrListValidator.class)
-public @interface ValidCidrList {
-  String message() default "All values must be valid CIDR notation";
+@Constraint(validatedBy = {})
+public @interface ValidLocalHost {
+  String DEFAULT_MESSAGE = "address must point to localhost";
+  String message() default DEFAULT_MESSAGE;
 
-  Class<?>[] groups() default {};
+  Class<?>[] groups() default { };
 
-  Class<? extends Payload>[] payload() default {};
+  Class<? extends Payload>[] payload() default { };
+
 }

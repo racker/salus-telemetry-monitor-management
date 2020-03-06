@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
+package com.rackspace.salus.monitor_management.web.validator;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

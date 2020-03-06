@@ -16,8 +16,8 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
-import com.rackspace.salus.monitor_management.web.model.validator.ValidCreateMonitor;
-import com.rackspace.salus.monitor_management.web.model.validator.ValidUpdateMonitor;
+import com.rackspace.salus.monitor_management.web.validator.ValidCreateMonitor;
+import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.ValidLabelKeys;
 import io.swagger.annotations.ApiModelProperty;

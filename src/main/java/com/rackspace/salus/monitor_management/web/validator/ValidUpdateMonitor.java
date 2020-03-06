@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.web.model.validator;
+package com.rackspace.salus.monitor_management.web.validator;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -23,19 +23,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import javax.validation.Constraint;
 import javax.validation.Payload;
-import javax.validation.constraints.Pattern;
 
-@Pattern(regexp = ".*(localhost|127.0.0.1).*", message = "address must point to localhost")
-@Target({ElementType.FIELD, ElementType.TYPE_USE})
+/**
+ * Indicates that a Monitor may not contain both a label selector and a resourceId.
+ */
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Constraint(validatedBy = {})
-public @interface ValidLocalHost {
-  String DEFAULT_MESSAGE = "address must point to localhost";
+@Constraint(validatedBy = ValidUpdateMonitorValidator.class)
+public @interface ValidUpdateMonitor {
+  String DEFAULT_MESSAGE = "Exactly one of the label selector field or resourceId field must be set, but not both.";
   String message() default DEFAULT_MESSAGE;
-
-  Class<?>[] groups() default { };
-
-  Class<? extends Payload>[] payload() default { };
-
+  Class<?>[] groups() default {};
+  @SuppressWarnings("unused")
+  Class<? extends Payload>[] payload() default {};
 }
