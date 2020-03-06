@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDefault;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
@@ -33,6 +34,7 @@ public class Net extends LocalPlugin {
   @SummaryField
   @JsonProperty("interface")
   String monitoredInterface;
+  @JsonSchemaDefault("true")
   @JsonProperty(defaultValue = "true")
   Boolean ignoreProtocolStats = true;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.model.telegraf;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDefault;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
@@ -30,6 +31,7 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.cpu)
 public class Cpu extends LocalPlugin {
   boolean percpu;
+  @JsonSchemaDefault("true")
   @JsonProperty(defaultValue = "true")
   boolean totalcpu = true;
   boolean collectCpuTime;
