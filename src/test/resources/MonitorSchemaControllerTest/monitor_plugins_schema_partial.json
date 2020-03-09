@@ -36,7 +36,8 @@
           "type": "boolean"
         },
         "totalcpu": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "collectCpuTime": {
           "type": "boolean"
