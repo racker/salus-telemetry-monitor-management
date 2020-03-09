@@ -99,7 +99,7 @@
       <groupId>com.kjetland</groupId>
       <!-- The "_2.12" suffix conveys Scala compatibility, so any is fine for us -->
       <artifactId>mbknor-jackson-jsonschema_2.12</artifactId>
-      <version>1.0.36</version>
+      <version>1.0.38</version>
     </dependency>
     <dependency>
       <groupId>com.rackspace.salus</groupId>
