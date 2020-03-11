@@ -91,7 +91,8 @@ public class MonitorContentTranslationService {
         .setAgentVersions(in.getAgentVersions())
         .setMonitorType(in.getMonitorType())
         .setSelectorScope(in.getSelectorScope())
-        .setTranslatorSpec(in.getTranslatorSpec());
+        .setTranslatorSpec(in.getTranslatorSpec())
+        .setOrder(in.getOrder());
 
     log.info("Creating new monitorTranslationOperator={}", operator);
     return monitorTranslationOperatorRepository.save(operator);

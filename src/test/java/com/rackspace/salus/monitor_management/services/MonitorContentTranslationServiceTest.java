@@ -71,7 +71,8 @@ public class MonitorContentTranslationServiceTest {
         .setAgentVersions(">= 1.12.0")
         .setMonitorType(MonitorType.dns)
         .setSelectorScope(ConfigSelectorScope.REMOTE)
-        .setTranslatorSpec(new RenameFieldKeyTranslator().setFrom("from").setTo("to"));
+        .setTranslatorSpec(new RenameFieldKeyTranslator().setFrom("from").setTo("to"))
+        .setOrder(5);
 
     MonitorTranslationOperator op = service.create(create);
 
