@@ -32,6 +32,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
+import com.rackspace.salus.telemetry.translators.GoDurationTranslator;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
 import com.rackspace.salus.telemetry.translators.RenameTypeTranslator;
@@ -57,7 +58,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @AutoConfigureJson
 public class MonitorContentTranslationService_Translations_Test {
 
-  private static final String OLD_FIELD_VALUE = "value-1";
+  private static final String OLD_FIELD_VALUE = "PT45S";
 
   @Autowired
   MonitorContentTranslationService service;
@@ -455,6 +456,78 @@ public class MonitorContentTranslationService_Translations_Test {
     verify(repository).findAllByAgentType(AgentType.TELEGRAF);
   }
 
+  @Test
+  public void testTranslate_requiredOrder() throws JsonProcessingException {
+    final List<MonitorTranslationOperator> operators = List.of(
+        new MonitorTranslationOperator()
+            .setName("convert-to-go-duration")
+            .setAgentType(AgentType.TELEGRAF)
+            .setTranslatorSpec(buildGoDurationSpec("new_field"))
+            .setOrder(2),
+      new MonitorTranslationOperator()
+            .setName("rename-field")
+            .setAgentType(AgentType.TELEGRAF)
+            .setTranslatorSpec(buildRenameFieldSpec("old_field", "new_field"))
+            .setOrder(1));
+
+        when(repository.findAllByAgentType(any()))
+            .thenReturn(operators);
+
+    final List<BoundMonitor> boundMonitors = buildBoundMonitors();
+
+    // EXECUTE
+
+    final List<BoundMonitorDTO> dtos =
+        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
+
+    // VERIFY
+
+    assertThat(dtos).hasSize(1);
+    final String renderedContent = dtos.get(0).getRenderedContent();
+
+    // field has been renamed and an 's' appended for go duration formatting.
+    assertThat(json.from(renderedContent)).hasJsonPathValue("$.new_field", "45s");
+    // old field no longer exists
+    assertThat(json.from(renderedContent)).hasEmptyJsonPathValue("$.old_field");
+    verify(repository).findAllByAgentType(AgentType.TELEGRAF);
+  }
+
+  @Test
+  public void testTranslate_requiredOrder_invalid() throws JsonProcessingException {
+    final List<MonitorTranslationOperator> operators = List.of(
+        new MonitorTranslationOperator()
+            .setName("convert-to-go-duration")
+            .setAgentType(AgentType.TELEGRAF)
+            .setTranslatorSpec(buildGoDurationSpec("new_field"))
+            .setOrder(1),
+        new MonitorTranslationOperator()
+            .setName("rename-field")
+            .setAgentType(AgentType.TELEGRAF)
+            .setTranslatorSpec(buildRenameFieldSpec("old_field", "new_field"))
+            .setOrder(2));
+
+    when(repository.findAllByAgentType(any()))
+        .thenReturn(operators);
+
+    final List<BoundMonitor> boundMonitors = buildBoundMonitors();
+
+    // EXECUTE
+
+    final List<BoundMonitorDTO> dtos =
+        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
+
+    // VERIFY
+
+    assertThat(dtos).hasSize(1);
+    final String renderedContent = dtos.get(0).getRenderedContent();
+
+    // field has been renamed but not converted to a go duration because the translators have the incorrect order
+    assertThat(json.from(renderedContent)).hasJsonPathValue("$.new_field", OLD_FIELD_VALUE);
+    // old field no longer exists
+    assertThat(json.from(renderedContent)).hasEmptyJsonPathValue("$.old_field");
+    verify(repository).findAllByAgentType(AgentType.TELEGRAF);
+  }
+
   private void assertRenameTranslation(String renderedContent) {
     assertThat(json.from(renderedContent)).hasJsonPathValue("$.type", "cpu");
     assertThat(json.from(renderedContent)).hasJsonPathValue("$.new_field", OLD_FIELD_VALUE);
@@ -495,6 +568,10 @@ public class MonitorContentTranslationService_Translations_Test {
 
   private MonitorTranslator buildRenameFieldSpec(String from, String to) {
     return new RenameFieldKeyTranslator().setFrom(from).setTo(to);
+  }
+
+  private MonitorTranslator buildGoDurationSpec(String field) {
+    return new GoDurationTranslator().setField(field);
   }
 
   private MonitorTranslator buildRenameTypeSpec(String to) {
