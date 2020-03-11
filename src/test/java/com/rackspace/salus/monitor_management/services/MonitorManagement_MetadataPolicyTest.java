@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -235,7 +236,7 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Test
   public void createMonitor_withIntervalPolicy() {
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(Map.of("interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
@@ -265,7 +266,7 @@ public class MonitorManagement_MetadataPolicyTest {
   public void testPatchExistingMonitor_allNullValues() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(Map.of("zones",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("zones")
@@ -335,7 +336,7 @@ public class MonitorManagement_MetadataPolicyTest {
   public void testPatchExistingMonitor_someValueSetSomeValueNull() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(Map.of("zones",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("zones")
@@ -409,7 +410,7 @@ public class MonitorManagement_MetadataPolicyTest {
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(new PageImpl<>(List.of(new Zone().setName("public/newZone1")), Pageable.unpaged(), 1));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(Map.of("zones",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("zones")
@@ -483,7 +484,7 @@ public class MonitorManagement_MetadataPolicyTest {
     UUID policyId = UUID.randomUUID();
 
     // Returns the list of monitor metadata policies effective on this account
-    when(policyApi.getEffectiveMonitorMetadataPolicies(tenantId))
+    when(policyApi.getEffectiveMonitorMetadataPolicies(anyString(), anyBoolean()))
         .thenReturn(List.of(
             // The actual RemotePlugin policy that will be used
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
@@ -575,7 +576,7 @@ public class MonitorManagement_MetadataPolicyTest {
     UUID policyId = UUID.randomUUID();
 
     // Returns the list of monitor metadata policies effective on this account
-    when(policyApi.getEffectiveMonitorMetadataPolicies(tenantId))
+    when(policyApi.getEffectiveMonitorMetadataPolicies(anyString(), anyBoolean()))
         .thenReturn(List.of(
             // An irrelevant RemotePlugin policy
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()

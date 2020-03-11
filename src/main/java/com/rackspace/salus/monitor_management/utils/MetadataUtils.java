@@ -198,7 +198,7 @@ public class MetadataUtils {
     if (!patchOperation &&
         monitor.getMonitorMetadataFields() != null &&
         !monitor.getMonitorMetadataFields().isEmpty()) {
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
       metadataFields = MetadataUtils
           .getMetadataFieldsForUpdate(monitor, monitor.getMonitorMetadataFields(), policyMetadata);
     } else {
@@ -215,7 +215,7 @@ public class MetadataUtils {
 
     if (policyMetadata == null) {
       // this api request is avoided if there are no metadata fields to set
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
     }
 
     log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
@@ -244,7 +244,7 @@ public class MetadataUtils {
     if (!patchOperation &&
         monitor.getPluginMetadataFields() != null &&
         !monitor.getPluginMetadataFields().isEmpty()) {
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
       metadataFields = MetadataUtils
           .getMetadataFieldsForUpdate(plugin, monitor.getPluginMetadataFields(), policyMetadata);
     } else {
@@ -261,7 +261,7 @@ public class MetadataUtils {
 
     if (policyMetadata == null) {
       // this api request is avoided if there are no metadata fields to set
-      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType());
+      policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
     }
 
     log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);

@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -249,7 +250,7 @@ public class MetadataUtilsTest {
 
   @Test
   public void testSetMetadataFieldsForMonitor() {
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
         .thenReturn(Map.of(
             "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.DURATION)
@@ -285,6 +286,6 @@ public class MetadataUtilsTest {
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
 
-    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null);
+    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null, true);
   }
 }

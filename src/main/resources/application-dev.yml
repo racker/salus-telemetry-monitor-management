@@ -38,3 +38,9 @@ logging:
   level:
     com.rackspace.salus: debug
     web: debug
+management:
+  endpoints:
+    web:
+      exposure:
+        # enable further access to endpoints like /actuator/caches and /actuator/metrics
+        include: "*"
