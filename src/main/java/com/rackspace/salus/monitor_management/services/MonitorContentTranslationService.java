@@ -31,6 +31,7 @@ import com.rackspace.salus.telemetry.translators.MonitorTranslator;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -90,7 +91,8 @@ public class MonitorContentTranslationService {
         .setAgentVersions(in.getAgentVersions())
         .setMonitorType(in.getMonitorType())
         .setSelectorScope(in.getSelectorScope())
-        .setTranslatorSpec(in.getTranslatorSpec());
+        .setTranslatorSpec(in.getTranslatorSpec())
+        .setOrder(in.getOrder());
 
     log.info("Creating new monitorTranslationOperator={}", operator);
     return monitorTranslationOperatorRepository.save(operator);
@@ -239,6 +241,7 @@ public class MonitorContentTranslationService {
     return operators.stream()
         .filter(o -> o.getMonitorType() == null || o.getMonitorType() == bound.getMonitor().getMonitorType())
         .filter(o -> o.getSelectorScope() == null || o.getSelectorScope() == bound.getMonitor().getSelectorScope())
+        .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
         .collect(Collectors.toList());
   }
 

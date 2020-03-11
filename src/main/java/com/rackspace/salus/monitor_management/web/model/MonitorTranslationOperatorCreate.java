@@ -60,4 +60,6 @@ public class MonitorTranslationOperatorCreate {
 
   @NotNull @Valid
   MonitorTranslator translatorSpec;
+
+  int order;
 }
