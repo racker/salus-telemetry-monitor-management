@@ -1,0 +1,16 @@
+{
+  "type": "smtp",
+  "host": "localhost",
+  "port": 25,
+  "timeout": "PT5S",
+  "readTimeout": "PT30S",
+  "ehlo": "example.com",
+  "from": "me@example.com",
+  "to": "you@example.com",
+  "body": "test body",
+  "starttls": true,
+  "tlsCa": "/etc/telegraf/ca.pem",
+  "tlsCert": "/etc/telegraf/cert.pem",
+  "tlsKey": "/etc/telegraf/key.pem",
+  "insecureSkipVerify": false
+}

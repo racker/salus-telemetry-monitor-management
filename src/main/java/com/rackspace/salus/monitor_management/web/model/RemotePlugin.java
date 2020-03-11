@@ -26,6 +26,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.MysqlRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.monitor_management.web.model.telegraf.PostgresqlRemote;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Smtp;
 import com.rackspace.salus.monitor_management.web.model.telegraf.SqlServerRemote;
 import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
 
@@ -38,6 +39,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.X509Cert;
     @Type(name = "net_response", value = NetResponse.class),
     @Type(name = "ping", value = Ping.class),
     @Type(name = "postgresql", value = PostgresqlRemote.class),
+    @Type(name = "smtp", value = Smtp.class),
     @Type(name = "sqlserver", value = SqlServerRemote.class),
     @Type(name = "ssl", value = X509Cert.class)
 })
