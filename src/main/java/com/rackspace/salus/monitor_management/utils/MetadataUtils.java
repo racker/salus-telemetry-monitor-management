@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.utils;
 
+import com.rackspace.salus.common.util.BooleanParser;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -113,7 +114,7 @@ public class MetadataUtils {
                 break;
               case BOOL:
                 Boolean boolValue = (Boolean) f.get(object);
-                if (boolValue == Boolean.parseBoolean(policy.getValue())) {
+                if (boolValue == BooleanParser.parseBoolean(policy.getValue())) {
                   metadataFields.add(f.getName());
                 }
                 break;
@@ -169,7 +170,7 @@ public class MetadataUtils {
           f.set(object, Duration.parse(policy.getValue()));
           break;
         case BOOL:
-          f.set(object, Boolean.parseBoolean(policy.getValue()));
+          f.set(object, BooleanParser.parseBoolean(policy.getValue()));
           break;
       }
     } catch (IllegalAccessException|NoSuchFieldException e) {
