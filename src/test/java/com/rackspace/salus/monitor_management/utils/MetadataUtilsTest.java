@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -264,7 +265,7 @@ public class MetadataUtilsTest {
     assertThat(monitor.getFollowRedirects()).isEqualTo(true);
   }
 
-  @Test(expected = BooleanFormatException.class)
+  @Test
   public void setUpdateMetadataValue_BOOLfails() {
     HttpResponse monitor = new HttpResponse();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
@@ -272,8 +273,9 @@ public class MetadataUtilsTest {
         .setValueType(MetadataValueType.BOOL)
         .setValue("not a boolean value");
 
-    MetadataUtils.updateMetadataValue(monitor, policy);
-    Assert.fail("The String value should have caused a BooleanFormatException and never hit this line.");
+    assertThatThrownBy(() -> MetadataUtils.updateMetadataValue(monitor, policy))
+      .isInstanceOf(BooleanFormatException.class)
+      .hasMessageContaining("'not a boolean value' is not a valid boolean value");
   }
 
   @Test
