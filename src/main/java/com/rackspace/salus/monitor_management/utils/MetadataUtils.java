@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.monitor_management.utils;
 
-import com.rackspace.salus.common.util.BooleanParser;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
@@ -30,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -170,7 +170,7 @@ public class MetadataUtils {
           f.set(object, Duration.parse(policy.getValue()));
           break;
         case BOOL:
-          f.set(object, BooleanParser.parseBoolean(policy.getValue()));
+          f.set(object, BooleanUtils.toBoolean(policy.getValue().toLowerCase(), "true", "false"));
           break;
       }
     } catch (IllegalAccessException|NoSuchFieldException e) {

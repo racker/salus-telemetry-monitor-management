@@ -274,8 +274,8 @@ public class MetadataUtilsTest {
         .setValue("not a boolean value");
 
     assertThatThrownBy(() -> MetadataUtils.updateMetadataValue(monitor, policy))
-      .isInstanceOf(BooleanFormatException.class)
-      .hasMessageContaining("'not a boolean value' is not a valid boolean value");
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("The String did not match either specified value");
   }
 
   @Test
