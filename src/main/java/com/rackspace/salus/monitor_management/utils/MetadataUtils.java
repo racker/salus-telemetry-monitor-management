@@ -114,7 +114,7 @@ public class MetadataUtils {
                 break;
               case BOOL:
                 Boolean boolValue = (Boolean) f.get(object);
-                if (boolValue == BooleanParser.parseBoolean(policy.getValue())) {
+                if (boolValue == BooleanUtils.toBoolean(policy.getValue().toLowerCase(), "true", "false")) {
                   metadataFields.add(f.getName());
                 }
                 break;
