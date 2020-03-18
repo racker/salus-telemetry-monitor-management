@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "monitor",
+  "description": "Salus Monitor definition",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "labelSelector": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "labelSelectorMethod": {
+      "type": "string",
+      "enum": [
+        "AND",
+        "OR"
+      ]
+    },
+    "resourceId": {
+      "type": "string"
+    },
+    "excludedResourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "interval": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "details": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/LocalMonitorDetails"
+        },
+        {
+          "$ref": "#/definitions/RemoteMonitorDetails"
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "LocalMonitorDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "local"
+          ],
+          "default": "local"
+        },
+        "plugin": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Apache"
+            },
+            {
+              "$ref": "#/definitions/Cpu"
+            },
+            {
+              "$ref": "#/definitions/Disk"
+            },
+            {
+              "$ref": "#/definitions/DiskIo"
+            },
+            {
+              "$ref": "#/definitions/Mem"
+            },
+            {
+              "$ref": "#/definitions/Mysql"
+            },
+            {
+              "$ref": "#/definitions/Net"
+            },
+            {
+              "$ref": "#/definitions/Dataguard"
+            },
+            {
+              "$ref": "#/definitions/Rman"
+            },
+            {
+              "$ref": "#/definitions/Tablespace"
+            },
+            {
+              "$ref": "#/definitions/Packages"
+            },
+            {
+              "$ref": "#/definitions/Postgresql"
+            },
+            {
+              "$ref": "#/definitions/Procstat"
+            },
+            {
+              "$ref": "#/definitions/Redis"
+            },
+            {
+              "$ref": "#/definitions/SqlServer"
+            },
+            {
+              "$ref": "#/definitions/System"
+            }
+          ]
+        }
+      },
+      "title": "local",
+      "required": [
+        "type",
+        "plugin"
+      ]
+    },
+    "RemoteMonitorDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "remote"
+          ],
+          "default": "remote"
+        },
+        "monitoringZones": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plugin": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Dns"
+            },
+            {
+              "$ref": "#/definitions/HttpResponse"
+            },
+            {
+              "$ref": "#/definitions/MysqlRemote"
+            },
+            {
+              "$ref": "#/definitions/NetResponse"
+            },
+            {
+              "$ref": "#/definitions/Ping"
+            },
+            {
+              "$ref": "#/definitions/PostgresqlRemote"
+            },
+            {
+              "$ref": "#/definitions/Smtp"
+            },
+            {
+              "$ref": "#/definitions/SqlServerRemote"
+            },
+            {
+              "$ref": "#/definitions/X509Cert"
+            }
+          ]
+        }
+      },
+      "title": "remote",
+      "required": [
+        "type",
+        "plugin"
+      ]
+    }
+  }
+}

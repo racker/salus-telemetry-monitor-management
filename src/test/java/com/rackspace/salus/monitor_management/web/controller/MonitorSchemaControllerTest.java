@@ -53,4 +53,19 @@ public class MonitorSchemaControllerTest {
 
   }
 
+  @Test
+  public void testGetMonitorsSchema() throws Exception {
+    final String expectedSubset = readContent(
+        "MonitorSchemaControllerTest/monitors_schema_partial.json");
+
+    mockMvc.perform(get(
+        "/schema/monitors",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(expectedSubset, false));
+
+  }
+
 }

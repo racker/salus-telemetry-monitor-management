@@ -53,4 +53,27 @@ public class SchemaServiceTest {
     // spot check a definition
     assertThat(schema.path("definitions").path("Cpu").isObject()).isTrue();
   }
+
+  @Test
+  public void testGetMonitorInputSchema() {
+    final JsonNode schema = schemaService.getMonitorInputSchema();
+
+    assertThat(schema).isNotNull();
+    assertThat(schema.path("title").asText()).isEqualTo("monitor");
+    assertThat(schema.path("properties").path("name").path("type").asText()).isEqualTo("string");
+    assertThat(schema.path("properties").path("details").path("oneOf").isArray()).isTrue();
+    assertThat(ImmutableList.copyOf(schema.path("properties").path("details").path("oneOf").elements()))
+        .extracting(node -> node.path("$ref").asText())
+        // spot check a known definition reference
+        .containsExactlyInAnyOrder(
+            "#/definitions/LocalMonitorDetails",
+            "#/definitions/RemoteMonitorDetails"
+        );
+    // spot check some definitions
+    assertThat(schema.path("definitions").path("LocalMonitorDetails").isObject()).isTrue();
+    assertThat(schema.path("definitions").path("RemoteMonitorDetails").isObject()).isTrue();
+    assertThat(schema.path("definitions").path("RemoteMonitorDetails").path("properties")
+        .path("plugin").path("oneOf").isArray()).isTrue();
+    assertThat(schema.path("definitions").path("Cpu").isObject()).isTrue();
+  }
 }

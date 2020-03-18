@@ -38,4 +38,9 @@ public class MonitorSchemaController {
     return schemaService.getMonitorPluginsSchema();
   }
 
+  @GetMapping("/monitors")
+  public JsonNode getMonitorInputSchema() {
+    return schemaService.getMonitorInputSchema();
+  }
+
 }
