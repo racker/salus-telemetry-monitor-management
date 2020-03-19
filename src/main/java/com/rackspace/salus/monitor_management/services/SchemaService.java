@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalPlugin;
 import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import lombok.Data;
@@ -43,6 +44,12 @@ public class SchemaService {
 
   public JsonNode getMonitorPluginsSchema() {
     return schemaGen.generateJsonSchema(MonitorPluginScopes.class, "monitor-plugins-scopes",
-        "Conveys monitor scopes and plugin definitions for each");
+        "Salus Monitor Scopes and Plugin definitions");
+  }
+
+  public JsonNode getMonitorInputSchema() {
+    return schemaGen.generateJsonSchema(
+        DetailedMonitorInput.class, "monitor",
+        "Salus Monitor definition");
   }
 }

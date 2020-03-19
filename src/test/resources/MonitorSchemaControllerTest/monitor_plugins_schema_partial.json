@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "monitor-plugins-scopes",
-  "description": "Conveys monitor scopes and plugin definitions for each",
+  "description": "Salus Monitor Scopes and Plugin definitions",
   "type": "object",
   "additionalProperties": false,
   "properties": {
