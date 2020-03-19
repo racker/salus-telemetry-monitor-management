@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.rackspace.salus.common.errors.BooleanFormatException;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
 import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
@@ -31,11 +33,13 @@ import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.MetadataValueType;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.TargetClassName;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -246,6 +250,32 @@ public class MetadataUtilsTest {
 
     MetadataUtils.updateMetadataValue(monitor, policy);
     assertThat(monitor.getZones()).isEqualTo(List.of("zone1", "zone2"));
+  }
+
+  @Test
+  public void setUpdateMetadataValue_BOOL() {
+    HttpResponse monitor = new HttpResponse();
+    MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+        .setMonitorType(MonitorType.http)
+        .setKey("followRedirects")
+        .setValueType(MetadataValueType.BOOL)
+        .setValue("true");
+
+    MetadataUtils.updateMetadataValue(monitor, policy);
+    assertThat(monitor.getFollowRedirects()).isEqualTo(true);
+  }
+
+  @Test
+  public void setUpdateMetadataValue_BOOLfails() {
+    HttpResponse monitor = new HttpResponse();
+    MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+        .setKey("followRedirects")
+        .setValueType(MetadataValueType.BOOL)
+        .setValue("not a boolean value");
+
+    assertThatThrownBy(() -> MetadataUtils.updateMetadataValue(monitor, policy))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("The String did not match either specified value");
   }
 
   @Test
