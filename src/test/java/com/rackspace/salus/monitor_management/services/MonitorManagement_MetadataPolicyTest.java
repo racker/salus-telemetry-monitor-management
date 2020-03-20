@@ -20,6 +20,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
@@ -41,6 +44,7 @@ import com.rackspace.salus.monitor_management.services.MonitorManagement_Metadat
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
@@ -79,6 +83,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.persistence.RollbackException;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
@@ -706,5 +711,98 @@ public class MonitorManagement_MetadataPolicyTest {
     );
 
     return Lists.newArrayList(monitorRepository.saveAll(monitors));
+  }
+
+  @Test
+  public void testCloneMonitor_usingMetadata() throws JsonProcessingException {
+    String originalTenant = RandomStringUtils.randomAlphanumeric(10);
+    String newTenant = RandomStringUtils.randomAlphanumeric(10);
+
+    Duration originalInterval = Duration.ofSeconds(300);
+    Duration newInterval = Duration.ofSeconds(700);
+    int originalCount = 1;
+    int newCount = 123;
+
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+        .thenReturn(Map.of("count",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("count")
+                .setValue(String.valueOf(newCount))
+                .setValueType(MetadataValueType.INT),
+            "interval",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("interval")
+                .setValue(newInterval.toString())
+                .setValueType(MetadataValueType.DURATION)));
+
+    Ping plugin = new Ping().setCount(originalCount);
+
+    Monitor monitor = new Monitor()
+        .setTenantId(originalTenant)
+        .setLabelSelector(Collections.emptyMap())
+        .setExcludedResourceIds(Collections.emptySet())
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setMonitorType(MonitorType.ping)
+        .setContent(objectMapper.writeValueAsString(plugin))
+        .setInterval(originalInterval)
+        .setMonitorMetadataFields(List.of("interval"))
+        .setPluginMetadataFields(List.of("count"))
+        .setZones(Collections.singletonList("public/z-1"));
+    monitor = monitorRepository.save(monitor);
+
+    final ResourceDTO resourceDto = new ResourceDTO()
+        .setLabels(Collections.emptyMap())
+        .setResourceId(RandomStringUtils.randomAlphabetic(10))
+        .setAssociatedWithEnvoy(true)
+        .setTenantId(newTenant);
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), any()))
+        .thenReturn(List.of(resourceDto));
+
+    Monitor clonedMonitor = monitorManagement.cloneMonitor(originalTenant, newTenant, monitor.getId());
+
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(clonedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp",
+            "id", "tenantId", "content", "monitorMetadataFields", "pluginMetadataFields",
+            "interval", "zones")
+        .containsExactly(monitor);
+
+    // verify all lists are cloned correctly
+
+    assertThat(clonedMonitor.getZones(), hasSize(1));
+    Assertions.assertThat(clonedMonitor.getZones()).containsExactlyInAnyOrderElementsOf(
+        monitor.getZones());
+
+    assertThat(clonedMonitor.getMonitorMetadataFields(), hasSize(1));
+    Assertions.assertThat(clonedMonitor.getMonitorMetadataFields()).containsExactlyInAnyOrderElementsOf(
+        monitor.getMonitorMetadataFields());
+
+    assertThat(clonedMonitor.getPluginMetadataFields(), hasSize(1));
+    Assertions.assertThat(clonedMonitor.getPluginMetadataFields()).containsExactlyInAnyOrderElementsOf(
+        monitor.getPluginMetadataFields());
+
+    // verify modified fields were updated correctly
+
+    Ping updatedPlugin = new Ping().setCount(newCount);
+    assertThat(clonedMonitor.getContent(), equalTo(objectMapper.writeValueAsString(updatedPlugin)));
+    assertThat(clonedMonitor.getTenantId(), equalTo(newTenant));
+    assertThat(clonedMonitor.getId(), notNullValue());
+    assertThat(clonedMonitor.getId(), not(monitor.getId()));
+
+    // verify monitors were bound correctly
+
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(
+        new BoundMonitor()
+            .setMonitor(clonedMonitor)
+            .setTenantId(newTenant)
+            .setResourceId(resourceDto.getResourceId())
+            .setEnvoyId("e-new")
+            .setRenderedContent(objectMapper.writeValueAsString(updatedPlugin))
+            .setZoneName("public/z-1")
+    ));
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-new")
+    );
+    verifyNoMoreInteractions(boundMonitorRepository, monitorEventProducer);
   }
 }

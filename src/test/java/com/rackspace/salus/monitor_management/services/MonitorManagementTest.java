@@ -101,6 +101,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -627,6 +628,26 @@ public class MonitorManagementTest {
     exceptionRule.expect(IllegalArgumentException.class);
     exceptionRule.expectMessage("Invalid zone(s) provided:");
     monitorManagement.createMonitor(tenantId, create);
+  }
+
+  @Test
+  public void testCreateNewMonitor_validZones() {
+    MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+    List<Zone> zones = podamFactory.manufacturePojo(ArrayList.class, Zone.class);
+    List<String> zoneIds = zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList());
+    create.setZones(zoneIds);
+    create.setLabelSelector(Collections.emptyMap());
+    create.setSelectorScope(ConfigSelectorScope.REMOTE);
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    when(zoneManagement.getAvailableZonesForTenant(any(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
+    Monitor monitor = monitorManagement.createMonitor(tenantId, create);
+
+    assertThat(monitor.getZones(), hasSize(5));
+    Assertions.assertThat(monitor.getZones()).containsExactlyInAnyOrderElementsOf(zoneIds);
   }
 
   @Test

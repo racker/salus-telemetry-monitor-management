@@ -84,10 +84,13 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.transaction.Transactional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -289,6 +292,48 @@ public class MonitorManagement {
     final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
     sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
+  }
+
+  /**
+   * Takes a monitor from one tenant, updates any metadata to reflect the values of the new
+   * tenant, stores the newly updated monitor under the new tenant, and then
+   * binds it to any relevant resources.
+   *
+   * @param originalTenant The tenant of the original monitor
+   * @param newTenant The tenant to clone the monitor to.
+   * @param monitorId The id of the monitor to clone.
+   * @return The newly cloned monitor.
+   */
+  @Transactional
+  public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId) {
+    Monitor monitor = getMonitor(originalTenant, monitorId).orElseThrow(() ->
+        new NotFoundException(String.format("No monitor found for %s on tenant %s",
+            monitorId, originalTenant)));
+
+    // Load lazily-loaded fields
+    Hibernate.initialize(monitor.getMonitorMetadataFields());
+    Hibernate.initialize(monitor.getPluginMetadataFields());
+
+    Monitor clonedMonitor = SerializationUtils.clone(monitor);
+    clonedMonitor.setTenantId(newTenant);
+
+    // update monitor metadata values for new tenant
+    metadataUtils.setMetadataFieldsForClonedMonitor(newTenant, clonedMonitor);
+
+    // update plugin metadata values for new tenant
+    monitorConversionService.refreshClonedPlugin(newTenant, clonedMonitor);
+
+    // assign id to monitor and store in db
+    clonedMonitor.setId(null);
+    clonedMonitor = monitorRepository.save(clonedMonitor);
+
+    // bind monitor
+    Set<String> affectedEnvoys = bindNewMonitor(newTenant, clonedMonitor);
+    log.info("Binding policy monitor={} to {} envoys on tenant={}",
+        monitor, affectedEnvoys.size(), newTenant);
+
+    sendMonitorBoundEvents(affectedEnvoys);
+    return clonedMonitor;
   }
 
   /**

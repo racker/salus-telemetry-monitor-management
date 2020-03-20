@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -891,6 +892,31 @@ public class MonitorApiControllerTest {
         .andExpect(httpMessageNotReadable(
             "Cannot deserialize value of type `java.time.Duration` from String \"30\""));
 
+  }
+
+  @Test
+  public void testCloneMonitor() throws Exception {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    monitor.setLabelSelectorMethod(LabelSelectorMethod.OR);
+    when(monitorManagement.cloneMonitor(anyString(), anyString(), any()))
+        .thenReturn(monitor);
+
+    String url = "/api/admin/clone-monitor";
+    CloneMonitorRequest request = new CloneMonitorRequest()
+        .setMonitorId(UUID.randomUUID())
+        .setNewTenant(RandomStringUtils.randomAlphabetic(10))
+        .setOriginalTenant(RandomStringUtils.randomAlphanumeric(10));
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(request))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }
 
   private class UpdateMonitorTestSetup {
