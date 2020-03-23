@@ -294,6 +294,16 @@ public class MonitorManagement {
     return monitor;
   }
 
+  @Transactional
+  public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId) {
+    return cloneMonitor(originalTenant, newTenant, monitorId, null);
+  }
+
+  @Transactional
+  void clonePolicyMonitor(String tenantId, UUID policyId, UUID monitorId) {
+    cloneMonitor(POLICY_TENANT, tenantId, monitorId, policyId);
+  }
+
   /**
    * Takes a monitor from one tenant, updates any metadata to reflect the values of the new
    * tenant, stores the newly updated monitor under the new tenant, and then
@@ -305,10 +315,13 @@ public class MonitorManagement {
    * @return The newly cloned monitor.
    */
   @Transactional
-  public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId) {
+  public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId, UUID policyId) {
     Monitor monitor = getMonitor(originalTenant, monitorId).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             monitorId, originalTenant)));
+
+    log.info("Cloning monitor={} from={} to tenant={} for policy={}",
+        monitorId, originalTenant, newTenant, policyId);
 
     // Load lazily-loaded fields
     Hibernate.initialize(monitor.getMonitorMetadataFields());
@@ -316,6 +329,7 @@ public class MonitorManagement {
 
     Monitor clonedMonitor = SerializationUtils.clone(monitor);
     clonedMonitor.setTenantId(newTenant);
+    clonedMonitor.setPolicyId(policyId);
 
     // update monitor metadata values for new tenant
     metadataUtils.setMetadataFieldsForClonedMonitor(newTenant, clonedMonitor);
@@ -1284,8 +1298,13 @@ public class MonitorManagement {
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
 
+    unbindAndRemoveMonitor(monitor);
+  }
+
+  private void unbindAndRemoveMonitor(Monitor monitor) {
     // need to unbind before deleting monitor since BoundMonitor references Monitor
-    final Set<String> affectedEnvoys = unbindByTenantAndMonitorId(tenantId, Collections.singletonList(id));
+    final Set<String> affectedEnvoys = unbindByTenantAndMonitorId(monitor.getTenantId(),
+                                                                  Collections.singletonList(monitor.getId()));
 
     sendMonitorBoundEvents(affectedEnvoys);
 
@@ -1312,7 +1331,20 @@ public class MonitorManagement {
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
     log.info("Handling monitor policy event={}", event);
-    refreshBoundPolicyMonitorsForTenant(event.getTenantId());
+
+    String tenantId = event.getTenantId();
+    UUID policyId = event.getPolicyId();
+    UUID monitorId = event.getMonitorId();
+
+    // get effective policies
+    List<UUID> activePolicies = policyApi.getEffectivePolicyMonitorIdsForTenant(event.getTenantId(), false);
+    Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId);
+
+    if (activePolicies.contains(event.getPolicyId()) && monitor.isEmpty()) {
+      clonePolicyMonitor(tenantId, policyId, monitorId);
+    } else if (!activePolicies.contains(event.getPolicyId()) && monitor.isPresent()){
+      unbindAndRemoveMonitor(monitor.get());
+    }
   }
 
   /**
