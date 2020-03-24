@@ -25,17 +25,21 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -46,6 +50,7 @@ import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
@@ -57,12 +62,14 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -159,6 +166,9 @@ public class MonitorManagementPolicyTest {
   @MockBean
   MetadataUtils metadataUtils;
 
+  @MockBean
+  MonitorConversionService monitorConversionService;
+
   @Autowired
   EntityManager entityManager;
 
@@ -178,6 +188,9 @@ public class MonitorManagementPolicyTest {
   @Captor
   private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
 
+  @Captor
+  private ArgumentCaptor<Monitor> captorOfMonitor;
+
   @TestConfiguration
   public static class Config {
 
@@ -194,15 +207,16 @@ public class MonitorManagementPolicyTest {
   }
 
   @Before
-  public void setUp() {
+  public void setUp() throws JsonProcessingException {
     Monitor monitor = new Monitor()
         .setTenantId(POLICY_TENANT)
         .setMonitorName("policy_mon1")
         .setMonitorType(MonitorType.ping)
         .setLabelSelector(Collections.singletonMap("os", "LINUX"))
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
-        .setContent("content1")
+        .setContent(objectMapper.writeValueAsString(new Cpu()))
         .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setInterval(Duration.ofSeconds(60));
     currentMonitor = monitorRepository.save(monitor);
 
@@ -213,20 +227,26 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
 
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
 
     when(zoneStorage.findLeastLoadedEnvoy(any()))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-    when(zoneStorage.incrementBoundCount(any(), any()))
+    when(zoneStorage.incrementBoundCount(any(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(1));
+
+    ResourceInfo resourceInfo = new ResourceInfo()
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
+    when(envoyResourceManagement.getOne(anyString(), anyString()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
     when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
         .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-new", "r-new-1")));
 
-    when(zoneStorage.decrementBoundCount(any(), any()))
+    when(zoneStorage.decrementBoundCount(any(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(1));
   }
 
@@ -705,7 +725,7 @@ public class MonitorManagementPolicyTest {
     );
 
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // EXECUTE
@@ -800,7 +820,7 @@ public class MonitorManagementPolicyTest {
     );
 
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // define the bound monitors
@@ -887,7 +907,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     List<BoundMonitor> existingBound = new ArrayList<>();
@@ -989,7 +1009,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     List<BoundMonitor> existingBound = new ArrayList<>();
@@ -1086,7 +1106,7 @@ public class MonitorManagementPolicyTest {
         .setAssociatedWithEnvoy(true)
     );
     // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // Define the bound monitors that will be removed
@@ -1108,7 +1128,7 @@ public class MonitorManagementPolicyTest {
         .thenReturn(existingBound);
 
     // All resources will be returned when rebinding
-    when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
+    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
 
     // Various calls involved in finding the envoys to detach/attach to.
@@ -1117,9 +1137,9 @@ public class MonitorManagementPolicyTest {
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
     when(zoneStorage.findLeastLoadedEnvoy(any()))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-    when(zoneStorage.incrementBoundCount(any(), any()))
+    when(zoneStorage.incrementBoundCount(any(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(1));
-    when(zoneStorage.decrementBoundCount(any(), any()))
+    when(zoneStorage.decrementBoundCount(any(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(1));
 
     // EXECUTE
@@ -1309,6 +1329,124 @@ public class MonitorManagementPolicyTest {
     verifyNoMoreInteractions(policyApi);
   }
 
+  /**
+   * Receive a new monitor policy event and process it for a tenant
+   * that was not previously using the policy.
+   *
+   * As cloneMonitor has its own tests this just verifies the basic result.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_newPolicyForTenant() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID monitorId = currentMonitor.getId();
+
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of(policyId));
+
+    // no policy monitor exists on tenant
+    assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(monitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor now exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+
+    // cloning methods were called
+    verify(metadataUtils).setMetadataFieldsForClonedMonitor(anyString(), captorOfMonitor.capture());
+    assertThat(captorOfMonitor.getValue().getPolicyId(), equalTo(policyId));
+    assertThat(captorOfMonitor.getValue().getTenantId(), equalTo(tenantId));
+
+    verify(monitorConversionService).refreshClonedPlugin(anyString(), captorOfMonitor.capture());
+    assertThat(captorOfMonitor.getValue().getPolicyId(), equalTo(policyId));
+    assertThat(captorOfMonitor.getValue().getTenantId(), equalTo(tenantId));
+
+    verify(boundMonitorRepository).saveAll(anyIterable());
+  }
+
+  /**
+   * Receive a new monitor policy event and process it for a tenant
+   * that was previously using the policy.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_existingPolicyForTenant() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID monitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    createMonitorForPolicyForTenant(tenantId, policyId);
+
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of(policyId));
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(monitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // no additional actions should occur
+    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
+  }
+
+  /**
+   * Receive a removal monitor policy event and process it for a tenant
+   * that was not previously using the policy.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicyNotInUse() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID monitorId = currentMonitor.getId();
+
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(monitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // no additional actions should occur
+    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
+  }
+
+  /**
+   * Receive a new monitor policy event and process it for a tenant
+   * that was previously using the policy.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicyInUse() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID monitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
+        .thenReturn(Collections.emptyList());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(monitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+
+    verify(boundMonitorRepository).deleteAll(anyIterable());
+  }
+
   private void createMonitors(int count) {
     for (int i = 0; i < count; i++) {
       String tenantId = RandomStringUtils.randomAlphanumeric(10);
@@ -1330,5 +1468,11 @@ public class MonitorManagementPolicyTest {
       create.setMonitorType(MonitorType.cpu);
       monitorManagement.createMonitor(tenantId, create);
     }
+  }
+
+  private Monitor createMonitorForPolicyForTenant(String tenantId, UUID policyId) {
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setPolicyId(policyId).setTenantId(tenantId);
+    return monitorRepository.save(monitor);
   }
 }
