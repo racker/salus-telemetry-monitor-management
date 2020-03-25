@@ -48,7 +48,6 @@ import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
-import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -984,9 +983,6 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
-
-    monitorEventProducer.sendPolicyMonitorUpdateEvent(
-        new PolicyMonitorUpdateEvent().setMonitorId(id));
 
     return monitor;
   }

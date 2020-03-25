@@ -21,7 +21,6 @@ import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
-import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,14 +62,6 @@ public class PolicyEventListener {
     log.debug("Processing monitor policy event: {}", policyEvent);
 
     monitorManagement.handleMonitorPolicyEvent(policyEvent);
-  }
-
-  @KafkaHandler
-  public void consumePolicyMonitorUpdateEvents(PolicyMonitorUpdateEvent updateEvent) {
-    // Ignore null tenant events.  These will be handled by policy management.
-    if (updateEvent.getTenantId() != null) {
-      monitorManagement.processPolicyMonitorUpdate(updateEvent.getTenantId(), updateEvent.getMonitorId());
-    }
   }
 
   @KafkaHandler

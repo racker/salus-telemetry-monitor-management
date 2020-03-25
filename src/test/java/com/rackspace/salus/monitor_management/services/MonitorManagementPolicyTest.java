@@ -63,7 +63,6 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
-import com.rackspace.salus.telemetry.messaging.PolicyMonitorUpdateEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -518,13 +517,6 @@ public class MonitorManagementPolicyTest {
     // rather than including them in the above assert, we just verify they are empty here.
     assertThat(updatedMonitor.getMonitorMetadataFields(), hasSize(0));
     assertThat(updatedMonitor.getPluginMetadataFields(), hasSize(0));
-
-    // Event is sent with no tenant set (to be consumed by policy mgmt)
-    verify(monitorEventProducer).sendPolicyMonitorUpdateEvent(
-        new PolicyMonitorUpdateEvent()
-        .setMonitorId(monitor.getId())
-        .setTenantId(null)
-    );
 
     // specified zones were verified
     verify(zoneManagement).getAvailableZonesForTenant(POLICY_TENANT, Pageable.unpaged());
