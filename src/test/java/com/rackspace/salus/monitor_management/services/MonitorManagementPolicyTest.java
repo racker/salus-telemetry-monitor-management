@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -47,6 +48,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -1437,6 +1439,17 @@ public class MonitorManagementPolicyTest {
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
 
     verify(boundMonitorRepository).deleteAll(anyIterable());
+  }
+
+  @Test
+  public void testDeleteMonitor_withPolicyId() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    Monitor monitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    assertThatThrownBy(() -> monitorManagement.removeMonitor(tenantId, monitor.getId()))
+        .isInstanceOf(DeletionNotAllowedException.class)
+        .hasMessageContaining("Cannot remove monitor configured by Policy. Contact your support team to opt out of the policy.");
   }
 
   private void createMonitors(int count) {

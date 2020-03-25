@@ -1294,6 +1294,11 @@ public class MonitorManagement {
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             id, tenantId)));
 
+    if (monitor.getPolicyId() != null) {
+      throw new DeletionNotAllowedException(
+          "Cannot remove monitor configured by Policy. Contact your support team to opt out of the policy.");
+    }
+
     unbindAndRemoveMonitor(monitor);
   }
 
