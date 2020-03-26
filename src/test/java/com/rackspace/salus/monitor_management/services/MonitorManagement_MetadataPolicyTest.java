@@ -807,4 +807,32 @@ public class MonitorManagement_MetadataPolicyTest {
     );
     verifyNoMoreInteractions(boundMonitorRepository, monitorEventProducer);
   }
+
+  @Test
+  @Transactional
+  public void testCloneMonitor_monitorTiedToPolicy() throws JsonProcessingException {
+    String originalTenant = RandomStringUtils.randomAlphanumeric(10);
+    String newTenant = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor monitor = new Monitor()
+        .setTenantId(originalTenant)
+        .setLabelSelector(Collections.emptyMap())
+        .setExcludedResourceIds(Collections.emptySet())
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setMonitorType(MonitorType.ping)
+        .setContent(objectMapper.writeValueAsString(new Ping()))
+        .setInterval(Duration.ofSeconds(60))
+        .setMonitorMetadataFields(List.of("interval"))
+        .setPluginMetadataFields(List.of("count"))
+        .setZones(Collections.singletonList("public/z-1"))
+        .setPolicyId(UUID.randomUUID());
+    monitor = monitorRepository.save(monitor);
+
+    final UUID monitorId = monitor.getId();
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> monitorManagement.cloneMonitor(originalTenant, newTenant, monitorId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Cannot clone monitor tied to a policy");
+  }
 }

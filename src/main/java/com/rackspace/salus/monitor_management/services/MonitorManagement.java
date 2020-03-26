@@ -315,6 +315,10 @@ public class MonitorManagement {
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
             monitorId, originalTenant)));
 
+    if (monitor.getPolicyId() != null) {
+      throw new IllegalArgumentException("Cannot clone monitor tied to a policy");
+    }
+
     log.info("Cloning monitor={} from={} to tenant={} for policy={}",
         monitorId, originalTenant, newTenant, policyId);
 
