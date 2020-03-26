@@ -308,6 +308,7 @@ public class MonitorManagement {
    * @param originalTenant The tenant of the original monitor
    * @param newTenant The tenant to clone the monitor to.
    * @param monitorId The id of the monitor to clone.
+   * @param policyId The id of the policy associated to the original monitor (if required).
    * @return The newly cloned monitor.
    */
   public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId, UUID policyId) {
