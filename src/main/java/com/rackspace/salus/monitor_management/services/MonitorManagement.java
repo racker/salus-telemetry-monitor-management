@@ -83,7 +83,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.transaction.Transactional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -293,12 +292,10 @@ public class MonitorManagement {
     return monitor;
   }
 
-  @Transactional
   public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId) {
     return cloneMonitor(originalTenant, newTenant, monitorId, null);
   }
 
-  @Transactional
   void clonePolicyMonitor(String tenantId, UUID policyId, UUID monitorId) {
     cloneMonitor(POLICY_TENANT, tenantId, monitorId, policyId);
   }
@@ -313,7 +310,6 @@ public class MonitorManagement {
    * @param monitorId The id of the monitor to clone.
    * @return The newly cloned monitor.
    */
-  @Transactional
   public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId, UUID policyId) {
     Monitor monitor = getMonitor(originalTenant, monitorId).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found for %s on tenant %s",
@@ -381,6 +377,8 @@ public class MonitorManagement {
     if (newMonitor.getLabelSelectorMethod() != null) {
       monitor.setLabelSelectorMethod(newMonitor.getLabelSelectorMethod());
     }
+
+    metadataUtils.setMetadataFieldsForMonitor(POLICY_TENANT, monitor, false);
 
     monitor = monitorRepository.save(monitor);
     return monitor;
@@ -1338,7 +1336,7 @@ public class MonitorManagement {
     UUID monitorId = event.getMonitorId();
 
     // get effective policies
-    List<UUID> activePolicies = policyApi.getEffectivePolicyMonitorIdsForTenant(event.getTenantId(), false);
+    List<UUID> activePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(event.getTenantId(), false);
     Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId);
 
     if (activePolicies.contains(event.getPolicyId()) && monitor.isEmpty()) {
@@ -2038,32 +2036,13 @@ public class MonitorManagement {
     return boundMonitorRepository.findAllByMonitor_IdAndMonitor_TenantId(monitorId, tenantId);
   }
 
-  public Monitor getPolicyMonitorForTenant(String tenantId, UUID monitorId) {
-    Monitor monitor = getPolicyMonitor(monitorId).orElseThrow(() ->
-        new NotFoundException(String.format("No policy monitor found for %s on tenant %s",
-            monitorId, tenantId)));
-
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
-
-    // If the policy monitor exists but is not in use by this account, do not return it.
-    if (!policyMonitorIds.contains(monitorId)) {
-      throw new NotFoundException(String.format("No policy monitor found for %s on tenant %s",
-          monitorId, tenantId));
-    }
-
-    return monitor;
-
-  }
-
   /**
    * Retrieves a list of policy monitors that are relevant to the provided tenant.
    * @param tenantId The tenant to get the policy monitors for.
    * @return A list of monitors.
    */
   public Page<Monitor> getAllPolicyMonitorsForTenant(String tenantId, Pageable page) {
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
-
-    return monitorRepository.findByIdIn(policyMonitorIds, page);
+    return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
   }
 
   /**

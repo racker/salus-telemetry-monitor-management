@@ -82,6 +82,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.persistence.RollbackException;
+import javax.transaction.Transactional;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
@@ -714,6 +715,7 @@ public class MonitorManagement_MetadataPolicyTest {
   }
 
   @Test
+  @Transactional
   public void testCloneMonitor_usingMetadata() throws JsonProcessingException {
     String originalTenant = RandomStringUtils.randomAlphanumeric(10);
     String newTenant = RandomStringUtils.randomAlphanumeric(10);

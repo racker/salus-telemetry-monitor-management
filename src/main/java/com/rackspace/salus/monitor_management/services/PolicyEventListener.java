@@ -22,6 +22,7 @@ import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
+import javax.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaHandler;
@@ -58,6 +59,7 @@ public class PolicyEventListener {
    * @throws Exception
    */
   @KafkaHandler
+  @Transactional
   public void consumeMonitorPolicyEvents(MonitorPolicyEvent policyEvent) {
     log.debug("Processing monitor policy event: {}", policyEvent);
 
