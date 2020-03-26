@@ -292,10 +292,16 @@ public class MonitorManagement {
     return monitor;
   }
 
+  /**
+   * Helper method for cloning a monitor from another tenant.
+   */
   public Monitor cloneMonitor(String originalTenant, String newTenant, UUID monitorId) {
     return cloneMonitor(originalTenant, newTenant, monitorId, null);
   }
 
+  /**
+   * Helper method for cloning a policy monitor.
+   */
   void clonePolicyMonitor(String tenantId, UUID policyId, UUID monitorId) {
     cloneMonitor(POLICY_TENANT, tenantId, monitorId, policyId);
   }
