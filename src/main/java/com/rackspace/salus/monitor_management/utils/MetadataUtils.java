@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -113,7 +114,7 @@ public class MetadataUtils {
                 break;
               case BOOL:
                 Boolean boolValue = (Boolean) f.get(object);
-                if (boolValue == Boolean.parseBoolean(policy.getValue())) {
+                if (boolValue == BooleanUtils.toBoolean(policy.getValue().toLowerCase(), "true", "false")) {
                   metadataFields.add(f.getName());
                 }
                 break;
@@ -169,7 +170,7 @@ public class MetadataUtils {
           f.set(object, Duration.parse(policy.getValue()));
           break;
         case BOOL:
-          f.set(object, Boolean.parseBoolean(policy.getValue()));
+          f.set(object, BooleanUtils.toBoolean(policy.getValue().toLowerCase(), "true", "false"));
           break;
       }
     } catch (IllegalAccessException|NoSuchFieldException e) {
