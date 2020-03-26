@@ -23,6 +23,7 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
+import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
@@ -195,6 +196,20 @@ public class MonitorApiController {
     return monitorConversionService.convertToOutput(
         monitorManagement.createPolicyMonitor(
             monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, null, input)));
+  }
+
+  @PostMapping("/admin/clone-monitor")
+  @ResponseStatus(HttpStatus.CREATED)
+  @ApiOperation(value = "Clones a monitor from one tenant to another")
+  @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully Cloned Monitor")})
+  public DetailedMonitorOutput cloneMonitor(@RequestBody final CloneMonitorRequest input)
+      throws IllegalArgumentException {
+    return monitorConversionService.convertToOutput(
+        monitorManagement.cloneMonitor(
+            input.getOriginalTenant(),
+            input.getNewTenant(),
+            input.getMonitorId()
+        ));
   }
 
   @DeleteMapping("/admin/policy-monitors/{uuid}")

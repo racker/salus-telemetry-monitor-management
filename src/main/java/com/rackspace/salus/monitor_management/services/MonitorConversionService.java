@@ -402,4 +402,40 @@ public class MonitorConversionService {
       return null;
     }
   }
+
+  public Object getPluginFromMonitor(Monitor monitor) throws InvalidClassException {
+    DetailedMonitorInput input = new DetailedMonitorInput(convertToOutput(monitor));
+    MonitorDetails details = input.getDetails();
+
+    Object plugin;
+    if (details instanceof LocalMonitorDetails) {
+      plugin = ((LocalMonitorDetails) details).getPlugin();
+    } else if (details instanceof RemoteMonitorDetails) {
+      plugin = ((RemoteMonitorDetails) details).getPlugin();
+    } else {
+      throw new InvalidClassException(String.format(
+          "Unexpected class found when extracting monitor plugin content=%s",
+          monitor.getContent()));
+    }
+
+    return plugin;
+  }
+
+  public void refreshClonedPlugin(String tenantId, Monitor monitor) {
+    Object plugin;
+    try {
+      plugin = getPluginFromMonitor(monitor);
+    } catch (InvalidClassException e) {
+      log.error("Failed to refresh cloned plugin for monitor={}", monitor, e);
+      return;
+    }
+
+    metadataUtils.setMetadataFieldsForClonedPlugin(tenantId, monitor, plugin);
+    try {
+      monitor.setContent(objectMapper.writeValueAsString(plugin));
+    } catch (JsonProcessingException e) {
+      log.warn("Failed to serialize plugin details of monitor={}", monitor, e);
+      throw new IllegalStateException("Failed to serialize plugin details");
+    }
+  }
 }

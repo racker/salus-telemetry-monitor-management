@@ -178,6 +178,14 @@ public class MetadataUtils {
     }
   }
 
+  public void setMetadataFieldsForMonitor(String tenantId, Monitor monitor, boolean patchOperation) {
+    setMetadataFieldsForMonitor(tenantId, monitor, patchOperation, false);
+  }
+
+  public void setMetadataFieldsForClonedMonitor(String tenantId, Monitor monitor) {
+    setMetadataFieldsForMonitor(tenantId, monitor, false, true);
+  }
+
   /**
    * Updates a monitors metadata policy fields in place.
    *
@@ -191,12 +199,14 @@ public class MetadataUtils {
    * @param tenantId The tenant id the monitor is created under.
    * @param monitor The monitor object to update.
    */
-  public void setMetadataFieldsForMonitor(String tenantId, Monitor monitor, boolean patchOperation) {
+  public void setMetadataFieldsForMonitor(String tenantId, Monitor monitor, boolean patchOperation, boolean clone) {
     Map<String, MonitorMetadataPolicyDTO> policyMetadata = null;
     List<String> metadataFields;
     TargetClassName className = TargetClassName.getTargetClassName(monitor);
 
-    if (!patchOperation &&
+    if (clone) {
+      metadataFields = monitor.getMonitorMetadataFields();
+    } else if (!patchOperation &&
         monitor.getMonitorMetadataFields() != null &&
         !monitor.getMonitorMetadataFields().isEmpty()) {
       policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
@@ -264,6 +274,22 @@ public class MetadataUtils {
       // this api request is avoided if there are no metadata fields to set
       policyMetadata = policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
     }
+
+    log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
+    MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
+  }
+
+  public void setMetadataFieldsForClonedPlugin(String tenantId, Monitor monitor, Object plugin) {
+    List<String> metadataFields = monitor.getPluginMetadataFields();
+
+    if (metadataFields.isEmpty()) {
+      log.debug("No unset metadata fields were found on monitor={}", monitor);
+      return;
+    }
+
+    TargetClassName className = TargetClassName.getTargetClassName(plugin);
+    Map<String, MonitorMetadataPolicyDTO> policyMetadata =
+        policyApi.getEffectiveMonitorMetadataMap(tenantId, className, monitor.getMonitorType(), true);
 
     log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
     MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
