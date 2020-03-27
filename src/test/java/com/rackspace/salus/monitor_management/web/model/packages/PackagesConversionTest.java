@@ -83,9 +83,9 @@ public class PackagesConversionTest {
     final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput",
         Map.of("includeRpm", "false", "includeDebian", "true"));
 
-    assertThat(plugin.isIncludeDebian()).isTrue();
-    assertThat(plugin.isIncludeRpm()).isFalse();
-    assertThat(plugin.isFailWhenNotSupported()).isFalse();
+    assertThat(plugin.getIncludeDebian()).isTrue();
+    assertThat(plugin.getIncludeRpm()).isFalse();
+    assertThat(plugin.getFailWhenNotSupported()).isFalse();
   }
 
   @Test
@@ -101,9 +101,9 @@ public class PackagesConversionTest {
     final Packages plugin = assertCommon(result, monitor, Packages.class, "convertToOutput_defaults",
         Map.of("includeRpm", "true", "includeDebian", "true"));
 
-    assertThat(plugin.isIncludeRpm()).isTrue();
-    assertThat(plugin.isIncludeDebian()).isTrue();
-    assertThat(plugin.isFailWhenNotSupported()).isFalse();
+    assertThat(plugin.getIncludeRpm()).isTrue();
+    assertThat(plugin.getIncludeDebian()).isTrue();
+    assertThat(plugin.getFailWhenNotSupported()).isNull();
   }
 
   @Test

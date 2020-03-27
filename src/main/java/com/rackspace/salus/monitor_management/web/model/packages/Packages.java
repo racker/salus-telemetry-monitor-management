@@ -31,8 +31,8 @@ import lombok.EqualsAndHashCode;
 @ApplicableMonitorType(MonitorType.packages)
 public class Packages extends LocalPlugin {
   @SummaryField
-  boolean includeRpm = true;
+  Boolean includeRpm = true;
   @SummaryField
-  boolean includeDebian = true;
-  boolean failWhenNotSupported;
+  Boolean includeDebian = true;
+  Boolean failWhenNotSupported;
 }

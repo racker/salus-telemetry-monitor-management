@@ -29,9 +29,9 @@ import lombok.EqualsAndHashCode;
 @ApplicableAgentType(AgentType.TELEGRAF)
 @ApplicableMonitorType(MonitorType.cpu)
 public class Cpu extends LocalPlugin {
-  boolean percpu;
+  Boolean percpu;
   @JsonProperty(defaultValue = "true")
-  boolean totalcpu = true;
-  boolean collectCpuTime;
-  boolean reportActive;
+  Boolean totalcpu = true;
+  Boolean collectCpuTime;
+  Boolean reportActive;
 }

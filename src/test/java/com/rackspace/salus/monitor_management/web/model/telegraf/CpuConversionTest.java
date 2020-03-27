@@ -82,10 +82,10 @@ public class CpuConversionTest {
 
     final Cpu cpuPlugin = assertCommon(result, monitor, Cpu.class, "convertToOutput", Map.of());
 
-    assertThat(cpuPlugin.isCollectCpuTime()).isTrue();
-    assertThat(cpuPlugin.isPercpu()).isFalse();
-    assertThat(cpuPlugin.isReportActive()).isFalse();
-    assertThat(cpuPlugin.isTotalcpu()).isTrue();
+    assertThat(cpuPlugin.getCollectCpuTime()).isTrue();
+    assertThat(cpuPlugin.getPercpu()).isFalse();
+    assertThat(cpuPlugin.getReportActive()).isFalse();
+    assertThat(cpuPlugin.getTotalcpu()).isTrue();
   }
 
   @Test
@@ -101,10 +101,10 @@ public class CpuConversionTest {
     final Cpu cpuPlugin = assertCommon(result, monitor, Cpu.class, "convertToOutput_defaults",
         Map.of());
 
-    assertThat(cpuPlugin.isCollectCpuTime()).isFalse();
-    assertThat(cpuPlugin.isPercpu()).isFalse();
-    assertThat(cpuPlugin.isReportActive()).isFalse();
-    assertThat(cpuPlugin.isTotalcpu()).isTrue();
+    assertThat(cpuPlugin.getCollectCpuTime()).isNull();
+    assertThat(cpuPlugin.getPercpu()).isNull();
+    assertThat(cpuPlugin.getReportActive()).isNull();
+    assertThat(cpuPlugin.getTotalcpu()).isTrue();
   }
 
   @Test
