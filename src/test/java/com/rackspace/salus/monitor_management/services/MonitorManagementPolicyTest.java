@@ -58,6 +58,7 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
@@ -585,101 +586,33 @@ public class MonitorManagementPolicyTest {
 
   /**
    * This test simulates the adding of two new monitor policies to a single account
-   * that did not have any existing bound monitors.
+   * that did not have any previously.
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshBoundPolicyMonitorsForTenant_noExistingBoundMonitors() {
+  public void testRefreshPolicyMonitorsForTenant_noExistingMonitors() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    List<Monitor> monitors = Arrays.asList(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content0")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content1")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-    );
+    // create 2 policy monitors and configure the policy api/db to use them when queried
+    List<UUID> policyMonitorIds = createMonitorsForTenant(2, POLICY_TENANT);
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(0))));
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(1))));
 
-    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
-    List<UUID> monitorIds = savedMonitors.stream()
-        .map(Monitor::getId).collect(Collectors.toList());
+    // no policy monitor exists on tenant
+    assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(0));
 
-    // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(monitorIds);
+    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
 
-    // No prior monitors exist so return an empty list
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT))
-        .thenReturn(Collections.emptyList());
+    // policy monitor now exists on tenant
+    assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(2));
 
-    // Define the resources the policy will be applied to
-    List<ResourceDTO> resourceList = new ArrayList<>();
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setAssociatedWithEnvoy(true)
-    );
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(true)
-    );
-
-    // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
-        .thenReturn(resourceList);
-
-    // EXECUTE
-
-    monitorManagement.refreshBoundPolicyMonitorsForTenant(tenantId);
-
-    // VERIFY
-    List<BoundMonitor> expectedBound = new ArrayList<>();
-    for (Monitor monitor : savedMonitors) {
-      for (ResourceDTO resource: resourceList) {
-        expectedBound.add(
-            new BoundMonitor()
-                .setZoneName("public/z-1")
-                .setMonitor(monitor)
-                .setTenantId(tenantId)
-                .setResourceId(resource.getResourceId())
-                .setEnvoyId("e-new")
-                .setRenderedContent(monitor.getContent())
-        );
-      }
-    }
-
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
-    verify(boundMonitorRepository, times(2)).saveAll(captorOfBoundMonitorList.capture());
-
-    // 2 bound monitors are present in each saveAll request. convert this to a single list for easier asserting.
-    List<BoundMonitor> found = captorOfBoundMonitorList.getAllValues().stream()
-        .flatMap(List::stream).collect(Collectors.toList());
-
-    org.assertj.core.api.Assertions.assertThat(found)
-        .containsExactlyInAnyOrderElementsOf(expectedBound);
-
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
-
-    // Verify events were sent out (to be consumed by ambassador)
-    verify(monitorEventProducer).sendMonitorEvent(
-        new MonitorBoundEvent().setEnvoyId("e-new") // uses default poller envoy defined in setup
-    );
-
-    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+    // cloning methods were called
+    verify(metadataUtils, times(2)).setMetadataFieldsForClonedMonitor(anyString(), any());
+    verify(monitorConversionService, times(2)).refreshClonedPlugin(anyString(), any());
   }
 
   /**
@@ -688,190 +621,57 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshBoundPolicyMonitorsForTenant_policyAlreadyConfigured() {
+  public void testRefreshPolicyMonitorsForTenant_policyAlreadyConfigured() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID policyId = UUID.randomUUID();
+    UUID monitorId = currentMonitor.getId();
 
-    List<Monitor> monitors = Arrays.asList(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content0")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content1")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-    );
+    // store a monitor for the tenant that is tied to the policy in the event
+    createMonitorForPolicyForTenant(tenantId, policyId);
 
-    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
-    List<UUID> monitorIds = savedMonitors.stream()
-        .map(Monitor::getId).collect(Collectors.toList());
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of(policyId));
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(monitorId)));
 
-    // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(monitorIds);
+    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
 
-    // Define the resources the policy will be applied to
-    List<ResourceDTO> resourceList = new ArrayList<>();
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setAssociatedWithEnvoy(true)
-    );
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(true)
-    );
-
-    // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
-        .thenReturn(resourceList);
-
-    // define the bound monitors
-    List<BoundMonitor> existingBound = new ArrayList<>();
-    for (Monitor monitor : savedMonitors) {
-      for (ResourceDTO resource: resourceList) {
-        existingBound.add(
-            new BoundMonitor()
-                .setZoneName("public/z-1")
-                .setMonitor(monitor)
-                .setTenantId(tenantId)
-                .setResourceId(resource.getResourceId())
-                .setEnvoyId("e-new")
-                .setRenderedContent(monitor.getContent())
-        );
-      }
-    }
-
-    // policies are already configured so all bound monitors should be seen
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT))
-        .thenReturn(existingBound);
-
-    // EXECUTE
-
-    monitorManagement.refreshBoundPolicyMonitorsForTenant(tenantId);
-
-    // VERIFY
-
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
-
-    // no bound monitor saves or event producer sends should happen.
-    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+    // no cloning operations performed
+    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
   }
 
   /**
-   * This test simulates the adding of one new monitor policies to a single account
+   * This test simulates the adding of one new monitor policy to a single account
    * that already had one other policy applied.
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshBoundPolicyMonitorsForTenant_partiallyExistingBoundMonitors() {
+  public void testRefreshPolicyMonitorsForTenant_partiallyExistingMonitors() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    List<Monitor> monitors = Arrays.asList(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content0")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content1")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-    );
+    // create 2 policies and configure one of them on the customer tenant
+    List<UUID> monitorPolicyIds = List.of(UUID.randomUUID(), UUID.randomUUID());
+    UUID policyMonitorId = createMonitorsForTenant(1, POLICY_TENANT).get(0);
+    createMonitorForPolicyForTenant(tenantId, monitorPolicyIds.get(0));
 
-    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
-    List<UUID> monitorIds = savedMonitors.stream()
-        .map(Monitor::getId).collect(Collectors.toList());
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(monitorPolicyIds);
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorId)));
 
-    // Use the two saved monitors
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(monitorIds);
+    // no policy monitor exists on tenant
+    assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(1));
 
-    // Define the resources the policy will be applied to
-    List<ResourceDTO> resourceList = new ArrayList<>();
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setAssociatedWithEnvoy(true)
-    );
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(true)
-    );
-    // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
-        .thenReturn(resourceList);
+    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
 
-    List<BoundMonitor> existingBound = new ArrayList<>();
-    for (ResourceDTO resource : resourceList) {
-      existingBound.add(
-          new BoundMonitor()
-              .setZoneName("public/z-1")
-              .setMonitor(savedMonitors.get(0))
-              .setTenantId(tenantId)
-              .setResourceId(resource.getResourceId())
-              .setEnvoyId("e-new")
-              .setRenderedContent(savedMonitors.get(0).getContent()));
-    }
+    // policy monitor now exists on tenant
+    assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(2));
 
-  List<BoundMonitor> newBound = new ArrayList<>();
-    for (ResourceDTO resource : resourceList) {
-      newBound.add(
-        new BoundMonitor()
-            .setZoneName("public/z-1")
-            .setMonitor(savedMonitors.get(1))
-            .setTenantId(tenantId)
-            .setResourceId(resource.getResourceId())
-            .setEnvoyId("e-new")
-            .setRenderedContent(savedMonitors.get(1).getContent()));
-    }
-
-    // No prior monitors exist so return an empty list
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT))
-        .thenReturn(existingBound);
-
-    // EXECUTE
-
-    monitorManagement.refreshBoundPolicyMonitorsForTenant(tenantId);
-
-    // VERIFY
-
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
-    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
-
-    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
-        .containsExactlyInAnyOrderElementsOf(newBound);
-
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
-
-    // Verify events were sent out (to be consumed by ambassador)
-    verify(monitorEventProducer).sendMonitorEvent(
-        new MonitorBoundEvent().setEnvoyId("e-new") // uses default poller envoy defined in setup
-    );
-
-    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+    // cloning methods were called for one monitor
+    verify(metadataUtils).setMetadataFieldsForClonedMonitor(anyString(), captorOfMonitor.capture());
+    assertThat(captorOfMonitor.getValue().getPolicyId(), equalTo(monitorPolicyIds.get(1)));
+    verify(monitorConversionService).refreshClonedPlugin(anyString(), captorOfMonitor.capture());
+    assertThat(captorOfMonitor.getValue().getPolicyId(), equalTo(monitorPolicyIds.get(1)));
   }
 
   /**
@@ -880,104 +680,24 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshBoundPolicyMonitorsForTenant_removePolicy() {
-    String tenantId = RandomStringUtils.randomAlphabetic(10);
+  public void testRefreshPolicyMonitorsForTenant_removePolicy() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
 
-    List<Monitor> monitors = Arrays.asList(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content0")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND),
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setContent("content1")
-            .setTenantId(POLICY_TENANT)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-    );
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
 
-    List<Monitor> savedMonitors = Lists.newArrayList(monitorRepository.saveAll(monitors));
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
+        .thenReturn(Collections.emptyList());
 
-    // Use the first monitor, which means the policy for the second was removed.
-    when(policyApi.getEffectivePolicyMonitorIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(Collections.singletonList(savedMonitors.get(0).getId()));
+    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
 
-    // Define the resources the policy will be applied to
-    List<ResourceDTO> resourceList = new ArrayList<>();
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setAssociatedWithEnvoy(true)
-    );
-    resourceList.add(new ResourceDTO()
-        .setTenantId(tenantId)
-        .setResourceId(RandomStringUtils.randomAlphabetic(10))
-        .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(true)
-    );
-    // both resources are relevant to the policy
-    when(resourceApi.getResourcesWithLabels(anyString(), any(), eq(LabelSelectorMethod.AND)))
-        .thenReturn(resourceList);
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
 
-    List<BoundMonitor> existingBound = new ArrayList<>();
-    List<BoundMonitor> removedBound = new ArrayList<>();
-    for (Monitor monitor : savedMonitors) {
-      for (ResourceDTO resource: resourceList) {
-        BoundMonitor bound = new BoundMonitor()
-            .setZoneName("public/z-1")
-            .setMonitor(monitor)
-            .setTenantId(tenantId)
-            .setResourceId(resource.getResourceId())
-            .setEnvoyId("e-new")
-            .setRenderedContent(monitor.getContent());
-
-        // all bound monitors exist before the policy removal
-        existingBound.add(bound);
-        if (!monitor.getId().equals(savedMonitors.get(0).getId())) {
-          // but these bound monitors will be removed once it is completed
-          removedBound.add(bound);
-        }
-      }
-    }
-
-    // No prior monitors exist so return an empty list
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT))
-        .thenReturn(existingBound);
-
-    //
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-        .thenReturn(removedBound);
-
-    // EXECUTE
-
-    monitorManagement.refreshBoundPolicyMonitorsForTenant(tenantId);
-
-    // VERIFY
-
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(
-        tenantId, Set.of(savedMonitors.get(1).getId()));
-
-    verify(policyApi).getEffectivePolicyMonitorIdsForTenant(tenantId, false);
-
-    verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
-    org.assertj.core.api.Assertions.assertThat(captorOfBoundMonitorList.getValue())
-        .containsExactlyInAnyOrderElementsOf(removedBound);
-
-    // Verify events were sent out (to be consumed by ambassador)
-    verify(monitorEventProducer).sendMonitorEvent(
-        new MonitorBoundEvent().setEnvoyId("e-new") // uses default poller envoy defined in setup
-    );
-
-    // no bound monitor saves or event producer sends should happen.
-    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
+    verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 
   /**
@@ -987,6 +707,7 @@ public class MonitorManagementPolicyTest {
    */
   @Test
   public void testProcessPolicyMonitorUpdate() {
+    // this test seems wrong?
     final String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     // store the updated monitor in the db
@@ -1384,15 +1105,18 @@ public class MonitorManagementPolicyTest {
     }
   }
 
-  private void createMonitorsForTenant(int count, String tenantId) {
+  private List<UUID> createMonitorsForTenant(int count, String tenantId) {
+    List<UUID> ids = new ArrayList<>();
     for (int i = 0; i < count; i++) {
       MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setZones(Collections.emptyList());
       create.setMonitorType(MonitorType.cpu);
-      monitorManagement.createMonitor(tenantId, create);
+      Monitor monitor = monitorManagement.createMonitor(tenantId, create);
+      ids.add(monitor.getId());
     }
+    return ids;
   }
 
   private Monitor createMonitorForPolicyForTenant(String tenantId, UUID policyId) {

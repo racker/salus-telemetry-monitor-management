@@ -38,6 +38,7 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
@@ -1447,51 +1448,33 @@ public class MonitorManagement {
 
   void handleTenantChangeEvent(TenantPolicyChangeEvent event) {
     log.info("Handling tenant change event={}", event);
-    refreshBoundPolicyMonitorsForTenant(event.getTenantId());
+    refreshPolicyMonitorsForTenant(event.getTenantId());
   }
 
-  void refreshBoundPolicyMonitorsForTenant(String tenantId) {
+  void refreshPolicyMonitorsForTenant(String tenantId) {
     final Set<String> affectedEnvoys = new HashSet<>();
 
     // Get effective monitors
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, false);
-    List<UUID> boundPolicyMonitorIds = getAllBoundPolicyMonitorsByTenantId(tenantId)
-        .stream().map(b -> b.getMonitor().getId()).collect(Collectors.toList());
+    List<UUID> policyIds = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
+    List<UUID> policyIdsInUse = monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId)
+        .stream().map(Monitor::getPolicyId).filter(Objects::nonNull).collect(Collectors.toList());
 
-    // Find the new monitors to bind.
-    // In theory, this should not be more than one, but in practice it could be
-    // if an account's resources do not match any of the policy monitor's labels.
-    // In that scenario the monitor will always try to be re-bound each time this runs.
-    Set<UUID> monitorsToBind = new HashSet<>(policyMonitorIds);
-    monitorsToBind.removeAll(boundPolicyMonitorIds);
+    Set<UUID> policiesToRemove = new HashSet<>(policyIdsInUse);
+    policiesToRemove.removeAll(policyIds);
 
-    // Find the monitors to unbind
-    // This could be due to a policy removal or a new policy overriding the previously effective one.
-    Set<UUID> monitorsToUnbind = new HashSet<>(boundPolicyMonitorIds);
-    monitorsToUnbind.removeAll(policyMonitorIds);
+    Set<UUID> policiesToAdd = new HashSet<>(policyIds);
+    policiesToAdd.removeAll(policyIdsInUse);
 
-    // Handle new bindings
-    for (UUID id : monitorsToBind) {
-      Optional<Monitor> monitor = monitorRepository.findById(id);
-      if (monitor.isEmpty()) {
-        // This should never happen.
-        log.error("Failed to bind policy to tenant={} due to non-existent monitor={}", tenantId, id);
-        continue;
-      }
-      Set<String> newBindings = bindNewMonitor(tenantId, monitor.get());
-      affectedEnvoys.addAll(newBindings);
-      log.info("Binding policy monitor={} to {} envoys on tenant={}",
-          monitor.get(), newBindings.size(), tenantId);
+    for (UUID policyId : policiesToRemove) {
+      Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId);
+      monitor.ifPresent(this::unbindAndRemoveMonitor);
     }
 
-    // Handle unbinding of old policies
-    Set<String> unbinds = unbindByTenantAndMonitorId(tenantId, monitorsToUnbind);
-    affectedEnvoys.addAll(unbinds);
-    log.info("Unbound policy monitors={} from {} envoys on tenant={}",
-        unbinds, affectedEnvoys.size(), tenantId);
-
-    sendMonitorBoundEvents(affectedEnvoys);
-    log.info("Finished bound policy monitor refresh for tenant={}", tenantId);
+    for (UUID policyId : policiesToAdd) {
+      Optional<MonitorPolicy> policy = monitorPolicyRepository.findById(policyId);
+      policy.ifPresent(
+          monitorPolicy -> clonePolicyMonitor(tenantId, policyId, monitorPolicy.getMonitorId()));
+    }
   }
 
   /**
