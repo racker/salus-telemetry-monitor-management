@@ -997,46 +997,6 @@ public class MonitorManagement {
     return monitor;
   }
 
-  /**
-   * For the provided tenant, this unbinds all existing BoundMonitors relating to the
-   * given monitorId, then rebinds them to any resource that matches the new monitor values.
-   * @param tenantId The tenant to perform the binding update operations on.
-   * @param monitorId Only bound monitors relating to this monitor id will be acted on.
-   */
-  void processPolicyMonitorUpdate(String tenantId, UUID monitorId) {
-    log.info("Handling policy monitor={} update for tenant={}", monitorId, tenantId);
-    Optional<Monitor> monitor = monitorRepository.findById(monitorId);
-
-    if (monitor.isEmpty()) {
-      // This should never happen.
-      log.error("Attempt to update policy monitor failed for tenant={} due to non-existent monitor={}",
-          tenantId, monitorId);
-      return;
-    }
-    try {
-      validateMonitoringZones(tenantId, monitor.get(),
-          new MonitorCU().setZones(monitor.get().getZones()));
-    } catch(IllegalArgumentException e) {
-      log.error("Cannot apply policy monitor to tenant={}. Provided zones are not valid={}",
-          tenantId, monitor.get().getZones());
-      return;
-    }
-
-    // remove existing bound monitors
-    Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, Collections.singleton(monitorId));
-    final Set<String> affectedEnvoys = new HashSet<>(unbinding);
-    log.info("Removing {} bound monitors due to policy monitor={} update for tenant={}",
-        unbinding.size(), monitorId, tenantId);
-
-    // Then add new bindings
-    Set<String> newBindings = bindNewMonitor(tenantId, monitor.get());
-    affectedEnvoys.addAll(newBindings);
-    log.info("Binding policy monitor={} to {} envoys on tenant={}",
-        monitor.get(), newBindings.size(), tenantId);
-
-    sendMonitorBoundEvents(affectedEnvoys);
-  }
-
   private static boolean intervalChanged(Duration updatedInterval, Duration prevInterval, boolean patchOperation) {
     if (patchOperation) {
       return updatedInterval == null || !updatedInterval.equals(prevInterval);
