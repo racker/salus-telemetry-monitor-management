@@ -1308,7 +1308,7 @@ public class MonitorManagement {
     UUID monitorId = event.getMonitorId();
 
     // get effective policies
-    List<UUID> activePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(event.getTenantId(), false);
+    List<UUID> activePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
     Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId);
 
     if (activePolicies.contains(event.getPolicyId()) && monitor.isEmpty()) {
@@ -1417,7 +1417,7 @@ public class MonitorManagement {
     // Get effective monitors
     List<UUID> policyIds = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
     List<UUID> policyIdsInUse = monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId)
-        .stream().map(Monitor::getPolicyId).filter(Objects::nonNull).collect(Collectors.toList());
+        .stream().map(Monitor::getPolicyId).collect(Collectors.toList());
 
     Set<UUID> policiesToRemove = new HashSet<>(policyIdsInUse);
     policiesToRemove.removeAll(policyIds);
