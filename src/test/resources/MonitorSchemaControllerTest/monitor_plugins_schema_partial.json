@@ -49,7 +49,6 @@
       "title": "cpu",
       "required": [
         "type"
-
       ]
     }
   }
