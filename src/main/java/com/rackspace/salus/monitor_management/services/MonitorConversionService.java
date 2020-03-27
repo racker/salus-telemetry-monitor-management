@@ -238,8 +238,7 @@ public class MonitorConversionService {
         .setExcludedResourceIds(input.getExcludedResourceIds())
         .setInterval(input.getInterval());
 
-    // Policy monitors should not use metadata
-    if (!tenantId.equals(Monitor.POLICY_TENANT) && monitorId != null) {
+    if (monitorId != null) {
       // Get the previous metadata used
       // This will be used in setMetadataFields to help identify which values need to be replaced
       monitorRepository.findById(monitorId).ifPresent(m ->
@@ -298,11 +297,7 @@ public class MonitorConversionService {
     }
 
     monitor.setAgentType(applicableAgentType.value());
-
-    // Policy monitors should not use metadata
-    if (!tenantId.equals(Monitor.POLICY_TENANT)) {
-      metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin, patchOperation);
-    }
+    metadataUtils.setMetadataFieldsForPlugin(tenantId, monitor, plugin, patchOperation);
 
     try {
       monitor.setContent(
