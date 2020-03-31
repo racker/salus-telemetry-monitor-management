@@ -30,7 +30,6 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.time.temporal.ChronoUnit;
@@ -116,7 +115,10 @@ public class TestMonitorService {
     final String envoyId;
     if (isRemote) {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
-      envoyId = resolveRemoteEnvoy(tenantId, remoteMonitorDetails.getMonitoringZones());
+      List<String> monitoringZones = monitorManagement.determineMonitoringZones(
+          remoteMonitorDetails.getMonitoringZones(),
+          resource.getMetadata().get("region"));
+      envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
     } else {
       envoyId = resolveLocalEnvoy(tenantId, resourceId);
     }
@@ -168,12 +170,9 @@ public class TestMonitorService {
 
   private String resolveRemoteEnvoy(String tenantId,
                                     List<String> monitoringZones) {
-    final List<String> resolvedZones = monitorManagement
-        .determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
-
-    if (CollectionUtils.isEmpty(resolvedZones)) {
+    if (CollectionUtils.isEmpty(monitoringZones)) {
       throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
-    } else if (resolvedZones.size() > 1) {
+    } else if (monitoringZones.size() > 1) {
       throw new IllegalArgumentException("test-monitor requires only one monitoring zone to be given");
     }
 

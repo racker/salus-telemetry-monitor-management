@@ -19,6 +19,7 @@ package com.rackspace.salus.monitor_management.utils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.NonMetadataField;
 import com.rackspace.salus.telemetry.model.TargetClassName;
@@ -293,5 +294,13 @@ public class MetadataUtils {
 
     log.debug("Setting policy metadata on {} fields for tenant {}", metadataFields.size(), tenantId);
     MetadataUtils.setNewMetadataValues(plugin, metadataFields, policyMetadata);
+  }
+
+  public List<String> getDefaultZonesForResource(String region, boolean useCache) {
+    if (region == null || region.isBlank()) {
+      region = MetadataPolicy.DEFAULT_ZONE;
+    }
+    log.debug("Querying policy api for monitoring zones for region={}", region);
+    return policyApi.getDefaultMonitoringZones(region, useCache);
   }
 }

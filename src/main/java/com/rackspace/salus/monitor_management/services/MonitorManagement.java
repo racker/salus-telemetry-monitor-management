@@ -37,6 +37,7 @@ import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Resource;
@@ -468,18 +469,20 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> bindNewMonitor(String tenantId, Monitor monitor) {
-    return bindMonitor(tenantId, monitor, determineMonitoringZones(
-        monitor.getSelectorScope(), monitor.getZones()
-    ));
+    return bindMonitor(tenantId, monitor);
+  }
+
+  Set<String> bindMonitor(String tenantId, Monitor monitor) {
+    return bindMonitor(tenantId, monitor, null);
   }
 
   /**
    * Performs label selection of the given monitor to locate resources for bindings.
    * For remote monitors, this will only perform binding within the given zones.
+   * If no zones are provided it will bind to all zones on the monitor.
    * @return affected envoy IDs
    */
-  Set<String> bindMonitor(String tenantId, Monitor monitor,
-      List<String> zones) {
+  Set<String> bindMonitor(String tenantId, Monitor monitor, List<String> zones) {
     final List<ResourceDTO> resources;
     String resourceId = monitor.getResourceId();
     if (!StringUtils.isBlank(resourceId)) {
@@ -525,7 +528,13 @@ public class MonitorManagement {
       // REMOTE MONITOR
 
       for (ResourceDTO resource : resources) {
-        for (String zone : zones) {
+        List<String> zonesForResource = zones;
+
+        if (zonesForResource == null || zonesForResource.isEmpty()) {
+          zonesForResource = determineMonitoringZones(monitor, resource);
+        }
+
+        for (String zone : zonesForResource) {
           try {
             boundMonitors.add(
                 bindRemoteMonitor(monitor, resource, zone)
@@ -737,13 +746,20 @@ public class MonitorManagement {
     }
   }
 
-  List<String> determineMonitoringZones(ConfigSelectorScope selectorScope,
-                                                List<String> zones) {
-    if (selectorScope != ConfigSelectorScope.REMOTE) {
+  List<String> determineMonitoringZones(Monitor monitor, ResourceDTO resource) {
+    if (monitor.getSelectorScope() != ConfigSelectorScope.REMOTE) {
       return Collections.emptyList();
     }
+    return determineMonitoringZones(monitor.getZones(), resource.getMetadata().get("region"));
+  }
+
+  List<String> determineMonitoringZones(List<String> zones, String region) {
+    log.debug("getting zones for region={}, provided zones={}", region, zones);
     if (zones == null || zones.isEmpty()) {
-      return zonesProperties.getDefaultZones();
+      zones = metadataUtils.getDefaultZonesForResource(region, false);
+      if (zones.isEmpty()) {
+        log.error("Failed to discovered monitoring zones for region={}", region);
+      }
     }
     return zones;
   }
@@ -1348,7 +1364,11 @@ public class MonitorManagement {
 
     // The list of relevant monitors depends on both the target class name and monitor type (if set)
     Set<Monitor> relevantMonitors;
-    if (monitorType == null) {
+
+    // zone metadata is checked first, then monitor metadata, then plugin metadata
+    if (policy.getKey().startsWith(MetadataPolicy.ZONE_METADATA_PREFIX)) {
+      relevantMonitors = monitorRepository.findByTenantIdAndSelectorScopeAndZonesIsNull(tenantId, ConfigSelectorScope.REMOTE);
+    } else if (monitorType == null) {
       if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
         relevantMonitors = monitorRepository.findByTenantIdAndMonitorMetadataFieldsContaining(
             tenantId, policy.getKey());
@@ -1594,8 +1614,7 @@ public class MonitorManagement {
         } else {
           // remote monitor
           try {
-            final List<String> zones = determineMonitoringZones(monitor.getSelectorScope(),
-                monitor.getZones());
+            List<String> zones = determineMonitoringZones(monitor, resource);
 
             for (String zone : zones) {
               boundMonitors.add(
@@ -2025,7 +2044,7 @@ public class MonitorManagement {
 
     log.info("Found {} monitor policies for resource={} from {} total policies for tenant={}",
         resourcePolicies.size(),
-        resource.getId(),
+        resource.getResourceId(),
         policyMonitorIds.size(),
         tenantId);
 
