@@ -82,6 +82,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.persistence.RollbackException;
+import javax.transaction.Transactional;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
@@ -714,6 +715,7 @@ public class MonitorManagement_MetadataPolicyTest {
   }
 
   @Test
+  @Transactional
   public void testCloneMonitor_usingMetadata() throws JsonProcessingException {
     String originalTenant = RandomStringUtils.randomAlphanumeric(10);
     String newTenant = RandomStringUtils.randomAlphanumeric(10);
@@ -804,5 +806,33 @@ public class MonitorManagement_MetadataPolicyTest {
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
     verifyNoMoreInteractions(boundMonitorRepository, monitorEventProducer);
+  }
+
+  @Test
+  @Transactional
+  public void testCloneMonitor_monitorTiedToPolicy() throws JsonProcessingException {
+    String originalTenant = RandomStringUtils.randomAlphanumeric(10);
+    String newTenant = RandomStringUtils.randomAlphanumeric(10);
+
+    Monitor monitor = new Monitor()
+        .setTenantId(originalTenant)
+        .setLabelSelector(Collections.emptyMap())
+        .setExcludedResourceIds(Collections.emptySet())
+        .setAgentType(AgentType.TELEGRAF)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setMonitorType(MonitorType.ping)
+        .setContent(objectMapper.writeValueAsString(new Ping()))
+        .setInterval(Duration.ofSeconds(60))
+        .setMonitorMetadataFields(List.of("interval"))
+        .setPluginMetadataFields(List.of("count"))
+        .setZones(Collections.singletonList("public/z-1"))
+        .setPolicyId(UUID.randomUUID());
+    monitor = monitorRepository.save(monitor);
+
+    final UUID monitorId = monitor.getId();
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> monitorManagement.cloneMonitor(originalTenant, newTenant, monitorId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Cannot clone monitor tied to a policy");
   }
 }

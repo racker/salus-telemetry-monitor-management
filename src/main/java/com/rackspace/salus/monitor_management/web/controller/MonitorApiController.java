@@ -127,15 +127,6 @@ public class MonitorApiController {
         .map(monitorConversionService::convertToOutput));
   }
 
-  @GetMapping("/tenant/{tenantId}/policy-monitors/{uuid}")
-  @ApiOperation(value = "Gets specific Policy Monitor for Tenant")
-  public DetailedMonitorOutput getPolicyMonitorForTenant(
-      @PathVariable String tenantId, @PathVariable UUID uuid)
-      throws NotFoundException {
-    Monitor monitor = monitorManagement.getPolicyMonitorForTenant(tenantId, uuid);
-    return monitorConversionService.convertToOutput(monitor);
-  }
-
   @GetMapping("/admin/policy-monitors")
   @ApiOperation(value = "Gets all Policy Monitors")
   public PagedContent<DetailedMonitorOutput> getAllPolicyMonitors(Pageable pageable) {
