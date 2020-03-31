@@ -48,11 +48,7 @@
       },
       "title": "cpu",
       "required": [
-        "type",
-        "percpu",
-        "totalcpu",
-        "collectCpuTime",
-        "reportActive"
+        "type"
       ]
     }
   }

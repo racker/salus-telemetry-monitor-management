@@ -1,1 +1,1 @@
-{"type":"cpu","percpu":false,"totalcpu":true,"collectCpuTime":false,"reportActive":false}
+{"type":"cpu","percpu":null,"totalcpu":true,"collectCpuTime":null,"reportActive":null}

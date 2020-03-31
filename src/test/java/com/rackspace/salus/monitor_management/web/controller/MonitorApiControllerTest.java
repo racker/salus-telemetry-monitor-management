@@ -875,7 +875,7 @@ public class MonitorApiControllerTest {
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setMonitorType(MonitorType.cpu)
                 .setAgentType(AgentType.TELEGRAF)
-                .setPluginMetadataFields(Collections.emptyList())
+                .setPluginMetadataFields(List.of("percpu", "collectCpuTime", "reportActive"))
                 .setContent(readContent("MonitorApiControllerTest/converted_monitor_duration.json"))
         );
   }
