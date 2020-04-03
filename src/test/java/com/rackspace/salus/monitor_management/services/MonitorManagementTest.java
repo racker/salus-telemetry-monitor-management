@@ -358,7 +358,7 @@ public class MonitorManagementTest {
   public void testCreateNewMonitor_usingLabelSelector() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
+    create.setZones(Collections.emptyList());
     create.setResourceId(null);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
 
@@ -406,7 +406,7 @@ public class MonitorManagementTest {
   public void testCreateNewMonitor_usingResourceId() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
+    create.setZones(Collections.emptyList());
     create.setLabelSelector(null);
 
 
@@ -456,7 +456,7 @@ public class MonitorManagementTest {
 
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
+    create.setZones(Collections.emptyList());
     create.setLabelSelector(null);
     create.setInterval(interval);
 
@@ -488,7 +488,7 @@ public class MonitorManagementTest {
   public void testCreateNewMonitor_EmptyLabelSelector() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
+    create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
@@ -515,7 +515,7 @@ public class MonitorManagementTest {
   public void testCreateNewMonitor_nullLabelSelectorMethod() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
-    create.setZones(null);
+    create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
     create.setLabelSelectorMethod(null);
 
@@ -994,7 +994,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.ping)
                 .setContent("address=${resource.metadata.address}")
-                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
@@ -1158,7 +1158,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
-                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId("r-2")
@@ -1246,7 +1246,7 @@ public class MonitorManagementTest {
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setLabelSelector(null)
-        .setZones(null)
+        .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
@@ -1297,7 +1297,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
-                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId(null)
@@ -1361,7 +1361,7 @@ public class MonitorManagementTest {
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setLabelSelector(Map.of("os", "linux"))
-        .setZones(null)
+        .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
@@ -1438,7 +1438,7 @@ public class MonitorManagementTest {
                 .setAgentType(AgentType.TELEGRAF)
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
-                .setMonitorMetadataFields(List.of("monitorName", "zones"))
+                .setMonitorMetadataFields(List.of("monitorName"))
                 .setTenantId("t-1")
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
                 .setResourceId(newResourceIdBinding)

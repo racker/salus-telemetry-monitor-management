@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
+
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -117,7 +119,7 @@ public class TestMonitorService {
       final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
       List<String> monitoringZones = monitorManagement.determineMonitoringZones(
           remoteMonitorDetails.getMonitoringZones(),
-          resource.getMetadata().get("region"));
+          resource.getMetadata().get(REGION_METADATA));
       envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
     } else {
       envoyId = resolveLocalEnvoy(tenantId, resourceId);

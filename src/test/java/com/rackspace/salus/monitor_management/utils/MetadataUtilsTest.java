@@ -284,10 +284,10 @@ public class MetadataUtilsTest {
                 .setValueType(MetadataValueType.DURATION)
                 .setValue("PT1S")
                 .setKey("interval"),
-            "zones", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-                .setValueType(MetadataValueType.STRING_LIST)
-                .setValue("zone1,zone2")
-                .setKey("zones")
+            "monitorName", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setValueType(MetadataValueType.STRING)
+                .setValue("default monitor name")
+                .setKey("name")
         ));
 
     String tenantId = RandomStringUtils.randomAlphabetic(10);
@@ -295,24 +295,24 @@ public class MetadataUtilsTest {
     assertThat(monitor.getMonitorMetadataFields()).isNull();
 
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
-    assertThat(monitor.getMonitorMetadataFields()).hasSize(3);
-    assertThat(monitor.getMonitorMetadataFields()).containsExactlyInAnyOrder("monitorName", "interval", "zones");
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(2);
+    assertThat(monitor.getMonitorMetadataFields()).containsExactlyInAnyOrder("monitorName", "interval");
 
     // set a value different from the policy to remove it from metadata fields
     monitor.setInterval(Duration.ofSeconds(10));
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
-    assertThat(monitor.getMonitorMetadataFields()).hasSize(2);
-    assertThat(monitor.getMonitorMetadataFields()).containsExactly("monitorName", "zones");
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
+    assertThat(monitor.getMonitorMetadataFields()).containsExactly("monitorName");
 
     // set a value the same as the policy and it should remain in metadata fields.
-    monitor.setZones(List.of("zone1", "zone2"));
-    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
-    assertThat(monitor.getMonitorMetadataFields()).hasSize(2);
-
-    // set a value different from the policy to remove it from metadata fields
-    monitor.setZones(List.of("zone"));
+    monitor.setMonitorName("default monitor name");
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
+
+    // set a value different from the policy to remove it from metadata fields
+    monitor.setMonitorName("non policy monitor name");
+    metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
+    assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
 
     verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null, true);
   }

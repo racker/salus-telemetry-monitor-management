@@ -22,6 +22,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +56,7 @@ public class MonitorCU implements Serializable {
 
     ConfigSelectorScope selectorScope = ConfigSelectorScope.LOCAL;
 
-    List<String> zones;
+    List<String> zones = new ArrayList<>();
 
     Set<String> excludedResourceIds;
 
