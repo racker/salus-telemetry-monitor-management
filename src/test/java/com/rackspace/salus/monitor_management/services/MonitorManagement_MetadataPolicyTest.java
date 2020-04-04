@@ -290,7 +290,7 @@ public class MonitorManagement_MetadataPolicyTest {
         .thenReturn(List.of("public/defaultZone1" ,"public/defaultZone2"));
 
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), anyString()))
-        .thenReturn(Optional.of(new Resource()));
+        .thenReturn(Optional.of(podamFactory.manufacturePojo(Resource.class)));
 
     final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
 
