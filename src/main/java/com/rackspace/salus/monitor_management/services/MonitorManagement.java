@@ -1156,7 +1156,7 @@ public class MonitorManagement {
     }
 
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
-      .findAllByMonitor_Id(monitor.getId());
+        .findAllByMonitor_Id(monitor.getId());
 
     final MultiValueMap<String/*resourceId*/, BoundMonitor> groupedByResourceId = new LinkedMultiValueMap<>();
     for (BoundMonitor boundMonitor : boundMonitors) {
