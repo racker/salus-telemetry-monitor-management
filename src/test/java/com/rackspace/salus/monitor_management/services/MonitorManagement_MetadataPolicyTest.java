@@ -16,7 +16,9 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.google.common.collect.Collections2.transform;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -201,6 +203,12 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Captor
   private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
+
+  @Captor
+  private ArgumentCaptor<List<UUID>> captorOfIds;
+
+  @Captor
+  private ArgumentCaptor<Monitor> captorOfMonitor;
 
   @Before
   public void setUp() {
@@ -575,19 +583,15 @@ public class MonitorManagement_MetadataPolicyTest {
     assertThat(sortedResults.get(2).getContent(), equalTo(expectedOriginalContent));
     assertThat(sortedResults.get(2).getInterval(), equalTo(Duration.ofSeconds(60)));
 
-/*
-   I can't figure out how to fix these after switching to MySQL. monitorManagement is not a mock
-   so I'm also confused why it is being verified in this way. Instead, the services used by monitorManagement
-   should be verified. boundMonitorRepository is a mock but monitorRepository is not, so verifying
-   the mixed interactions is hard for me to investigate.
-
     // verify the unbind / bind process happened
-    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
-    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
-      return true;
-    }));
-*/
+    verify(monitorManagement).unbindByTenantAndMonitorId(eq(tenantId), captorOfIds.capture());
+    assertThat(captorOfIds.getValue(), containsInAnyOrder(monitorIds.toArray()));
+
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindMonitor(
+        eq(tenantId),
+        captorOfMonitor.capture(),
+        eq(List.of("public/z-1")));
+    assertThat(transform(captorOfMonitor.getAllValues(), Monitor::getId), containsInAnyOrder(monitorIds.toArray()));
   }
 
   /**
@@ -638,25 +642,87 @@ public class MonitorManagement_MetadataPolicyTest {
         .setTenantId(tenantId)
         .setPolicyId(policyId));
 
+    // verify two monitors have the interval set by metadata and one has its pre-existing hard set value
     List<Monitor> updatedMonitors = monitorManagement.getMonitors(tenantId, Pageable.unpaged()).getContent();
-
-/*
-  I can't figure out how to fix this after switching to MySQL for unit testing. The query results
-  are not deterministically ordered and technically shouldn't have been with H2 also. I'm not familiar
-  with the test setup and can't determine a way to deterministically identify which of the three is
-  which and what the expected interval should be.
-
-    assertThat(updatedMonitors.get(0).getInterval(), equalTo(UPDATED_DURATION_VALUE));
-    assertThat(updatedMonitors.get(1).getInterval(), equalTo(Duration.ofSeconds(60)));
-    assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
+    Map<Duration, List<Monitor>> intervals = updatedMonitors.stream().collect(Collectors.groupingBy(Monitor::getInterval));
+    assertThat(updatedMonitors, hasSize(3));
+    assertThat(intervals.keySet(), hasSize(2));
+    assertThat(intervals.get(UPDATED_DURATION_VALUE), hasSize(2));
+    assertThat(intervals.get(Duration.ofSeconds(60)), hasSize(1));
 
     // verify the unbind / bind process happened
-    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
-    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
-      return true;
-    }));
-*/
+    verify(monitorManagement).unbindByTenantAndMonitorId(eq(tenantId), captorOfIds.capture());
+    assertThat(captorOfIds.getValue(), containsInAnyOrder(monitorIds.toArray()));
+
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindMonitor(
+        eq(tenantId),
+        captorOfMonitor.capture(),
+        eq(List.of("public/z-1")));
+    assertThat(transform(captorOfMonitor.getAllValues(), Monitor::getId), containsInAnyOrder(monitorIds.toArray()));
+  }
+
+  /**
+   * Same as the above test except it verifies the Monitor interval metadata policy
+   * was used, and the "count" policy had no effect.
+   */
+  @Test
+  public void testHandleMetadataPolicyEvent_zoneMetadata() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID policyId = UUID.randomUUID();
+
+    // Returns the list of monitor metadata policies effective on this account
+    when(policyApi.getEffectiveMonitorMetadataPolicies(anyString(), anyBoolean()))
+        .thenReturn(List.of(
+            // A zone policy
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setMonitorType(null)
+                .setKey(MetadataPolicy.ZONE_METADATA_PREFIX + MetadataPolicy.DEFAULT_ZONE)
+                .setValue(String.join(",", "zone1", "zone2"))
+                .setValueType(MetadataValueType.STRING_LIST)
+                .setTargetClassName(TargetClassName.RemotePlugin)
+                .setId(policyId)));
+
+    // store one monitor using zone policy and one with set zones
+    Monitor monitorUsingPolicy = monitorRepository.save(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent("{\"type\": \"ping\", \"target\": \"localhost\"}")
+        .setTenantId(tenantId)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.emptyList())
+
+        .setLabelSelector(Collections.emptyMap())
+        .setInterval(Duration.ofSeconds(60)));
+
+    Monitor monitorNotUsingPolicy = monitorRepository.save(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent("{\"type\":\"ping\",\"target\":\"localhost\"}")
+        .setTenantId(tenantId)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("public/z-1"))
+
+        .setLabelSelector(Collections.emptyMap())
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
+        .setTenantId(tenantId)
+        .setPolicyId(policyId));
+
+
+    // the zones field on a monitor should not be modified when zone metadata changes
+    Monitor updatedMonitor = monitorManagement.getMonitor(tenantId, monitorUsingPolicy.getId()).orElseThrow();
+    assertThat(updatedMonitor.getZones(), hasSize(0));
+    Monitor notUpdatedMonitor = monitorManagement.getMonitor(tenantId, monitorNotUsingPolicy.getId()).orElseThrow();
+    assertThat(notUpdatedMonitor.getZones(), hasSize(1));
+    assertThat(notUpdatedMonitor.getZones(), contains("public/z-1"));
+
+    // verify the unbind / bind process happened.  Only one monitor is updated.
+    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, List.of(monitorUsingPolicy.getId()));
+    verify(monitorManagement).bindMonitor(eq(tenantId), captorOfMonitor.capture(), eq(Collections.emptyList()));
+    assertThat(captorOfMonitor.getValue().getId(), equalTo(monitorUsingPolicy.getId()));
+    // verify a call was made to get new monitoring zones
+    verify(monitorManagement).determineMonitoringZones((Monitor) any(), any());
   }
 
   private MonitorCU getBaseMonitorCU() {

@@ -291,7 +291,7 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
 
-    final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
+    final Set<String> affectedEnvoys = bindMonitor(tenantId, monitor, monitor.getZones());
     sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
   }
@@ -352,7 +352,7 @@ public class MonitorManagement {
     clonedMonitor = monitorRepository.save(clonedMonitor);
 
     // bind monitor
-    Set<String> affectedEnvoys = bindNewMonitor(newTenant, clonedMonitor);
+    Set<String> affectedEnvoys = bindMonitor(newTenant, clonedMonitor, clonedMonitor.getZones());
     log.info("Binding policy monitor={} to {} envoys on tenant={}",
         monitor, affectedEnvoys.size(), newTenant);
 
@@ -467,22 +467,14 @@ public class MonitorManagement {
   }
 
   /**
-   * Performs label selection of the given monitor to locate resources and zones for bindings.
-   * @return affected envoy IDs
-   */
-  Set<String> bindNewMonitor(String tenantId, Monitor monitor) {
-    return bindMonitor(tenantId, monitor);
-  }
-
-  Set<String> bindMonitor(String tenantId, Monitor monitor) {
-    return bindMonitor(tenantId, monitor, null);
-  }
-
-  /**
    * Performs label selection of the given monitor to locate resources for bindings.
    * For remote monitors, this will only perform binding within the given zones.
    * If no zones list is provided this will bind to all zones within the monitor object,
    * or the global defaults if the monitor has no zones.
+   *
+   * @param tenantId The tenant id to bound the monitor to
+   * @param monitor The monitor to bind
+   * @param zones All zones the monitor will be bound to
    * @return affected envoy IDs
    */
   Set<String> bindMonitor(String tenantId, Monitor monitor, List<String> zones) {
@@ -818,7 +810,7 @@ public class MonitorManagement {
     }
 
     // Update any metadata fields on the monitor if required.
-    // Plugin metadata was already handled by monitor conversion service.
+    // Plugin metadata was already processed by conversion service and stored within the content.
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, patchOperation);
     monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
 
@@ -1428,7 +1420,7 @@ public class MonitorManagement {
     // The list of relevant monitors depends on both the target class name and monitor type (if set)
     Set<Monitor> relevantMonitors;
 
-    // zone metadata is checked first, then monitor metadata, then plugin metadata
+    // zone metadata is checked first, then general changes, then monitor type specific changes
     if (policy.getKey().startsWith(MetadataPolicy.ZONE_METADATA_PREFIX)) {
       relevantMonitors = monitorRepository.findByTenantIdAndSelectorScopeAndZonesIsNull(tenantId, ConfigSelectorScope.REMOTE);
     } else if (monitorType == null) {
@@ -1460,26 +1452,31 @@ public class MonitorManagement {
     Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, monitorIds);
     final Set<String> affectedEnvoys = new HashSet<>(unbinding);
 
-    // Then add new bindings
+    // update and bind each monitor
     for (Monitor monitor : relevantMonitors) {
-      if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
-        MetadataUtils.updateMetadataValue(monitor, policy);
-      } else {
-        try {
-          String newContent = monitorConversionService.updateMonitorContentWithPolicy(monitor, policy);
-          monitor.setContent(newContent);
-        } catch (InvalidClassException|JsonProcessingException e) {
-          // Alerting on these events will be required.  Manual review will be needed to determine
-          // what went wrong and how it should be corrected.
-          log.error("Failed to update monitor plugin contents={} for event={}",
-              monitor.getContent(), event, e);
-          monitorMetadataContentUpdateErrors.increment();
+
+      // no update is needed for zone changes as the zones field should remain empty/null.
+      if (!policy.getKey().startsWith(MetadataPolicy.ZONE_METADATA_PREFIX)) {
+        if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
+          MetadataUtils.updateMetadataValue(monitor, policy);
+        } else {
+          try {
+            String newContent = monitorConversionService
+                .updateMonitorContentWithPolicy(monitor, policy);
+            monitor.setContent(newContent);
+          } catch (InvalidClassException | JsonProcessingException e) {
+            // Alerting on these events will be required.  Manual review will be needed to determine
+            // what went wrong and how it should be corrected.
+            log.error("Failed to update monitor plugin contents={} for event={}",
+                monitor.getContent(), event, e);
+            monitorMetadataContentUpdateErrors.increment();
+          }
         }
+        monitorRepository.save(monitor);
       }
-      monitorRepository.save(monitor);
 
       // Rebind the monitor to any relevant resources
-      Set<String> newBindings = bindNewMonitor(tenantId, monitor);
+      Set<String> newBindings = bindMonitor(tenantId, monitor, monitor.getZones());
       affectedEnvoys.addAll(newBindings);
     }
 

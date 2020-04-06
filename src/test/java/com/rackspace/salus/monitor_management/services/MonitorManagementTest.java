@@ -2283,7 +2283,7 @@ public class MonitorManagementTest {
         .setAgentType(AgentType.TELEGRAF)
         .setContent("{}");
 
-    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+    final Set<String> affectedEnvoys = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
     final List<BoundMonitor> expected = Collections.singletonList(
         new BoundMonitor()
@@ -2349,7 +2349,7 @@ public class MonitorManagementTest {
         .setAgentType(AgentType.TELEGRAF)
         .setContent("{\"type\": \"ping\", \"urls\": [\"${resource.metadata.public_ip}\"]}");
 
-    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+    final Set<String> affectedEnvoys = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
     final List<BoundMonitor> expected = Arrays.asList(
         new BoundMonitor()
@@ -2417,7 +2417,7 @@ public class MonitorManagementTest {
         .setAgentType(AgentType.TELEGRAF)
         .setContent("{}");
 
-    final Set<String> affectedEnvoys = monitorManagement.bindNewMonitor("t-1", monitor);
+    final Set<String> affectedEnvoys = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
     verify(zoneStorage).findLeastLoadedEnvoy(zone1);
 
