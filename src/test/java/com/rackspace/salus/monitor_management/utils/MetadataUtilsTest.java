@@ -38,7 +38,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -214,7 +213,6 @@ public class MetadataUtilsTest {
   }
 
   @Test
-  @Ignore
   public void setUpdateMetadataValue_STRING() {
     Disk plugin = new Disk();
     MonitorMetadataPolicyDTO policy = (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
