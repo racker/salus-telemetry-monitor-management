@@ -29,7 +29,7 @@ steps:
 
   - id: VERIFY
     name: 'maven:3.6-jdk-11'
-    args: ['-B', 'verify', '-s', '.mvn/settings.xml']
+    args: ['mvn', '-B', 'verify', '-s', '.mvn/settings.xml']
     volumes:
     - name: user.home
       path: /root
