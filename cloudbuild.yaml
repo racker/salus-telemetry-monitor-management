@@ -28,7 +28,7 @@ steps:
       path: /root
 
   - id: VERIFY
-    name: 'gcr.io/cloud-builders/mvn'
+    name: 'maven:3.6-jdk-11'
     args: ['-B', 'verify', '-s', '.mvn/settings.xml']
     volumes:
     - name: user.home
