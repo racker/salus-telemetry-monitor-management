@@ -36,7 +36,6 @@ public class DetailedMonitorOutput {
     Duration interval;
     @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;
-    boolean isPolicy;
     String createdTimestamp;
     String updatedTimestamp;
 
