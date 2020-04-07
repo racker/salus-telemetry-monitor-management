@@ -518,6 +518,33 @@ public class MonitorConversionServiceTest {
   }
 
   @Test
+  public void testConvertTo_usingPolicy() {
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setPolicyId(UUID.randomUUID())
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.isPolicy()).isTrue();
+  }
+
+  @Test
+  public void testConvertTo_notUsingPolicy() {
+    Monitor monitor = new Monitor()
+        .setId(UUID.randomUUID())
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setAgentType(AgentType.TELEGRAF)
+        .setContent("{\"type\":\"cpu\"}")
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH);
+    final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
+    assertThat(result.isPolicy()).isFalse();
+  }
+
+  @Test
   public void testConvertFrom_Interval_Explicit() {
     final Duration interval = Duration.ofSeconds(60);
 
