@@ -71,6 +71,9 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
+import com.rackspace.salus.telemetry.web.TenantVerification;
+import com.rackspace.salus.telemetry.web.TenantVerificationWebConfig;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -107,7 +110,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
-@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class})
+@Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class,
+    TenantVerificationWebConfig.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
@@ -125,6 +129,9 @@ public class MonitorApiControllerTest {
   MonitorRepository monitorRepository;
 
   @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
+
+  @MockBean
   MonitorContentTranslationService monitorContentTranslationService;
 
   @Autowired
@@ -138,6 +145,51 @@ public class MonitorApiControllerTest {
 
   @Autowired
   MetadataUtils metadataUtils;
+
+  @Test
+  public void testTenantVerification_Success() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+    String errorMsg = String.format("No monitor found for %s on tenant %s", id, tenantId);
+
+    when(monitorManagement.getMonitor(anyString(), any()))
+        .thenReturn(Optional.empty());
+    when(tenantMetadataRepository.existsByTenantId(tenantId))
+        .thenReturn(true);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+        // header must be set to trigger tenant verification
+        .header(TenantVerification.HEADER_TENANT, tenantId))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+
+    verify(tenantMetadataRepository).existsByTenantId(tenantId);
+  }
+
+  @Test
+  public void testTenantVerification_Fail() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    UUID id = UUID.randomUUID();
+    String url = String.format("/api/tenant/%s/monitors/%s", tenantId, id);
+
+    when(monitorManagement.getMonitor(anyString(), any()))
+        .thenReturn(Optional.empty());
+    when(tenantMetadataRepository.existsByTenantId(tenantId))
+        .thenReturn(false);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+        // header must be set to trigger tenant verification
+        .header(TenantVerification.HEADER_TENANT, tenantId))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(TenantVerification.ERROR_MSG)));
+
+    verify(tenantMetadataRepository).existsByTenantId(tenantId);
+  }
 
   @Test
   public void testGetMonitor() throws Exception {
