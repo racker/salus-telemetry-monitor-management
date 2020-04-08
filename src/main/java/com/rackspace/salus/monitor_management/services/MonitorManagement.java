@@ -141,6 +141,7 @@ public class MonitorManagement {
   private final Counter boundMonitorSaveErrors;
   private final Counter monitorMetadataContentUpdateErrors;
   private final Counter invalidTemplateErrors;
+  private final Counter orphanedBoundMonitorRemoved;
 
   @Autowired
   public MonitorManagement(
@@ -184,6 +185,8 @@ public class MonitorManagement {
         "operation", "updateMonitorContentWithPolicy");
     invalidTemplateErrors = meterRegistry.counter("errors",
         "operation", "renderMonitorTemplate");
+    orphanedBoundMonitorRemoved = meterRegistry.counter("orphaned",
+        "objectType", "boundMonitor");
   }
 
   /**
@@ -1050,10 +1053,19 @@ public class MonitorManagement {
   }
 
   /**
+   * Binds and unbinds monitors to zones based on what is now previously configured
+   * compared to what was previously configured.
+   * If a zone was in place now that was in use before, no action will be needed for that zone.
    *
-   * @param monitor
-   * @param originalZones
-   * @return
+   * If the zones on the monitor object are empty, the monitor will be bound to zones based on the
+   * resource's region.
+   *
+   * If the original zones provided are empty, the original zones will be discovered by
+   * getting all relevant bound monitors and looking at their zone name.
+   *
+   * @param monitor The updated monitor that the change relates to.
+   * @param originalZones The previous zones that were configured on the monitor.
+   * @return A set of envoyIds for the envoys that (un)bind actions are needed.
    */
   Set<String> handleZoneChangePerResource(Monitor monitor, List<String> originalZones) {
     final Set<String> affectedEnvoys = new HashSet<>();
@@ -1067,6 +1079,8 @@ public class MonitorManagement {
       Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
       if (resource.isEmpty()) {
         // remove any orphaned bound monitors
+        log.warn("Removing orphaned bound monitor for resourceId={} and monitor={}", resourceId, monitor);
+        orphanedBoundMonitorRemoved.increment();
         affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), List.of(resourceId)));
         continue;
       }

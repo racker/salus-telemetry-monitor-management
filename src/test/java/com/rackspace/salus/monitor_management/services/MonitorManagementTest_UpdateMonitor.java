@@ -52,7 +52,6 @@ import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -273,9 +272,9 @@ public class MonitorManagementTest_UpdateMonitor {
     verify(boundMonitorRepository, times(2)).deleteAll(captorOfDeletedBoundMonitors.capture());
     List<BoundMonitor> allUnbound = captorOfDeletedBoundMonitors.getAllValues().stream().flatMap(List::stream).collect(Collectors.toList());
     assertThat(allUnbound).hasSize(2);
-    assertThat(transform(allUnbound, BoundMonitor::getZoneName)).containsOnly("public/originalZone");
-    assertThat(transform(allUnbound, BoundMonitor::getEnvoyId)).containsOnly(oldEnvoy1, oldEnvoy2);
-    assertThat(transform(allUnbound, BoundMonitor::getResourceId)).containsExactlyElementsOf(transform(resources, Resource::getResourceId));
+    assertThat(allUnbound).extracting(BoundMonitor::getZoneName).containsOnly("public/originalZone");
+    assertThat(allUnbound).extracting(BoundMonitor::getEnvoyId).containsOnly(oldEnvoy1, oldEnvoy2);
+    assertThat(allUnbound).extracting(BoundMonitor::getResourceId).containsExactlyElementsOf(transform(resources, Resource::getResourceId));
 
     // verify bind operations / each operation is performed once per resource
     ResolvedZone newResolvedZone = ResolvedZone.createPublicZone("public/newZone");
@@ -285,9 +284,9 @@ public class MonitorManagementTest_UpdateMonitor {
 
     List<BoundMonitor> allBound = captorOfSavedBoundMonitors.getAllValues().stream().flatMap(List::stream).collect(Collectors.toList());
     assertThat(allBound).hasSize(2);
-    assertThat(transform(allBound, BoundMonitor::getZoneName)).containsOnly("public/newZone");
-    assertThat(transform(allBound, BoundMonitor::getEnvoyId)).containsOnly(newEnvoy);
-    assertThat(transform(allBound, BoundMonitor::getResourceId)).containsExactlyElementsOf(transform(resources, Resource::getResourceId));
+    assertThat(allBound).extracting(BoundMonitor::getZoneName).containsOnly("public/newZone");
+    assertThat(allBound).extracting(BoundMonitor::getEnvoyId).containsOnly(newEnvoy);
+    assertThat(allBound).extracting(BoundMonitor::getResourceId).containsExactlyElementsOf(transform(resources, Resource::getResourceId));
   }
 
   /**
@@ -395,9 +394,9 @@ public class MonitorManagementTest_UpdateMonitor {
     verify(boundMonitorRepository, times(2)).deleteAll(captorOfDeletedBoundMonitors.capture());
     List<BoundMonitor> allUnbound = captorOfDeletedBoundMonitors.getAllValues().stream().flatMap(List::stream).collect(Collectors.toList());
     assertThat(allUnbound).hasSize(2);
-    assertThat(transform(allUnbound, BoundMonitor::getZoneName)).containsOnly("public/originalZone");
-    assertThat(transform(allUnbound, BoundMonitor::getEnvoyId)).containsOnly(oldEnvoy1, oldEnvoy2);
-    assertThat(transform(allUnbound, BoundMonitor::getResourceId)).containsOnlyElementsOf(transform(resources, Resource::getResourceId));
+    assertThat(allUnbound).extracting(BoundMonitor::getZoneName).containsOnly("public/originalZone");
+    assertThat(allUnbound).extracting(BoundMonitor::getEnvoyId).containsOnly(oldEnvoy1, oldEnvoy2);
+    assertThat(allUnbound).extracting(BoundMonitor::getResourceId).containsOnlyElementsOf(transform(resources, Resource::getResourceId));
 
     // verify bind operations / each operation is performed twice per zone per resource
     verify(boundMonitorRepository, times(2)).saveAll(captorOfSavedBoundMonitors.capture());
@@ -410,9 +409,9 @@ public class MonitorManagementTest_UpdateMonitor {
 
     List<BoundMonitor> allBound = captorOfSavedBoundMonitors.getAllValues().stream().flatMap(List::stream).collect(Collectors.toList());
     assertThat(allBound).hasSize(4);
-    assertThat(transform(allBound, BoundMonitor::getZoneName)).containsOnlyElementsOf(allNewZones);
-    assertThat(transform(allBound, BoundMonitor::getEnvoyId)).containsOnly(newEnvoy);
-    assertThat(transform(allBound, BoundMonitor::getResourceId)).containsOnlyElementsOf(transform(resources, Resource::getResourceId));
+    assertThat(allBound).extracting(BoundMonitor::getZoneName).containsOnlyElementsOf(allNewZones);
+    assertThat(allBound).extracting(BoundMonitor::getEnvoyId).containsOnly(newEnvoy);
+    assertThat(allBound).extracting(BoundMonitor::getResourceId).containsOnlyElementsOf(transform(resources, Resource::getResourceId));
   }
 
   /**
