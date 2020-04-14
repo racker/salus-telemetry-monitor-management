@@ -24,11 +24,13 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
@@ -52,6 +54,9 @@ public class ZoneApiClientTest {
 
     @Autowired
     ZoneApiClient zoneApiClient;
+
+    @MockBean
+    TenantMetadataRepository tenantMetadataRepository;
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 

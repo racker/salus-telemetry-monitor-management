@@ -29,6 +29,7 @@ import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
@@ -50,6 +51,9 @@ public class TestMonitorApiControllerTest {
 
   @MockBean
   private TestMonitorService testMonitorService;
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void testPerformTestMonitor_success() throws Exception {

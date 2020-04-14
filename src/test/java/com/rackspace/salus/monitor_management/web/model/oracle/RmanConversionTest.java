@@ -33,6 +33,7 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -67,6 +68,9 @@ public class RmanConversionTest {
 
   @Autowired
   MetadataUtils metadataUtils;
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void convertToOutput_rman() throws IOException {

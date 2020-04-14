@@ -36,6 +36,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
 import java.util.List;
 import java.util.UUID;
@@ -63,6 +64,9 @@ public class MonitorTranslationApiControllerTest {
 
   @MockBean
   MonitorContentTranslationService monitorContentTranslationService;
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void testGetAll() throws Exception {

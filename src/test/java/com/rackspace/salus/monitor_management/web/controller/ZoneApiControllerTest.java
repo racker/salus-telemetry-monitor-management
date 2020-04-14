@@ -47,6 +47,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -89,6 +90,9 @@ public class ZoneApiControllerTest {
 
     @MockBean
     MonitorManagement monitorManagement;
+
+    @MockBean
+    TenantMetadataRepository tenantMetadataRepository;
 
     @Autowired
     private ObjectMapper objectMapper;

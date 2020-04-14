@@ -24,10 +24,12 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.lang.reflect.Field;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.ReflectionUtils;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -38,6 +40,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 public class MonitorDTOTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void testFieldsCoveredWithResourceId() {
