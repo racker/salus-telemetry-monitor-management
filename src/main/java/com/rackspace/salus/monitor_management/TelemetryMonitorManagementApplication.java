@@ -22,6 +22,7 @@ import com.rackspace.salus.common.util.DumpConfigProperties;
 import com.rackspace.salus.common.web.EnableExtendedErrorAttributes;
 import com.rackspace.salus.common.web.EnableRoleBasedJsonViews;
 import com.rackspace.salus.telemetry.etcd.EnableEtcd;
+import com.rackspace.salus.telemetry.web.EnableTenantVerification;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -30,6 +31,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @EnableEtcd
 @EnableRoleBasedJsonViews
 @EnableExtendedErrorAttributes
+@EnableTenantVerification
 @AutoConfigureSalusAppMetrics
 public class TelemetryMonitorManagementApplication {
 

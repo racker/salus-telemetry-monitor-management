@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
@@ -30,6 +31,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.json.JacksonTester;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
@@ -42,6 +44,9 @@ public class BoundMonitorDTOJsonTest {
   @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection") // IntelliJ has trouble resolving
   @Autowired
   private JacksonTester<BoundMonitorDTO> json;
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void testEmptyZone_nonNullEnvoy() throws IOException {

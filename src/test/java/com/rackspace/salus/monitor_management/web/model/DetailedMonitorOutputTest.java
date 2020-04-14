@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +34,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.json.JacksonTester;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
@@ -41,6 +43,9 @@ public class DetailedMonitorOutputTest {
 
   @Autowired
   private JacksonTester<DetailedMonitorOutput> json;
+
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
 
   @Test
   public void testLocalMonitor() throws IOException {
