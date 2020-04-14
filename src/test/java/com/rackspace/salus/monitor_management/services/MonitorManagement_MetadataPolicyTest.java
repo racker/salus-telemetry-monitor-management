@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.google.common.collect.Collections2.transform;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -29,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -50,7 +52,9 @@ import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -67,6 +71,7 @@ import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -168,6 +173,9 @@ public class MonitorManagement_MetadataPolicyTest {
   MonitorPolicyRepository monitorPolicyRepository;
 
   @MockBean
+  ResourceRepository resourceRepository;
+
+  @MockBean
   ResourceApi resourceApi;
 
   @MockBean
@@ -195,6 +203,12 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Captor
   private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
+
+  @Captor
+  private ArgumentCaptor<List<UUID>> captorOfIds;
+
+  @Captor
+  private ArgumentCaptor<Monitor> captorOfMonitor;
 
   @Before
   public void setUp() {
@@ -273,16 +287,18 @@ public class MonitorManagement_MetadataPolicyTest {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
-        .thenReturn(Map.of("zones",
-            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-                .setKey("zones")
-                .setValue("public/defaultZone1,public/defaultZone2")
-                .setValueType(MetadataValueType.STRING_LIST),
+        .thenReturn(Map.of(
             "interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
                 .setValue("PT42S")
                 .setValueType(MetadataValueType.DURATION)));
+
+    when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
+        .thenReturn(List.of("public/defaultZone1" ,"public/defaultZone2"));
+
+    when(resourceRepository.findByTenantIdAndResourceId(anyString(), anyString()))
+        .thenReturn(Optional.of(podamFactory.manufacturePojo(Resource.class)));
 
     final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
 
@@ -310,8 +326,8 @@ public class MonitorManagement_MetadataPolicyTest {
     assertThat(updatedMonitor.getInterval(), equalTo(Duration.ofSeconds(42)));
     assertThat(updatedMonitor.getMonitorName(), nullValue());
     assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
-    assertThat(updatedMonitor.getZones(), hasSize(2));
-    assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    // no zones set, so zone metadata will be used when binding.
+    assertThat(updatedMonitor.getZones(), hasSize(0));
     // null gets returned when we store the value, but {} gets retrieved when we do a get (as shown farther below)
     // the null does not get exposed via the api
     assertThat(updatedMonitor.getLabelSelector(), nullValue());
@@ -320,13 +336,16 @@ public class MonitorManagement_MetadataPolicyTest {
     Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getInterval(), equalTo(Duration.ofSeconds(42)));
-    assertThat(retrieved.get().getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    assertThat(retrieved.get().getZones(), hasSize(0));
     // Retrieving nothing/null from an element collection leads to an empty collection being returned
     assertThat(retrieved.get().getLabelSelector(), equalTo(Collections.emptyMap()));
 
-    verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
-    // one save when changing zones and one for label selector change
+    // once for interval change and once for zone change
+    verify(boundMonitorRepository, times(2)).findAllByMonitor_Id(monitor.getId());
+    // one save when adding the extra zone and one for label selector change
     verify(boundMonitorRepository, times(2)).saveAll(any());
+
+    verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, true);
 
     // only one event is sent
     // since the same envoy is used in the existing bound monitor
@@ -343,16 +362,16 @@ public class MonitorManagement_MetadataPolicyTest {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
-        .thenReturn(Map.of("zones",
-            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
-                .setKey("zones")
-                .setValue("public/defaultZone1,public/defaultZone2")
-                .setValueType(MetadataValueType.STRING_LIST),
-            "interval",
+        .thenReturn(Map.of("interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
                 .setValue("42")
-                .setValueType(MetadataValueType.DURATION)));
+                .setValueType(MetadataValueType.DURATION),
+            "monitorName",
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setKey("monitorName")
+                .setValue("nameFromPolicy")
+                .setValueType(MetadataValueType.STRING)));
 
     final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
 
@@ -367,14 +386,21 @@ public class MonitorManagement_MetadataPolicyTest {
     when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
         .thenReturn(List.of(bound1));
 
+    List<Zone> zones = monitor.getZones().stream().map(z -> new Zone().setName(z))
+        .collect(Collectors.toList());
+
+    when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
+        .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
+
     // EXECUTE
 
-    // update will contain null zones but a new interval
+    // update will contain empty zones but a new interval
     final MonitorCU update = getBaseMonitorCUFromMonitor(monitor);
 
     final Duration newInterval = monitor.getInterval().plusSeconds(120L);
     update.setInterval(newInterval);
-    update.setZones(null);
+    update.setMonitorName(null);
+    update.setZones(monitor.getZones()); // avoid any zone change logic
 
     final Monitor updatedMonitor = monitorManagement.updateMonitor(
         tenantId, monitor.getId(), update, true);
@@ -383,20 +409,20 @@ public class MonitorManagement_MetadataPolicyTest {
 
     // new interval is set using provided value, not metadata
     assertThat(updatedMonitor.getInterval(), equalTo(newInterval));
-    assertThat(updatedMonitor.getMonitorName(), nullValue());
+    // monitorName is set with metadata policy info
+    assertThat(updatedMonitor.getMonitorName(), equalTo("nameFromPolicy"));
     assertThat(updatedMonitor.getLabelSelectorMethod(), equalTo(LabelSelectorMethod.AND));
-    assertThat(updatedMonitor.getZones(), hasSize(2));
-    // zones are set with metadata policy info
-    assertThat(updatedMonitor.getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    assertThat(updatedMonitor.getZones(), hasSize(1));
 
     // and verify the stored entity
     Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, updatedMonitor.getId());
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getInterval(), equalTo(newInterval));
-    assertThat(retrieved.get().getZones(), containsInAnyOrder("public/defaultZone1", "public/defaultZone2"));
+    assertThat(retrieved.get().getMonitorName(), equalTo("nameFromPolicy"));
 
     verify(boundMonitorRepository).findAllByMonitor_Id(monitor.getId());
-    verify(boundMonitorRepository, times(1)).saveAll(any());
+    // no fields on the plugin changed so the bound monitor did not need to be re-saved
+    verify(boundMonitorRepository, never()).saveAll(any());
 
     // only one event is sent
     // since the same envoy is used in the existing bound monitor
@@ -557,19 +583,15 @@ public class MonitorManagement_MetadataPolicyTest {
     assertThat(sortedResults.get(2).getContent(), equalTo(expectedOriginalContent));
     assertThat(sortedResults.get(2).getInterval(), equalTo(Duration.ofSeconds(60)));
 
-/*
-   I can't figure out how to fix these after switching to MySQL. monitorManagement is not a mock
-   so I'm also confused why it is being verified in this way. Instead, the services used by monitorManagement
-   should be verified. boundMonitorRepository is a mock but monitorRepository is not, so verifying
-   the mixed interactions is hard for me to investigate.
-
     // verify the unbind / bind process happened
-    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
-    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
-      return true;
-    }));
-*/
+    verify(monitorManagement).unbindByTenantAndMonitorId(eq(tenantId), captorOfIds.capture());
+    assertThat(captorOfIds.getValue(), containsInAnyOrder(monitorIds.toArray()));
+
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindMonitor(
+        eq(tenantId),
+        captorOfMonitor.capture(),
+        eq(List.of("public/z-1")));
+    assertThat(transform(captorOfMonitor.getAllValues(), Monitor::getId), containsInAnyOrder(monitorIds.toArray()));
   }
 
   /**
@@ -620,25 +642,87 @@ public class MonitorManagement_MetadataPolicyTest {
         .setTenantId(tenantId)
         .setPolicyId(policyId));
 
+    // verify two monitors have the interval set by metadata and one has its pre-existing hard set value
     List<Monitor> updatedMonitors = monitorManagement.getMonitors(tenantId, Pageable.unpaged()).getContent();
-
-/*
-  I can't figure out how to fix this after switching to MySQL for unit testing. The query results
-  are not deterministically ordered and technically shouldn't have been with H2 also. I'm not familiar
-  with the test setup and can't determine a way to deterministically identify which of the three is
-  which and what the expected interval should be.
-
-    assertThat(updatedMonitors.get(0).getInterval(), equalTo(UPDATED_DURATION_VALUE));
-    assertThat(updatedMonitors.get(1).getInterval(), equalTo(Duration.ofSeconds(60)));
-    assertThat(updatedMonitors.get(2).getInterval(), equalTo(UPDATED_DURATION_VALUE));
+    Map<Duration, List<Monitor>> intervals = updatedMonitors.stream().collect(Collectors.groupingBy(Monitor::getInterval));
+    assertThat(updatedMonitors, hasSize(3));
+    assertThat(intervals.keySet(), hasSize(2));
+    assertThat(intervals.get(UPDATED_DURATION_VALUE), hasSize(2));
+    assertThat(intervals.get(Duration.ofSeconds(60)), hasSize(1));
 
     // verify the unbind / bind process happened
-    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, monitorIds);
-    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindNewMonitor(eq(tenantId), argThat(m -> {
-      assertThat(m.getId(), isOneOf(monitorIds.toArray()));
-      return true;
-    }));
-*/
+    verify(monitorManagement).unbindByTenantAndMonitorId(eq(tenantId), captorOfIds.capture());
+    assertThat(captorOfIds.getValue(), containsInAnyOrder(monitorIds.toArray()));
+
+    verify(monitorManagement, times(monitorsThatUseMetadata.size())).bindMonitor(
+        eq(tenantId),
+        captorOfMonitor.capture(),
+        eq(List.of("public/z-1")));
+    assertThat(transform(captorOfMonitor.getAllValues(), Monitor::getId), containsInAnyOrder(monitorIds.toArray()));
+  }
+
+  /**
+   * Same as the above test except it verifies the Monitor interval metadata policy
+   * was used, and the "count" policy had no effect.
+   */
+  @Test
+  public void testHandleMetadataPolicyEvent_zoneMetadata() {
+    String tenantId = RandomStringUtils.randomAlphabetic(10);
+    UUID policyId = UUID.randomUUID();
+
+    // Returns the list of monitor metadata policies effective on this account
+    when(policyApi.getEffectiveMonitorMetadataPolicies(anyString(), anyBoolean()))
+        .thenReturn(List.of(
+            // A zone policy
+            (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
+                .setMonitorType(null)
+                .setKey(MetadataPolicy.ZONE_METADATA_PREFIX + MetadataPolicy.DEFAULT_ZONE)
+                .setValue(String.join(",", "zone1", "zone2"))
+                .setValueType(MetadataValueType.STRING_LIST)
+                .setTargetClassName(TargetClassName.RemotePlugin)
+                .setId(policyId)));
+
+    // store one monitor using zone policy and one with set zones
+    Monitor monitorUsingPolicy = monitorRepository.save(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent("{\"type\": \"ping\", \"target\": \"localhost\"}")
+        .setTenantId(tenantId)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.emptyList())
+
+        .setLabelSelector(Collections.emptyMap())
+        .setInterval(Duration.ofSeconds(60)));
+
+    Monitor monitorNotUsingPolicy = monitorRepository.save(new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent("{\"type\":\"ping\",\"target\":\"localhost\"}")
+        .setTenantId(tenantId)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setZones(Collections.singletonList("public/z-1"))
+
+        .setLabelSelector(Collections.emptyMap())
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
+        .setTenantId(tenantId)
+        .setPolicyId(policyId));
+
+
+    // the zones field on a monitor should not be modified when zone metadata changes
+    Monitor updatedMonitor = monitorManagement.getMonitor(tenantId, monitorUsingPolicy.getId()).orElseThrow();
+    assertThat(updatedMonitor.getZones(), hasSize(0));
+    Monitor notUpdatedMonitor = monitorManagement.getMonitor(tenantId, monitorNotUsingPolicy.getId()).orElseThrow();
+    assertThat(notUpdatedMonitor.getZones(), hasSize(1));
+    assertThat(notUpdatedMonitor.getZones(), contains("public/z-1"));
+
+    // verify the unbind / bind process happened.  Only one monitor is updated.
+    verify(monitorManagement).unbindByTenantAndMonitorId(tenantId, List.of(monitorUsingPolicy.getId()));
+    verify(monitorManagement).bindMonitor(eq(tenantId), captorOfMonitor.capture(), eq(Collections.emptyList()));
+    assertThat(captorOfMonitor.getValue().getId(), equalTo(monitorUsingPolicy.getId()));
+    // verify a call was made to get new monitoring zones
+    verify(monitorManagement).determineMonitoringZones((Monitor) any(), any());
   }
 
   private MonitorCU getBaseMonitorCU() {

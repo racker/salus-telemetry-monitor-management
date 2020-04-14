@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
+import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
@@ -37,6 +38,7 @@ import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Resource;
@@ -102,6 +104,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -138,6 +141,7 @@ public class MonitorManagement {
   private final Counter boundMonitorSaveErrors;
   private final Counter monitorMetadataContentUpdateErrors;
   private final Counter invalidTemplateErrors;
+  private final Counter orphanedBoundMonitorRemoved;
 
   @Autowired
   public MonitorManagement(
@@ -181,6 +185,8 @@ public class MonitorManagement {
         "operation", "updateMonitorContentWithPolicy");
     invalidTemplateErrors = meterRegistry.counter("errors",
         "operation", "renderMonitorTemplate");
+    orphanedBoundMonitorRemoved = meterRegistry.counter("orphaned",
+        "objectType", "boundMonitor");
   }
 
   /**
@@ -288,7 +294,7 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
 
-    final Set<String> affectedEnvoys = bindNewMonitor(tenantId, monitor);
+    final Set<String> affectedEnvoys = bindMonitor(tenantId, monitor, monitor.getZones());
     sendMonitorBoundEvents(affectedEnvoys);
     return monitor;
   }
@@ -349,7 +355,7 @@ public class MonitorManagement {
     clonedMonitor = monitorRepository.save(clonedMonitor);
 
     // bind monitor
-    Set<String> affectedEnvoys = bindNewMonitor(newTenant, clonedMonitor);
+    Set<String> affectedEnvoys = bindMonitor(newTenant, clonedMonitor, clonedMonitor.getZones());
     log.info("Binding policy monitor={} to {} envoys on tenant={}",
         monitor, affectedEnvoys.size(), newTenant);
 
@@ -445,7 +451,7 @@ public class MonitorManagement {
       throw new IllegalArgumentException("Local monitors cannot have zones");
     }
 
-    if (providedZones == null || providedZones.isEmpty()) {
+    if (CollectionUtils.isEmpty(providedZones)) {
       return;
     }
     List<String> availableZones = zoneManagement.getAvailableZonesForTenant(tenantId, Pageable.unpaged())
@@ -464,22 +470,17 @@ public class MonitorManagement {
   }
 
   /**
-   * Performs label selection of the given monitor to locate resources and zones for bindings.
-   * @return affected envoy IDs
-   */
-  Set<String> bindNewMonitor(String tenantId, Monitor monitor) {
-    return bindMonitor(tenantId, monitor, determineMonitoringZones(
-        monitor.getSelectorScope(), monitor.getZones()
-    ));
-  }
-
-  /**
    * Performs label selection of the given monitor to locate resources for bindings.
    * For remote monitors, this will only perform binding within the given zones.
+   * If no zones list is provided this will bind to all zones within the monitor object,
+   * or the global defaults if the monitor has no zones.
+   *
+   * @param tenantId The tenant id to bound the monitor to
+   * @param monitor The monitor to bind
+   * @param zones All zones the monitor will be bound to
    * @return affected envoy IDs
    */
-  Set<String> bindMonitor(String tenantId, Monitor monitor,
-      List<String> zones) {
+  Set<String> bindMonitor(String tenantId, Monitor monitor, List<String> zones) {
     final List<ResourceDTO> resources;
     String resourceId = monitor.getResourceId();
     if (!StringUtils.isBlank(resourceId)) {
@@ -525,7 +526,13 @@ public class MonitorManagement {
       // REMOTE MONITOR
 
       for (ResourceDTO resource : resources) {
-        for (String zone : zones) {
+        List<String> zonesForResource = zones;
+
+        if (CollectionUtils.isEmpty(zonesForResource)) {
+          zonesForResource = determineMonitoringZones(monitor, resource);
+        }
+
+        for (String zone : zonesForResource) {
           try {
             boundMonitors.add(
                 bindRemoteMonitor(monitor, resource, zone)
@@ -737,13 +744,20 @@ public class MonitorManagement {
     }
   }
 
-  List<String> determineMonitoringZones(ConfigSelectorScope selectorScope,
-                                                List<String> zones) {
-    if (selectorScope != ConfigSelectorScope.REMOTE) {
+  List<String> determineMonitoringZones(Monitor monitor, ResourceDTO resource) {
+    if (monitor.getSelectorScope() != ConfigSelectorScope.REMOTE) {
       return Collections.emptyList();
     }
-    if (zones == null || zones.isEmpty()) {
-      return zonesProperties.getDefaultZones();
+    return determineMonitoringZones(monitor.getZones(), resource.getMetadata().get(REGION_METADATA));
+  }
+
+  List<String> determineMonitoringZones(List<String> zones, String region) {
+    log.debug("getting zones for region={}, provided zones={}", region, zones);
+    if (CollectionUtils.isEmpty(zones)) {
+      zones = metadataUtils.getDefaultZonesForResource(region, false);
+      if (zones.isEmpty()) {
+        log.error("Failed to discovered monitoring zones for region={}", region);
+      }
     }
     return zones;
   }
@@ -774,31 +788,15 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
+    // each of the following 'process' methods may modify properties of the monitor in place
     affectedEnvoys.addAll(
         processResourceIdChange(monitor, updatedValues.getResourceId(), patchOperation));
     affectedEnvoys.addAll(
         processLabelSelectorChange(tenantId, monitor, updatedValues, patchOperation));
-
-    if (updatedValues.getContent() != null &&
-        !updatedValues.getContent().equals(monitor.getContent())) {
-      // Process potential changes to bound resource rendered content
-      // ...only need to process changed bindings
-
-      affectedEnvoys.addAll(
-          processMonitorContentModified(tenantId, monitor, updatedValues.getContent())
-      );
-
-      monitor.setContent(updatedValues.getContent());
-    }
-
-    PropertyMapper map;
-    if (patchOperation) {
-      map = PropertyMapper.get();
-    } else {
-      map = PropertyMapper.get().alwaysApplyingWhenNonNull();
-    }
-    map.from(updatedValues.getMonitorName())
-        .to(monitor::setMonitorName);
+    affectedEnvoys.addAll(
+        processMonitorContentModified(tenantId, monitor, updatedValues.getContent()));
+    affectedEnvoys.addAll(
+        processMonitorZonesModified(tenantId, monitor, updatedValues.getZones(), patchOperation));
 
     // Detect and process interval changes
     if (intervalChanged(updatedValues.getInterval(), monitor.getInterval(), patchOperation)) {
@@ -807,33 +805,17 @@ public class MonitorManagement {
       monitor.setInterval(updatedValues.getInterval());
     }
 
-    // Detect zone changes
-    List<String> originalZones = monitor.getZones();
-    if (zonesChanged(updatedValues.getZones(), originalZones, patchOperation)) {
-      // give JPA a modifiable copy of the given list
-      if (updatedValues.getZones() == null) {
-        monitor.setZones(null);
-      } else {
-        monitor.setZones(new ArrayList<>(updatedValues.getZones()));
-      }
-    } else if (monitor.getZones() != null) {
-      // See above regarding:
-      // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
-      monitor.setZones(new ArrayList<>(monitor.getZones()));
+    // Update the monitor name if needed
+    if (patchOperation) {
+      monitor.setMonitorName(updatedValues.getMonitorName());
+    } else if (updatedValues.getMonitorName() != null) {
+      monitor.setMonitorName(updatedValues.getMonitorName());
     }
 
+    // Update any metadata fields on the monitor if required.
+    // Plugin metadata was already processed by conversion service and stored within the content.
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, patchOperation);
     monitor.setPluginMetadataFields(updatedValues.getPluginMetadataFields());
-
-    // test things again once metadata has been put in place
-    if (monitor.getZones() != null && zonesChanged(monitor.getZones(), originalZones, patchOperation)) {
-      // Process potential changes to bound zones
-      // we must perform this after the metadata has been set in case zones was set to null
-      // and the default must first be populated.
-      affectedEnvoys.addAll(
-          processMonitorZonesModified(tenantId, monitor, originalZones)
-      );
-    }
 
     monitor = monitorRepository.save(monitor);
 
@@ -1048,16 +1030,111 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   private Set<String> processMonitorZonesModified(String tenantId, Monitor monitor,
-      List<String> originalZones) {
+      @NotNull List<String> updatedZones, boolean patchOperation) {
 
-    // determine new zones
+    List<String> originalZones = monitor.getZones();
+
+    if (!zonesChanged(updatedZones, originalZones, patchOperation)) {
+      monitor.setZones(new ArrayList<>(originalZones));
+      return Collections.emptySet();
+    }
+    monitor.setZones(new ArrayList<>(updatedZones));
+
+    if (monitor.getZones().isEmpty() && !originalZones.isEmpty()) {
+      // handle case where policies are now being used and weren't before
+      return handleZoneChangePerResource(monitor, originalZones);
+    } else if (!monitor.getZones().isEmpty() && originalZones.isEmpty()) {
+      // handle case where policies were being used and are not anymore
+      return handleZoneChangePerResource(monitor, originalZones);
+    } else {
+      // handle case where zones were specified in original monitor and in updated values
+      return handleZoneChangeForMonitor(monitor, originalZones);
+    }
+  }
+
+  /**
+   * Binds and unbinds monitors to zones based on what is now previously configured
+   * compared to what was previously configured.
+   * If a zone was in place now that was in use before, no action will be needed for that zone.
+   *
+   * If the zones on the monitor object are empty, the monitor will be bound to zones based on the
+   * resource's region.
+   *
+   * If the original zones provided are empty, the original zones will be discovered by
+   * getting all relevant bound monitors and looking at their zone name.
+   *
+   * @param monitor The updated monitor that the change relates to.
+   * @param originalZones The previous zones that were configured on the monitor.
+   * @return A set of envoyIds for the envoys that (un)bind actions are needed.
+   */
+  Set<String> handleZoneChangePerResource(Monitor monitor, List<String> originalZones) {
+    final Set<String> affectedEnvoys = new HashSet<>();
+
+    List<BoundMonitor> boundMonitors = boundMonitorRepository.findAllByMonitor_Id(monitor.getId());
+    Set<String> boundResourceIds = boundMonitors.stream().map(BoundMonitor::getResourceId).collect(
+        Collectors.toSet());
+
+    // handle the bound monitor changes for each individual resource
+    for (String resourceId : boundResourceIds) {
+      Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
+      if (resource.isEmpty()) {
+        // remove any orphaned bound monitors
+        log.warn("Removing orphaned bound monitor for resourceId={} and monitor={}", resourceId, monitor);
+        orphanedBoundMonitorRemoved.increment();
+        affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), List.of(resourceId)));
+        continue;
+      }
+
+      // set originalZones to the currently configured regions for this resource if empty
+      if (originalZones.isEmpty()) {
+        originalZones = boundMonitors.stream()
+            .filter(b -> b.getResourceId().equals(resourceId))
+            .map(BoundMonitor::getZoneName)
+            .collect(Collectors.toList());
+      }
+
+      // set newZones to the policy configured regions for this resource if currently empty.
+      List<String> newZones = monitor.getZones();
+      if (newZones.isEmpty()) {
+        newZones = metadataUtils.getDefaultZonesForResource(resource.get().getMetadata().get(REGION_METADATA), true);
+      }
+
+      // calculate which zones have been removed and unbind them
+      List<String> removedZones = new ArrayList<>(originalZones);
+      removedZones.removeAll(newZones);
+
+      affectedEnvoys.addAll(
+          unbindByMonitorAndZoneAndResource(monitor.getId(), removedZones, resourceId));
+
+      // calculate which zones have been added and bind them
+      List<String> addedZones = new ArrayList<>(newZones);
+      addedZones.removeAll(originalZones);
+
+      List<BoundMonitor> newBoundMonitors = new ArrayList<>();
+      for (String zone : addedZones) {
+        try {
+          newBoundMonitors.add(
+              bindRemoteMonitor(monitor, new ResourceDTO(resource.get()), zone));
+        } catch (InvalidTemplateException e) {
+          log.warn("Unable to render monitor={} onto resource={}",
+              monitor, resource.get(), e);
+          invalidTemplateErrors.increment();
+        }
+      }
+      saveBoundMonitors(newBoundMonitors);
+      affectedEnvoys.addAll(extractEnvoyIds(newBoundMonitors));
+    }
+
+    return affectedEnvoys;
+  }
+
+  private Set<String> handleZoneChangeForMonitor(Monitor monitor, List<String> originalZones) {
+    // determine new zones by removing zones on currently stored monitor
     final List<String> newZones = new ArrayList<>(monitor.getZones());
-    // ...by removing zones on currently stored monitor
     newZones.removeAll(originalZones);
 
-    // determine old zones
+    // determine old zones by removing the ones still in the update
     final List<String> oldZones = new ArrayList<>(originalZones);
-    // ...by removing the ones still in the update
     oldZones.removeAll(monitor.getZones());
 
     // this will also delete the unbound bindings
@@ -1065,7 +1142,7 @@ public class MonitorManagement {
 
     affectedEnvoys.addAll(
         // this will also save the new bindings
-        bindMonitor(tenantId, monitor, newZones)
+        bindMonitor(monitor.getTenantId(), monitor, newZones)
     );
 
     return affectedEnvoys;
@@ -1078,6 +1155,12 @@ public class MonitorManagement {
    */
   private Set<String> processMonitorContentModified(String tenantId, Monitor monitor,
       String updatedContent) {
+    if (updatedContent == null || updatedContent.equals(monitor.getContent())) {
+      // Process potential changes to bound resource rendered content
+      // ...only need to process changed bindings
+      return Collections.emptySet();
+    }
+
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
         .findAllByMonitor_Id(monitor.getId());
 
@@ -1120,6 +1203,8 @@ public class MonitorManagement {
       log.debug("Saving bound monitors with re-rendered content: {}", modified);
       saveBoundMonitors(modified);
     }
+
+    monitor.setContent(updatedContent);
 
     return extractEnvoyIds(modified);
   }
@@ -1237,11 +1322,11 @@ public class MonitorManagement {
                                                   @NotNull LabelSelectorMethod labelSelectorMethod,
                                                   Set<String> excludedResourceIds) {
     final Set<String> finalExcludedResourceIds;
-    if(excludedResourceIds != null) {
+    if (excludedResourceIds != null) {
       finalExcludedResourceIds = excludedResourceIds.stream()
           .map(String::toLowerCase)
           .collect(Collectors.toSet());
-    }else {
+    } else {
       finalExcludedResourceIds = null;
     }
     return resourceApi
@@ -1348,7 +1433,11 @@ public class MonitorManagement {
 
     // The list of relevant monitors depends on both the target class name and monitor type (if set)
     Set<Monitor> relevantMonitors;
-    if (monitorType == null) {
+
+    // zone metadata is checked first, then general changes, then monitor type specific changes
+    if (policy.getKey().startsWith(MetadataPolicy.ZONE_METADATA_PREFIX)) {
+      relevantMonitors = monitorRepository.findByTenantIdAndSelectorScopeAndZonesIsNull(tenantId, ConfigSelectorScope.REMOTE);
+    } else if (monitorType == null) {
       if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
         relevantMonitors = monitorRepository.findByTenantIdAndMonitorMetadataFieldsContaining(
             tenantId, policy.getKey());
@@ -1377,26 +1466,31 @@ public class MonitorManagement {
     Set<String> unbinding = unbindByTenantAndMonitorId(tenantId, monitorIds);
     final Set<String> affectedEnvoys = new HashSet<>(unbinding);
 
-    // Then add new bindings
+    // update and bind each monitor
     for (Monitor monitor : relevantMonitors) {
-      if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
-        MetadataUtils.updateMetadataValue(monitor, policy);
-      } else {
-        try {
-          String newContent = monitorConversionService.updateMonitorContentWithPolicy(monitor, policy);
-          monitor.setContent(newContent);
-        } catch (InvalidClassException|JsonProcessingException e) {
-          // Alerting on these events will be required.  Manual review will be needed to determine
-          // what went wrong and how it should be corrected.
-          log.error("Failed to update monitor plugin contents={} for event={}",
-              monitor.getContent(), event, e);
-          monitorMetadataContentUpdateErrors.increment();
+
+      // no update is needed for zone changes as the zones field should remain empty/null.
+      if (!policy.getKey().startsWith(MetadataPolicy.ZONE_METADATA_PREFIX)) {
+        if (policy.getTargetClassName().equals(TargetClassName.Monitor)) {
+          MetadataUtils.updateMetadataValue(monitor, policy);
+        } else {
+          try {
+            String newContent = monitorConversionService
+                .updateMonitorContentWithPolicy(monitor, policy);
+            monitor.setContent(newContent);
+          } catch (InvalidClassException | JsonProcessingException e) {
+            // Alerting on these events will be required.  Manual review will be needed to determine
+            // what went wrong and how it should be corrected.
+            log.error("Failed to update monitor plugin contents={} for event={}",
+                monitor.getContent(), event, e);
+            monitorMetadataContentUpdateErrors.increment();
+          }
         }
+        monitorRepository.save(monitor);
       }
-      monitorRepository.save(monitor);
 
       // Rebind the monitor to any relevant resources
-      Set<String> newBindings = bindNewMonitor(tenantId, monitor);
+      Set<String> newBindings = bindMonitor(tenantId, monitor, monitor.getZones());
       affectedEnvoys.addAll(newBindings);
     }
 
@@ -1594,8 +1688,7 @@ public class MonitorManagement {
         } else {
           // remote monitor
           try {
-            final List<String> zones = determineMonitoringZones(monitor.getSelectorScope(),
-                monitor.getZones());
+            List<String> zones = determineMonitoringZones(monitor, resource);
 
             for (String zone : zones) {
               boundMonitors.add(
@@ -1727,6 +1820,22 @@ public class MonitorManagement {
   }
 
   /**
+   * Removes all bindings associated with the given monitor, resource, and zones.
+   * @return affected envoy IDs
+   */
+  private Set<String> unbindByMonitorAndZoneAndResource(UUID monitorId, List<String> zones, String resourceId) {
+    final List<BoundMonitor> needToDelete = boundMonitorRepository
+        .findAllByMonitor_IdAndResourceIdAndZoneNameIn(monitorId, resourceId, zones);
+
+    log.debug("Unbinding monitorId={} on resourceId={} from zones={}: {}", monitorId, resourceId, zones, needToDelete);
+    boundMonitorRepository.deleteAll(needToDelete);
+
+    decrementBoundCounts(needToDelete);
+
+    return extractEnvoyIds(needToDelete);
+  }
+
+  /**
    * Extracts the distinct, non-null envoy IDs from the given bindings.
    */
   static Set<String> extractEnvoyIds(List<BoundMonitor> boundMonitors) {
@@ -1771,7 +1880,7 @@ public class MonitorManagement {
    */
   @SuppressWarnings("Duplicates")
   public Page<Monitor> getMonitorsFromLabels(Map<String, String> labels, String tenantId, Pageable page) {
-    if(labels == null || labels.isEmpty()) {
+    if (CollectionUtils.isEmpty(labels)) {
       return monitorRepository.findByTenantIdAndResourceIdIsNullAndLabelSelectorIsNull(tenantId, page);
     }
 
@@ -2025,7 +2134,7 @@ public class MonitorManagement {
 
     log.info("Found {} monitor policies for resource={} from {} total policies for tenant={}",
         resourcePolicies.size(),
-        resource.getId(),
+        resource.getResourceId(),
         policyMonitorIds.size(),
         tenantId);
 

@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import java.util.ArrayList;
 import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -31,7 +32,7 @@ public class RemoteMonitorDetails extends MonitorDetails {
    * The zone names where this remote monitor should operate.
    * If not specified, a set of default zones will be used for remote monitoring.
    */
-  List<String> monitoringZones;
+  List<String> monitoringZones = new ArrayList<>();
 
   @NotNull @Valid
   RemotePlugin plugin;

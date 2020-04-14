@@ -43,7 +43,6 @@ import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -376,8 +375,8 @@ public class TestMonitorServiceTest {
         .thenReturn(Optional.of(resource));
 
     // just return the zones given
-    when(monitorManagement.determineMonitoringZones(any(), any()))
-        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+    when(monitorManagement.determineMonitoringZones(any(), (String) any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(0));
 
     when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
         .thenReturn("e-1");
@@ -448,7 +447,7 @@ public class TestMonitorServiceTest {
       return true;
     }));
 
-    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+    verify(monitorManagement).determineMonitoringZones(monitoringZones, null);
     verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
 
     verifyNoMoreInteractions(
@@ -492,8 +491,8 @@ public class TestMonitorServiceTest {
         .thenReturn(Optional.of(resource));
 
     // just return the zones given
-    when(monitorManagement.determineMonitoringZones(any(), any()))
-        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+    when(monitorManagement.determineMonitoringZones(any(), (String) any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(0));
 
     // EXECUTE
 
@@ -522,7 +521,7 @@ public class TestMonitorServiceTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+    verify(monitorManagement).determineMonitoringZones(monitoringZones, null);
 
     verifyNoMoreInteractions(
         monitorConversionService, monitorContentRenderer, resourceRepository,
@@ -550,8 +549,8 @@ public class TestMonitorServiceTest {
         .thenReturn(Optional.of(resource));
 
     // just return the zones given
-    when(monitorManagement.determineMonitoringZones(any(), any()))
-        .then(invocationOnMock -> invocationOnMock.getArgument(1));
+    when(monitorManagement.determineMonitoringZones(any(), (String) any()))
+        .then(invocationOnMock -> invocationOnMock.getArgument(0));
 
     //noinspection ConstantConditions
     when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
@@ -584,7 +583,7 @@ public class TestMonitorServiceTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(monitorManagement).determineMonitoringZones(ConfigSelectorScope.REMOTE, monitoringZones);
+    verify(monitorManagement).determineMonitoringZones(monitoringZones, null);
     verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
 
     verifyNoMoreInteractions(
