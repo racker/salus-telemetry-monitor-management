@@ -65,6 +65,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEnti
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -174,11 +176,11 @@ public class MonitorManagementExcludeResourceIdsTest {
     final Monitor retrieved = entityManager.find(Monitor.class, monitor.getId());
     assertThat(retrieved.getExcludedResourceIds()).containsExactlyInAnyOrder("r-3", "r-5");
 
-    final List<BoundMonitor> bound = boundMonitorRepository
-        .findAllByMonitor_IdAndMonitor_TenantId(monitor.getId(), "t-1");
+    final Page<BoundMonitor> bound = boundMonitorRepository
+        .findAllByMonitor_IdAndMonitor_TenantId(monitor.getId(), "t-1", Pageable.unpaged());
 
     assertThat(bound).hasSize(1);
-    assertThat(bound.get(0).getResourceId()).isEqualTo("r-1");
+    assertThat(bound.getContent().get(0).getResourceId()).isEqualTo("r-1");
 
     verify(resourceApi).getResourcesWithLabels("t-1", emptyMap(), LabelSelectorMethod.AND);
 
@@ -271,8 +273,8 @@ public class MonitorManagementExcludeResourceIdsTest {
     );
 
     // sanity check bindings
-    final List<BoundMonitor> origBound = boundMonitorRepository
-        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1");
+    final Page<BoundMonitor> origBound = boundMonitorRepository
+        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1", Pageable.unpaged());
     assertThat(origBound).extracting(BoundMonitor::getResourceId)
         .containsExactlyInAnyOrder("r-include-include", "r-include-exclude");
 
@@ -294,8 +296,8 @@ public class MonitorManagementExcludeResourceIdsTest {
 
     // VERIFY
 
-    final List<BoundMonitor> updatedBound = boundMonitorRepository
-        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1");
+    final Page<BoundMonitor> updatedBound = boundMonitorRepository
+        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1", Pageable.unpaged());
     assertThat(updatedBound).extracting(BoundMonitor::getResourceId)
         .containsExactlyInAnyOrder("r-include-include", "r-exclude-include");
 
@@ -370,8 +372,8 @@ public class MonitorManagementExcludeResourceIdsTest {
     );
 
     // sanity check bindings
-    final List<BoundMonitor> origBound = boundMonitorRepository
-        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1");
+    final Page<BoundMonitor> origBound = boundMonitorRepository
+        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1", Pageable.unpaged());
     assertThat(origBound).extracting(BoundMonitor::getResourceId)
         .containsExactlyInAnyOrder("r-include-include");
 
@@ -393,8 +395,8 @@ public class MonitorManagementExcludeResourceIdsTest {
 
     // VERIFY
 
-    final List<BoundMonitor> updatedBound = boundMonitorRepository
-        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1");
+    final Page<BoundMonitor> updatedBound = boundMonitorRepository
+        .findAllByMonitor_IdAndMonitor_TenantId(original.getId(), "t-1", Pageable.unpaged());
     assertThat(updatedBound).extracting(BoundMonitor::getResourceId)
         .containsExactlyInAnyOrder("r-include-include", "r-absent-include");
 
