@@ -128,7 +128,7 @@ public class TestMonitorService {
 
     try {
       event.setRenderedContent(
-          monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource))
+          monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource, null))
       );
     } catch (InvalidTemplateException e) {
       throw new IllegalArgumentException("Failed to render monitor configuration content", e);

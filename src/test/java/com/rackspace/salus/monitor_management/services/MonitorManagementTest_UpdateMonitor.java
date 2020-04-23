@@ -45,6 +45,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -253,6 +254,9 @@ public class MonitorManagementTest_UpdateMonitor {
     when(zoneStorage.incrementBoundCount(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(1));
 
+    ResourceInfo info = new ResourceInfo();
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(info));
 
     // EXECUTE
 
@@ -372,6 +376,9 @@ public class MonitorManagementTest_UpdateMonitor {
 
     when(zoneStorage.incrementBoundCount(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(1));
+    ResourceInfo info = new ResourceInfo();
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(info));
 
 
     // EXECUTE

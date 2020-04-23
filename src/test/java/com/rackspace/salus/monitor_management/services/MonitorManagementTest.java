@@ -1392,7 +1392,7 @@ public class MonitorManagementTest {
 
     // Called when binding new resource
     when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(new ResourceDTO(resource));
+        .thenReturn(new ResourceDTO(resource, null));
     when(envoyResourceManagement.getOne("t-1", "r-1"))
         .thenReturn(
             CompletableFuture.completedFuture(
@@ -2986,8 +2986,14 @@ public class MonitorManagementTest {
     when(resourceRepository.findByTenantIdAndResourceId(any(), any()))
         .thenReturn(Optional.of(resource));
 
+    ResourceInfo info = new ResourceInfo()
+        .setResourceId("r-1")
+        .setLabels(Collections.emptyMap())
+        .setTenantId("t-1")
+        .setEnvoyId("e-1");
+
     when(envoyResourceManagement.getOne(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(null));
+        .thenReturn(CompletableFuture.completedFuture(info));
 
     Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
@@ -3349,7 +3355,7 @@ public class MonitorManagementTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
@@ -3405,7 +3411,7 @@ public class MonitorManagementTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
@@ -3520,7 +3526,7 @@ public class MonitorManagementTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
@@ -3671,7 +3677,7 @@ public class MonitorManagementTest {
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
 
@@ -3726,7 +3732,7 @@ public class MonitorManagementTest {
 
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
@@ -3769,7 +3775,7 @@ public class MonitorManagementTest {
 
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
@@ -3804,7 +3810,7 @@ public class MonitorManagementTest {
 
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
+    verify(envoyResourceManagement, times(2)).getOne("t-1", "r-1");
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
