@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,6 +56,8 @@ public class BoundMonitorDTOJsonTest {
         .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setMonitorType(MonitorType.cpu)
+        .setMonitorName("name-1")
+        .setMonitorSummary(Map.of())
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -76,6 +79,8 @@ public class BoundMonitorDTOJsonTest {
         .setZoneName("")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setMonitorType(MonitorType.cpu)
+        .setMonitorName("name-1")
+        .setMonitorSummary(Map.of())
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.LOCAL)
@@ -97,6 +102,8 @@ public class BoundMonitorDTOJsonTest {
         .setZoneName("z-1")
         .setMonitorId(UUID.fromString("00000000-0000-0000-0001-000000000000"))
         .setMonitorType(MonitorType.cpu)
+        .setMonitorName("name-1")
+        .setMonitorSummary(Map.of())
         .setTenantId("t-1")
         .setResourceId("r-1")
         .setSelectorScope(ConfigSelectorScope.REMOTE)
