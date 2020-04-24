@@ -32,6 +32,7 @@ import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.config.MonitorConversionProperties;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -42,6 +43,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -631,5 +633,39 @@ public class MonitorConversionServiceTest {
 
     // ping has metadata fields so the api would have been called
     verify(policyApi).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.RemotePlugin, MonitorType.ping, true);
+  }
+
+  @Test
+  public void testConvertToBoundMonitorDTO() {
+    // Most content of DTO conversion is tested by
+    // com.rackspace.salus.monitor_management.web.model.BoundMonitorDTOTest.testFieldsCovered
+    // so this unit test covers mainly the summary and then spot checks a few others
+
+    final BoundMonitor boundMonitor = new BoundMonitor()
+        .setCreatedTimestamp(Instant.EPOCH)
+        .setUpdatedTimestamp(Instant.EPOCH)
+        .setEnvoyId("e-1")
+        .setMonitor(
+            new Monitor()
+                .setCreatedTimestamp(Instant.EPOCH)
+                .setUpdatedTimestamp(Instant.EPOCH)
+                .setId(UUID.randomUUID())
+                .setMonitorName("name-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.disk)
+                .setContent("{\"type\":\"disk\",\"mount\":\"/usr\"}")
+        );
+
+    final BoundMonitorDTO dto = conversionService
+        .convertToBoundMonitorDTO(boundMonitor);
+
+    assertThat(dto.getMonitorSummary()).isEqualTo(
+        Map.of("mount", "/usr")
+    );
+    // spot check some specific fields from input objects
+    assertThat(dto.getEnvoyId()).isEqualTo("e-1");
+    assertThat(dto.getMonitorId()).isEqualTo(boundMonitor.getMonitor().getId());
+    assertThat(dto.getMonitorName()).isEqualTo("name-1");
   }
 }

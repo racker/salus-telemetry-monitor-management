@@ -29,6 +29,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -746,6 +747,49 @@ public class MonitorApiControllerTest {
 
     verify(monitorContentTranslationService)
         .translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
+  }
+
+  @Test
+  public void testGetBoundMonitorsForTenant() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+
+    final List<BoundMonitor> boundMonitors = List.of(
+        podamFactory.manufacturePojo(BoundMonitor.class)
+    );
+    for (BoundMonitor boundMonitor : boundMonitors) {
+      boundMonitor.setTenantId(tenantId);
+      boundMonitor.getMonitor().setTenantId(tenantId);
+      boundMonitor.getMonitor().setSelectorScope(ConfigSelectorScope.LOCAL);
+      boundMonitor.getMonitor().setAgentType(AgentType.TELEGRAF);
+      boundMonitor.getMonitor().setMonitorType(MonitorType.disk);
+      boundMonitor.getMonitor().setContent("{\"type\":\"disk\",\"mount\":\"/usr\"}");
+    }
+
+    when(monitorManagement.getAllBoundMonitorsByTenantId(any(), any()))
+        .thenReturn(new PageImpl<>(boundMonitors));
+
+    final List<BoundMonitorDTO> boundMonitorDtos = List.of(
+        podamFactory.manufacturePojo(BoundMonitorDTO.class)
+    );
+    when(monitorContentTranslationService.translate(any(), any()))
+        .thenReturn(boundMonitorDtos);
+
+    mockMvc.perform(get("/api/tenant/{tenant}/bound-monitors", tenantId)
+        .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements", is(1)))
+        .andExpect(jsonPath("$.content.length()", is(1)))
+        .andExpect(jsonPath("$.content[0].monitorId",
+            is(boundMonitors.get(0).getMonitor().getId().toString())))
+        .andExpect(jsonPath("$.content[0].monitorType",
+            is("disk")))
+        .andExpect(jsonPath("$.content[0].monitorName",
+            is(boundMonitors.get(0).getMonitor().getMonitorName())))
+        .andExpect(jsonPath("$.content[0].monitorSummary.mount",
+            is("/usr")))
+    ;
+
+    verify(monitorManagement).getAllBoundMonitorsByTenantId(eq(tenantId), any());
   }
 
   @Test
