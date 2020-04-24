@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.UUID;
 import javax.json.JsonPatch;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -213,7 +215,29 @@ public class MonitorApiController {
 
   @GetMapping("/tenant/{tenantId}/bound-monitors")
   public PagedContent<BoundMonitorDTO> getBoundMonitorsForTenant(@PathVariable String tenantId,
+                                                                 @RequestParam(required = false) String resourceId,
+                                                                 @RequestParam(required = false) UUID monitorId,
                                                                  Pageable pageable) {
+
+    if (StringUtils.isNotBlank(resourceId) && monitorId != null) {
+      return PagedContent.fromPage(
+          monitorManagement
+              .getAllBoundMonitorsByResourceIdAndMonitorIdAndTenantId(resourceId, monitorId, tenantId, pageable)
+              .map(BoundMonitorDTO::new)
+      );
+    } else if (StringUtils.isNotBlank(resourceId)) {
+      return PagedContent.fromPage(
+          monitorManagement
+              .getAllBoundMonitorsByResourceIdAndTenantId(resourceId, tenantId, pageable)
+              .map(BoundMonitorDTO::new)
+      );
+    } else if (monitorId != null) {
+      return PagedContent.fromPage(
+          monitorManagement
+              .getAllBoundMonitorsByMonitorIdAndTenantId(monitorId, tenantId, pageable)
+              .map(BoundMonitorDTO::new)
+      );
+    }
     return PagedContent.fromPage(
         monitorManagement.getAllBoundMonitorsByTenantId(tenantId, pageable)
             .map(BoundMonitorDTO::new)

@@ -2091,12 +2091,18 @@ public class MonitorManagement {
     return boundMonitorRepository.findAllByTenantId(tenantId, page);
   }
 
-  private List<BoundMonitor> getAllBoundPolicyMonitorsByTenantId(String tenantId) {
-    return boundMonitorRepository.findAllByTenantIdAndMonitor_TenantId(tenantId, POLICY_TENANT);
+  public Page<BoundMonitor> getAllBoundMonitorsByResourceIdAndTenantId(String resourceId, String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByResourceIdAndMonitor_TenantId(resourceId, tenantId, page);
   }
 
-  private List<BoundMonitor> getAllBoundMonitorsByMonitorIdAndTenantId(UUID monitorId, String tenantId) {
-    return boundMonitorRepository.findAllByMonitor_IdAndMonitor_TenantId(monitorId, tenantId);
+  public Page<BoundMonitor> getAllBoundMonitorsByMonitorIdAndTenantId(UUID monitorId, String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByMonitor_IdAndMonitor_TenantId(monitorId, tenantId, page);
+  }
+
+  public Page<BoundMonitor> getAllBoundMonitorsByResourceIdAndMonitorIdAndTenantId(
+      String resourceId, UUID monitorId, String tenantId, Pageable page) {
+    return boundMonitorRepository.findAllByResourceIdAndMonitor_IdAndMonitor_TenantId(
+        resourceId, monitorId, tenantId, page);
   }
 
   /**
