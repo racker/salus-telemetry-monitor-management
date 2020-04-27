@@ -2917,7 +2917,6 @@ public class MonitorManagementTest {
     assertThat(result, hasSize(0));
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
-    //verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
             .setMonitor(monitor)
