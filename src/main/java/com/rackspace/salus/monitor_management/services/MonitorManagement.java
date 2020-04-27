@@ -505,14 +505,10 @@ public class MonitorManagement {
         // agent monitors can only bind to resources that have (or had) an envoy
         if (resource.isAssociatedWithEnvoy()) {
 
-          final ResourceInfo resourceInfo = envoyResourceManagement
-              .getOne(tenantId, resource.getResourceId())
-              .join();
-
           try {
             boundMonitors.add(
                 bindAgentMonitor(monitor, resource,
-                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+                    resource.getEnvoyId() != null ? resource.getEnvoyId() : null)
             );
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
@@ -2153,6 +2149,7 @@ public class MonitorManagement {
   }
 
   private String getEnvoyIdForResource(Resource resource) {
-    return envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join().getEnvoyId();
+    ResourceInfo info = envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join();
+    return info == null ? null : info.getEnvoyId() ;
   }
 }

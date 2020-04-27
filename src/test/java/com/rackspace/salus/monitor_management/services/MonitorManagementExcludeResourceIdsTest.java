@@ -184,7 +184,6 @@ public class MonitorManagementExcludeResourceIdsTest {
 
     verify(resourceApi).getResourcesWithLabels("t-1", emptyMap(), LabelSelectorMethod.AND);
 
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
     // but won't query r-3 since it's excluded
     verify(envoyResourceManagement, never()).getOne("t-1", "r-3");
 
@@ -240,19 +239,23 @@ public class MonitorManagementExcludeResourceIdsTest {
             new ResourceDTO()
                 .setResourceId("r-exclude-include")
                 .setTenantId("t-1")
-                .setAssociatedWithEnvoy(true),
+                .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-exclude-include"),
             new ResourceDTO()
                 .setResourceId("r-include-include")
                 .setTenantId("t-1")
-                .setAssociatedWithEnvoy(true),
+                .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-include-include"),
             new ResourceDTO()
                 .setResourceId("r-include-exclude")
                 .setTenantId("t-1")
-                .setAssociatedWithEnvoy(true),
+                .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-include-exclude"),
             new ResourceDTO()
                 .setResourceId("r-exclude-exclude")
                 .setTenantId("t-1")
                 .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-exclude-exclude")
         ));
 
     setupEnvoyResourceManagement();
@@ -313,9 +316,7 @@ public class MonitorManagementExcludeResourceIdsTest {
     verify(resourceApi, times(2))
         .getResourcesWithLabels("t-1", emptyMap(), LabelSelectorMethod.AND);
 
-    verify(envoyResourceManagement).getOne("t-1", "r-exclude-include");
-    verify(envoyResourceManagement).getOne("t-1", "r-include-exclude");
-    verify(envoyResourceManagement).getOne("t-1", "r-include-include");
+    verify(envoyResourceManagement).getOne("t-1", "r-exclude-include"); // good
     verify(envoyResourceManagement, never()).getOne("t-1", "r-exclude-exclude");
 
     verifyNoMoreInteractions(resourceApi, envoyResourceManagement, monitorEventProducer);
@@ -333,6 +334,7 @@ public class MonitorManagementExcludeResourceIdsTest {
                 .setResourceId("r-include-include")
                 .setTenantId("t-1")
                 .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-include-include")
         ));
     when(resourceApi
         .getResourcesWithLabels("t-1", Map.of("stage", "after"), LabelSelectorMethod.AND))
@@ -340,17 +342,20 @@ public class MonitorManagementExcludeResourceIdsTest {
             new ResourceDTO()
                 .setResourceId("r-include-include")
                 .setTenantId("t-1")
-                .setAssociatedWithEnvoy(true),
+                .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-include-include"),
             new ResourceDTO()
                 // a resource that is newly selected and newly binds since it is not excluded
                 .setResourceId("r-absent-include")
                 .setTenantId("t-1")
-                .setAssociatedWithEnvoy(true),
+                .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-absent-include"),
             new ResourceDTO()
                 // a resource that is newly selected, but should be excluded by the monitor still
                 .setResourceId("r-absent-exclude")
                 .setTenantId("t-1")
                 .setAssociatedWithEnvoy(true)
+                .setEnvoyId("envoy-r-absent-exclude")
         ));
 
     setupEnvoyResourceManagement();
@@ -416,7 +421,6 @@ public class MonitorManagementExcludeResourceIdsTest {
     verify(resourceApi)
         .getResourcesWithLabels("t-1", Map.of("stage", "after"), LabelSelectorMethod.AND);
 
-    verify(envoyResourceManagement).getOne("t-1", "r-include-include");
     verify(envoyResourceManagement).getOne("t-1", "r-absent-include");
     verify(envoyResourceManagement, never()).getOne("t-1", "r-absent-exclude");
 
