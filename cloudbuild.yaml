@@ -51,4 +51,8 @@ steps:
     volumes:
     - name: user.home
       path: /root
+artifacts:
+  objects:
+    location: 'gs://salus_www/agent_catalog_management/'
+    paths: ['target/generated/swagger/converted.html']
 
