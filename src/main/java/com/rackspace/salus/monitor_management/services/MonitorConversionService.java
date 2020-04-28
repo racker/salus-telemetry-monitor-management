@@ -23,6 +23,7 @@ import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.ApplicableAgentType;
 import com.rackspace.salus.monitor_management.web.model.ApplicableMonitorType;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
@@ -34,6 +35,7 @@ import com.rackspace.salus.monitor_management.web.model.RemotePlugin;
 import com.rackspace.salus.monitor_management.web.model.SummaryField;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
@@ -433,5 +435,12 @@ public class MonitorConversionService {
       log.warn("Failed to serialize plugin details of monitor={}", monitor, e);
       throw new IllegalStateException("Failed to serialize plugin details");
     }
+  }
+
+  public BoundMonitorDTO convertToBoundMonitorDTO(BoundMonitor boundMonitor) {
+    final BoundMonitorDTO dto = new BoundMonitorDTO(boundMonitor);
+    final DetailedMonitorOutput detailedMonitorOutput = convertToOutput(boundMonitor.getMonitor());
+    dto.setMonitorSummary(buildSummaryFromDetails(detailedMonitorOutput.getDetails()));
+    return dto;
   }
 }
