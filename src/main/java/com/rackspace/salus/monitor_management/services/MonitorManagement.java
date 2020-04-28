@@ -1109,8 +1109,10 @@ public class MonitorManagement {
       List<BoundMonitor> newBoundMonitors = new ArrayList<>();
       for (String zone : addedZones) {
         try {
+          // passing in null because envoyId is not necessary for bindRemoteMonitor.
+          // A future ticket should look at whether we can change the header for bindRemoteMonitor to accept a Resource instead of a ResourceDTO
           newBoundMonitors.add(
-              bindRemoteMonitor(monitor, new ResourceDTO(resource.get(), getEnvoyIdForResource(resource.get())), zone));
+              bindRemoteMonitor(monitor, new ResourceDTO(resource.get(), null), zone));
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource.get(), e);
@@ -1273,7 +1275,8 @@ public class MonitorManagement {
     if (StringUtils.isNotBlank(monitor.getResourceId())) {
       Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(tenantId, monitor.getResourceId());
       if (r.isPresent()) {
-        selectedResources.add(new ResourceDTO(r.get(), getEnvoyIdForResource(r.get())));
+        // We only need the resourceId's from selectedResources. It's superfluous to call etcd to populate the envoyId here.
+        selectedResources.add(new ResourceDTO(r.get(), null));
       } else {
         // It is possible to create monitors for resources that do not yet exist so this
         // is only a warning, but many of them may signal a problem.
@@ -1600,7 +1603,9 @@ public class MonitorManagement {
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
-          upsertBindingToResource(selectedMonitors, new ResourceDTO(resource.get(), getEnvoyIdForResource(resource.get())), event.getReattachedEnvoyId())
+          upsertBindingToResource(selectedMonitors,
+              new ResourceDTO(resource.get(), event.getReattachedEnvoyId()),
+              event.getReattachedEnvoyId())
       );
     }
 
