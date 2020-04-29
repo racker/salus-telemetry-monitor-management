@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import java.lang.reflect.Field;
+import java.util.Map;
 import org.junit.Test;
 import org.springframework.util.ReflectionUtils;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -37,6 +38,8 @@ public class BoundMonitorDTOTest {
     final BoundMonitor boundMonitor = podamFactory.manufacturePojo(BoundMonitor.class);
 
     final BoundMonitorDTO dto = new BoundMonitorDTO(boundMonitor);
+    // manually fill summary since it gets populated by MonitorConversionService
+    dto.setMonitorSummary(Map.of());
 
     // First verification approach is to check that all fields are populated with something.
     // This approach makes sure that the verification further down doesn't miss a new field.
@@ -44,7 +47,7 @@ public class BoundMonitorDTOTest {
     for (Field field : BoundMonitorDTO.class.getDeclaredFields()) {
       field.setAccessible(true);
       final Object value = ReflectionUtils.getField(field, dto);
-      assertThat(value, notNullValue());
+      assertThat(field.getName(), value, notNullValue());
       if (value instanceof String) {
         assertThat(((String) value), not(isEmptyString()));
       }
@@ -53,6 +56,7 @@ public class BoundMonitorDTOTest {
     // and next verification is to check populated with correct values
 
     assertThat(dto.getMonitorId(), equalTo(boundMonitor.getMonitor().getId()));
+    assertThat(dto.getMonitorName(), equalTo(boundMonitor.getMonitor().getMonitorName()));
     assertThat(dto.getTenantId(), equalTo(boundMonitor.getTenantId()));
     assertThat(dto.getZoneName(), equalTo(boundMonitor.getZoneName()));
     assertThat(dto.getResourceId(), equalTo(boundMonitor.getResourceId()));

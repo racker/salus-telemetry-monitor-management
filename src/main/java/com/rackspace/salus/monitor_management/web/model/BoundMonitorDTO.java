@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ package com.rackspace.salus.monitor_management.web.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonView;
+import com.rackspace.salus.common.web.View;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.MonitorType;
-import com.rackspace.salus.common.web.View;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,8 @@ public class BoundMonitorDTO {
 
   UUID monitorId;
   MonitorType monitorType;
+  String monitorName;
+  Map<String,String> monitorSummary;
   @JsonView(View.Admin.class)
   String tenantId;
   @JsonInclude(Include.NON_EMPTY)
@@ -57,6 +60,7 @@ public class BoundMonitorDTO {
   public BoundMonitorDTO(BoundMonitor boundMonitor) {
     this.monitorId = boundMonitor.getMonitor().getId();
     this.monitorType = boundMonitor.getMonitor().getMonitorType();
+    this.monitorName = boundMonitor.getMonitor().getMonitorName();
     this.tenantId = boundMonitor.getTenantId();
     this.zoneName = boundMonitor.getZoneName();
     this.resourceId = boundMonitor.getResourceId();

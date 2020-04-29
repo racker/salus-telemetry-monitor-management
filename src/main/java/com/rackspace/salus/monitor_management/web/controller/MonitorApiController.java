@@ -223,24 +223,24 @@ public class MonitorApiController {
       return PagedContent.fromPage(
           monitorManagement
               .getAllBoundMonitorsByResourceIdAndMonitorIdAndTenantId(resourceId, monitorId, tenantId, pageable)
-              .map(BoundMonitorDTO::new)
+              .map(monitorConversionService::convertToBoundMonitorDTO)
       );
     } else if (StringUtils.isNotBlank(resourceId)) {
       return PagedContent.fromPage(
           monitorManagement
               .getAllBoundMonitorsByResourceIdAndTenantId(resourceId, tenantId, pageable)
-              .map(BoundMonitorDTO::new)
+              .map(monitorConversionService::convertToBoundMonitorDTO)
       );
     } else if (monitorId != null) {
       return PagedContent.fromPage(
           monitorManagement
               .getAllBoundMonitorsByMonitorIdAndTenantId(monitorId, tenantId, pageable)
-              .map(BoundMonitorDTO::new)
+              .map(monitorConversionService::convertToBoundMonitorDTO)
       );
     }
     return PagedContent.fromPage(
         monitorManagement.getAllBoundMonitorsByTenantId(tenantId, pageable)
-            .map(BoundMonitorDTO::new)
+            .map(monitorConversionService::convertToBoundMonitorDTO)
     );
   }
 
