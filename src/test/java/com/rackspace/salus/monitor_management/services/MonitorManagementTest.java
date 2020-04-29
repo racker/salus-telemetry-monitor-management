@@ -249,6 +249,7 @@ public class MonitorManagementTest {
         .setLabels(resourceInfo.getLabels())
         .setAssociatedWithEnvoy(true)
         .setTenantId("t-1")
+        .setEnvoyId(DEFAULT_ENVOY_ID)
     );
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
@@ -372,7 +373,7 @@ public class MonitorManagementTest {
             CompletableFuture.completedFuture(
                 new ResourceInfo()
                     .setResourceId(resource.getResourceId())
-                    .setEnvoyId("e-1")));
+                    .setEnvoyId(resource.getEnvoyId())));
 
     Monitor returned = monitorManagement.createMonitor(tenantId, create);
 
@@ -393,9 +394,8 @@ public class MonitorManagementTest {
 
 
     verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
-    verify(envoyResourceManagement).getOne(tenantId, resource.getResourceId());
     verify(monitorEventProducer).sendMonitorEvent(
-        new MonitorBoundEvent().setEnvoyId("e-1")
+        new MonitorBoundEvent().setEnvoyId(resource.getEnvoyId())
     );
 
     verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
@@ -415,9 +415,10 @@ public class MonitorManagementTest {
     create.setResourceId(resourceId);
     final Resource resource = podamFactory.manufacturePojo(Resource.class);
     resource.setResourceId(resourceId);
+    resource.setTenantId(tenantId);
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), any()))
         .thenReturn(Optional.of(resource));
-    when(envoyResourceManagement.getOne(anyString(), anyString()))
+    when(envoyResourceManagement.getOne(tenantId, resource.getResourceId()))
         .thenReturn(
             CompletableFuture.completedFuture(
                 new ResourceInfo()
@@ -570,8 +571,6 @@ public class MonitorManagementTest {
 
     Optional<Monitor> retrieved = monitorManagement.getMonitor(tenantId, returned.getId());
     assertTrue(retrieved.isPresent());
-
-    verify(envoyResourceManagement).getOne(tenantId, DEFAULT_RESOURCE_ID);
 
     verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
 
@@ -1392,7 +1391,7 @@ public class MonitorManagementTest {
 
     // Called when binding new resource
     when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(new ResourceDTO(resource));
+        .thenReturn(new ResourceDTO(resource, null));
     when(envoyResourceManagement.getOne("t-1", "r-1"))
         .thenReturn(
             CompletableFuture.completedFuture(
@@ -2854,6 +2853,7 @@ public class MonitorManagementTest {
         .setResourceId("r-1")
         .setLabels(Collections.emptyMap())
         .setAssociatedWithEnvoy(true)
+        .setEnvoyId("e-1")
     );
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
@@ -2873,7 +2873,6 @@ public class MonitorManagementTest {
     assertThat(result.toArray()[0], equalTo("e-1"));
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
             .setMonitor(monitor)
@@ -2918,7 +2917,6 @@ public class MonitorManagementTest {
     assertThat(result, hasSize(0));
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
-    verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
             .setMonitor(monitor)
@@ -2978,6 +2976,7 @@ public class MonitorManagementTest {
 
     Resource resource = new Resource()
         .setResourceId("r-1")
+        .setTenantId("t-1")
         .setLabels(Collections.emptyMap())
         .setAssociatedWithEnvoy(true)
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
@@ -2989,9 +2988,10 @@ public class MonitorManagementTest {
     when(envoyResourceManagement.getOne(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(null));
 
-    Set<String> result = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
+    Set<String> envoyIds = monitorManagement.bindMonitor("t-1", monitor, monitor.getZones());
 
-    assertThat(result, hasSize(0));
+    // Monitor was bound but no envoy connection so didn't return the envoyId
+    assertThat(envoyIds, hasSize(0));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
     verify(envoyResourceManagement).getOne("t-1", "r-1");
@@ -2999,6 +2999,7 @@ public class MonitorManagementTest {
         new BoundMonitor()
             .setMonitor(monitor)
             .setResourceId("r-1")
+            .setTenantId("t-1")
             .setEnvoyId(null)
             .setRenderedContent("static content")
             .setZoneName("")
