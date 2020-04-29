@@ -298,6 +298,24 @@
       </plugin>
 
       <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <version>2.4.13</version>
+        <executions>
+          <execution>
+            <id>generate-html</id>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.build.directory}/generated/swagger/swagger.json</inputSpec>
+              <language>html</language>
+              <output>${project.build.directory}/generated/swagger/</output>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>1.2.1</version>
