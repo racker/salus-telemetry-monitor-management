@@ -23,26 +23,35 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.monitor_management.config.ZoneApiCacheConfig;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.cache.CacheType;
+import org.springframework.boot.test.autoconfigure.core.AutoConfigureCache;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @RestClientTest
+@AutoConfigureCache(cacheProvider = CacheType.JCACHE)
 public class ZoneApiClientTest {
     @TestConfiguration
+    @Import(ZoneApiCacheConfig.class)
     public static class ExtraTestConfig {
         @Bean
         public ZoneApiClient zoneApiClient(RestTemplateBuilder restTemplateBuilder) {
@@ -53,7 +62,7 @@ public class ZoneApiClientTest {
     MockRestServiceServer mockServer;
 
     @Autowired
-    ZoneApiClient zoneApiClient;
+    ZoneApi zoneApiClient;
 
     @MockBean
     TenantMetadataRepository tenantMetadataRepository;
@@ -86,5 +95,32 @@ public class ZoneApiClientTest {
         final ZoneDTO zone = zoneApiClient.getByZoneName(null, "public/west");
 
         assertThat(zone, equalTo(expectedZone));
+    }
+
+    @Test
+    public void testGetAvailableZones() throws JsonProcessingException {
+        final List<ZoneDTO> expectedZones = List.of(
+            podamFactory.manufacturePojo(ZoneDTO.class),
+            podamFactory.manufacturePojo(ZoneDTO.class)
+        );
+
+        mockServer.expect(
+            // assert/expect only one non-cached call to this
+            ExpectedCount.once(),
+            requestTo("/api/tenant/t-1/zones?size=2147483647")
+        )
+            .andRespond(withSuccess(
+                objectMapper.writeValueAsString(
+                    new PageImpl<>(expectedZones)
+                ),
+                MediaType.APPLICATION_JSON
+            ));
+
+        List<ZoneDTO> zones = zoneApiClient.getAvailableZones("t-1");
+        assertThat(zones, equalTo(expectedZones));
+
+        // and call again, but should be cached
+        zones = zoneApiClient.getAvailableZones("t-1");
+        assertThat(zones, equalTo(expectedZones));
     }
 }

@@ -15,12 +15,14 @@
  */
 package com.rackspace.salus.monitor_management.web.client;
 
+import com.rackspace.salus.monitor_management.config.ZoneApiCacheConfig;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -98,6 +100,7 @@ public class ZoneApiClient implements ZoneApi {
   }
 
   @Override
+  @Cacheable(ZoneApiCacheConfig.PER_TENANT)
   public List<ZoneDTO> getAvailableZones(String tenantId) {
     final String uri = UriComponentsBuilder
         .fromPath("/api/tenant/{tenantId}/zones")
