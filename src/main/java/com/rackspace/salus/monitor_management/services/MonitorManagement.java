@@ -486,7 +486,7 @@ public class MonitorManagement {
     if (!StringUtils.isBlank(resourceId)) {
       Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
       resources = new ArrayList<>();
-      r.ifPresent(resource -> resources.add(new ResourceDTO(resource)));
+      r.ifPresent(resource -> resources.add(new ResourceDTO(resource, getEnvoyIdForResource(resource))));
     } else {
       resources = findResourcesByLabels(
           tenantId, monitor.getLabelSelector(), monitor.getLabelSelectorMethod(),
@@ -505,14 +505,10 @@ public class MonitorManagement {
         // agent monitors can only bind to resources that have (or had) an envoy
         if (resource.isAssociatedWithEnvoy()) {
 
-          final ResourceInfo resourceInfo = envoyResourceManagement
-              .getOne(tenantId, resource.getResourceId())
-              .join();
-
           try {
             boundMonitors.add(
                 bindAgentMonitor(monitor, resource,
-                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+                    resource.getEnvoyId() != null ? resource.getEnvoyId() : null)
             );
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
@@ -1113,8 +1109,10 @@ public class MonitorManagement {
       List<BoundMonitor> newBoundMonitors = new ArrayList<>();
       for (String zone : addedZones) {
         try {
+          // passing in null because envoyId is not necessary for bindRemoteMonitor.
+          // A future ticket should look at whether we can change the header for bindRemoteMonitor to accept a Resource instead of a ResourceDTO
           newBoundMonitors.add(
-              bindRemoteMonitor(monitor, new ResourceDTO(resource.get()), zone));
+              bindRemoteMonitor(monitor, new ResourceDTO(resource.get(), null), zone));
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource.get(), e);
@@ -1277,7 +1275,8 @@ public class MonitorManagement {
     if (StringUtils.isNotBlank(monitor.getResourceId())) {
       Optional<Resource> r = resourceRepository.findByTenantIdAndResourceId(tenantId, monitor.getResourceId());
       if (r.isPresent()) {
-        selectedResources.add(new ResourceDTO(r.get()));
+        // We only need the resourceId's from selectedResources. It's superfluous to call etcd to populate the envoyId here.
+        selectedResources.add(new ResourceDTO(r.get(), null));
       } else {
         // It is possible to create monitors for resources that do not yet exist so this
         // is only a warning, but many of them may signal a problem.
@@ -1604,7 +1603,9 @@ public class MonitorManagement {
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
-          upsertBindingToResource(selectedMonitors, new ResourceDTO(resource.get()), event.getReattachedEnvoyId())
+          upsertBindingToResource(selectedMonitors,
+              new ResourceDTO(resource.get(), event.getReattachedEnvoyId()),
+              event.getReattachedEnvoyId())
       );
     }
 
@@ -2150,5 +2151,10 @@ public class MonitorManagement {
   private String getRenderedContent(String template, ResourceDTO resourceDTO)
       throws InvalidTemplateException {
     return monitorContentRenderer.render(template, resourceDTO);
+  }
+
+  private String getEnvoyIdForResource(Resource resource) {
+    ResourceInfo info = envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join();
+    return info == null ? null : info.getEnvoyId() ;
   }
 }

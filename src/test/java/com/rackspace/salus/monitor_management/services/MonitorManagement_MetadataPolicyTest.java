@@ -296,9 +296,9 @@ public class MonitorManagement_MetadataPolicyTest {
 
     when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
         .thenReturn(List.of("public/defaultZone1" ,"public/defaultZone2"));
-
+    Resource resource = podamFactory.manufacturePojo(Resource.class);
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), anyString()))
-        .thenReturn(Optional.of(podamFactory.manufacturePojo(Resource.class)));
+        .thenReturn(Optional.of(resource));
 
     final Monitor monitor = saveAssortmentOfPingMonitors(tenantId).get(0);
 
@@ -312,6 +312,13 @@ public class MonitorManagement_MetadataPolicyTest {
 
     when(boundMonitorRepository.findAllByMonitor_Id(monitor.getId()))
         .thenReturn(List.of(bound1));
+
+    ResourceInfo resourceInfo = new ResourceInfo()
+        .setTenantId(tenantId)
+        .setResourceId(resource.getResourceId())
+        .setEnvoyId(DEFAULT_ENVOY_ID);
+    when(envoyResourceManagement.getOne(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
     // EXECUTE
 
