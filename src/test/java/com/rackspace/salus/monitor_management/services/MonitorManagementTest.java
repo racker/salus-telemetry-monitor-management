@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -2930,7 +2931,7 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testBindMonitor_AgentWithNoPriorEnvoy() {
+  public void testBindMonitor_AgentWithNoPriorEnvoy() throws InvalidTemplateException {
     reset(resourceApi, envoyResourceManagement);
 
     final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
@@ -2941,12 +2942,11 @@ public class MonitorManagementTest {
         .setContent("static content")
         .setZones(Collections.emptyList())
         .setLabelSelectorMethod(LabelSelectorMethod.AND);
-
-    List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+    ResourceDTO resource = new ResourceDTO()
         .setResourceId("r-1")
         .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(false)
-    );
+        .setAssociatedWithEnvoy(false);
+    List<ResourceDTO> resourceList = Collections.singletonList(resource);
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
@@ -2956,6 +2956,8 @@ public class MonitorManagementTest {
     assertThat(result, hasSize(0));
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
+    BoundMonitor boundMonitor = monitorManagement.bindAgentMonitor(monitor, resource, null);
+    verify(boundMonitorRepository).saveAll(Collections.singletonList(boundMonitor));
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
   }

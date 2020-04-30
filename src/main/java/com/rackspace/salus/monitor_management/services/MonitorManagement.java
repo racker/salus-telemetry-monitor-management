@@ -501,23 +501,17 @@ public class MonitorManagement {
       // AGENT MONITOR
 
       for (ResourceDTO resource : resources) {
-
-        // agent monitors can only bind to resources that have (or had) an envoy
-        if (resource.isAssociatedWithEnvoy()) {
-
-          try {
-            boundMonitors.add(
-                bindAgentMonitor(monitor, resource,
-                    resource.getEnvoyId() != null ? resource.getEnvoyId() : null)
-            );
-          } catch (InvalidTemplateException e) {
-            log.warn("Unable to render monitor={} onto resource={}",
-                monitor, resource, e);
-            invalidTemplateErrors.increment();
-          }
+        try {
+          boundMonitors.add(
+              bindAgentMonitor(monitor, resource,
+                  resource.getEnvoyId() != null ? resource.getEnvoyId() : null)
+          );
+        } catch (InvalidTemplateException e) {
+          log.warn("Unable to render monitor={} onto resource={}",
+              monitor, resource, e);
+          invalidTemplateErrors.increment();
         }
       }
-
     } else {
       // REMOTE MONITOR
 
@@ -604,7 +598,7 @@ public class MonitorManagement {
         .forEach(monitorEventProducer::sendMonitorEvent);
   }
 
-  private BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
+  protected BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
       throws InvalidTemplateException {
     return new BoundMonitor()
         .setMonitor(monitor)
