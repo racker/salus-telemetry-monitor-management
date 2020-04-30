@@ -40,6 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +60,7 @@ import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -2834,6 +2836,7 @@ public class MonitorManagementTest {
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(monitorEventProducer, boundMonitorRepository);
   }
 
@@ -3375,9 +3378,8 @@ public class MonitorManagementTest {
     );
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository, policyApi);
   }
-
 
   @Test
   public void testhandleResourceEvent_monitorWithResourceId() {
@@ -3429,6 +3431,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
@@ -3544,6 +3547,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
@@ -3607,6 +3611,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-new")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi);
   }
@@ -3699,6 +3704,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-new")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
@@ -3741,6 +3747,7 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1")
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
@@ -3776,6 +3783,7 @@ public class MonitorManagementTest {
 
     // nothing new bound and no affected envoy events
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
@@ -3808,11 +3816,11 @@ public class MonitorManagementTest {
     verify(envoyResourceManagement).getOne("t-1", "r-1");
     verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-
+    verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, true);
     // nothing new bound and no affected envoy events
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository, policyApi);
   }
 
   @Test
@@ -3873,6 +3881,7 @@ public class MonitorManagementTest {
         Collections.singletonList(boundMonitor)
     );
 
+    verifyNoInteractions(policyApi);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
