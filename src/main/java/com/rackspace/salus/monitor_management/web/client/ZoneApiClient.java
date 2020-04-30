@@ -15,7 +15,6 @@
  */
 package com.rackspace.salus.monitor_management.web.client;
 
-import com.rackspace.salus.monitor_management.config.ZoneApiCacheConfig;
 import com.rackspace.salus.monitor_management.web.model.MonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;

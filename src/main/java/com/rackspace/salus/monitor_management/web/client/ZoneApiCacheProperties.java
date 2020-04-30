@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.monitor_management.config;
+package com.rackspace.salus.monitor_management.web.client;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
