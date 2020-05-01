@@ -2956,9 +2956,16 @@ public class MonitorManagementTest {
     assertThat(result, hasSize(0));
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
-    BoundMonitor boundMonitor = monitorManagement.bindAgentMonitor(monitor, resource, null);
-    verify(boundMonitorRepository).saveAll(Collections.singletonList(boundMonitor));
 
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    assertThat(captorOfBoundMonitorList.getValue(), hasSize(1));
+    assertThat(captorOfBoundMonitorList.getValue().get(0), equalTo(new BoundMonitor()
+      .setResourceId("r-1")
+      .setMonitor(monitor)
+      .setRenderedContent("static content")
+      .setEnvoyId(null)
+      .setZoneName("")
+    ));
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
   }
 
@@ -3324,6 +3331,18 @@ public class MonitorManagementTest {
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    assertThat(captorOfBoundMonitorList.getValue(), hasSize(1));
+    assertThat(captorOfBoundMonitorList.getValue().get(0), equalTo(new BoundMonitor()
+          .setResourceId("r-1")
+          .setTenantId("t-1")
+          .setMonitor(monitors.get(0))
+          .setRenderedContent("new local domain=prod")
+          .setEnvoyId(null)
+          .setZoneName("")
+    ));
+
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage

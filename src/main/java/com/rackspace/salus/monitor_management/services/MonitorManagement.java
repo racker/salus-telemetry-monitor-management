@@ -1666,19 +1666,15 @@ public class MonitorManagement {
 
         if (monitor.getSelectorScope() == ConfigSelectorScope.LOCAL) {
           // agent/local monitor
-
-          // but skip the resource if it doesn't have (or ever had) an envoy
-          if (resource.isAssociatedWithEnvoy()) {
-            try {
-              boundMonitors.add(
-                  bindAgentMonitor(monitor, resource,
-                      resourceInfo != null ? resourceInfo.getEnvoyId() : null)
-              );
-            } catch (InvalidTemplateException e) {
-              log.warn("Unable to render monitor={} onto resource={}",
-                  monitor, resource, e);
-              invalidTemplateErrors.increment();
-            }
+          try {
+            boundMonitors.add(
+                bindAgentMonitor(monitor, resource,
+                    resourceInfo != null ? resourceInfo.getEnvoyId() : null)
+            );
+          } catch (InvalidTemplateException e) {
+            log.warn("Unable to render monitor={} onto resource={}",
+                monitor, resource, e);
+            invalidTemplateErrors.increment();
           }
         } else {
           // remote monitor
