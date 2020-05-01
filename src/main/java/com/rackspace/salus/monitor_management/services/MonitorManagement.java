@@ -357,7 +357,7 @@ public class MonitorManagement {
     // bind monitor
     Set<String> affectedEnvoys = bindMonitor(newTenant, clonedMonitor, clonedMonitor.getZones());
     log.info("Binding policy monitor={} to {} envoys on tenant={}",
-        monitor, affectedEnvoys.size(), newTenant);
+        clonedMonitor, affectedEnvoys.size(), newTenant);
 
     sendMonitorBoundEvents(affectedEnvoys);
     return clonedMonitor;
@@ -750,7 +750,7 @@ public class MonitorManagement {
   List<String> determineMonitoringZones(List<String> zones, String region) {
     log.debug("getting zones for region={}, provided zones={}", region, zones);
     if (CollectionUtils.isEmpty(zones)) {
-      zones = metadataUtils.getDefaultZonesForResource(region, false);
+      zones = metadataUtils.getDefaultZonesForResource(region, true);
       if (zones.isEmpty()) {
         log.error("Failed to discovered monitoring zones for region={}", region);
       }
@@ -1579,10 +1579,8 @@ public class MonitorManagement {
               !monitor.getExcludedResourceIds().stream().map(String::toLowerCase).collect(
                   Collectors.toSet()).contains(lowerResourceId))
           .collect(Collectors.toList());
-      //grab monitors that are using resourceId instead of labels
+      // append monitors that are using resourceId instead of labels
       selectedMonitors.addAll(monitorsWithResourceId);
-      // Append all relevant policy monitors
-      selectedMonitors.addAll(getPolicyMonitorsForResource(resource.get()));
 
       List<UUID> selectedMonitorIds = selectedMonitors.stream()
           .map(Monitor::getId)
@@ -2113,39 +2111,6 @@ public class MonitorManagement {
    */
   public Page<Monitor> getAllPolicyMonitorsForTenant(String tenantId, Pageable page) {
     return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
-  }
-
-  /**
-   * Retrieves a list of policy monitors that are relevant to the provided resource.
-   * @param resource The resource to get the policy monitors for.
-   * @return A list of monitors.
-   */
-  List<Monitor> getPolicyMonitorsForResource(Resource resource) {
-    String tenantId = resource.getTenantId();
-    List<UUID> policyMonitorIds = policyApi.getEffectivePolicyMonitorIdsForTenant(tenantId, true);
-
-    List<Monitor> resourcePolicies = monitorRepository.findByIdIn(policyMonitorIds)
-        .stream()
-        .filter(m -> {
-          if (m.getLabelSelector().isEmpty()) {
-            // If no labels are set the monitor applies to all resources
-            return true;
-          } else if (m.getLabelSelectorMethod().equals(LabelSelectorMethod.OR)) {
-            return m.getLabelSelector().entrySet().stream().anyMatch(
-                labels -> resource.getLabels().entrySet().contains(labels));
-          } else {
-            return resource.getLabels().entrySet().containsAll(m.getLabelSelector().entrySet());
-          }
-        })
-        .collect(Collectors.toList());
-
-    log.info("Found {} monitor policies for resource={} from {} total policies for tenant={}",
-        resourcePolicies.size(),
-        resource.getResourceId(),
-        policyMonitorIds.size(),
-        tenantId);
-
-    return resourcePolicies;
   }
 
   private String getRenderedContent(String template, ResourceDTO resourceDTO)
