@@ -41,7 +41,6 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
@@ -53,12 +52,12 @@ import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
+import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
-import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
@@ -68,6 +67,7 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.model.PolicyScope;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
@@ -80,12 +80,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.validation.ConstraintViolationException;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -707,7 +705,15 @@ public class MonitorManagementPolicyTest {
   public void testHandleMonitorPolicyEvent_newPolicyForTenant() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
-    UUID monitorId = currentMonitor.getId();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // handle initial lookup to see if policy exists
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
+            .setMonitorId(UUID.randomUUID())
+            .setName(RandomStringUtils.randomAlphabetic(5))
+            .setId(policyId)
+            .setScope(PolicyScope.GLOBAL)));
 
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
         .thenReturn(List.of(policyId));
@@ -716,13 +722,16 @@ public class MonitorManagementPolicyTest {
     assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
-        .setMonitorId(monitorId)
+        .setMonitorId(policyMonitorId)
         .setTenantId(tenantId)
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
     // policy monitor now exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+
+    // policy was looked up to see if it exists
+    verify(monitorPolicyRepository).findById(policyId);
 
     // cloning methods were called
     verify(metadataUtils).setMetadataFieldsForClonedMonitor(anyString(), captorOfMonitor.capture());
@@ -744,22 +753,139 @@ public class MonitorManagementPolicyTest {
   public void testHandleMonitorPolicyEvent_existingPolicyForTenant() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
-    UUID monitorId = currentMonitor.getId();
+    UUID policyMonitorId = currentMonitor.getId();
 
     // store a monitor for the tenant that is tied to the policy in the event
     createMonitorForPolicyForTenant(tenantId, policyId);
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(List.of(policyId));
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
+            .setMonitorId(UUID.randomUUID())
+            .setName(RandomStringUtils.randomAlphabetic(5))
+            .setId(policyId)
+            .setScope(PolicyScope.GLOBAL)));
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
-        .setMonitorId(monitorId)
+        .setMonitorId(policyMonitorId)
         .setTenantId(tenantId)
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
+    verify(monitorPolicyRepository).findById(policyId);
+
     // no additional actions should occur
+    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService, policyApi);
+  }
+
+  /**
+   * Receive a new monitor policy event and process it for a tenant
+   * that was not previously using the policy but did have a previous policy in place using
+   * the same monitorId.
+   *
+   * cloneMonitor should not be triggered.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_newPolicyForTenant_overridesPrevious() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID oldPolicyId = UUID.randomUUID();
+    UUID policyId = UUID.randomUUID();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the same monitor as the new policy
+    createMonitorForPolicyForTenant(tenantId, oldPolicyId);
+
+    // handle initial lookup to see if policy exists
+    when(monitorPolicyRepository.findById(policyId))
+        .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
+            .setMonitorId(policyMonitorId)
+            .setName(RandomStringUtils.randomAlphabetic(5))
+            .setId(policyId)
+            .setScope(PolicyScope.GLOBAL)));
+
+    // handle lookup of old policy
+    when(monitorPolicyRepository.findById(oldPolicyId))
+        .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
+            .setMonitorId(policyMonitorId)
+            .setName(RandomStringUtils.randomAlphabetic(5))
+            .setId(oldPolicyId)
+            .setScope(PolicyScope.GLOBAL)));
+
+
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of(policyId));
+
+    // no policy monitor exists on tenant
+    assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(policyMonitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor now exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+    // no monitors is tied to the old policy
+    assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, oldPolicyId).isPresent());
+
+    // policy was looked up to see if it exists
+    verify(monitorPolicyRepository).findById(policyId);
+
+    // old policy was found (and used to locate the relevant existing monitor)
+    verify(monitorPolicyRepository).findById(oldPolicyId);
+
+    // no cloning methods were triggered
+    verifyNoInteractions(metadataUtils, boundMonitorRepository, monitorConversionService);
+  }
+
+  /**
+   * Receive a new monitor policy event and process it for a tenant
+   * that was previously using the policy.
+   *
+   * In this case the removed policy was previously overriding another that used the same monitorId.
+   * The removal causes the other policy to become "effective" and the existing cloned monitor
+   * will be updated to reference that policy instead of the removed one.
+   *
+   * cloneMonitor should not be triggered.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicyInUse_replacedByOther() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID newPolicyId = UUID.randomUUID();
+    UUID policyId = UUID.randomUUID();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    // handle initial lookup to see if policy exists
+    when(monitorPolicyRepository.findById(policyId)).thenReturn(Optional.empty());
+
+    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean()))
+        .thenReturn(List.of((MonitorPolicyDTO) new MonitorPolicyDTO()
+            .setMonitorId(policyMonitorId)
+            .setId(newPolicyId)));
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(policyMonitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant for original policyId
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+    // but does exist for the other policyId and the monitorId is the same as before
+    Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, newPolicyId);
+    assertTrue(monitor.isPresent());
+    assertThat(monitor.get().getId(), equalTo(clonedMonitor.getId()));
+
+    // verify correct operations were performed
+    verify(monitorPolicyRepository).findById(policyId);
+    verify(policyApi).getEffectiveMonitorPoliciesForTenant(tenantId, false);
+
+    // no unbind or clone actions should occur
     verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
+    verifyNoMoreInteractions(policyApi);
   }
 
   /**
@@ -770,19 +896,16 @@ public class MonitorManagementPolicyTest {
   public void testHandleMonitorPolicyEvent_removePolicyNotInUse() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
-    UUID monitorId = currentMonitor.getId();
-
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
-        .thenReturn(Collections.emptyList());
+    UUID policyMonitorId = currentMonitor.getId();
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
-        .setMonitorId(monitorId)
+        .setMonitorId(policyMonitorId)
         .setTenantId(tenantId)
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
     // no additional actions should occur
-    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
+    verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService, policyApi);
   }
 
   /**
@@ -793,7 +916,7 @@ public class MonitorManagementPolicyTest {
   public void testHandleMonitorPolicyEvent_removePolicyInUse() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
-    UUID monitorId = currentMonitor.getId();
+    UUID policyMonitorId = currentMonitor.getId();
 
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
@@ -804,7 +927,40 @@ public class MonitorManagementPolicyTest {
         .thenReturn(Collections.emptyList());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
-        .setMonitorId(monitorId)
+        .setMonitorId(policyMonitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+
+    verify(boundMonitorRepository).deleteAll(anyIterable());
+  }
+
+  /**
+   * Receive a remove monitor policy event and process it for a tenant
+   * that was previously using the policy.
+   *
+   * Another GLOBAL policy is in place using the same monitorId, so the monitor/bindings should
+   * not be used.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicy_butKeepMonitor() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
+        .thenReturn(Collections.emptyList());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(policyMonitorId)
         .setTenantId(tenantId)
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
