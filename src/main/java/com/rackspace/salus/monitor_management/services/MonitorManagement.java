@@ -598,7 +598,7 @@ public class MonitorManagement {
         .forEach(monitorEventProducer::sendMonitorEvent);
   }
 
-  protected BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
+  BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
       throws InvalidTemplateException {
     return new BoundMonitor()
         .setMonitor(monitor)
