@@ -851,7 +851,7 @@ public class MonitorManagementPolicyTest {
   @Test
   public void testHandleMonitorPolicyEvent_removePolicyInUse_replacedByOther() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
-    UUID newPolicyId = UUID.randomUUID();
+    UUID preExistingPolicyId = UUID.randomUUID();
     UUID policyId = UUID.randomUUID();
     UUID policyMonitorId = currentMonitor.getId();
 
@@ -864,7 +864,7 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean()))
         .thenReturn(List.of((MonitorPolicyDTO) new MonitorPolicyDTO()
             .setMonitorId(policyMonitorId)
-            .setId(newPolicyId)));
+            .setId(preExistingPolicyId)));
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -875,7 +875,7 @@ public class MonitorManagementPolicyTest {
     // policy monitor no longer exists on tenant for original policyId
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
     // but does exist for the other policyId and the monitorId is the same as before
-    Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, newPolicyId);
+    Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, preExistingPolicyId);
     assertTrue(monitor.isPresent());
     assertThat(monitor.get().getId(), equalTo(clonedMonitor.getId()));
 
