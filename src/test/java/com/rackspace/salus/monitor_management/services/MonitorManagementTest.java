@@ -51,6 +51,7 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
+import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -2933,7 +2934,7 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testBindMonitor_AgentWithNoPriorEnvoy() {
+  public void testBindMonitor_AgentWithNoPriorEnvoy() throws InvalidTemplateException {
     reset(resourceApi, envoyResourceManagement);
 
     final UUID m0 = UUID.fromString("00000000-0000-0000-0000-000000000000");
@@ -2944,12 +2945,11 @@ public class MonitorManagementTest {
         .setContent("static content")
         .setZones(Collections.emptyList())
         .setLabelSelectorMethod(LabelSelectorMethod.AND);
-
-    List<ResourceDTO> resourceList = Collections.singletonList(new ResourceDTO()
+    ResourceDTO resource = new ResourceDTO()
         .setResourceId("r-1")
         .setLabels(Collections.emptyMap())
-        .setAssociatedWithEnvoy(false)
-    );
+        .setAssociatedWithEnvoy(false);
+    List<ResourceDTO> resourceList = Collections.singletonList(resource);
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(resourceList);
@@ -2960,6 +2960,15 @@ public class MonitorManagementTest {
 
     verify(resourceApi).getResourcesWithLabels("t-1", monitor.getLabelSelector(), monitor.getLabelSelectorMethod());
 
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    assertThat(captorOfBoundMonitorList.getValue(), hasSize(1));
+    assertThat(captorOfBoundMonitorList.getValue().get(0), equalTo(new BoundMonitor()
+      .setResourceId("r-1")
+      .setMonitor(monitor)
+      .setRenderedContent("static content")
+      .setEnvoyId(null)
+      .setZoneName("")
+    ));
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi);
   }
 
@@ -3325,6 +3334,18 @@ public class MonitorManagementTest {
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
+
+    verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
+    assertThat(captorOfBoundMonitorList.getValue(), hasSize(1));
+    assertThat(captorOfBoundMonitorList.getValue().get(0), equalTo(new BoundMonitor()
+          .setResourceId("r-1")
+          .setTenantId("t-1")
+          .setMonitor(monitors.get(0))
+          .setRenderedContent("new local domain=prod")
+          .setEnvoyId(null)
+          .setZoneName("")
+    ));
+
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage
