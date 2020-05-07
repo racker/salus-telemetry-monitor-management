@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
+import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;
@@ -26,6 +27,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
+import java.util.List;
 import java.util.UUID;
 import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +60,12 @@ public class MonitorTranslationApiController {
   public MonitorTranslationApiController(
       MonitorContentTranslationService monitorContentTranslationService) {
     this.monitorContentTranslationService = monitorContentTranslationService;
+  }
+
+  @GetMapping("/tenant/{tenantId}/monitor-translations")
+  @ApiOperation("Gets all monitor translation details")
+  public List<MonitorTranslationDetails> getMonitorTranslationDetails() {
+    return monitorContentTranslationService.getMonitorTranslationDetails();
   }
 
   @GetMapping("/admin/monitor-translations")

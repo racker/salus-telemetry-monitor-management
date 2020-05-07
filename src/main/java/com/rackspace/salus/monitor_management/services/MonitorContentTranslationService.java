@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
@@ -110,6 +111,40 @@ public class MonitorContentTranslationService {
   public void delete(UUID operatorId) {
     log.info("Deleting monitorTranslationOperator={}", operatorId);
     monitorTranslationOperatorRepository.deleteById(operatorId);
+  }
+
+  public List<MonitorTranslationDetails> getMonitorTranslationDetails() {
+    List<MonitorTranslationOperator> operators = monitorTranslationOperatorRepository.findAll();
+
+    return operators.stream()
+        // first ensure everything is in order of priority
+        .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
+        .collect(
+            Collectors.collectingAndThen(
+                // create a group of operators for each agent type
+                Collectors.groupingBy(MonitorTranslationOperator::getAgentType,
+                    Collectors.collectingAndThen(
+                        // within that, create a group of operators for each monitor type
+                        Collectors.groupingBy(MonitorTranslationOperator::getMonitorType,
+                            // build a list of all the  translator info strings for that monitor type
+                            Collectors.mapping(op -> op.getTranslatorSpec().info(), Collectors.toList())),
+
+                        // then generate a MonitorTranslationDetails for each monitor type
+                        typeMap -> typeMap.entrySet().stream().map(
+                            typeEntry -> new MonitorTranslationDetails()
+                                .setMonitorType(typeEntry.getKey())
+                                .setTranslations(typeEntry.getValue())))),
+
+                // then assign the agent type to each MonitorTranslationDetails
+                agentMap -> agentMap.entrySet().stream()
+                    .flatMap(agentEntry -> agentEntry.getValue()
+                        .map(detail -> detail.setAgentType(agentEntry.getKey())))))
+
+        // then sort it by agent type and then monitor type
+        .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType).reversed()
+            .thenComparing(MonitorTranslationDetails::getMonitorType).reversed())
+        // then build the final list.
+        .collect(Collectors.toList());
   }
 
   public List<BoundMonitorDTO> translate(List<BoundMonitor> boundMonitors,
