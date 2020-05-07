@@ -141,8 +141,8 @@ public class MonitorContentTranslationService {
                         .map(detail -> detail.setAgentType(agentEntry.getKey())))))
 
         // then sort it by agent type and then monitor type
-        .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType).reversed()
-            .thenComparing(MonitorTranslationDetails::getMonitorType).reversed())
+        .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType, Comparator.comparing(Enum::toString))
+            .thenComparing(v -> v.getMonitorType().toString()))
         // then build the final list.
         .collect(Collectors.toList());
   }
