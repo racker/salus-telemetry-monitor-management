@@ -130,10 +130,10 @@ public class MonitorContentTranslationService {
                             Collectors.mapping(op -> op.getTranslatorSpec().info(), Collectors.toList())),
 
                         // then generate a MonitorTranslationDetails for each monitor type
-                        typeMap -> typeMap.entrySet().stream().map(
-                            typeEntry -> new MonitorTranslationDetails()
-                                .setMonitorType(typeEntry.getKey())
-                                .setTranslations(typeEntry.getValue())))),
+                        monitorMap -> monitorMap.entrySet().stream().map(
+                            monitorEntry -> new MonitorTranslationDetails()
+                                .setMonitorType(monitorEntry.getKey())
+                                .setTranslations(monitorEntry.getValue())))),
 
                 // then assign the agent type to each MonitorTranslationDetails
                 agentMap -> agentMap.entrySet().stream()
