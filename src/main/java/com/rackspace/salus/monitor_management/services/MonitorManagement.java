@@ -1442,6 +1442,7 @@ public class MonitorManagement {
         monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), Monitor::getPolicyId);
 
     // if the new policy overrides an existing one using the same monitorId, find the existing one
+    // by getting all monitors on the tenant that were cloned from the same monitorId as is in the new event.
     List<Monitor> existingPolicyMonitor = existingPolicyIds.stream()
         .map(id -> monitorPolicyRepository.findById(id).orElseGet(() -> {
           log.warn("Monitor is tied to non-existent policy={}", id);
