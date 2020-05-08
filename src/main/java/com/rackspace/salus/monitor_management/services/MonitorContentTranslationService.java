@@ -121,7 +121,7 @@ public class MonitorContentTranslationService {
         // first ensure everything is in order of priority
         .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
         // create a hashmap of (agenttype/monitortype:translations)
-        .collect(Collectors.toMap(op -> new MonitorTranslationOperator().setAgentType(op.getAgentType()).setMonitorType(op.getMonitorType()),
+        .collect(Collectors.toMap(op -> new MonitorTranslationDetails().setAgentType(op.getAgentType()).setMonitorType(op.getMonitorType()),
             op -> List.of(op.getTranslatorSpec().info()),
             ListUtils::union))
         // convert the map into a stream of details
