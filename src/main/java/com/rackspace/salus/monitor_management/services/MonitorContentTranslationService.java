@@ -125,10 +125,7 @@ public class MonitorContentTranslationService {
             op -> List.of(op.getTranslatorSpec().info()),
             ListUtils::union))
         // convert the map into a stream of details
-        .entrySet().stream().map(entry ->
-            new MonitorTranslationDetails().setAgentType(entry.getKey().getAgentType())
-            .setMonitorType(entry.getKey().getMonitorType())
-            .setTranslations(entry.getValue()))
+        .entrySet().stream().map(entry -> entry.getKey().setTranslations(entry.getValue()))
         // then sort it by agent type and then monitor type
         .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType, Comparator.comparing(Enum::toString))
             .thenComparing(v -> v.getMonitorType().toString()))
