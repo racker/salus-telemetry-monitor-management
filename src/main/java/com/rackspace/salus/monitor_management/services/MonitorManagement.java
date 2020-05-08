@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.google.common.collect.Collections2.transform;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
@@ -35,6 +36,8 @@ import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
+import com.rackspace.salus.policy.manage.web.model.PolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -142,6 +145,8 @@ public class MonitorManagement {
   private final Counter monitorMetadataContentUpdateErrors;
   private final Counter invalidTemplateErrors;
   private final Counter orphanedBoundMonitorRemoved;
+  private final Counter orphanedPolicyMonitors;
+  private final Counter policyIntegrityErrors;
 
   @Autowired
   public MonitorManagement(
@@ -187,6 +192,10 @@ public class MonitorManagement {
         "operation", "renderMonitorTemplate");
     orphanedBoundMonitorRemoved = meterRegistry.counter("orphaned",
         "objectType", "boundMonitor");
+    orphanedPolicyMonitors = meterRegistry.counter("policy_integrity",
+        "operation", "handleMonitorPolicyEvent", "reason", "orphanedPolicyMonitor");
+    policyIntegrityErrors = meterRegistry.counter("policy_integrity",
+        "operation", "handleMonitorPolicyEvent", "reason", "tooManyClones");
   }
 
   /**
@@ -1383,17 +1392,122 @@ public class MonitorManagement {
 
     String tenantId = event.getTenantId();
     UUID policyId = event.getPolicyId();
+
+    MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
+    Monitor clonedMonitorForEventPolicy = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId)
+        .orElse(null);
+
+    if (policy == null) {
+      handlePolicyRemovalEvent(event, clonedMonitorForEventPolicy);
+    } else {
+      handlePolicyAdditionEvent(event, clonedMonitorForEventPolicy);
+    }
+  }
+
+  /**
+   * Handle a MonitorPolicyEvent that relates to a newly added policy.
+   *
+   * If the monitor in the policy was already in use then update the existing cloned monitor
+   * to be linked to this new policy.
+   * If the monitor in the policy is new to this tenant then clone it.
+   *
+   * @param event The details of the new policy.
+   * @param clonedMonitor The monitor tied to the event's tenantId and policyId, if one exists.
+   */
+  private void handlePolicyAdditionEvent(MonitorPolicyEvent event, Monitor clonedMonitor) {
+    log.debug("Handling policy addition event={}", event);
+
+    if (clonedMonitor != null) {
+      log.debug("Cloned policy monitor already exists for event={}", event);
+      return;
+    }
+
+    String tenantId = event.getTenantId();
+    UUID policyId = event.getPolicyId();
     UUID monitorId = event.getMonitorId();
 
-    // get effective policies
-    List<UUID> activePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
-    Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId);
-
-    if (activePolicies.contains(event.getPolicyId()) && monitor.isEmpty()) {
-      clonePolicyMonitor(tenantId, policyId, monitorId);
-    } else if (!activePolicies.contains(event.getPolicyId()) && monitor.isPresent()){
-      unbindAndRemoveMonitor(monitor.get());
+    List<UUID> effectivePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
+    if (!effectivePolicies.contains(policyId)) {
+      log.debug("Policy={} is not relevant to tenant={}, no action necessary", policyId, tenantId);
+      return;
     }
+
+    Collection<UUID> existingPolicyIds = transform(
+        monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), Monitor::getPolicyId);
+
+    // if the new policy overrides an existing one using the same monitorId, find the existing one
+    // by getting all monitors on the tenant that were cloned from the same monitorId as is in the new event.
+    List<Monitor> existingPolicyMonitor = existingPolicyIds.stream()
+        .map(id -> monitorPolicyRepository.findById(id).orElseGet(() -> {
+          log.warn("Monitor is tied to non-existent policy={}", id);
+          orphanedPolicyMonitors.increment();
+          return null;
+        }))
+        .filter(Objects::nonNull)
+        .filter(p -> p.getMonitorId().equals(monitorId))
+        .map(p -> monitorRepository.findByTenantIdAndPolicyId(tenantId, p.getId()).orElse(null))
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
+
+    if (existingPolicyMonitor.isEmpty()) {
+      clonePolicyMonitor(tenantId, policyId, monitorId);
+      return;
+    }
+
+    if (existingPolicyMonitor.size() > 1) {
+      log.error("More than one cloned monitor exists for policy={} on tenant={}", event.getPolicyId(), tenantId);
+      policyIntegrityErrors.increment();
+    }
+    Monitor existing = existingPolicyMonitor.get(0);
+    log.debug("Updating cloned policy monitor={} with new policyId={}", existing, policyId);
+    existing.setPolicyId(event.getPolicyId());
+    monitorRepository.save(existing);
+  }
+
+  /**
+   * Handle a MonitorPolicyEvent that relates to a newly removed policy.
+   *
+   * If the monitor in the policy is still in use by another active policy, update the existing
+   * cloned monitor to be linked to that policy instead.
+   * If the monitor in the policy is no longer in use, then remove and unbind it from the tenant.
+   *
+   * @param event The details of the removed policy.
+   * @param clonedMonitor The monitor tied to the event's tenantId and policyId, if one exists.
+   */
+  private void handlePolicyRemovalEvent(MonitorPolicyEvent event, Monitor clonedMonitor) {
+    log.debug("Handling policy removal event={}", event);
+
+    if (clonedMonitor == null) {
+      log.debug("Cloned policy monitor does not exist; no removal operation necessary for event={}", event);
+      return;
+    }
+
+    UUID monitorId = event.getMonitorId();
+    String tenantId = event.getTenantId();
+
+    List<MonitorPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorPoliciesForTenant(tenantId, false);
+
+    // if the old policy had been overriding another one using the same monitorId, find the other one
+    List<UUID> newPolicyIds = effectivePolicies.stream()
+        .filter(p -> p.getMonitorId() == monitorId)
+        .map(PolicyDTO::getId)
+        .collect(Collectors.toList());
+
+    if (newPolicyIds.isEmpty()) {
+      log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
+      unbindAndRemoveMonitor(clonedMonitor);
+      return;
+    }
+
+    if (newPolicyIds.size() > 1) {
+      log.error("More than one effective policy configured to use the same monitorId={} for tenant={}",
+          monitorId, tenantId);
+      policyIntegrityErrors.increment();
+    }
+    UUID newPolicyId = newPolicyIds.get(0);
+    log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor, newPolicyId);
+    clonedMonitor.setPolicyId(newPolicyId);
+    monitorRepository.save(clonedMonitor);
   }
 
   /**
