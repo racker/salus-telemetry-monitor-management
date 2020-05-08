@@ -46,7 +46,7 @@ public class MonitorTranslationOperatorCreate {
   String agentVersions;
 
   /**
-   * Optional field, when set, indicates that the translation should only apply to monitors of this type.
+   * Indicates that the translation should only apply to monitors of this type.
    */
   @NotNull
   MonitorType monitorType;

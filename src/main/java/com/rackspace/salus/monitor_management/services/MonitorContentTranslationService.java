@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
@@ -39,6 +40,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.ListUtils;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
@@ -110,6 +112,25 @@ public class MonitorContentTranslationService {
   public void delete(UUID operatorId) {
     log.info("Deleting monitorTranslationOperator={}", operatorId);
     monitorTranslationOperatorRepository.deleteById(operatorId);
+  }
+
+  public List<MonitorTranslationDetails> getMonitorTranslationDetails() {
+    List<MonitorTranslationOperator> operators = monitorTranslationOperatorRepository.findAll();
+
+    return operators.stream()
+        // first ensure everything is in order of priority
+        .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
+        // create a hashmap of (agenttype/monitortype:translations)
+        .collect(Collectors.toMap(op -> new MonitorTranslationDetails().setAgentType(op.getAgentType()).setMonitorType(op.getMonitorType()),
+            op -> List.of(op.getTranslatorSpec().info()),
+            ListUtils::union))
+        // convert the map into a stream of details
+        .entrySet().stream().map(entry -> entry.getKey().setTranslations(entry.getValue()))
+        // then sort it by agent type and then monitor type
+        .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType, Comparator.comparing(Enum::toString))
+            .thenComparing(v -> v.getMonitorType().toString()))
+        // then build the final list.
+        .collect(Collectors.toList());
   }
 
   public List<BoundMonitorDTO> translate(List<BoundMonitor> boundMonitors,
