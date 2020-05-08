@@ -40,6 +40,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.ListUtils;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
@@ -119,27 +120,12 @@ public class MonitorContentTranslationService {
     return operators.stream()
         // first ensure everything is in order of priority
         .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
-        .collect(
-            Collectors.collectingAndThen(
-                // create a group of operators for each agent type
-                Collectors.groupingBy(MonitorTranslationOperator::getAgentType,
-                    Collectors.collectingAndThen(
-                        // within that, create a group of operators for each monitor type
-                        Collectors.groupingBy(MonitorTranslationOperator::getMonitorType,
-                            // build a list of all the  translator info strings for that monitor type
-                            Collectors.mapping(op -> op.getTranslatorSpec().info(), Collectors.toList())),
-
-                        // then generate a MonitorTranslationDetails for each monitor type
-                        monitorMap -> monitorMap.entrySet().stream().map(
-                            monitorEntry -> new MonitorTranslationDetails()
-                                .setMonitorType(monitorEntry.getKey())
-                                .setTranslations(monitorEntry.getValue())))),
-
-                // then assign the agent type to each MonitorTranslationDetails
-                agentMap -> agentMap.entrySet().stream()
-                    .flatMap(agentEntry -> agentEntry.getValue()
-                        .map(detail -> detail.setAgentType(agentEntry.getKey())))))
-
+        // create a hashmap of (agenttype/monitortype:translations)
+        .collect(Collectors.toMap(op -> new MonitorTranslationDetails().setAgentType(op.getAgentType()).setMonitorType(op.getMonitorType()),
+            op -> List.of(op.getTranslatorSpec().info()),
+            ListUtils::union))
+        // convert the map into a stream of details
+        .entrySet().stream().map(entry -> entry.getKey().setTranslations(entry.getValue()))
         // then sort it by agent type and then monitor type
         .sorted(Comparator.comparing(MonitorTranslationDetails::getAgentType, Comparator.comparing(Enum::toString))
             .thenComparing(v -> v.getMonitorType().toString()))
