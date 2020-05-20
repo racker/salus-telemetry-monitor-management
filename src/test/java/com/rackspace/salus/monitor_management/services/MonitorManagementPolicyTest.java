@@ -590,7 +590,7 @@ public class MonitorManagementPolicyTest {
 
     // create 2 policy monitors and configure the policy api/db to use them when queried
     List<UUID> policyMonitorIds = createMonitorsForTenant(2, POLICY_TENANT);
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(0))));
@@ -624,7 +624,7 @@ public class MonitorManagementPolicyTest {
     // store a monitor for the tenant that is tied to the policy in the event
     createMonitorForPolicyForTenant(tenantId, policyId);
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(monitorId)));
@@ -649,7 +649,7 @@ public class MonitorManagementPolicyTest {
     UUID policyMonitorId = createMonitorsForTenant(1, POLICY_TENANT).get(0);
     createMonitorForPolicyForTenant(tenantId, monitorPolicyIds.get(0));
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(monitorPolicyIds);
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorId)));
@@ -682,7 +682,7 @@ public class MonitorManagementPolicyTest {
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
         .thenReturn(Collections.emptyList());
@@ -715,7 +715,7 @@ public class MonitorManagementPolicyTest {
             .setId(policyId)
             .setScope(PolicyScope.GLOBAL)));
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
 
     // no policy monitor exists on tenant
@@ -811,7 +811,7 @@ public class MonitorManagementPolicyTest {
             .setScope(PolicyScope.GLOBAL)));
 
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
 
     // no policy monitor exists on tenant
@@ -921,7 +921,7 @@ public class MonitorManagementPolicyTest {
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
         .thenReturn(Collections.emptyList());
@@ -954,7 +954,7 @@ public class MonitorManagementPolicyTest {
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
 
-    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
         .thenReturn(Collections.emptyList());
@@ -968,6 +968,39 @@ public class MonitorManagementPolicyTest {
     // policy monitor no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
 
+    verify(boundMonitorRepository).deleteAll(anyIterable());
+  }
+
+  /**
+   * Receive an opt-out monitor policy event (i.e. monitorId is `null`)  and process it for a tenant
+   * that was previously using the policy.
+   *
+   * Basically the same as a refreshPolicyMonitorsForTenant test.
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_optOut() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID originalPolicyId = UUID.randomUUID();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, originalPolicyId);
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, originalPolicyId).isPresent());
+
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
+        .thenReturn(Collections.emptyList());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(null)
+        .setTenantId(tenantId)
+        .setPolicyId(UUID.randomUUID());
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, originalPolicyId).isEmpty());
+
+    verify(policyApi).getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
     verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 

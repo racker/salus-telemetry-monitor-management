@@ -1392,6 +1392,12 @@ public class MonitorManagement {
 
     String tenantId = event.getTenantId();
     UUID policyId = event.getPolicyId();
+    UUID monitorId = event.getMonitorId();
+
+    if (monitorId == null) {
+      handlePolicyOptOutEvent(event);
+      return;
+    }
 
     MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
     Monitor clonedMonitorForEventPolicy = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId)
@@ -1426,7 +1432,7 @@ public class MonitorManagement {
     UUID policyId = event.getPolicyId();
     UUID monitorId = event.getMonitorId();
 
-    List<UUID> effectivePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
+    List<UUID> effectivePolicies = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
     if (!effectivePolicies.contains(policyId)) {
       log.debug("Policy={} is not relevant to tenant={}, no action necessary", policyId, tenantId);
       return;
@@ -1489,7 +1495,7 @@ public class MonitorManagement {
 
     // if the old policy had been overriding another one using the same monitorId, find the other one
     List<UUID> newPolicyIds = effectivePolicies.stream()
-        .filter(p -> p.getMonitorId() == monitorId)
+        .filter(p -> p.getMonitorId().equals(monitorId))
         .map(PolicyDTO::getId)
         .collect(Collectors.toList());
 
@@ -1508,6 +1514,23 @@ public class MonitorManagement {
     log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor, newPolicyId);
     clonedMonitor.setPolicyId(newPolicyId);
     monitorRepository.save(clonedMonitor);
+  }
+
+  /**
+   * Handle a MonitorPolicyEvent that relates to opting out of an existing policy.
+   *
+   * An opt-out means that an existing policy will be nullified.  No new monitor will replace it,
+   * the existing clone will simply be removed.
+   *
+   * @param event The details of the policy override.
+   */
+  private void handlePolicyOptOutEvent(MonitorPolicyEvent event) {
+    log.info("Handling policy opt-out event={}", event);
+
+    // as the event does not contain the original policyId that is being overridden,
+    // the easiest way to opt out is to perform a refresh for that tenant.
+    // it will detect the policy is no longer active and remove it.
+    refreshPolicyMonitorsForTenant(event.getTenantId());
   }
 
   /**
@@ -1613,10 +1636,8 @@ public class MonitorManagement {
   }
 
   void refreshPolicyMonitorsForTenant(String tenantId) {
-    final Set<String> affectedEnvoys = new HashSet<>();
-
     // Get effective monitors
-    List<UUID> policyIds = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false);
+    List<UUID> policyIds = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
     List<UUID> policyIdsInUse = monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId)
         .stream().map(Monitor::getPolicyId).collect(Collectors.toList());
 
