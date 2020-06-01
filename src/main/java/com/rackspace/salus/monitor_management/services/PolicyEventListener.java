@@ -77,6 +77,7 @@ public class PolicyEventListener {
   }
 
   @KafkaHandler
+  @Transactional
   public void consumeTenantChangeEvents(TenantPolicyChangeEvent tenantEvent) {
     monitorManagement.handleTenantChangeEvent(tenantEvent);
   }
