@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.web.controller;
@@ -329,5 +330,11 @@ public class MonitorApiController {
   @ApiOperation("Lists the label selector keys and the values for each that are currently in use on monitors")
   public MultiValueMap<String, String> getMonitorLabelSelectors(@PathVariable String tenantId) {
     return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
+  }
+
+  @GetMapping("/tenant/{tenantId}/search/{searchCriteria}")
+  @ApiOperation("Lists the label selector keys and the values for each that are currently in use on monitors")
+  public PagedContent<Monitor> getMonitorLabelSelectors(@PathVariable String tenantId, @PathVariable String searchCriteria, Pageable pageable) {
+    return PagedContent.fromPage(monitorManagement.monitorSearch(tenantId, searchCriteria, pageable));
   }
 }
