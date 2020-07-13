@@ -332,9 +332,9 @@ public class MonitorApiController {
     return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
   }
 
-  @GetMapping("/tenant/{tenantId}/search/{searchCriteria}")
+  @GetMapping("/tenant/{tenantId}/search")
   @ApiOperation("Finds all monitors that match the searchCriteria either in the monitorName or the ID")
-  public PagedContent<Monitor> getMonitorLabelSelectors(@PathVariable String tenantId, @PathVariable String searchCriteria, Pageable pageable) {
+  public PagedContent<Monitor> getMonitorLabelSelectors(@PathVariable String tenantId, @QueryParam("q") String searchCriteria, Pageable pageable) {
     return PagedContent.fromPage(monitorManagement.monitorSearch(tenantId, searchCriteria, pageable));
   }
 }
