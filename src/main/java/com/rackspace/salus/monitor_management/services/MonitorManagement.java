@@ -2249,7 +2249,7 @@ public class MonitorManagement {
     return info == null ? null : info.getEnvoyId();
   }
 
-  public Page<Monitor> monitorSearch(String tenantId, String searchCriteria, Pageable page) {
+  public Page<Monitor> getMonitorsBySearchString(String tenantId, String searchCriteria, Pageable page) {
     return monitorRepository.search(tenantId, searchCriteria, page);
   }
 }
