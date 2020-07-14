@@ -4273,16 +4273,19 @@ public class MonitorManagementTest {
         .setAgentType(AgentType.FILEBEAT)
         .setInterval(Duration.ofSeconds(60)));
     Pageable page = PageRequest.of(0, 1);
-    Page<Monitor> value = monitorManagement.monitorSearch("t-1", "mon", page);
+    Page<Monitor> value = monitorManagement.getMonitorsBySearchString("t-1", "mon", page);
+    // Since we used a native query we want to test the paging since its its own separate query
+    // TotalElements is the total number of elements returned from the paged request
     assertThat(value.getTotalElements(), equalTo(2L));
     assertThat(value.getTotalPages(), equalTo(2));
+    // NumberOfElements is the number of elements on this page
     assertThat(value.getNumberOfElements(), equalTo(1));
   }
 
   @Test
   public void testSearchOnId() {
     // we will use the setup one
-    monitorRepository.save(new Monitor()
+    Monitor savedMonitor = monitorRepository.save(new Monitor()
         .setTenantId("t-1")
         .setMonitorName("mon1")
         .setMonitorType(MonitorType.cpu)
@@ -4312,12 +4315,11 @@ public class MonitorManagementTest {
         .setAgentType(AgentType.FILEBEAT)
         .setInterval(Duration.ofSeconds(60)));
     Pageable page = PageRequest.of(0, 1);
-    Page<Monitor> returnedMonitors = monitorRepository.findByTenantId("t-1", Pageable.unpaged());
-    assertThat(returnedMonitors.getTotalElements(), greaterThan(1L));
-    UUID searchId = returnedMonitors.get().findFirst().get().getId();
+
+    UUID searchId = savedMonitor.getId();
     String searchIdSubString = searchId.toString().substring(10, 16);
 
-    Page<Monitor> value = monitorManagement.monitorSearch("t-1", searchIdSubString, page);
+    Page<Monitor> value = monitorManagement.getMonitorsBySearchString("t-1", searchIdSubString, page);
     assertThat(value.getTotalElements(), equalTo(1L));
     assertThat(value.getTotalPages(), equalTo(1));
     assertThat(value.getNumberOfElements(), equalTo(1));
