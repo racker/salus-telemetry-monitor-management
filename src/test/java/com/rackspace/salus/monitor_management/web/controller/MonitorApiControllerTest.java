@@ -1015,6 +1015,36 @@ public class MonitorApiControllerTest {
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
   }
 
+  @Test
+  public void testSearchMonitor() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setTenantId(tenantId);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setContent("{\"type\":\"mem\"}");
+    monitor.setLabelSelectorMethod(LabelSelectorMethod.OR);
+
+
+    when(monitorManagement.getMonitorsBySearchString(anyString(), anyString(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(monitor)));
+
+    String url = "/api/tenant/{tenantId}/search";
+    String searchCriteria = "ping";
+    mockMvc.perform(get(url, tenantId)
+        .param("q", searchCriteria)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(monitorManagement).getMonitorsBySearchString(any(), any(), any());
+
+    verifyNoMoreInteractions(monitorManagement);
+  }
+
   private class UpdateMonitorTestSetup {
 
     private String url;
