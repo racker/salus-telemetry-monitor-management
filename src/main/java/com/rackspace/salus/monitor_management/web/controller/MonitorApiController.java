@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.web.controller;
@@ -44,6 +45,7 @@ import javax.json.JsonPatch;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -329,5 +331,16 @@ public class MonitorApiController {
   @ApiOperation("Lists the label selector keys and the values for each that are currently in use on monitors")
   public MultiValueMap<String, String> getMonitorLabelSelectors(@PathVariable String tenantId) {
     return monitorManagement.getTenantMonitorLabelSelectors(tenantId);
+  }
+
+  @GetMapping("/tenant/{tenantId}/search")
+  @ApiOperation("Finds all monitors that match the searchCriteria either in the monitorName or the ID. Dynamic sorting is not supported and will be ignored.")
+  public PagedContent<Monitor> getMonitorsBySearchString(@PathVariable String tenantId,
+      @RequestParam("q") String searchCriteria,
+      Pageable pageable) {
+    // Because the search is happening in a native query sorting is not supported and causes an exception if the Pageable has a sorting parameter
+    // So this is ignoring the sorting provided
+    Pageable page = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+    return PagedContent.fromPage(monitorManagement.getMonitorsBySearchString(tenantId, searchCriteria, page));
   }
 }

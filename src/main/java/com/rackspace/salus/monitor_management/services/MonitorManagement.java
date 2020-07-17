@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -2245,6 +2246,10 @@ public class MonitorManagement {
 
   private String getEnvoyIdForResource(Resource resource) {
     ResourceInfo info = envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join();
-    return info == null ? null : info.getEnvoyId() ;
+    return info == null ? null : info.getEnvoyId();
+  }
+
+  public Page<Monitor> getMonitorsBySearchString(String tenantId, String searchCriteria, Pageable page) {
+    return monitorRepository.search(tenantId, searchCriteria, page);
   }
 }

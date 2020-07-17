@@ -95,6 +95,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -1013,6 +1014,31 @@ public class MonitorApiControllerTest {
         .andExpect(status().isCreated())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testSearchMonitor() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setTenantId(tenantId);
+
+    when(monitorManagement.getMonitorsBySearchString(anyString(), anyString(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(monitor)));
+
+    String url = "/api/tenant/{tenantId}/search";
+    String searchCriteria = "ping";
+    mockMvc.perform(get(url, tenantId)
+        .param("q", searchCriteria)
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    Pageable page = PageRequest.of(0, 20);
+    verify(monitorManagement).getMonitorsBySearchString(tenantId, searchCriteria, page);
+
+    verifyNoMoreInteractions(monitorManagement);
   }
 
   private class UpdateMonitorTestSetup {

@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -4238,4 +4239,90 @@ public class MonitorManagementTest {
     assertThat(results.get("key2"), containsInAnyOrder("value-2-1", "value-2-2"));
     assertThat(results.get("key3"), containsInAnyOrder("value-3-1", "value-3-2"));
   }
+
+  @Test
+  public void testSearchOnTenantName() {
+    // we will use the setup one
+    monitorRepository.save(new Monitor()
+        .setTenantId("t-1")
+        .setMonitorName("mon1")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorRepository.save(new Monitor()
+        .setTenantId("t-1")
+        .setMonitorName("otherMonitor")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorRepository.save(new Monitor()
+        .setTenantId("t-2")
+        .setMonitorName("otherMonitor")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+    Pageable page = PageRequest.of(0, 1);
+    Page<Monitor> value = monitorManagement.getMonitorsBySearchString("t-1", "mon", page);
+    // Since we used a native query we want to test the paging since its its own separate query
+    // TotalElements is the total number of elements returned from the paged request
+    assertThat(value.getTotalElements(), equalTo(2L));
+    assertThat(value.getTotalPages(), equalTo(2));
+    // NumberOfElements is the number of elements on this page
+    assertThat(value.getNumberOfElements(), equalTo(1));
+  }
+
+  @Test
+  public void testSearchOnId() {
+    // we will use the setup one
+    Monitor savedMonitor = monitorRepository.save(new Monitor()
+        .setTenantId("t-1")
+        .setMonitorName("mon1")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorRepository.save(new Monitor()
+        .setTenantId("t-1")
+        .setMonitorName("otherMonitor")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+
+    monitorRepository.save(new Monitor()
+        .setTenantId("t-2")
+        .setMonitorName("otherMonitor")
+        .setMonitorType(MonitorType.cpu)
+        .setLabelSelector(Collections.singletonMap("os", "LINUX"))
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setContent("content1")
+        .setAgentType(AgentType.FILEBEAT)
+        .setInterval(Duration.ofSeconds(60)));
+    Pageable page = PageRequest.of(0, 1);
+
+    UUID searchId = savedMonitor.getId();
+    String searchIdSubString = searchId.toString().substring(10, 16);
+
+    Page<Monitor> value = monitorManagement.getMonitorsBySearchString("t-1", searchIdSubString, page);
+    assertThat(value.getTotalElements(), equalTo(1L));
+    assertThat(value.getTotalPages(), equalTo(1));
+    assertThat(value.getNumberOfElements(), equalTo(1));
+  }
+
 }
