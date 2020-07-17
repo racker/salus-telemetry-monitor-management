@@ -45,6 +45,7 @@ import javax.json.JsonPatch;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -333,8 +334,13 @@ public class MonitorApiController {
   }
 
   @GetMapping("/tenant/{tenantId}/search")
-  @ApiOperation("Finds all monitors that match the searchCriteria either in the monitorName or the ID")
-  public PagedContent<Monitor> getMonitorsBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable pageable) {
-    return PagedContent.fromPage(monitorManagement.getMonitorsBySearchString(tenantId, searchCriteria, pageable));
+  @ApiOperation("Finds all monitors that match the searchCriteria either in the monitorName or the ID. Dynamic sorting is not supported and will be ignored.")
+  public PagedContent<Monitor> getMonitorsBySearchString(@PathVariable String tenantId,
+      @RequestParam("q") String searchCriteria,
+      Pageable pageable) {
+    // Because the search is happening in a native query sorting is not supported and causes an exception if the Pageable has a sorting parameter
+    // So this is ignoring the sorting provided
+    Pageable page = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+    return PagedContent.fromPage(monitorManagement.getMonitorsBySearchString(tenantId, searchCriteria, page));
   }
 }
