@@ -1022,11 +1022,6 @@ public class MonitorApiControllerTest {
 
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setTenantId(tenantId);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    monitor.setLabelSelectorMethod(LabelSelectorMethod.OR);
-
 
     when(monitorManagement.getMonitorsBySearchString(anyString(), anyString(), any()))
         .thenReturn(new PageImpl<>(Collections.singletonList(monitor)));
