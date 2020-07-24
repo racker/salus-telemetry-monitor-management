@@ -1022,12 +1022,16 @@ public class MonitorApiControllerTest {
 
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setTenantId(tenantId);
+    monitor.setContent("{\"type\":\"mem\"}");
+    monitor.setAgentType(AgentType.TELEGRAF);
+    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
+    monitor.setMonitorType(MonitorType.mem);
 
     when(monitorManagement.getMonitorsBySearchString(anyString(), anyString(), any()))
         .thenReturn(new PageImpl<>(Collections.singletonList(monitor)));
 
     String url = "/api/tenant/{tenantId}/search";
-    String searchCriteria = "ping";
+    String searchCriteria = "mem";
     mockMvc.perform(get(url, tenantId)
         .param("q", searchCriteria)
         .contentType(MediaType.APPLICATION_JSON)
