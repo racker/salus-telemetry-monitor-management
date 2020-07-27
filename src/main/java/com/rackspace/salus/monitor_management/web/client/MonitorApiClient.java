@@ -18,10 +18,7 @@ package com.rackspace.salus.monitor_management.web.client;
 
 import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
 
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.*;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
 import java.util.Map;
@@ -139,5 +136,24 @@ public class MonitorApiClient implements MonitorApi {
             new HttpEntity<>(input, reqHeaders),
             DetailedMonitorOutput.class
         ).getBody());
+  }
+
+  @Override
+  public TestMonitorOutput getTestMonitor(String tenantId, TestMonitorInput input) {
+    String uriString = UriComponentsBuilder
+            .fromUriString("/api/tenant/{tenantId}/test-monitor")
+            .buildAndExpand(tenantId)
+            .toUriString();
+
+    HttpHeaders reqHeaders = new HttpHeaders();
+    reqHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+    return mapRestClientExceptions(
+            SERVICE_NAME,
+            () -> restTemplate.postForEntity(
+                    uriString,
+                    new HttpEntity<>(input, reqHeaders),
+                    TestMonitorOutput.class
+            ).getBody());
   }
 }
