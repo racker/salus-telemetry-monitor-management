@@ -16,23 +16,20 @@
 
 package com.rackspace.salus.monitor_management.web.client;
 
-import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
-
 import com.rackspace.salus.monitor_management.web.model.*;
 import com.rackspace.salus.telemetry.model.AgentType;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
 
 /**
  * This client component provides a small subset of Monitor Management REST operations that
@@ -139,7 +136,7 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public TestMonitorOutput getTestMonitor(String tenantId, TestMonitorInput input) {
+  public TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input, MultiValueMap<String, String> headers) {
     String uriString = UriComponentsBuilder
             .fromUriString("/api/tenant/{tenantId}/test-monitor")
             .buildAndExpand(tenantId)
@@ -147,6 +144,9 @@ public class MonitorApiClient implements MonitorApi {
 
     HttpHeaders reqHeaders = new HttpHeaders();
     reqHeaders.setContentType(MediaType.APPLICATION_JSON);
+    if (headers != null) {
+      reqHeaders.addAll(headers);
+    }
 
     return mapRestClientExceptions(
             SERVICE_NAME,
