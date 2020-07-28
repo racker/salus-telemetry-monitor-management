@@ -31,5 +31,5 @@ public interface MonitorApi {
 
   DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers);
 
-  TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input, MultiValueMap<String, String> headers);
+  TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input);
 }

@@ -136,23 +136,17 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input, MultiValueMap<String, String> headers) {
+  public TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input) {
     String uriString = UriComponentsBuilder
             .fromUriString("/api/tenant/{tenantId}/test-monitor")
             .buildAndExpand(tenantId)
             .toUriString();
 
-    HttpHeaders reqHeaders = new HttpHeaders();
-    reqHeaders.setContentType(MediaType.APPLICATION_JSON);
-    if (headers != null) {
-      reqHeaders.addAll(headers);
-    }
-
     return mapRestClientExceptions(
             SERVICE_NAME,
             () -> restTemplate.postForEntity(
                     uriString,
-                    new HttpEntity<>(input, reqHeaders),
+                    new HttpEntity<>(input),
                     TestMonitorOutput.class
             ).getBody());
   }
