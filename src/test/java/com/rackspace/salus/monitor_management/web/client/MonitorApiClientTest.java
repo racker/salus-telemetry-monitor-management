@@ -25,18 +25,28 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +60,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -59,6 +70,7 @@ public class MonitorApiClientTest {
 
   @TestConfiguration
   public static class ExtraTestConfig {
+
     @Bean
     public MonitorApiClient monitorApiClient(RestTemplateBuilder restTemplateBuilder) {
       return new MonitorApiClient(restTemplateBuilder.build());
@@ -98,12 +110,14 @@ public class MonitorApiClientTest {
             .setRenderedContent("{\"instance\":3, \"state\":1}")
     );
 
-    final String expectedReqJson = readContent("MonitorApiClientTest/testQueryBoundMonitors_req.json");
+    final String expectedReqJson = readContent(
+        "MonitorApiClientTest/testQueryBoundMonitors_req.json");
 
     mockServer.expect(requestTo("/api/admin/bound-monitors"))
         .andExpect(method(HttpMethod.POST))
         .andExpect(content().json(expectedReqJson, true))
-        .andRespond(withSuccess(objectMapper.writeValueAsString(givenBoundMonitors), MediaType.APPLICATION_JSON));
+        .andRespond(withSuccess(objectMapper.writeValueAsString(givenBoundMonitors),
+            MediaType.APPLICATION_JSON));
 
     final Map<AgentType, String> installedAgentVersions = Map.of(AgentType.TELEGRAF, "1.12.0");
     final List<BoundMonitorDTO> boundMonitors =
@@ -116,7 +130,8 @@ public class MonitorApiClientTest {
     DetailedMonitorOutput monitor = podamFactory.manufacturePojo(DetailedMonitorOutput.class);
 
     mockServer.expect(requestTo(String.format("/api/admin/policy-monitors/%s", monitor.getId())))
-        .andRespond(withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
+        .andRespond(
+            withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
 
     DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById(monitor.getId());
     assertThat(result, equalTo(monitor));
@@ -129,5 +144,19 @@ public class MonitorApiClientTest {
 
     DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById("id");
     assertThat(result, nullValue());
+  }
+
+  @Test
+  public void testPerformTestMonitor() throws IOException {
+    String expectedReqJson = readContent("MonitorApiClientTest/testPerformTestMonitor_req.json");
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    String url = String.format("/api/tenant/%s/test-monitor", tenantId);
+    TestMonitorOutput monitor = podamFactory.manufacturePojo(TestMonitorOutput.class);
+
+    mockServer.expect(requestTo(url))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(content().json(expectedReqJson, true))
+        .andRespond(
+            withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
   }
 }
