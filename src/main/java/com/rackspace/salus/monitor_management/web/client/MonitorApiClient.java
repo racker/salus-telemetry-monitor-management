@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,28 @@
 
 package com.rackspace.salus.monitor_management.web.client;
 
-import com.rackspace.salus.monitor_management.web.model.*;
+import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
+
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
+import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.telemetry.model.AgentType;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
 
 /**
  * This client component provides a small subset of Monitor Management REST operations that

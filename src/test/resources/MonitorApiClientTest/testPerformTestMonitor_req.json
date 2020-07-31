@@ -1,5 +1,5 @@
 {
-  "resourceId": "{% prompt 'Resource ID', '', 'development:0', '', false, true %}",
+  "resourceId": "development",
   "details": {
     "type": "local",
     "plugin": {

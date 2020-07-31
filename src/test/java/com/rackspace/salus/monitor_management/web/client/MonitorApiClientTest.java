@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,30 +23,23 @@ import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestToUriTemplate;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
-import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
-import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
-import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,7 +53,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -149,14 +142,18 @@ public class MonitorApiClientTest {
   @Test
   public void testPerformTestMonitor() throws IOException {
     String expectedReqJson = readContent("MonitorApiClientTest/testPerformTestMonitor_req.json");
-    String tenantId = RandomStringUtils.randomAlphabetic(8);
-    String url = String.format("/api/tenant/%s/test-monitor", tenantId);
-    TestMonitorOutput monitor = podamFactory.manufacturePojo(TestMonitorOutput.class);
+    TestMonitorInput testMonitorInput = objectMapper.readValue(expectedReqJson, TestMonitorInput.class);
 
-    mockServer.expect(requestTo(url))
+    String tenantId = RandomStringUtils.randomAlphabetic(8);
+    TestMonitorOutput testMonitorOutput = podamFactory.manufacturePojo(TestMonitorOutput.class);
+
+    mockServer.expect(requestToUriTemplate("/api/tenant/{tenantId}/test-monitor",tenantId))
         .andExpect(method(HttpMethod.POST))
-        .andExpect(content().json(expectedReqJson, true))
+        .andExpect(content().json(objectMapper.writeValueAsString(testMonitorInput)))
         .andRespond(
-            withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
+            withSuccess(objectMapper.writeValueAsString(testMonitorOutput), MediaType.APPLICATION_JSON));
+
+    TestMonitorOutput testMonitorOutputActual = monitorApiClient.performTestMonitor(tenantId, testMonitorInput);
+    assertThat(testMonitorOutput, equalTo(testMonitorOutputActual));
   }
 }
