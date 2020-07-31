@@ -141,19 +141,22 @@ public class MonitorApiClientTest {
 
   @Test
   public void testPerformTestMonitor() throws IOException {
-    String expectedReqJson = readContent("MonitorApiClientTest/testPerformTestMonitor_req.json");
-    TestMonitorInput testMonitorInput = objectMapper.readValue(expectedReqJson, TestMonitorInput.class);
+    TestMonitorInput testMonitorInput = objectMapper
+        .readValue(readContent("MonitorApiClientTest/testPerformTestMonitor_req.json"),
+            TestMonitorInput.class);
 
     String tenantId = RandomStringUtils.randomAlphabetic(8);
     TestMonitorOutput testMonitorOutput = podamFactory.manufacturePojo(TestMonitorOutput.class);
 
-    mockServer.expect(requestToUriTemplate("/api/tenant/{tenantId}/test-monitor",tenantId))
+    mockServer.expect(requestToUriTemplate("/api/tenant/{tenantId}/test-monitor", tenantId))
         .andExpect(method(HttpMethod.POST))
         .andExpect(content().json(objectMapper.writeValueAsString(testMonitorInput)))
         .andRespond(
-            withSuccess(objectMapper.writeValueAsString(testMonitorOutput), MediaType.APPLICATION_JSON));
+            withSuccess(objectMapper.writeValueAsString(testMonitorOutput),
+                MediaType.APPLICATION_JSON));
 
-    TestMonitorOutput testMonitorOutputActual = monitorApiClient.performTestMonitor(tenantId, testMonitorInput);
+    TestMonitorOutput testMonitorOutputActual = monitorApiClient
+        .performTestMonitor(tenantId, testMonitorInput);
     assertThat(testMonitorOutput, equalTo(testMonitorOutputActual));
   }
 }
