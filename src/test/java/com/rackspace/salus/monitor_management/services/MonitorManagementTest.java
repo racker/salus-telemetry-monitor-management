@@ -4325,4 +4325,15 @@ public class MonitorManagementTest {
     assertThat(value.getNumberOfElements(), equalTo(1));
   }
 
+  @Test
+  public void deleteAllMonitorsForTenant() {
+    createMonitorsForTenant(20, "t-1");
+
+    monitorManagement.removeAllTenantMonitors("t-1");
+
+    Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+
+    assertThat(result.getNumberOfElements(), equalTo(0));
+  }
+
 }

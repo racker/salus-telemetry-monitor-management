@@ -319,4 +319,8 @@ public class ZoneManagement {
     public boolean publicZoneExists(String zoneName) {
         return exists(ResolvedZone.PUBLIC, zoneName);
     }
+
+    public void removeAllTenantZones(String tenantId) {
+      zoneRepository.deleteAllByTenantId(tenantId);
+    }
 }

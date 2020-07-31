@@ -251,4 +251,10 @@ public class ZoneApiController {
         zoneManagement.getMonitorsForZone(tenantId, zone, pageable)
         .map(MonitorDTO::new));
   }
+
+  @DeleteMapping("/tenant/{tenantId}/zones")
+  @ApiOperation(value = "Delete all zones associated with given tenant")
+  public void deleteTenantZones(@PathVariable String tenantId) {
+        zoneManagement.removeAllTenantZones(tenantId);
+  }
 }

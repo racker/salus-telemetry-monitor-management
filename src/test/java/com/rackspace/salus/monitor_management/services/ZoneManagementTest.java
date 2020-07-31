@@ -56,6 +56,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -374,5 +375,25 @@ public class ZoneManagementTest {
 
         assertThat(zoneManagement.getMonitorCountForPrivateZone(tenant, privateZone), equalTo(privateCount));
         assertThat(zoneManagement.getMonitorCountForPublicZone(publicZone), equalTo(publicCount));
+    }
+
+    @Test
+    public void testRemoveZonesForTenant() {
+      int privateCount = 13;
+      int publicCount = 17;
+      String tenant = RandomStringUtils.randomAlphabetic(10);
+      String privateZone = RandomStringUtils.randomAlphabetic(10);
+      String publicZone = ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphabetic(6);
+
+      createRemoteMonitorsForTenant(privateCount, tenant, privateZone);
+      createRemoteMonitorsForTenant(privateCount + 2, tenant, "anotherPrivateZone");
+      createRemoteMonitorsForTenant(publicCount, tenant, publicZone);
+      Page<Zone> results = zoneManagement
+          .getAvailableZonesForTenant(tenant, Pageable.unpaged());
+      monitorManagement.removeAllTenantMonitors(tenant);
+      zoneManagement.removeAllTenantZones(tenant);
+      results = zoneManagement
+          .getAvailableZonesForTenant(tenant, Pageable.unpaged());
+      assertThat(results.getNumberOfElements(), equalTo(0));
     }
 }
