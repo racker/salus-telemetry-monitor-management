@@ -1,41 +1,9 @@
 {
-  "testMonitorInput":{
-    "resourceId":"{% prompt 'Resource ID', '', 'development:0', '', false, true %}",
-    "details":{
-      "type":"local",
-      "plugin":{
-        "type":"cpu"
-      }
+  "resourceId": "{% prompt 'Resource ID', '', 'development:0', '', false, true %}",
+  "details": {
+    "type": "local",
+    "plugin": {
+      "type": "cpu"
     }
-  },
-  "testTaskRequest":{
-    "task":{
-      "measurement":"mem",
-      "taskParameters":{
-        "criticalStateDuration":2,
-        "warningStateDuration":2,
-        "infoStateDuration":2,
-        "stateExpressions":[
-          {
-            "state":"INFO",
-            "message":"info threshold was hit",
-            "expression":{
-              "type":"comparison",
-              "comparator":"<",
-              "metricName":"free",
-              "comparisonValue":3000
-            }
-          }
-        ]
-      }
-    },
-    "metrics":[
-      {
-        "name":"mem",
-        "ivalues":{
-          "free":2000
-        }
-      }
-    ]
   }
 }
