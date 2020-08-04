@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package com.rackspace.salus.monitor_management.web.controller;
 
@@ -252,7 +253,7 @@ public class ZoneApiController {
         .map(MonitorDTO::new));
   }
 
-  @DeleteMapping("/tenant/{tenantId}/zones")
+  @DeleteMapping("/admin/tenant/{tenantId}")
   @ApiOperation(value = "Delete all zones associated with given tenant")
   public void deleteTenantZones(@PathVariable String tenantId) {
         zoneManagement.removeAllTenantZones(tenantId);

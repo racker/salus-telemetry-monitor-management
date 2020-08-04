@@ -345,9 +345,9 @@ public class MonitorApiController {
       .map(monitor -> monitorConversionService.convertToOutput(monitor)));
   }
 
-  @DeleteMapping("/tenant/{tenantId}/monitors")
-  @ApiOperation("Finds all monitors that match the searchCriteria either in the monitorName or the ID. Dynamic sorting is not supported and will be ignored.")
-  public void getMonitorsBySearchString(@PathVariable String tenantId) {
+  @DeleteMapping("/admin/tenant/{tenantId}")
+  @ApiOperation("Deletes all monitors for a particular tenant")
+  public void deleteAllTenantMonitors(@PathVariable String tenantId) {
     monitorManagement.removeAllTenantMonitors(tenantId);
   }
 }
