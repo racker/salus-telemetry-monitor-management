@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -387,11 +388,8 @@ public class ZoneManagementTest {
       createPublicZones(publicCount);
 
       monitorManagement.removeAllTenantMonitors(tenant);
-      try {
-        zoneManagement.removeAllTenantZones(tenant);
-      } catch(Exception e) {
-        System.out.println(e);
-      }
+      zoneManagement.removeAllTenantZones(tenant);
+
       Page<Zone> results = zoneManagement
           .getAvailableZonesForTenant(tenant, Pageable.unpaged());
       assertThat(results.getNumberOfElements(), equalTo(1+publicCount));
