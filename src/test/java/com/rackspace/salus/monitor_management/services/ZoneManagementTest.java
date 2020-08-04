@@ -379,21 +379,22 @@ public class ZoneManagementTest {
 
     @Test
     public void testRemoveZonesForTenant() {
-      int privateCount = 13;
-      int publicCount = 17;
+      Random random = new Random();
+      int privateCount = random.nextInt(20);
+      int publicCount = random.nextInt(5);
       String tenant = RandomStringUtils.randomAlphabetic(10);
-      String privateZone = RandomStringUtils.randomAlphabetic(10);
-      String publicZone = ResolvedZone.PUBLIC_PREFIX + RandomStringUtils.randomAlphabetic(6);
+      createPrivateZonesForTenant(privateCount, tenant);
+      createPublicZones(publicCount);
 
-      createRemoteMonitorsForTenant(privateCount, tenant, privateZone);
-      createRemoteMonitorsForTenant(privateCount + 2, tenant, "anotherPrivateZone");
-      createRemoteMonitorsForTenant(publicCount, tenant, publicZone);
+      monitorManagement.removeAllTenantMonitors(tenant);
+      try {
+        zoneManagement.removeAllTenantZones(tenant);
+      } catch(Exception e) {
+        System.out.println(e);
+      }
       Page<Zone> results = zoneManagement
           .getAvailableZonesForTenant(tenant, Pageable.unpaged());
-      monitorManagement.removeAllTenantMonitors(tenant);
-      zoneManagement.removeAllTenantZones(tenant);
-      results = zoneManagement
-          .getAvailableZonesForTenant(tenant, Pageable.unpaged());
-      assertThat(results.getNumberOfElements(), equalTo(0));
+      assertThat(results.getNumberOfElements(), equalTo(1+publicCount));
+
     }
 }
