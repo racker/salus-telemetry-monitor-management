@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package com.rackspace.salus.monitor_management.web.client;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
 import java.util.Map;
@@ -32,4 +34,6 @@ public interface MonitorApi {
   DetailedMonitorOutput getPolicyMonitorById(String monitorId);
 
   DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers);
+
+  TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input);
 }
