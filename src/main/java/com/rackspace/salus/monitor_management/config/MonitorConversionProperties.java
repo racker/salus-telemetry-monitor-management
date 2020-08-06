@@ -18,17 +18,21 @@ package com.rackspace.salus.monitor_management.config;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import javax.validation.constraints.NotNull;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("salus.monitor-conversion")
 @Data
+@Validated
 public class MonitorConversionProperties {
 
   /**
    * Monitors are not allowed to be created/updated with an interval less than this value.
    */
+  @NotNull
   @DurationUnit(ChronoUnit.SECONDS)
   Duration minimumAllowedInterval = Duration.ofSeconds(30);
 
@@ -36,6 +40,7 @@ public class MonitorConversionProperties {
    * This is the default value used if a create or update API call provides a local monitor
    * without <code>interval</code> set.
    */
+  @NotNull
   @DurationUnit(ChronoUnit.SECONDS)
   Duration defaultLocalInterval = Duration.ofSeconds(60);
 
@@ -43,6 +48,7 @@ public class MonitorConversionProperties {
    * This is the default value used if a create or update API call provides a remote monitor
    * without <code>interval</code> set.
    */
+  @NotNull
   @DurationUnit(ChronoUnit.SECONDS)
   Duration defaultRemoteInterval = Duration.ofSeconds(60);
 }

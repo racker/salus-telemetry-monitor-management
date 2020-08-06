@@ -134,6 +134,7 @@ public class ZoneManagementTest {
         for (int i = 0; i < count; i++) {
             Monitor create = podamFactory.manufacturePojo(Monitor.class);
             create.setSelectorScope(ConfigSelectorScope.REMOTE);
+            create.setInterval(Duration.ofSeconds(60));
             create.setZones(Collections.singletonList(zone));
             create.setTenantId(tenantId);
             monitorRepository.save(create);

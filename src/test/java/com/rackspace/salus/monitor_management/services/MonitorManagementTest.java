@@ -125,6 +125,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -140,6 +141,11 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentProperties.class,
     MetadataUtils.class,
     DatabaseConfig.class})
+@TestPropertySource(properties = {
+    "salus.services.resourceManagementUrl=http://localhost:8085",
+    "salus.services.policyManagementUrl=http://localhost:8091",
+    "salus.zones.defaultZones=ZoneA"
+})
 public class MonitorManagementTest {
 
   private static final String DEFAULT_ENVOY_ID = "env1";
@@ -276,6 +282,7 @@ public class MonitorManagementTest {
       create.setZones(Collections.emptyList());
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -290,6 +297,7 @@ public class MonitorManagementTest {
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setResourceId(resourceId);
       create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -366,6 +374,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setResourceId(null);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setInterval(Duration.ofSeconds(60));
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
@@ -412,7 +421,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelector(null);
-
+    create.setInterval(Duration.ofSeconds(60));
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String resourceId = RandomStringUtils.randomAlphanumeric(10);
@@ -495,6 +504,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
+    create.setInterval(Duration.ofSeconds(60));
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
@@ -523,6 +533,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
     create.setLabelSelectorMethod(null);
+    create.setInterval(Duration.ofSeconds(60));
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
@@ -567,6 +578,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setContent("value=${does_not_exist}");
     create.setResourceId("");
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
 
@@ -590,7 +602,7 @@ public class MonitorManagementTest {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.REMOTE);
     create.setResourceId("");
-
+    create.setInterval(Duration.ofSeconds(60));
     create.setContent("value=${does_not_exist}");
 
     //noinspection unchecked
@@ -598,6 +610,7 @@ public class MonitorManagementTest {
     create.setZones(zones.stream().map(Zone::getName).distinct().filter(Objects::nonNull).collect(Collectors.toList()));
     create.setLabelSelector(Collections.emptyMap());
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setInterval(Duration.ofSeconds(60));
 
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
@@ -641,6 +654,7 @@ public class MonitorManagementTest {
     create.setZones(zoneIds);
     create.setLabelSelector(Collections.emptyMap());
     create.setSelectorScope(ConfigSelectorScope.REMOTE);
+    create.setInterval(Duration.ofSeconds(60));
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
@@ -1913,6 +1927,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setResourceId(null);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1932,6 +1947,7 @@ public class MonitorManagementTest {
     create.setLabelSelector(labels);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -1952,6 +1968,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setInterval(Duration.ofSeconds(60));
     UUID id = monitorManagement.createMonitor(tenantId, create).getId();
 
     // create a monitor with a resource id
@@ -1960,6 +1977,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelector(Collections.emptyMap());
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setInterval(Duration.ofSeconds(60));
     monitorManagement.createMonitor(tenantId, create).getId();
 
     // create a monitor with some labels
@@ -1968,6 +1986,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelector(Map.of("key", "value"));
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
+    create.setInterval(Duration.ofSeconds(60));
     monitorManagement.createMonitor(tenantId, create).getId();
 
     entityManager.flush();
@@ -1989,6 +2008,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setResourceId(null);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
@@ -2016,6 +2036,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setResourceId(null);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2045,6 +2066,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setZones(Collections.emptyList());
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2069,6 +2091,8 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setInterval(Duration.ofSeconds(60));
+
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2094,6 +2118,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.OR);
     create.setResourceId(null);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2124,6 +2149,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2148,6 +2174,7 @@ public class MonitorManagementTest {
     create.setSelectorScope(ConfigSelectorScope.LOCAL);
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.OR);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2174,6 +2201,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setResourceId(null);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -2206,6 +2234,7 @@ public class MonitorManagementTest {
     create.setZones(Collections.emptyList());
     create.setResourceId(null);
     create.setLabelSelectorMethod(LabelSelectorMethod.OR);
+    create.setInterval(Duration.ofSeconds(60));
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     monitorManagement.createMonitor(tenantId, create);
     entityManager.flush();
@@ -3026,6 +3055,7 @@ public class MonitorManagementTest {
     monitor.setId(null);
     monitor.setTenantId("t-1");
     monitor.setSelectorScope(ConfigSelectorScope.REMOTE);
+    monitor.setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
     entityManager.flush();
 

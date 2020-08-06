@@ -75,6 +75,9 @@ import org.springframework.transaction.annotation.Transactional;
     DatabaseConfig.class,
     MonitorManagement.class,
     ZonesProperties.class
+},
+properties = {
+    "salus.zones.defaultZones=ZoneA"
 })
 @EnableTestContainersDatabase
 @AutoConfigureDataJpa

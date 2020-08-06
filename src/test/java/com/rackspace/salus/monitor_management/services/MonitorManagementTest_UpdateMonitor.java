@@ -74,6 +74,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
@@ -88,6 +89,11 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentProperties.class,
     MetadataUtils.class,
     DatabaseConfig.class})
+@TestPropertySource(properties = {
+    "salus.services.resourceManagementUrl=http://localhost:8085",
+    "salus.services.policyManagementUrl=http://localhost:8091",
+    "salus.zones.defaultZones=ZoneA"
+})
 public class MonitorManagementTest_UpdateMonitor {
 
   @TestConfiguration
