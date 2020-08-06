@@ -32,7 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
@@ -131,7 +131,7 @@ public class MonitorApiClientTest {
   }
 
   @Test
-  public void testGetPolicyMonitor_doesntExist() throws JsonProcessingException {
+  public void testGetPolicyMonitor_doesntExist()  {
     mockServer.expect(requestTo("/api/admin/policy-monitors/id"))
         .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
@@ -146,17 +146,17 @@ public class MonitorApiClientTest {
             TestMonitorInput.class);
 
     String tenantId = RandomStringUtils.randomAlphabetic(8);
-    TestMonitorOutput testMonitorOutput = podamFactory.manufacturePojo(TestMonitorOutput.class);
+    TestMonitorResult testMonitorResult = podamFactory.manufacturePojo(TestMonitorResult.class);
 
     mockServer.expect(requestToUriTemplate("/api/tenant/{tenantId}/test-monitor", tenantId))
         .andExpect(method(HttpMethod.POST))
         .andExpect(content().json(objectMapper.writeValueAsString(testMonitorInput)))
         .andRespond(
-            withSuccess(objectMapper.writeValueAsString(testMonitorOutput),
+            withSuccess(objectMapper.writeValueAsString(testMonitorResult),
                 MediaType.APPLICATION_JSON));
 
-    TestMonitorOutput testMonitorOutputActual = monitorApiClient
+    TestMonitorResult testMonitorResultActual = monitorApiClient
         .performTestMonitor(tenantId, testMonitorInput);
-    assertThat(testMonitorOutput, equalTo(testMonitorOutputActual));
+    assertThat(testMonitorResult, equalTo(testMonitorResultActual));
   }
 }

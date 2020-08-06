@@ -33,7 +33,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -148,7 +148,7 @@ public class TestMonitorServiceTest {
 
     MonitorDetails monitorDetails = new LocalMonitorDetails()
         .setPlugin(new Cpu());
-    final CompletableFuture<TestMonitorOutput> future = testMonitorService
+    final CompletableFuture<TestMonitorResult> future = testMonitorService
         .performTestMonitorOnResource("t-1", "r-1", 3L, monitorDetails);
 
     // VERIFY
@@ -182,10 +182,10 @@ public class TestMonitorServiceTest {
     testMonitorService.handleTestMonitorResultsEvent(resultsEvent);
 
     assertThat(future.isDone()).isTrue();
-    final TestMonitorOutput output = future.get();
+    final TestMonitorResult output = future.get();
     assertThat(output).isNotNull();
     assertThat(output.getErrors()).containsExactly("error-1");
-    assertThat(output.getMetrics()).isEqualTo(expectedMetrics);
+    assertThat(output.getData().getMetrics()).isEqualTo(expectedMetrics);
 
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
@@ -197,7 +197,7 @@ public class TestMonitorServiceTest {
               assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Cpu.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
@@ -246,7 +246,7 @@ public class TestMonitorServiceTest {
               assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Cpu.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
@@ -286,7 +286,7 @@ public class TestMonitorServiceTest {
 
     MonitorDetails monitorDetails = new LocalMonitorDetails()
         .setPlugin(new Cpu());
-    final CompletableFuture<TestMonitorOutput> future = testMonitorService
+    final CompletableFuture<TestMonitorResult> future = testMonitorService
         .performTestMonitorOnResource("t-1", "r-1", 1L, monitorDetails);
 
     // VERIFY
@@ -305,12 +305,12 @@ public class TestMonitorServiceTest {
     // Purposely don't pass a results event to the service and just let timeout happen
 
     // ...but timeout gets re-mapped by the service to an output object with error set
-    final TestMonitorOutput testMonitorOutput = future
+    final TestMonitorResult testMonitorResult = future
         .get(resultsTimeout.toMillis() + 1100, TimeUnit.MILLISECONDS);
 
-    assertThat(testMonitorOutput).isNotNull();
-    assertThat(testMonitorOutput.getMetrics()).isNull();
-    assertThat(testMonitorOutput.getErrors())
+    assertThat(testMonitorResult).isNotNull();
+    assertThat(testMonitorResult.getData().getMetrics()).isNull();
+    assertThat(testMonitorResult.getErrors())
         .containsExactly("Test-monitor did not receive results within the expected duration of 0s");
 
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
@@ -323,7 +323,7 @@ public class TestMonitorServiceTest {
               assertThat(((LocalMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Cpu.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
@@ -358,7 +358,7 @@ public class TestMonitorServiceTest {
   }
 
   private void commonPerformTestMonitorOnResource_remote_normal(List<String> monitoringZones,
-                                                                Long timeout, Long expectedTimeout)
+      Long timeout, Long expectedTimeout)
       throws InvalidTemplateException, InterruptedException, ExecutionException {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
@@ -389,7 +389,7 @@ public class TestMonitorServiceTest {
     MonitorDetails monitorDetails = new RemoteMonitorDetails()
         .setMonitoringZones(monitoringZones)
         .setPlugin(new Ping());
-    final CompletableFuture<TestMonitorOutput> future = testMonitorService
+    final CompletableFuture<TestMonitorResult> future = testMonitorService
         .performTestMonitorOnResource("t-1", "r-1", timeout, monitorDetails);
 
     // VERIFY
@@ -422,10 +422,10 @@ public class TestMonitorServiceTest {
     testMonitorService.handleTestMonitorResultsEvent(resultsEvent);
 
     assertThat(future.isDone()).isTrue();
-    final TestMonitorOutput output = future.get();
+    final TestMonitorResult output = future.get();
     assertThat(output).isNotNull();
     assertThat(output.getErrors()).containsExactly("error-1");
-    assertThat(output.getMetrics()).isEqualTo(expectedMetrics);
+    assertThat(output.getData().getMetrics()).isEqualTo(expectedMetrics);
 
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
@@ -433,11 +433,12 @@ public class TestMonitorServiceTest {
         .convertFromInput(eq("t-1"),
             isNull(),
             ArgumentMatchers.argThat(detailedMonitorInput -> {
-              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(detailedMonitorInput.getDetails())
+                  .isInstanceOf(RemoteMonitorDetails.class);
               assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Ping.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
@@ -475,7 +476,7 @@ public class TestMonitorServiceTest {
   }
 
   private void commonPerformTestMonitorOnResource_remote_failedZones(List<String> monitoringZones,
-                                                                     String expectedMessage) {
+      String expectedMessage) {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
@@ -502,7 +503,7 @@ public class TestMonitorServiceTest {
 
     assertThatThrownBy(() ->
         testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
+            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
     )
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(expectedMessage);
@@ -513,11 +514,12 @@ public class TestMonitorServiceTest {
         .convertFromInput(eq("t-1"),
             isNull(),
             ArgumentMatchers.argThat(detailedMonitorInput -> {
-              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(detailedMonitorInput.getDetails())
+                  .isInstanceOf(RemoteMonitorDetails.class);
               assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Ping.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
@@ -564,7 +566,7 @@ public class TestMonitorServiceTest {
 
     assertThatThrownBy(() ->
         testMonitorService
-        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
+            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
     )
         .isInstanceOf(MissingRequirementException.class)
         .hasMessage("No envoys were available in the given monitoring zone");
@@ -575,11 +577,12 @@ public class TestMonitorServiceTest {
         .convertFromInput(eq("t-1"),
             isNull(),
             ArgumentMatchers.argThat(detailedMonitorInput -> {
-              assertThat(detailedMonitorInput.getDetails()).isInstanceOf(RemoteMonitorDetails.class);
+              assertThat(detailedMonitorInput.getDetails())
+                  .isInstanceOf(RemoteMonitorDetails.class);
               assertThat(((RemoteMonitorDetails) detailedMonitorInput.getDetails()).getPlugin())
                   .isInstanceOf(Ping.class);
               return true;
-        }));
+            }));
 
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 

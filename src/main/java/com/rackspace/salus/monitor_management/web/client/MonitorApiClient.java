@@ -23,7 +23,7 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
 import java.util.Map;
@@ -144,7 +144,7 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input) {
+  public TestMonitorResult performTestMonitor(String tenantId, TestMonitorInput input) {
     String uriString = UriComponentsBuilder
             .fromUriString("/api/tenant/{tenantId}/test-monitor")
             .buildAndExpand(tenantId)
@@ -155,7 +155,7 @@ public class MonitorApiClient implements MonitorApi {
             () -> restTemplate.postForEntity(
                     uriString,
                     new HttpEntity<>(input),
-                    TestMonitorOutput.class
+                    TestMonitorResult.class
             ).getBody());
   }
 }

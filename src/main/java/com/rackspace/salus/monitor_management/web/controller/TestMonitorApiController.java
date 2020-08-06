@@ -18,7 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -66,15 +66,15 @@ public class TestMonitorApiController {
             input.getTimeout(),
             input.getDetails()
         )
-        .thenApply(testMonitorOutput ->
+        .thenApply(testMonitorResult ->
             ResponseEntity
-                .status(deriveStatus(testMonitorOutput))
-                .body(testMonitorOutput));
+                .status(deriveStatus(testMonitorResult))
+                .body(testMonitorResult));
   }
 
-  private HttpStatus deriveStatus(TestMonitorOutput testMonitorOutput) {
-    if (hasErrors(testMonitorOutput)) {
-      if (testMonitorOutput.getMetrics() != null) {
+  private HttpStatus deriveStatus(TestMonitorResult testMonitorResult) {
+    if (hasErrors(testMonitorResult)) {
+      if (testMonitorResult.getData().getMetrics() != null) {
         return HttpStatus.PARTIAL_CONTENT;
       } else {
         return HttpStatus.UNPROCESSABLE_ENTITY;
@@ -84,7 +84,7 @@ public class TestMonitorApiController {
     }
   }
 
-  private boolean hasErrors(TestMonitorOutput testMonitorOutput) {
-    return !CollectionUtils.isEmpty(testMonitorOutput.getErrors());
+  private boolean hasErrors(TestMonitorResult testMonitorResult) {
+    return !CollectionUtils.isEmpty(testMonitorResult.getErrors());
   }
 }

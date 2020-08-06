@@ -24,7 +24,8 @@ import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitor;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
@@ -56,7 +57,8 @@ import org.springframework.util.CollectionUtils;
 @Slf4j
 public class TestMonitorService {
 
-  private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set.of(AgentType.TELEGRAF, AgentType.PACKAGES);
+  private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set
+      .of(AgentType.TELEGRAF, AgentType.PACKAGES);
 
   private final MonitorConversionService monitorConversionService;
   private final ResourceRepository resourceRepository;
@@ -65,17 +67,17 @@ public class TestMonitorService {
   private final MonitorManagement monitorManagement;
   private final TestMonitorEventProducer testMonitorEventProducer;
   private final TestMonitorProperties testMonitorProperties;
-  private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorOutput>> pending =
+  private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorResult>> pending =
       new ConcurrentHashMap<>();
 
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
-                            ResourceRepository resourceRepository,
-                            EnvoyResourceManagement envoyResourceManagement,
-                            MonitorContentRenderer monitorContentRenderer,
-                            MonitorManagement monitorManagement,
-                            TestMonitorProperties testMonitorProperties,
-                            TestMonitorEventProducer testMonitorEventProducer) {
+      ResourceRepository resourceRepository,
+      EnvoyResourceManagement envoyResourceManagement,
+      MonitorContentRenderer monitorContentRenderer,
+      MonitorManagement monitorManagement,
+      TestMonitorProperties testMonitorProperties,
+      TestMonitorEventProducer testMonitorEventProducer) {
     this.monitorConversionService = monitorConversionService;
     this.resourceRepository = resourceRepository;
     this.envoyResourceManagement = envoyResourceManagement;
@@ -85,10 +87,10 @@ public class TestMonitorService {
     this.testMonitorProperties = testMonitorProperties;
   }
 
-  public CompletableFuture<TestMonitorOutput> performTestMonitorOnResource(String tenantId,
-                                                                           String resourceId,
-                                                                           Long timeout,
-                                                                           MonitorDetails details) {
+  public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
+      String resourceId,
+      Long timeout,
+      MonitorDetails details) {
 
     final boolean isRemote = details instanceof RemoteMonitorDetails;
 
@@ -112,7 +114,8 @@ public class TestMonitorService {
         .setResourceId(resourceId);
 
     final Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
-        .orElseThrow(() -> new MissingRequirementException("Unable to locate the resource for the test-monitor"));
+        .orElseThrow(() -> new MissingRequirementException(
+            "Unable to locate the resource for the test-monitor"));
 
     final String envoyId;
     if (isRemote) {
@@ -138,7 +141,7 @@ public class TestMonitorService {
       timeout = testMonitorProperties.getDefaultTimeout().toSeconds();
     }
     event.setTimeout(timeout);
-    final CompletableFuture<TestMonitorOutput> future = new CompletableFuture<TestMonitorOutput>()
+    final CompletableFuture<TestMonitorResult> future = new CompletableFuture<TestMonitorResult>()
         .orTimeout(
             testMonitorProperties.getEndToEndTimeoutExtension()
                 .plus(timeout, ChronoUnit.SECONDS)
@@ -148,14 +151,14 @@ public class TestMonitorService {
 
     pending.put(correlationId, future);
 
-    final CompletableFuture<TestMonitorOutput> interceptedFuture = future
+    final CompletableFuture<TestMonitorResult> interceptedFuture = future
         .handle((testMonitorOutput, throwable) -> {
           removeCompletedRequest(correlationId);
 
           if (throwable instanceof TimeoutException) {
             return buildTimedOutResult();
           } else if (throwable != null) {
-            return new TestMonitorOutput()
+            return new TestMonitorResult()
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
           } else {
@@ -171,18 +174,20 @@ public class TestMonitorService {
   }
 
   private String resolveRemoteEnvoy(String tenantId,
-                                    List<String> monitoringZones) {
+      List<String> monitoringZones) {
     if (CollectionUtils.isEmpty(monitoringZones)) {
       throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
     } else if (monitoringZones.size() > 1) {
-      throw new IllegalArgumentException("test-monitor requires only one monitoring zone to be given");
+      throw new IllegalArgumentException(
+          "test-monitor requires only one monitoring zone to be given");
     }
 
     final String envoyId = monitorManagement
         .findLeastLoadedEnvoyInZone(tenantId, monitoringZones.get(0));
 
     if (envoyId == null) {
-      throw new MissingRequirementException("No envoys were available in the given monitoring zone");
+      throw new MissingRequirementException(
+          "No envoys were available in the given monitoring zone");
     }
 
     return envoyId;
@@ -206,7 +211,7 @@ public class TestMonitorService {
 
   void handleTestMonitorResultsEvent(TestMonitorResultsEvent event) {
     final String correlationId = event.getCorrelationId();
-    final CompletableFuture<TestMonitorOutput> future =
+    final CompletableFuture<TestMonitorResult> future =
         pending.get(correlationId);
 
     if (future == null) {
@@ -217,15 +222,15 @@ public class TestMonitorService {
       return;
     }
 
-    final TestMonitorOutput result = new TestMonitorOutput()
+    final TestMonitorResult result = new TestMonitorResult()
         .setErrors(event.getErrors())
-        .setMetrics(event.getMetrics());
+        .setData(new TestMonitor().setMetrics(event.getMetrics()));
 
     future.complete(result);
     if (log.isDebugEnabled()) {
-      log.debug("Resolved test-monitor request with correlationId={} with result={}", correlationId, result);
-    }
-    else {
+      log.debug("Resolved test-monitor request with correlationId={} with result={}", correlationId,
+          result);
+    } else {
       log.info("Resolved test-monitor request with correlationId={}", correlationId);
     }
   }
@@ -237,15 +242,15 @@ public class TestMonitorService {
 
   private void removeCompletedRequest(String correlationId) {
     log.debug("Removing completed test-monitor with correlationId={} from table", correlationId);
-    final CompletableFuture<TestMonitorOutput> prev = pending.remove(correlationId);
+    final CompletableFuture<TestMonitorResult> prev = pending.remove(correlationId);
     if (prev == null) {
       log.warn(
           "Test-monitor with correlationId={} was unexpected absent during removal", correlationId);
     }
   }
 
-  private TestMonitorOutput buildTimedOutResult() {
-    return new TestMonitorOutput()
+  private TestMonitorResult buildTimedOutResult() {
+    return new TestMonitorResult()
         .setErrors(
             List.of(String.format(
                 "Test-monitor did not receive results within the expected duration of %ds",

@@ -20,7 +20,7 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.telemetry.model.AgentType;
 import java.util.List;
 import java.util.Map;
@@ -35,5 +35,5 @@ public interface MonitorApi {
 
   DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers);
 
-  TestMonitorOutput performTestMonitor(String tenantId, TestMonitorInput input);
+  TestMonitorResult performTestMonitor(String tenantId, TestMonitorInput input);
 }
