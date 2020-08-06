@@ -345,7 +345,7 @@ public class MonitorApiController {
       .map(monitor -> monitorConversionService.convertToOutput(monitor)));
   }
 
-  @DeleteMapping("/admin/tenant/{tenantId}")
+  @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
   public void deleteAllTenantMonitors(@PathVariable String tenantId) {
     monitorManagement.removeAllTenantMonitors(tenantId);

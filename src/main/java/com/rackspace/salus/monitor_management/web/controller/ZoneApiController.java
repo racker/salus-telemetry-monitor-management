@@ -253,7 +253,7 @@ public class ZoneApiController {
         .map(MonitorDTO::new));
   }
 
-  @DeleteMapping("/admin/tenant/{tenantId}")
+  @DeleteMapping("/admin/tenant/{tenantId}/zones")
   @ApiOperation(value = "Delete all zones associated with given tenant")
   public void deleteTenantZones(@PathVariable String tenantId) {
         zoneManagement.removeAllTenantZones(tenantId);
