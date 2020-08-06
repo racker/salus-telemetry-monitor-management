@@ -91,8 +91,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     DatabaseConfig.class})
 @TestPropertySource(properties = {
     "salus.services.resourceManagementUrl=http://localhost:8085",
-    "salus.services.policyManagementUrl=http://localhost:8091",
-    "salus.zones.defaultZones=ZoneA"
+    "salus.services.policyManagementUrl=http://localhost:8091"
 })
 public class MonitorManagementTest_UpdateMonitor {
 
