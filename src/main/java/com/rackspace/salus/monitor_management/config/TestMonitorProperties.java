@@ -23,10 +23,12 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("salus.test-monitor")
 @Component
 @Data
+@Validated
 public class TestMonitorProperties {
 
   /**

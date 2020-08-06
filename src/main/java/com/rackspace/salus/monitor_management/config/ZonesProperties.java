@@ -16,18 +16,16 @@
 
 package com.rackspace.salus.monitor_management.config;
 
-import java.util.Collections;
-import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("salus.zones")
 @Component
 @Data
+@Validated
 public class ZonesProperties {
-
-  List<String> defaultZones = Collections.emptyList();
 
   /**
    * When rebalancing calculates the average and standard deviation of assignment counts, this

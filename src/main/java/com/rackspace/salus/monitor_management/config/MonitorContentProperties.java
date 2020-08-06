@@ -16,18 +16,22 @@
 
 package com.rackspace.salus.monitor_management.config;
 
+import javax.validation.constraints.NotBlank;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("salus.monitor-content")
 @Component
 @Data
+@Validated
 public class MonitorContentProperties {
 
   /**
    * Allows configuration of the delimiters used by jmustache for monitor content template
    * rendering. The default avoids conflicting with "{{ }}" used by Insomnia for its templating.
    */
+  @NotBlank
   String placeholderDelimiters = "${ }";
 }

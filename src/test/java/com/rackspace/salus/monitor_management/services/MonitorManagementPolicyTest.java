@@ -104,6 +104,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
@@ -117,6 +118,10 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorConversionService.class,
     MetadataUtils.class,
     DatabaseConfig.class})
+@TestPropertySource(properties = {
+    "salus.services.resourceManagementUrl=http://localhost:8085",
+    "salus.services.policyManagementUrl=http://localhost:8091"
+})
 public class MonitorManagementPolicyTest {
 
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
@@ -342,6 +347,7 @@ public class MonitorManagementPolicyTest {
     create.setMonitorType(MonitorType.cpu);
     create.setLabelSelectorMethod(LabelSelectorMethod.AND);
     create.setZones(null);
+    create.setInterval(Duration.ofSeconds(60));
     create.setResourceId(null);
 
     Monitor returned = monitorManagement.createPolicyMonitor(create);
@@ -1023,6 +1029,7 @@ public class MonitorManagementPolicyTest {
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setZones(Collections.emptyList());
       create.setMonitorType(MonitorType.cpu);
+      create.setInterval(Duration.ofSeconds(60));
       monitorManagement.createMonitor(tenantId, create);
     }
   }
@@ -1031,6 +1038,7 @@ public class MonitorManagementPolicyTest {
     List<UUID> ids = new ArrayList<>();
     for (int i = 0; i < count; i++) {
       MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
+      create.setInterval(Duration.ofSeconds(60));
       create.setSelectorScope(ConfigSelectorScope.LOCAL);
       create.setLabelSelectorMethod(LabelSelectorMethod.AND);
       create.setZones(Collections.emptyList());
@@ -1044,6 +1052,7 @@ public class MonitorManagementPolicyTest {
   private Monitor createMonitorForPolicyForTenant(String tenantId, UUID policyId) {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setPolicyId(policyId).setTenantId(tenantId);
+    monitor.setInterval(Duration.ofSeconds(60));
     return monitorRepository.save(monitor);
   }
 }
