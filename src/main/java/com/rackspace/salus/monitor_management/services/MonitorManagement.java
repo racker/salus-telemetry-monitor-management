@@ -22,7 +22,6 @@ import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
-import static org.springframework.util.CollectionUtils.isEmpty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
@@ -2253,7 +2252,11 @@ public class MonitorManagement {
     return monitorRepository.search(tenantId, searchCriteria, page);
   }
 
-  public void removeAllTenantMonitors(String tenantId) {
-    monitorRepository.deleteAllByTenantId(tenantId);
+  public void removeAllTenantMonitors(String tenantId, boolean sendEvents) {
+    if(sendEvents) {
+      getMonitors(tenantId, Pageable.unpaged()).forEach(monitor -> removeMonitor(tenantId, monitor.getId()));
+    }else {
+      monitorRepository.deleteAllByTenantId(tenantId);
+    }
   }
 }

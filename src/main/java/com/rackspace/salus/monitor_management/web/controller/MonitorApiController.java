@@ -347,7 +347,7 @@ public class MonitorApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
-  public void deleteAllTenantMonitors(@PathVariable String tenantId) {
-    monitorManagement.removeAllTenantMonitors(tenantId);
+  public void deleteAllTenantMonitors(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents);
   }
 }

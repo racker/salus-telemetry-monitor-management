@@ -4329,7 +4329,7 @@ public class MonitorManagementTest {
   public void deleteAllMonitorsForTenant() {
     createMonitorsForTenant(20, "t-1");
 
-    monitorManagement.removeAllTenantMonitors("t-1");
+    monitorManagement.removeAllTenantMonitors("t-1", false);
 
     Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 

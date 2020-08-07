@@ -51,6 +51,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerMapping;
@@ -255,7 +256,7 @@ public class ZoneApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/zones")
   @ApiOperation(value = "Delete all zones associated with given tenant")
-  public void deleteTenantZones(@PathVariable String tenantId) {
-        zoneManagement.removeAllTenantZones(tenantId);
+  public void deleteTenantZones(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+        zoneManagement.removeAllTenantZones(tenantId, sendEvents);
   }
 }

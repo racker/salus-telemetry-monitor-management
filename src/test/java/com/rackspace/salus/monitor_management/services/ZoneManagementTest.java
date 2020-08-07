@@ -18,7 +18,6 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -387,8 +386,8 @@ public class ZoneManagementTest {
       createPrivateZonesForTenant(privateCount, tenant);
       createPublicZones(publicCount);
 
-      monitorManagement.removeAllTenantMonitors(tenant);
-      zoneManagement.removeAllTenantZones(tenant);
+      monitorManagement.removeAllTenantMonitors(tenant, false);
+      zoneManagement.removeAllTenantZones(tenant, false);
 
       Page<Zone> results = zoneManagement
           .getAvailableZonesForTenant(tenant, Pageable.unpaged());
