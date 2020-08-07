@@ -1,0 +1,9 @@
+{
+  "resourceId": "development",
+  "details": {
+    "type": "local",
+    "plugin": {
+      "type": "cpu"
+    }
+  }
+}
