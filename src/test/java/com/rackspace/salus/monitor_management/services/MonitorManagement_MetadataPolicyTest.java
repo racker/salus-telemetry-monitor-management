@@ -117,8 +117,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(properties = {
-    "salus.services.resourceManagementUrl=http://localhost:8085",
-    "salus.services.policyManagementUrl=http://localhost:8091"
+    "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",
+    "salus.services.policyManagementUrl=http://this-is-a-non-null-value"
 })
 @EnableTestContainersDatabase
 @AutoConfigureDataJpa
