@@ -47,12 +47,6 @@ public class RestExceptionHandler extends
     return respondWith(request, HttpStatus.NOT_FOUND);
   }
 
-  @ExceptionHandler({AlreadyExistsException.class, MissingRequirementException.class})
-  public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
-    logRequestFailure(request, e);
-    return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
-  }
-
   @ExceptionHandler({JDBCException.class})
   public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
     logRequestFailure(request, e);

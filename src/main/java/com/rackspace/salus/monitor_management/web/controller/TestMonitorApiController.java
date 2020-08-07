@@ -52,9 +52,7 @@ public class TestMonitorApiController {
   @PostMapping("/tenant/{tenantId}/test-monitor")
   @ApiOperation("Initiates a test-monitor operation and blocks until the results are available")
   @ApiResponses({
-      @ApiResponse(code = 200, message = "Results contain metrics of the tested monitor and no errors occurred"),
-      @ApiResponse(code = 206, message = "Results contain metrics of the tested monitor, but some errors also occurred"),
-      @ApiResponse(code = 422, message = "Metrics could not be gathered due to missing conditions or a timeout")
+      @ApiResponse(code = 200, message = "Results contain metrics of the tested monitor and errors if any"),
   })
   public CompletableFuture<ResponseEntity<?>> performTestMonitor(
       @PathVariable String tenantId,
@@ -68,23 +66,7 @@ public class TestMonitorApiController {
         )
         .thenApply(testMonitorResult ->
             ResponseEntity
-                .status(deriveStatus(testMonitorResult))
+                .status(HttpStatus.OK)
                 .body(testMonitorResult));
-  }
-
-  private HttpStatus deriveStatus(TestMonitorResult testMonitorResult) {
-    if (hasErrors(testMonitorResult)) {
-      if (testMonitorResult.getData().getMetrics() != null) {
-        return HttpStatus.PARTIAL_CONTENT;
-      } else {
-        return HttpStatus.UNPROCESSABLE_ENTITY;
-      }
-    } else {
-      return HttpStatus.OK;
-    }
-  }
-
-  private boolean hasErrors(TestMonitorResult testMonitorResult) {
-    return !CollectionUtils.isEmpty(testMonitorResult.getErrors());
   }
 }

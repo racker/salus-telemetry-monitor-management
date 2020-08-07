@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitor;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitorResultData;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.util.List;
@@ -63,7 +63,7 @@ public class TestMonitorApiControllerTest {
         .thenReturn(completedFuture(
             new TestMonitorResult()
                 .setErrors(List.of())
-                .setData(new TestMonitor().setMetrics(
+                .setData(new TestMonitorResultData().setMetrics(
                     List.of(
                         new SimpleNameTagValueMetric()
                             .setName("cpu")
@@ -99,7 +99,7 @@ public class TestMonitorApiControllerTest {
             new TestMonitorResult()
                 // include an error
                 .setErrors(List.of("error-1"))
-                .setData(new TestMonitor().setMetrics(
+                .setData(new TestMonitorResultData().setMetrics(
                     List.of(
                         new SimpleNameTagValueMetric()
                             .setName("cpu")

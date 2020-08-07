@@ -25,7 +25,7 @@ import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.MonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitor;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitorResultData;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
@@ -37,6 +37,7 @@ import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -113,19 +114,28 @@ public class TestMonitorService {
         .setTenantId(tenantId)
         .setResourceId(resourceId);
 
-    final Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
-        .orElseThrow(() -> new MissingRequirementException(
-            "Unable to locate the resource for the test-monitor"));
+    final Optional<Resource> optionalResource = resourceRepository
+        .findByTenantIdAndResourceId(tenantId, resourceId);
+    if (optionalResource.isEmpty()) {
+      return CompletableFuture.completedFuture(new TestMonitorResult()
+          .setErrors(List.of("Unable to locate the resource for the test-monitor")));
+    }
+
+    Resource resource = optionalResource.get();
 
     final String envoyId;
-    if (isRemote) {
-      final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
-      List<String> monitoringZones = monitorManagement.determineMonitoringZones(
-          remoteMonitorDetails.getMonitoringZones(),
-          resource.getMetadata().get(REGION_METADATA));
-      envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
-    } else {
-      envoyId = resolveLocalEnvoy(tenantId, resourceId);
+    try {
+      if (isRemote) {
+        final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
+        List<String> monitoringZones = monitorManagement.determineMonitoringZones(
+            remoteMonitorDetails.getMonitoringZones(),
+            resource.getMetadata().get(REGION_METADATA));
+        envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
+      } else {
+        envoyId = resolveLocalEnvoy(tenantId, resourceId);
+      }
+    } catch (MissingRequirementException e) {
+      return CompletableFuture.completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
     }
     event.setEnvoyId(envoyId);
 
@@ -224,7 +234,7 @@ public class TestMonitorService {
 
     final TestMonitorResult result = new TestMonitorResult()
         .setErrors(event.getErrors())
-        .setData(new TestMonitor().setMetrics(event.getMetrics()));
+        .setData(new TestMonitorResultData().setMetrics(event.getMetrics()));
 
     future.complete(result);
     if (log.isDebugEnabled()) {

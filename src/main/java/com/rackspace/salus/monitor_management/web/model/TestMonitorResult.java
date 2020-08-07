@@ -24,10 +24,10 @@ import lombok.Data;
 public class TestMonitorResult {
 
   List<String> errors;
-  TestMonitor data;
+  TestMonitorResultData data;
 
   @Data
-  public static class TestMonitor {
+  public static class TestMonitorResultData {
 
     List<SimpleNameTagValueMetric> metrics;
   }
