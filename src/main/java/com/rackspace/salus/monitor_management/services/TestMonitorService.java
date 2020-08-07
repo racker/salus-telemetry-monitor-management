@@ -58,214 +58,214 @@ import org.springframework.util.CollectionUtils;
 @Slf4j
 public class TestMonitorService {
 
-    private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set
-            .of(AgentType.TELEGRAF, AgentType.PACKAGES);
+  private static final Set<AgentType> SUPPORTED_AGENT_TYPES = Set
+      .of(AgentType.TELEGRAF, AgentType.PACKAGES);
 
-    private final MonitorConversionService monitorConversionService;
-    private final ResourceRepository resourceRepository;
-    private final EnvoyResourceManagement envoyResourceManagement;
-    private final MonitorContentRenderer monitorContentRenderer;
-    private final MonitorManagement monitorManagement;
-    private final TestMonitorEventProducer testMonitorEventProducer;
-    private final TestMonitorProperties testMonitorProperties;
-    private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorResult>> pending =
-            new ConcurrentHashMap<>();
+  private final MonitorConversionService monitorConversionService;
+  private final ResourceRepository resourceRepository;
+  private final EnvoyResourceManagement envoyResourceManagement;
+  private final MonitorContentRenderer monitorContentRenderer;
+  private final MonitorManagement monitorManagement;
+  private final TestMonitorEventProducer testMonitorEventProducer;
+  private final TestMonitorProperties testMonitorProperties;
+  private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorResult>> pending =
+      new ConcurrentHashMap<>();
 
-    @Autowired
-    public TestMonitorService(MonitorConversionService monitorConversionService,
-                              ResourceRepository resourceRepository,
-                              EnvoyResourceManagement envoyResourceManagement,
-                              MonitorContentRenderer monitorContentRenderer,
-                              MonitorManagement monitorManagement,
-                              TestMonitorProperties testMonitorProperties,
-                              TestMonitorEventProducer testMonitorEventProducer) {
-        this.monitorConversionService = monitorConversionService;
-        this.resourceRepository = resourceRepository;
-        this.envoyResourceManagement = envoyResourceManagement;
-        this.monitorContentRenderer = monitorContentRenderer;
-        this.monitorManagement = monitorManagement;
-        this.testMonitorEventProducer = testMonitorEventProducer;
-        this.testMonitorProperties = testMonitorProperties;
-    }
+  @Autowired
+  public TestMonitorService(MonitorConversionService monitorConversionService,
+      ResourceRepository resourceRepository,
+      EnvoyResourceManagement envoyResourceManagement,
+      MonitorContentRenderer monitorContentRenderer,
+      MonitorManagement monitorManagement,
+      TestMonitorProperties testMonitorProperties,
+      TestMonitorEventProducer testMonitorEventProducer) {
+    this.monitorConversionService = monitorConversionService;
+    this.resourceRepository = resourceRepository;
+    this.envoyResourceManagement = envoyResourceManagement;
+    this.monitorContentRenderer = monitorContentRenderer;
+    this.monitorManagement = monitorManagement;
+    this.testMonitorEventProducer = testMonitorEventProducer;
+    this.testMonitorProperties = testMonitorProperties;
+  }
 
-    public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
-                                                                             String resourceId,
-                                                                             Long timeout,
-                                                                             MonitorDetails details) {
+  public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
+      String resourceId,
+      Long timeout,
+      MonitorDetails details) {
 
-        final boolean isRemote = details instanceof RemoteMonitorDetails;
+    final boolean isRemote = details instanceof RemoteMonitorDetails;
 
-        final MonitorCU monitorCU = monitorConversionService.convertFromInput(
-                tenantId,
-                null,
-                new DetailedMonitorInput()
-                        .setDetails(details)
+    final MonitorCU monitorCU = monitorConversionService.convertFromInput(
+        tenantId,
+        null,
+        new DetailedMonitorInput()
+            .setDetails(details)
+    );
+    final String envoyId;
+    final String correlationId;
+    final TestMonitorRequestEvent event;
+    try {
+      if (!SUPPORTED_AGENT_TYPES.contains(monitorCU.getAgentType())) {
+        throw new IllegalArgumentException("The given monitor type does not support test-monitors");
+      }
+
+      correlationId = UUID.randomUUID().toString();
+
+      event = new TestMonitorRequestEvent()
+          .setCorrelationId(correlationId)
+          .setAgentType(monitorCU.getAgentType())
+          .setTenantId(tenantId)
+          .setResourceId(resourceId);
+      final Optional<Resource> optionalResource = resourceRepository
+          .findByTenantIdAndResourceId(tenantId, resourceId);
+      if (optionalResource.isEmpty()) {
+        return CompletableFuture.completedFuture(new TestMonitorResult()
+            .setErrors(List.of("Unable to locate the resource for the test-monitor")));
+      }
+
+      Resource resource = optionalResource.get();
+      if (isRemote) {
+        final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
+        List<String> monitoringZones = monitorManagement.determineMonitoringZones(
+            remoteMonitorDetails.getMonitoringZones(),
+            resource.getMetadata().get(REGION_METADATA));
+        envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
+      } else {
+        envoyId = resolveLocalEnvoy(tenantId, resourceId);
+      }
+
+      try {
+        event.setRenderedContent(
+            monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource, null))
         );
-        final String envoyId;
-        final String correlationId;
-        final TestMonitorRequestEvent event;
-        try {
-            if (!SUPPORTED_AGENT_TYPES.contains(monitorCU.getAgentType())) {
-                throw new IllegalArgumentException("The given monitor type does not support test-monitors");
-            }
+      } catch (InvalidTemplateException e) {
+        throw new IllegalArgumentException("Failed to render monitor configuration content", e);
+      }
+    } catch (MissingRequirementException | IllegalArgumentException e) {
+      return CompletableFuture
+          .completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
+    }
+    event.setEnvoyId(envoyId);
 
-            correlationId = UUID.randomUUID().toString();
+    if (timeout == null) {
+      timeout = testMonitorProperties.getDefaultTimeout().toSeconds();
+    }
+    event.setTimeout(timeout);
+    final CompletableFuture<TestMonitorResult> future = new CompletableFuture<TestMonitorResult>()
+        .orTimeout(
+            testMonitorProperties.getEndToEndTimeoutExtension()
+                .plus(timeout, ChronoUnit.SECONDS)
+                .toMillis(),
+            TimeUnit.MILLISECONDS
+        );
 
-            event = new TestMonitorRequestEvent()
-                    .setCorrelationId(correlationId)
-                    .setAgentType(monitorCU.getAgentType())
-                    .setTenantId(tenantId)
-                    .setResourceId(resourceId);
-            final Optional<Resource> optionalResource = resourceRepository
-                    .findByTenantIdAndResourceId(tenantId, resourceId);
-            if (optionalResource.isEmpty()) {
-                return CompletableFuture.completedFuture(new TestMonitorResult()
-                        .setErrors(List.of("Unable to locate the resource for the test-monitor")));
-            }
+    pending.put(correlationId, future);
 
-            Resource resource = optionalResource.get();
-            if (isRemote) {
-                final RemoteMonitorDetails remoteMonitorDetails = (RemoteMonitorDetails) details;
-                List<String> monitoringZones = monitorManagement.determineMonitoringZones(
-                        remoteMonitorDetails.getMonitoringZones(),
-                        resource.getMetadata().get(REGION_METADATA));
-                envoyId = resolveRemoteEnvoy(tenantId, monitoringZones);
-            } else {
-                envoyId = resolveLocalEnvoy(tenantId, resourceId);
-            }
+    final CompletableFuture<TestMonitorResult> interceptedFuture = future
+        .handle((testMonitorOutput, throwable) -> {
+          removeCompletedRequest(correlationId);
 
-            try {
-                event.setRenderedContent(
-                        monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource, null))
-                );
-            } catch (InvalidTemplateException e) {
-                throw new IllegalArgumentException("Failed to render monitor configuration content", e);
-            }
-        } catch (MissingRequirementException | IllegalArgumentException e) {
-            return CompletableFuture.completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
-        }
-        event.setEnvoyId(envoyId);
+          if (throwable instanceof TimeoutException) {
+            return buildTimedOutResult();
+          } else if (throwable != null) {
+            return new TestMonitorResult()
+                .setErrors(List.of(String
+                    .format("An unexpected internal error occurred: %s", throwable.getMessage())));
+          } else {
+            return testMonitorOutput;
+          }
+        });
 
+    log.info("Sending test-monitor request for tenant={} with correlationId={}",
+        tenantId, correlationId);
+    testMonitorEventProducer.send(event);
 
-        if (timeout == null) {
-            timeout = testMonitorProperties.getDefaultTimeout().toSeconds();
-        }
-        event.setTimeout(timeout);
-        final CompletableFuture<TestMonitorResult> future = new CompletableFuture<TestMonitorResult>()
-                .orTimeout(
-                        testMonitorProperties.getEndToEndTimeoutExtension()
-                                .plus(timeout, ChronoUnit.SECONDS)
-                                .toMillis(),
-                        TimeUnit.MILLISECONDS
-                );
+    return interceptedFuture;
+  }
 
-        pending.put(correlationId, future);
-
-        final CompletableFuture<TestMonitorResult> interceptedFuture = future
-                .handle((testMonitorOutput, throwable) -> {
-                    removeCompletedRequest(correlationId);
-
-                    if (throwable instanceof TimeoutException) {
-                        return buildTimedOutResult();
-                    } else if (throwable != null) {
-                        return new TestMonitorResult()
-                                .setErrors(List.of(String
-                                        .format("An unexpected internal error occurred: %s", throwable.getMessage())));
-                    } else {
-                        return testMonitorOutput;
-                    }
-                });
-
-        log.info("Sending test-monitor request for tenant={} with correlationId={}",
-                tenantId, correlationId);
-        testMonitorEventProducer.send(event);
-
-        return interceptedFuture;
+  private String resolveRemoteEnvoy(String tenantId,
+      List<String> monitoringZones) {
+    if (CollectionUtils.isEmpty(monitoringZones)) {
+      throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
+    } else if (monitoringZones.size() > 1) {
+      throw new IllegalArgumentException(
+          "test-monitor requires only one monitoring zone to be given");
     }
 
-    private String resolveRemoteEnvoy(String tenantId,
-                                      List<String> monitoringZones) {
-        if (CollectionUtils.isEmpty(monitoringZones)) {
-            throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
-        } else if (monitoringZones.size() > 1) {
-            throw new IllegalArgumentException(
-                    "test-monitor requires only one monitoring zone to be given");
-        }
+    final String envoyId = monitorManagement
+        .findLeastLoadedEnvoyInZone(tenantId, monitoringZones.get(0));
 
-        final String envoyId = monitorManagement
-                .findLeastLoadedEnvoyInZone(tenantId, monitoringZones.get(0));
-
-        if (envoyId == null) {
-            throw new MissingRequirementException(
-                    "No envoys were available in the given monitoring zone");
-        }
-
-        return envoyId;
+    if (envoyId == null) {
+      throw new MissingRequirementException(
+          "No envoys were available in the given monitoring zone");
     }
 
-    private String resolveLocalEnvoy(String tenantId, String resourceId) {
-        final ResourceInfo resourceInfo;
-        try {
-            resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
-                    .get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IllegalStateException("Failed to locate Envoy for resource", e);
-        }
+    return envoyId;
+  }
 
-        if (resourceInfo == null) {
-            throw new MissingRequirementException(
-                    "An Envoy is not currently attached for the requested resource");
-        }
-        return resourceInfo.getEnvoyId();
+  private String resolveLocalEnvoy(String tenantId, String resourceId) {
+    final ResourceInfo resourceInfo;
+    try {
+      resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
+          .get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IllegalStateException("Failed to locate Envoy for resource", e);
     }
 
-    void handleTestMonitorResultsEvent(TestMonitorResultsEvent event) {
-        final String correlationId = event.getCorrelationId();
-        final CompletableFuture<TestMonitorResult> future =
-                pending.get(correlationId);
+    if (resourceInfo == null) {
+      throw new MissingRequirementException(
+          "An Envoy is not currently attached for the requested resource");
+    }
+    return resourceInfo.getEnvoyId();
+  }
 
-        if (future == null) {
-            log.trace(
-                    "Ignoring test-monitor results with correlationId={} not tracked by this instance",
-                    correlationId
-            );
-            return;
-        }
+  void handleTestMonitorResultsEvent(TestMonitorResultsEvent event) {
+    final String correlationId = event.getCorrelationId();
+    final CompletableFuture<TestMonitorResult> future =
+        pending.get(correlationId);
 
-        final TestMonitorResult result = new TestMonitorResult()
-                .setErrors(event.getErrors())
-                .setData(new TestMonitorResultData().setMetrics(event.getMetrics()));
-
-        future.complete(result);
-        if (log.isDebugEnabled()) {
-            log.debug("Resolved test-monitor request with correlationId={} with result={}", correlationId,
-                    result);
-        } else {
-            log.info("Resolved test-monitor request with correlationId={}", correlationId);
-        }
+    if (future == null) {
+      log.trace(
+          "Ignoring test-monitor results with correlationId={} not tracked by this instance",
+          correlationId
+      );
+      return;
     }
 
-    // for unit test validation
-    boolean containsCorrelationId(String correlationId) {
-        return pending.containsKey(correlationId);
-    }
+    final TestMonitorResult result = new TestMonitorResult()
+        .setErrors(event.getErrors())
+        .setData(new TestMonitorResultData().setMetrics(event.getMetrics()));
 
-    private void removeCompletedRequest(String correlationId) {
-        log.debug("Removing completed test-monitor with correlationId={} from table", correlationId);
-        final CompletableFuture<TestMonitorResult> prev = pending.remove(correlationId);
-        if (prev == null) {
-            log.warn(
-                    "Test-monitor with correlationId={} was unexpected absent during removal", correlationId);
-        }
+    future.complete(result);
+    if (log.isDebugEnabled()) {
+      log.debug("Resolved test-monitor request with correlationId={} with result={}", correlationId,
+          result);
+    } else {
+      log.info("Resolved test-monitor request with correlationId={}", correlationId);
     }
+  }
 
-    private TestMonitorResult buildTimedOutResult() {
-        return new TestMonitorResult()
-                .setErrors(
-                        List.of(String.format(
-                                "Test-monitor did not receive results within the expected duration of %ds",
-                                testMonitorProperties.getEndToEndTimeoutExtension().getSeconds()
-                        ))
-                );
+  // for unit test validation
+  boolean containsCorrelationId(String correlationId) {
+    return pending.containsKey(correlationId);
+  }
+
+  private void removeCompletedRequest(String correlationId) {
+    log.debug("Removing completed test-monitor with correlationId={} from table", correlationId);
+    final CompletableFuture<TestMonitorResult> prev = pending.remove(correlationId);
+    if (prev == null) {
+      log.warn(
+          "Test-monitor with correlationId={} was unexpected absent during removal", correlationId);
     }
+  }
+
+  private TestMonitorResult buildTimedOutResult() {
+    return new TestMonitorResult()
+        .setErrors(
+            List.of(String.format(
+                "Test-monitor did not receive results within the expected duration of %ds",
+                testMonitorProperties.getEndToEndTimeoutExtension().getSeconds()
+            ))
+        );
+  }
 }
