@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package com.rackspace.salus.monitor_management.web.controller;
 
@@ -50,6 +51,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerMapping;
@@ -250,5 +252,11 @@ public class ZoneApiController {
     return PagedContent.fromPage(
         zoneManagement.getMonitorsForZone(tenantId, zone, pageable)
         .map(MonitorDTO::new));
+  }
+
+  @DeleteMapping("/admin/tenant/{tenantId}/zones")
+  @ApiOperation(value = "Delete all zones associated with given tenant")
+  public void deleteTenantZones(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+        zoneManagement.removeAllTenantZones(tenantId, sendEvents);
   }
 }

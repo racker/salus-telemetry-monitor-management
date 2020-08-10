@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,21 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package com.rackspace.salus.monitor_management.services;
 
-import com.rackspace.salus.telemetry.entities.Monitor;
-import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
-import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
+import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import java.time.Duration;
 import java.util.Optional;
 import javax.validation.Valid;
@@ -318,5 +319,15 @@ public class ZoneManagement {
      */
     public boolean publicZoneExists(String zoneName) {
         return exists(ResolvedZone.PUBLIC, zoneName);
+    }
+
+    public void removeAllTenantZones(String tenantId, boolean sendEvents) {
+      if(sendEvents) {
+        Page<Zone> zones = zoneRepository.findAllByTenantId(tenantId, Pageable.unpaged());
+
+        zones.forEach(zone -> removeZone(zone));
+      }else {
+        zoneRepository.deleteAllByTenantId(tenantId);
+      }
     }
 }

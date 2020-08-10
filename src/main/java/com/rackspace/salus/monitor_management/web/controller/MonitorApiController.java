@@ -344,4 +344,10 @@ public class MonitorApiController {
     return PagedContent.fromPage(monitorManagement.getMonitorsBySearchString(tenantId, searchCriteria, page)
       .map(monitor -> monitorConversionService.convertToOutput(monitor)));
   }
+
+  @DeleteMapping("/admin/tenant/{tenantId}/monitors")
+  @ApiOperation("Deletes all monitors for a particular tenant")
+  public void deleteAllTenantMonitors(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents);
+  }
 }

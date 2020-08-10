@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
+
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
@@ -56,6 +58,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -375,5 +378,23 @@ public class ZoneManagementTest {
 
         assertThat(zoneManagement.getMonitorCountForPrivateZone(tenant, privateZone), equalTo(privateCount));
         assertThat(zoneManagement.getMonitorCountForPublicZone(publicZone), equalTo(publicCount));
+    }
+
+    @Test
+    public void testRemoveZonesForTenant() {
+      Random random = new Random();
+      int privateCount = random.nextInt(20);
+      int publicCount = random.nextInt(5);
+      String tenant = RandomStringUtils.randomAlphabetic(10);
+      createPrivateZonesForTenant(privateCount, tenant);
+      createPublicZones(publicCount);
+
+      monitorManagement.removeAllTenantMonitors(tenant, false);
+      zoneManagement.removeAllTenantZones(tenant, false);
+
+      Page<Zone> results = zoneManagement
+          .getAvailableZonesForTenant(tenant, Pageable.unpaged());
+      assertThat(results.getNumberOfElements(), equalTo(1+publicCount));
+
     }
 }

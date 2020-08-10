@@ -2252,4 +2252,12 @@ public class MonitorManagement {
   public Page<Monitor> getMonitorsBySearchString(String tenantId, String searchCriteria, Pageable page) {
     return monitorRepository.search(tenantId, searchCriteria, page);
   }
+
+  public void removeAllTenantMonitors(String tenantId, boolean sendEvents) {
+    if(sendEvents) {
+      getMonitors(tenantId, Pageable.unpaged()).forEach(monitor -> removeMonitor(tenantId, monitor.getId()));
+    }else {
+      monitorRepository.deleteAllByTenantId(tenantId);
+    }
+  }
 }
