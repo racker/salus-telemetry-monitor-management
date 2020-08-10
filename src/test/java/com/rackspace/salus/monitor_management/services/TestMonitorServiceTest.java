@@ -571,7 +571,8 @@ public class TestMonitorServiceTest {
         .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails);
     final TestMonitorResult result = completableResult.get(5, TimeUnit.SECONDS);
     assertThat(
-        result.getErrors().get(0).equals("No envoys were available in the given monitoring zone"));
+        result.getErrors().get(0)
+            .equals("No envoys were available in the given monitoring zone"));
 
     // VERIFY
 
