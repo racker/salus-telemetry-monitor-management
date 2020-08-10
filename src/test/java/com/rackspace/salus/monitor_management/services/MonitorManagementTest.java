@@ -4329,6 +4329,18 @@ public class MonitorManagementTest {
   public void deleteAllMonitorsForTenant() {
     createMonitorsForTenant(20, "t-1");
 
+    monitorManagement.removeAllTenantMonitors("t-1", true);
+
+    Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+
+    assertThat(result.getNumberOfElements(), equalTo(0));
+    verify(monitorEventProducer, times(20)).sendMonitorEvent(any());
+  }
+
+  @Test
+  public void deleteAllMonitorsForTenant_noEvents() {
+    createMonitorsForTenant(20, "t-1");
+
     monitorManagement.removeAllTenantMonitors("t-1", false);
 
     Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
