@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -24,10 +25,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult.TestMonitorResultData;
 import com.rackspace.salus.telemetry.model.SimpleNameTagValueMetric;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.util.List;
@@ -60,16 +61,16 @@ public class TestMonitorApiControllerTest {
 
     when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
-            new TestMonitorOutput()
+            new TestMonitorResult()
                 .setErrors(List.of())
-                .setMetrics(
+                .setData(new TestMonitorResultData().setMetrics(
                     List.of(
                         new SimpleNameTagValueMetric()
-                        .setName("cpu")
-                        .setTags(Map.of("cpu", "cpu1"))
-                        .setFvalues(Map.of("usage", 1.45))
+                            .setName("cpu")
+                            .setTags(Map.of("cpu", "cpu1"))
+                            .setFvalues(Map.of("usage", 1.45))
                     )
-                )
+                ))
         ));
 
     final MvcResult mvcResult = mvc.perform(
@@ -95,17 +96,18 @@ public class TestMonitorApiControllerTest {
 
     when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
-            new TestMonitorOutput()
+            new TestMonitorResult()
                 // include an error
                 .setErrors(List.of("error-1"))
-                .setMetrics(
+                .setData(new TestMonitorResultData().setMetrics(
                     List.of(
                         new SimpleNameTagValueMetric()
                             .setName("cpu")
                             .setTags(Map.of("cpu", "cpu1"))
                             .setFvalues(Map.of("usage", 1.45))
                     )
-                )
+                ))
+
         ));
 
     final MvcResult mvcResult = mvc.perform(
@@ -132,7 +134,7 @@ public class TestMonitorApiControllerTest {
 
     when(testMonitorService.performTestMonitorOnResource(any(), any(), any(), any()))
         .thenReturn(completedFuture(
-            new TestMonitorOutput()
+            new TestMonitorResult()
                 .setErrors(List.of("timed out"))
         ));
 

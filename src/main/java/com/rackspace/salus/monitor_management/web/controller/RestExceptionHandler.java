@@ -18,9 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.common.errors.ResponseMessages;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
-import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import javax.servlet.http.HttpServletRequest;
 import org.hibernate.JDBCException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
@@ -31,36 +29,38 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletRequest;
+
 @ControllerAdvice(basePackages = "com.rackspace.salus.monitor_management.web")
 @ResponseBody
 public class RestExceptionHandler extends
-    com.rackspace.salus.common.web.AbstractRestExceptionHandler {
+        com.rackspace.salus.common.web.AbstractRestExceptionHandler {
 
-  @Autowired
-  public RestExceptionHandler(ErrorAttributes errorAttributes) {
-    super(errorAttributes);
-  }
-
-  @ExceptionHandler({NotFoundException.class})
-  public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
-    logRequestFailure(request, e);
-    return respondWith(request, HttpStatus.NOT_FOUND);
-  }
-
-  @ExceptionHandler({AlreadyExistsException.class, MissingRequirementException.class})
-  public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
-    logRequestFailure(request, e);
-    return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
-  }
-
-  @ExceptionHandler({JDBCException.class})
-  public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
-    logRequestFailure(request, e);
-    if (e instanceof DataIntegrityViolationException) {
-      return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
-    } else {
-      return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
+    @Autowired
+    public RestExceptionHandler(ErrorAttributes errorAttributes) {
+        super(errorAttributes);
     }
-  }
+
+    @ExceptionHandler({NotFoundException.class})
+    public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
+        return respondWith(request, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler({AlreadyExistsException.class})
+    public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
+        return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @ExceptionHandler({JDBCException.class})
+    public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
+        if (e instanceof DataIntegrityViolationException) {
+            return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
+        } else {
+            return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
+        }
+    }
 
 }

@@ -21,9 +21,14 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-public class TestMonitorOutput {
+public class TestMonitorResult {
 
   List<String> errors;
-  List<SimpleNameTagValueMetric> metrics;
+  TestMonitorResultData data;
 
+  @Data
+  public static class TestMonitorResultData {
+
+    List<SimpleNameTagValueMetric> metrics;
+  }
 }

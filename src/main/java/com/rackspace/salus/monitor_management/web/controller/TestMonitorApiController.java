@@ -18,7 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.monitor_management.services.TestMonitorService;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
-import com.rackspace.salus.monitor_management.web.model.TestMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -52,9 +52,7 @@ public class TestMonitorApiController {
   @PostMapping("/tenant/{tenantId}/test-monitor")
   @ApiOperation("Initiates a test-monitor operation and blocks until the results are available")
   @ApiResponses({
-      @ApiResponse(code = 200, message = "Results contain metrics of the tested monitor and no errors occurred"),
-      @ApiResponse(code = 206, message = "Results contain metrics of the tested monitor, but some errors also occurred"),
-      @ApiResponse(code = 422, message = "Metrics could not be gathered due to missing conditions or a timeout")
+      @ApiResponse(code = 200, message = "Results contain metrics of the tested monitor and errors if any"),
   })
   public CompletableFuture<ResponseEntity<?>> performTestMonitor(
       @PathVariable String tenantId,
@@ -66,25 +64,9 @@ public class TestMonitorApiController {
             input.getTimeout(),
             input.getDetails()
         )
-        .thenApply(testMonitorOutput ->
+        .thenApply(testMonitorResult ->
             ResponseEntity
-                .status(deriveStatus(testMonitorOutput))
-                .body(testMonitorOutput));
-  }
-
-  private HttpStatus deriveStatus(TestMonitorOutput testMonitorOutput) {
-    if (hasErrors(testMonitorOutput)) {
-      if (testMonitorOutput.getMetrics() != null) {
-        return HttpStatus.PARTIAL_CONTENT;
-      } else {
-        return HttpStatus.UNPROCESSABLE_ENTITY;
-      }
-    } else {
-      return HttpStatus.OK;
-    }
-  }
-
-  private boolean hasErrors(TestMonitorOutput testMonitorOutput) {
-    return !CollectionUtils.isEmpty(testMonitorOutput.getErrors());
+                .status(HttpStatus.OK)
+                .body(testMonitorResult));
   }
 }
