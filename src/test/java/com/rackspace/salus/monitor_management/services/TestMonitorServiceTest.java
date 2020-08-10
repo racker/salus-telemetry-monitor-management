@@ -17,7 +17,6 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -38,7 +37,6 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Cpu;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Resource;
-import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
@@ -216,7 +214,8 @@ public class TestMonitorServiceTest {
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_resourceNotFound() {
+  public void testPerformTestMonitorOnResource_resourceNotFound()
+      throws InterruptedException, ExecutionException, TimeoutException {
 
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
@@ -232,11 +231,11 @@ public class TestMonitorServiceTest {
     MonitorDetails monitorDetails = new LocalMonitorDetails()
         .setPlugin(new Cpu());
 
-    assertThatThrownBy(() ->
-        testMonitorService
-            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails))
-        .isInstanceOf(MissingRequirementException.class)
-        .hasMessage("Unable to locate the resource for the test-monitor");
+    CompletableFuture<TestMonitorResult> completableResult = testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails);
+    final TestMonitorResult result = completableResult.get(5, TimeUnit.SECONDS);
+    assertThat(
+        result.getErrors().get(0).equals("Unable to locate the resource for the test-monitor"));
 
     verify(monitorConversionService)
         .convertFromInput(eq("t-1"),
@@ -309,9 +308,9 @@ public class TestMonitorServiceTest {
         .get(resultsTimeout.toMillis() + 1100, TimeUnit.MILLISECONDS);
 
     assertThat(testMonitorResult).isNotNull();
-    assertThat(testMonitorResult.getData().getMetrics()).isNull();
-    assertThat(testMonitorResult.getErrors())
-        .containsExactly("Test-monitor did not receive results within the expected duration of 0s");
+    assertThat(testMonitorResult.getData()).isNull();
+    assertThat(testMonitorResult.getErrors().get(0)
+        .equals("Test-monitor did not receive results within the expected duration of 0s"));
 
     assertThat(testMonitorService.containsCorrelationId(correlationId)).isFalse();
 
@@ -458,25 +457,28 @@ public class TestMonitorServiceTest {
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_remote_nullZones() {
+  public void testPerformTestMonitorOnResource_remote_nullZones()
+      throws InterruptedException, ExecutionException, TimeoutException {
     commonPerformTestMonitorOnResource_remote_failedZones(null,
         "test-monitor requires one monitoring zone to be given");
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_remote_emptyZones() {
+  public void testPerformTestMonitorOnResource_remote_emptyZones()
+      throws InterruptedException, ExecutionException, TimeoutException {
     commonPerformTestMonitorOnResource_remote_failedZones(List.of(),
         "test-monitor requires one monitoring zone to be given");
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_remote_tooManyZones() {
+  public void testPerformTestMonitorOnResource_remote_tooManyZones()
+      throws InterruptedException, ExecutionException, TimeoutException {
     commonPerformTestMonitorOnResource_remote_failedZones(List.of("z-1", "z-2"),
         "test-monitor requires only one monitoring zone to be given");
   }
 
   private void commonPerformTestMonitorOnResource_remote_failedZones(List<String> monitoringZones,
-      String expectedMessage) {
+      String expectedMessage) throws InterruptedException, ExecutionException, TimeoutException {
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("content-1");
@@ -501,12 +503,12 @@ public class TestMonitorServiceTest {
         .setMonitoringZones(monitoringZones)
         .setPlugin(new Ping());
 
-    assertThatThrownBy(() ->
-        testMonitorService
-            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
-    )
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage(expectedMessage);
+    CompletableFuture<TestMonitorResult> completableResult = testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails);
+    final TestMonitorResult result = completableResult.get(5, TimeUnit.SECONDS);
+    assertThat(
+        result.getErrors().get(0)
+            .equals("test-monitor requires only one monitoring zone to be given"));
 
     // VERIFY
 
@@ -532,7 +534,8 @@ public class TestMonitorServiceTest {
   }
 
   @Test
-  public void testPerformTestMonitorOnResource_remote_noEnvoyInZone() {
+  public void testPerformTestMonitorOnResource_remote_noEnvoyInZone()
+      throws InterruptedException, ExecutionException, TimeoutException {
     final List<String> monitoringZones = List.of("z-1");
     final String envoyId = null;
 
@@ -564,12 +567,12 @@ public class TestMonitorServiceTest {
         .setMonitoringZones(monitoringZones)
         .setPlugin(new Ping());
 
-    assertThatThrownBy(() ->
-        testMonitorService
-            .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails)
-    )
-        .isInstanceOf(MissingRequirementException.class)
-        .hasMessage("No envoys were available in the given monitoring zone");
+    CompletableFuture<TestMonitorResult> completableResult = testMonitorService
+        .performTestMonitorOnResource("t-1", "r-1", null, monitorDetails);
+    final TestMonitorResult result = completableResult.get(5, TimeUnit.SECONDS);
+    assertThat(
+        result.getErrors().get(0)
+            .equals("No envoys were available in the given monitoring zone"));
 
     // VERIFY
 

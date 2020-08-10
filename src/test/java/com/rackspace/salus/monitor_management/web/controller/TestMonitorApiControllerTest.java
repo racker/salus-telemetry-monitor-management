@@ -124,7 +124,7 @@ public class TestMonitorApiControllerTest {
 
     mvc.perform(asyncDispatch(mvcResult))
         // due to 1 or more errors in response
-        .andExpect(status().isPartialContent())
+        .andExpect(status().isOk())
         .andExpect(content().json(expectedRespJson, true));
 
   }
@@ -151,7 +151,7 @@ public class TestMonitorApiControllerTest {
 
     mvc.perform(asyncDispatch(mvcResult))
         // due to errors and no metrics in response
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isOk())
         .andExpect(content().json(expectedRespJson, true));
 
   }
