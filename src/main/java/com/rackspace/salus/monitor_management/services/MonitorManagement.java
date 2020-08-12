@@ -2257,6 +2257,10 @@ public class MonitorManagement {
     if(sendEvents) {
       getMonitors(tenantId, Pageable.unpaged()).forEach(monitor -> removeMonitor(tenantId, monitor.getId()));
     }else {
+      unbindByTenantAndMonitorId(tenantId,
+          getMonitors(tenantId, Pageable.unpaged()).get()
+              .map(Monitor::getId)
+              .collect(Collectors.toList()));
       monitorRepository.deleteAllByTenantId(tenantId);
     }
   }
