@@ -4374,6 +4374,8 @@ public class MonitorManagementTest {
 
     Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(any(), any());
+    verify(boundMonitorRepository).deleteAll(any());
     assertThat(result.getNumberOfElements(), equalTo(0));
   }
 
