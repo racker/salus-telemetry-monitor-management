@@ -12,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -1379,13 +1378,14 @@ public class MonitorManagement {
    * @throws DeletionNotAllowedException If the monitor is used by an active policy.
    */
   public void removePolicyMonitor(UUID id) {
-    Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
-        new NotFoundException(String.format("No policy monitor found for %s", id)));
+    if (!monitorRepository.existsByIdAndTenantId(id, POLICY_TENANT)) {
+      throw new NotFoundException(String.format("No policy monitor found for %s", id));
+    }
 
     if (monitorPolicyRepository.existsByMonitorId(id)) {
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
-    monitorRepository.delete(monitor);
+    monitorRepository.deleteById(id);
   }
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
