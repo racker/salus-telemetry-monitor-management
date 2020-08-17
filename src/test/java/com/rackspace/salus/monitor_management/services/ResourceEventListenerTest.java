@@ -79,4 +79,17 @@ public class ResourceEventListenerTest {
 
     verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
   }
+
+  @Test
+  public void testResourceDeletedEvent() throws InterruptedException {
+    final ResourceEvent event = new ResourceEvent()
+        .setLabelsChanged(false)
+        .setTenantId("t-1")
+        .setResourceId("r-1")
+        .setDeleted(true);
+
+    kafkaTemplate.send(TOPIC, "t-1:r-1", event);
+
+    verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
+  }
 }

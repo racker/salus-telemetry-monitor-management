@@ -1684,7 +1684,7 @@ public class MonitorManagement {
     final List<Monitor> monitorsWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
     final List<UUID> boundMonitorIds =
-        boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
+        boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(tenantId, resourceId);
 
     // monitorIdsToUnbind := boundMonitorIds \setminus selectedMonitorIds
     // ...so start with populating with boundMonitorIds
@@ -1727,7 +1727,7 @@ public class MonitorManagement {
     }
 
     // this needs to be updated to only unbind my tenant and resourceId
-    final Set<String> affectedEnvoys = unbindByTenantAndResourceId(tenantId, event.getResourceId());
+    final Set<String> affectedEnvoys = unbindByTenantAndResourceId(tenantId, event.getResourceId(), monitorIdsToUnbind);
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
@@ -1912,7 +1912,11 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> unbindByTenantAndResourceId(String tenantId,
-      String resourceId) {
+      String resourceId, Collection<UUID> monitorIdsToUnbind) {
+    if (monitorIdsToUnbind.isEmpty()) {
+      return new HashSet<>();
+    }
+
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
         .findMonitorsBoundToResourceAndTenant(tenantId, resourceId);
 

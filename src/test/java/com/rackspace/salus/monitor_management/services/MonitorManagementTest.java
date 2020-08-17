@@ -3406,7 +3406,7 @@ public class MonitorManagementTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
 
     verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
     final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
@@ -3461,7 +3461,7 @@ public class MonitorManagementTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
 
     verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
     final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
@@ -3539,13 +3539,13 @@ public class MonitorManagementTest {
           .setRenderedContent(boundContent)
           .setEnvoyId("e-1");
 
-      when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+      when(boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(any(), any()))
           .thenReturn(Collections.singletonList(monitor.getId()));
 
       when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
           .thenReturn(Collections.singletonList(boundMonitor));
     } else {
-      when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+      when(boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(any(), any()))
           .thenReturn(Collections.emptyList());
 
       when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
@@ -3577,7 +3577,7 @@ public class MonitorManagementTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
 
     verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
     final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
@@ -3708,7 +3708,7 @@ public class MonitorManagementTest {
         .setRenderedContent("custom=old")
         .setEnvoyId("e-old");
 
-    when(boundMonitorRepository.findMonitorsBoundToResource("t-1", "r-1"))
+    when(boundMonitorRepository.findMonitorIdsBoundToTenantAndResource("t-1", "r-1"))
         .thenReturn(Collections.singletonList(monitor.getId()));
 
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
@@ -3730,7 +3730,7 @@ public class MonitorManagementTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
 
     verify(boundMonitorRepository).saveAll(captorOfBoundMonitorList.capture());
     final List<BoundMonitor> savedBoundMonitors = captorOfBoundMonitorList.getValue();
@@ -3785,7 +3785,7 @@ public class MonitorManagementTest {
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
     verify(envoyResourceManagement).getOne("t-1", "r-1");
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
     verify(boundMonitorRepository).deleteAll(captorOfBoundMonitorList.capture());
@@ -3829,7 +3829,7 @@ public class MonitorManagementTest {
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
     verify(envoyResourceManagement).getOne("t-1", "r-1");
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
 
     // nothing new bound and no affected envoy events
@@ -3865,7 +3865,7 @@ public class MonitorManagementTest {
     // VERIFY
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
     verify(envoyResourceManagement).getOne("t-1", "r-1");
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
     verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, true);
     // nothing new bound and no affected envoy events
@@ -3898,13 +3898,13 @@ public class MonitorManagementTest {
         .setRenderedContent("content is ignored")
         .setEnvoyId("e-1");
 
-    when(boundMonitorRepository.findMonitorsBoundToResource(any(), any()))
+    when(boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(any(), any()))
         .thenReturn(Collections.singletonList(monitor.getId()));
 
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
+    when(boundMonitorRepository.findMonitorsBoundToResourceAndTenant(anyString(),anyString()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
     // EXERCISE
@@ -3922,19 +3922,13 @@ public class MonitorManagementTest {
             .setEnvoyId("e-1")
     );
 
-    verify(boundMonitorRepository).findMonitorsBoundToResource("t-1", "r-1");
-
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1",
-        new HashSet<>(Collections.singletonList(monitor.getId()))
-    );
+    verify(boundMonitorRepository).findMonitorIdsBoundToTenantAndResource("t-1", "r-1");
 
     verify(boundMonitorRepository).deleteAll(
         Collections.singletonList(boundMonitor)
     );
 
     verifyNoInteractions(policyApi);
-    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
 
   @Test
