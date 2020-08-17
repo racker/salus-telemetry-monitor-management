@@ -3929,6 +3929,8 @@ public class MonitorManagementTest {
     );
 
     verifyNoInteractions(policyApi);
+    verifyNoMoreInteractions(envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
 
   @Test
