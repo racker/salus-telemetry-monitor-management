@@ -1681,17 +1681,19 @@ public class MonitorManagement {
       return;
     }
 
-    final List<Monitor> monitorsWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    final List<Monitor> monitorsWithResourceId = monitorRepository
+        .findByTenantIdAndResourceId(tenantId, resourceId);
 
     final List<UUID> boundMonitorIds =
-        boundMonitorRepository.findMonitorsBoundToResource(tenantId, resourceId);
+        boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(tenantId, resourceId);
 
     // monitorIdsToUnbind := boundMonitorIds \setminus selectedMonitorIds
     // ...so start with populating with boundMonitorIds
     final Set<UUID> monitorIdsToUnbind = new HashSet<>(boundMonitorIds);
 
     List<Monitor> selectedMonitors;
-    final Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    final Optional<Resource> resource = resourceRepository
+        .findByTenantIdAndResourceId(tenantId, resourceId);
     if (resource.isPresent()) {
       // resource created or updated
 
@@ -1718,16 +1720,15 @@ public class MonitorManagement {
 
       // ...the setminus operation upon monitorIdsToUnbind
       monitorIdsToUnbind.removeAll(selectedMonitorIds);
-    }
-    else {
+    } else {
       // resource deleted
 
       selectedMonitors = Collections.emptyList();
       // ...and monitorIdsToUnbind remains ALL of the currently bound
     }
 
-    // this needs to be updated to only unbind my tenant and monitor id
-    final Set<String> affectedEnvoys = unbindByTenantAndMonitorId(tenantId, monitorIdsToUnbind);
+    // this needs to be updated to only unbind my tenant and resourceId
+    Set<String> affectedEnvoys = unbindByTenantAndResourceIdAndMonitorIds(tenantId, event.getResourceId(), monitorIdsToUnbind);
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
@@ -1900,6 +1901,27 @@ public class MonitorManagement {
 
     log.debug("Unbinding {} from monitorIds={}",
         boundMonitors, monitorIdsToUnbind);
+    boundMonitorRepository.deleteAll(boundMonitors);
+    decrementBoundCounts(boundMonitors);
+
+    return extractEnvoyIds(boundMonitors);
+  }
+
+  /**
+   * Removes all bindings associated with the given monitor IDs and resource id.
+   *
+   * @return affected envoy IDs
+   */
+  Set<String> unbindByTenantAndResourceIdAndMonitorIds(String tenantId,
+      String resourceId, Set<UUID> monitorIdsToUnbind) {
+    if (monitorIdsToUnbind.isEmpty()) {
+      return new HashSet<>();
+    }
+    final List<BoundMonitor> boundMonitors = boundMonitorRepository
+        .findMonitorsBoundToTenantAndResourceAndMonitor_IdIn(tenantId, resourceId, monitorIdsToUnbind);
+
+    log.debug("Unbinding {} from resourceId={} and monitorIdsToUnbind={}",
+        boundMonitors, resourceId, monitorIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
     decrementBoundCounts(boundMonitors);
 
