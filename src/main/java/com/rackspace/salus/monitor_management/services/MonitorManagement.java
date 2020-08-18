@@ -1681,7 +1681,8 @@ public class MonitorManagement {
       return;
     }
 
-    final List<Monitor> monitorsWithResourceId = monitorRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    final List<Monitor> monitorsWithResourceId = monitorRepository
+        .findByTenantIdAndResourceId(tenantId, resourceId);
 
     final List<UUID> boundMonitorIds =
         boundMonitorRepository.findMonitorIdsBoundToTenantAndResource(tenantId, resourceId);
@@ -1691,7 +1692,8 @@ public class MonitorManagement {
     final Set<UUID> monitorIdsToUnbind = new HashSet<>(boundMonitorIds);
 
     List<Monitor> selectedMonitors;
-    final Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    final Optional<Resource> resource = resourceRepository
+        .findByTenantIdAndResourceId(tenantId, resourceId);
     if (resource.isPresent()) {
       // resource created or updated
 
@@ -1718,16 +1720,20 @@ public class MonitorManagement {
 
       // ...the setminus operation upon monitorIdsToUnbind
       monitorIdsToUnbind.removeAll(selectedMonitorIds);
-    }
-    else {
+    } else {
       // resource deleted
 
       selectedMonitors = Collections.emptyList();
       // ...and monitorIdsToUnbind remains ALL of the currently bound
     }
 
+    Set<String> affectedEnvoys = null;
     // this needs to be updated to only unbind my tenant and resourceId
-    final Set<String> affectedEnvoys = unbindByTenantAndResourceId(tenantId, event.getResourceId(), monitorIdsToUnbind);
+    if (monitorIdsToUnbind.isEmpty()) {
+      affectedEnvoys = new HashSet<>();
+    } else  {
+      affectedEnvoys = unbindByTenantAndResourceId(tenantId, event.getResourceId());
+    }
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
@@ -1912,13 +1918,9 @@ public class MonitorManagement {
    * @return affected envoy IDs
    */
   Set<String> unbindByTenantAndResourceId(String tenantId,
-      String resourceId, Collection<UUID> monitorIdsToUnbind) {
-    if (monitorIdsToUnbind.isEmpty()) {
-      return new HashSet<>();
-    }
-
+      String resourceId) {
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
-        .findMonitorsBoundToResourceAndTenant(tenantId, resourceId);
+        .findMonitorsBoundToTenantAndResource(tenantId, resourceId);
 
     log.debug("Unbinding {} from resourceId={}",
         boundMonitors, resourceId);

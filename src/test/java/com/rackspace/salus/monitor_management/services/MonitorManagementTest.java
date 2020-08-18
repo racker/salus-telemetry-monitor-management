@@ -3904,7 +3904,7 @@ public class MonitorManagementTest {
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
-    when(boundMonitorRepository.findMonitorsBoundToResourceAndTenant(anyString(),anyString()))
+    when(boundMonitorRepository.findMonitorsBoundToTenantAndResource(anyString(),anyString()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
     // EXERCISE

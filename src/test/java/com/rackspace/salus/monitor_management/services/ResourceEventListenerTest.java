@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
@@ -77,7 +78,7 @@ public class ResourceEventListenerTest {
 
     kafkaTemplate.send(TOPIC, "t-1:r-1", event);
 
-    verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
+    verify(monitorManagement, timeout(5000)).handleResourceChangeEvent(event);
   }
 
   @Test
@@ -90,6 +91,6 @@ public class ResourceEventListenerTest {
 
     kafkaTemplate.send(TOPIC, "t-1:r-1", event);
 
-    verify(monitorManagement, after(5000)).handleResourceChangeEvent(event);
+    verify(monitorManagement, timeout(5000)).handleResourceChangeEvent(event);
   }
 }
