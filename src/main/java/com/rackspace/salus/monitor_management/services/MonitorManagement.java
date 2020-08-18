@@ -1727,13 +1727,8 @@ public class MonitorManagement {
       // ...and monitorIdsToUnbind remains ALL of the currently bound
     }
 
-    Set<String> affectedEnvoys = null;
     // this needs to be updated to only unbind my tenant and resourceId
-    if (monitorIdsToUnbind.isEmpty()) {
-      affectedEnvoys = new HashSet<>();
-    } else  {
-      affectedEnvoys = unbindByTenantAndResourceId(tenantId, event.getResourceId());
-    }
+    Set<String> affectedEnvoys = unbindByTenantAndResourceIdAndMonitorIds(tenantId, event.getResourceId(), monitorIdsToUnbind);
 
     if (!selectedMonitors.isEmpty()) {
       affectedEnvoys.addAll(
@@ -1917,13 +1912,16 @@ public class MonitorManagement {
    *
    * @return affected envoy IDs
    */
-  Set<String> unbindByTenantAndResourceId(String tenantId,
-      String resourceId) {
+  Set<String> unbindByTenantAndResourceIdAndMonitorIds(String tenantId,
+      String resourceId, Set<UUID> monitorIdsToUnbind) {
+    if (monitorIdsToUnbind.isEmpty()) {
+      return new HashSet<>();
+    }
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
-        .findMonitorsBoundToTenantAndResource(tenantId, resourceId);
+        .findMonitorsBoundToTenantAndResourceAndMonitor_IdIn(tenantId, resourceId, monitorIdsToUnbind);
 
-    log.debug("Unbinding {} from resourceId={}",
-        boundMonitors, resourceId);
+    log.debug("Unbinding {} from resourceId={} and monitorIdsToUnbind={}",
+        boundMonitors, resourceId, monitorIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
     decrementBoundCounts(boundMonitors);
 

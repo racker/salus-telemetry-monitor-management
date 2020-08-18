@@ -3904,7 +3904,7 @@ public class MonitorManagementTest {
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(any(), any()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
-    when(boundMonitorRepository.findMonitorsBoundToTenantAndResource(anyString(),anyString()))
+    when(boundMonitorRepository.findMonitorsBoundToTenantAndResourceAndMonitor_IdIn(anyString(),anyString(), any()))
         .thenReturn(Collections.singletonList(boundMonitor));
 
     // EXERCISE
@@ -3928,8 +3928,11 @@ public class MonitorManagementTest {
         Collections.singletonList(boundMonitor)
     );
 
+    verify(boundMonitorRepository).findMonitorsBoundToTenantAndResourceAndMonitor_IdIn(
+        "t-1","r-1",Collections.singleton(monitor.getId()));
+
     verifyNoInteractions(policyApi);
-    verifyNoMoreInteractions(envoyResourceManagement,
+    verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, resourceRepository);
   }
 
