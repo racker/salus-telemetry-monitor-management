@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,8 +133,8 @@ public class MonitorContentTranslationService {
         .collect(Collectors.toList());
   }
 
-  public List<BoundMonitorDTO> translate(List<BoundMonitor> boundMonitors,
-                                         Map<AgentType, String> agentVersions) {
+  public List<BoundMonitorDTO> translateBoundMonitors(List<BoundMonitor> boundMonitors,
+                                                      Map<AgentType, String> agentVersions) {
 
     if (CollectionUtils.isEmpty(agentVersions)) {
       // No agents installed, so it's not possible to perform any translation of bound monitors.
@@ -143,23 +143,20 @@ public class MonitorContentTranslationService {
       return List.of();
     }
 
-    // re-map the requested agent-versions into a list of operators each, where those are initially
-    // retrieved from the DB
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByAgentType =
-        agentVersions.entrySet().stream()
-            .collect(Collectors.toMap(
-                Entry::getKey,
-                entry -> loadOperators(entry.getKey(), entry.getValue())
-            ));
+        loadOperatorsByAgentTypeAndVersion(agentVersions);
 
     // now translate the rendered content of the bound monitors and turn them into DTOs
     return boundMonitors.stream()
         .map(boundMonitor -> {
           try {
-            return translateBoundMonitor(
-                boundMonitor,
-                getOperatorsForMonitor(operatorsByAgentType, boundMonitor)
-            );
+            return new BoundMonitorDTO(boundMonitor)
+                .setRenderedContent(
+                    translateMonitorContent(
+                        getOperatorsForMonitor(operatorsByAgentType, boundMonitor),
+                        boundMonitor.getRenderedContent()
+                    )
+                );
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
             monitorTranslateErrors.increment();
@@ -171,24 +168,38 @@ public class MonitorContentTranslationService {
   }
 
   /**
+   * Re-map the requested agent-versions into a list of operators each, where those are initially
+   * retrieved from the DB
+   * @param agentVersions the mapping of installed agent types and versions
+   * @return the mapping of agent types to conversion operators for the given version of each
+   */
+  public Map<AgentType, List<MonitorTranslationOperator>> loadOperatorsByAgentTypeAndVersion(
+      Map<AgentType, String> agentVersions) {
+    return agentVersions.entrySet().stream()
+        .collect(Collectors.toMap(
+            Entry::getKey,
+            entry -> loadOperators(entry.getKey(), entry.getValue())
+        ));
+  }
+
+  /**
    * Converts a bound monitor's content from the format received via an api request
    * to what is expected by the agent that will run it (e.g. telegraf).
    *
-   * @param boundMonitor The bound monitor to convert
    * @param operators The list of translate operations to perform on the monitor.
-   * @return The bound monitor with an updated content string.
-   * @throws MonitorContentTranslationException
+   * @param monitorContent the template-rendered monitor/plugin content
+   * @return the converted monitor/plugin content. If no operators applied, then the given
+   * monitorContent is returned
+   * @throws MonitorContentTranslationException when unable to properly execute conversion operators
    */
-  private BoundMonitorDTO translateBoundMonitor(BoundMonitor boundMonitor,
-                                       List<MonitorTranslationOperator> operators)
+  public String translateMonitorContent(List<MonitorTranslationOperator> operators,
+                                        String monitorContent)
       throws MonitorContentTranslationException {
 
     // If no operators apply, then build DTO without translation
     if (operators == null || operators.isEmpty()) {
-      return new BoundMonitorDTO(boundMonitor);
+      return monitorContent;
     }
-
-    final String monitorContent = boundMonitor.getRenderedContent();
 
     ObjectNode contentTree;
     try {
@@ -209,15 +220,9 @@ public class MonitorContentTranslationService {
           "Content translation resulted is missing JSON type property");
     }
 
-    final BoundMonitorDTO boundMonitorDTO = new BoundMonitorDTO(boundMonitor);
-
     // swap out rendered content with rendered->translated content
     try {
-
-      boundMonitorDTO.setRenderedContent(objectMapper.writeValueAsString(contentTree));
-
-      return boundMonitorDTO;
-
+      return objectMapper.writeValueAsString(contentTree);
     } catch (JsonProcessingException e) {
       throw new MonitorContentTranslationException(
           String.format("Failed to serialize translated contentTree=%s", contentTree), e);

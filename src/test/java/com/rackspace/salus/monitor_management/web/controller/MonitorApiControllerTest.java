@@ -57,6 +57,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
@@ -65,6 +66,7 @@ import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -730,7 +732,7 @@ public class MonitorApiControllerTest {
     final List<BoundMonitorDTO> boundMonitorDtos = List.of(
         podamFactory.manufacturePojo(BoundMonitorDTO.class)
     );
-    when(monitorContentTranslationService.translate(any(), any()))
+    when(monitorContentTranslationService.translateBoundMonitors(any(), any()))
         .thenReturn(boundMonitorDtos);
 
     final String reqBody = readContent("MonitorApiControllerTest/query_bound_monitors.json");
@@ -747,7 +749,7 @@ public class MonitorApiControllerTest {
     verify(monitorManagement).getAllBoundMonitorsByEnvoyId("e-1");
 
     verify(monitorContentTranslationService)
-        .translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
+        .translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
   }
 
   @Test
@@ -772,7 +774,7 @@ public class MonitorApiControllerTest {
     final List<BoundMonitorDTO> boundMonitorDtos = List.of(
         podamFactory.manufacturePojo(BoundMonitorDTO.class)
     );
-    when(monitorContentTranslationService.translate(any(), any()))
+    when(monitorContentTranslationService.translateBoundMonitors(any(), any()))
         .thenReturn(boundMonitorDtos);
 
     mockMvc.perform(get("/api/tenant/{tenant}/bound-monitors", tenantId)
@@ -1043,6 +1045,39 @@ public class MonitorApiControllerTest {
     verify(monitorManagement).getMonitorsBySearchString(tenantId, searchCriteria, page);
 
     verifyNoMoreInteractions(monitorManagement);
+  }
+
+  @Test
+  public void testTranslateMonitorContent() throws Exception {
+    final List<MonitorTranslationOperator> operators = List
+        .of(new MonitorTranslationOperator().setName("for-testing"));
+
+    when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
+        .thenReturn(Map.of(AgentType.TELEGRAF, operators));
+
+    when(monitorContentTranslationService.translateMonitorContent(any(), any()))
+        .thenReturn("translated content");
+
+    mockMvc.perform(post("/api/admin/translate-monitor-content")
+        .content(objectMapper.writeValueAsString(
+            new TranslateMonitorContentRequest()
+                .setAgentType(AgentType.TELEGRAF)
+                .setAgentVersion("1.13.2")
+                .setContent("original content")
+        ))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+        .andExpect(content().string("translated content"));
+
+    verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
+        Map.of(AgentType.TELEGRAF, "1.13.2")
+    );
+
+    verify(monitorContentTranslationService).translateMonitorContent(operators, "original content");
+
+    verifyNoMoreInteractions(monitorContentTranslationService);
   }
 
   private class UpdateMonitorTestSetup {

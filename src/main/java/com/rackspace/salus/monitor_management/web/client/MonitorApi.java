@@ -36,4 +36,6 @@ public interface MonitorApi {
   DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers);
 
   TestMonitorResult performTestMonitor(String tenantId, TestMonitorInput input);
+
+  String translateMonitorContent(AgentType agentType, String agentVersion, String content);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
 
     // VERIFY
 
@@ -108,7 +108,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
 
     // VERIFY
 
@@ -132,7 +132,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "2.0.0"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "2.0.0"));
 
     // VERIFY
 
@@ -156,7 +156,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "2.0.0"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "2.0.0"));
 
     // VERIFY
 
@@ -174,7 +174,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of());
+        service.translateBoundMonitors(boundMonitors, Map.of());
 
     // VERIFY
 
@@ -190,7 +190,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, null);
+        service.translateBoundMonitors(boundMonitors, null);
 
     // VERIFY
 
@@ -212,7 +212,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
 
     // VERIFY
 
@@ -263,7 +263,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
 
     assertThat(dtos).hasSize(1);
 
@@ -312,7 +312,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
 
     assertThat(dtos).hasSize(1);
 
@@ -362,7 +362,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.11.3"));
 
     assertThat(dtos).hasSize(1);
 
@@ -389,7 +389,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
 
     // VERIFY
 
@@ -422,7 +422,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "1.12.0"));
 
     // VERIFY
 
@@ -444,7 +444,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "0.1"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "0.1"));
 
     // VERIFY
 
@@ -478,7 +478,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
 
     // VERIFY
 
@@ -514,7 +514,7 @@ public class MonitorContentTranslationService_Translations_Test {
     // EXECUTE
 
     final List<BoundMonitorDTO> dtos =
-        service.translate(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
+        service.translateBoundMonitors(boundMonitors, Map.of(AgentType.TELEGRAF, "9.9.9"));
 
     // VERIFY
 

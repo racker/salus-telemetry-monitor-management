@@ -12,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package com.rackspace.salus.monitor_management.web.controller;
@@ -27,9 +26,13 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.Monitor;
+import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
+import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
+import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -104,9 +107,25 @@ public class MonitorApiController {
     final List<BoundMonitor> boundMonitors = monitorManagement
         .getAllBoundMonitorsByEnvoyId(query.getEnvoyId());
 
-    return monitorContentTranslationService.translate(
+    return monitorContentTranslationService.translateBoundMonitors(
         boundMonitors,
         query.getInstalledAgentVersions()
+    );
+  }
+
+  @PostMapping(value="/admin/translate-monitor-content", produces = MediaType.TEXT_PLAIN_VALUE)
+  @ApiOperation("Translate monitor content for a specific agent type and version")
+  public String translateMonitorContent(@RequestBody @Validated TranslateMonitorContentRequest request)
+      throws MonitorContentTranslationException {
+    final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
+        monitorContentTranslationService
+            .loadOperatorsByAgentTypeAndVersion(
+                Map.of(request.getAgentType(), request.getAgentVersion())
+            );
+
+    return monitorContentTranslationService.translateMonitorContent(
+        operatorsByType.get(request.getAgentType()),
+        request.getContent()
     );
   }
 

@@ -17,9 +17,7 @@
 package com.rackspace.salus.monitor_management.web.client;
 
 import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -33,6 +31,7 @@ import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
+import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
@@ -70,7 +69,7 @@ public class MonitorApiClientTest {
     }
   }
 
-  private PodamFactory podamFactory = new PodamFactoryImpl();
+  private final PodamFactory podamFactory = new PodamFactoryImpl();
 
   @Autowired
   MockRestServiceServer mockServer;
@@ -115,7 +114,7 @@ public class MonitorApiClientTest {
     final Map<AgentType, String> installedAgentVersions = Map.of(AgentType.TELEGRAF, "1.12.0");
     final List<BoundMonitorDTO> boundMonitors =
         monitorApiClient.getBoundMonitors("e-1", installedAgentVersions);
-    assertThat(boundMonitors, equalTo(givenBoundMonitors));
+    assertThat(boundMonitors).isEqualTo(givenBoundMonitors);
   }
 
   @Test
@@ -127,7 +126,7 @@ public class MonitorApiClientTest {
             withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
 
     DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById(monitor.getId());
-    assertThat(result, equalTo(monitor));
+    assertThat(result).isEqualTo(monitor);
   }
 
   @Test
@@ -136,7 +135,7 @@ public class MonitorApiClientTest {
         .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
     DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById("id");
-    assertThat(result, nullValue());
+    assertThat(result).isNull();
   }
 
   @Test
@@ -157,6 +156,25 @@ public class MonitorApiClientTest {
 
     TestMonitorResult testMonitorResultActual = monitorApiClient
         .performTestMonitor(tenantId, testMonitorInput);
-    assertThat(testMonitorResult, equalTo(testMonitorResultActual));
+    assertThat(testMonitorResult).isEqualTo(testMonitorResultActual);
+  }
+
+  @Test
+  public void testTranslateMonitorContent() throws JsonProcessingException {
+
+    final TranslateMonitorContentRequest request = new TranslateMonitorContentRequest()
+        .setAgentType(AgentType.TELEGRAF)
+        .setAgentVersion("1.13.2")
+        .setContent("original content");
+
+    mockServer.expect(requestTo("/api/admin/translate-monitor-content"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(content().json(objectMapper.writeValueAsString(request)))
+        .andRespond(withSuccess("converted content", MediaType.TEXT_PLAIN));
+
+    final String result = monitorApiClient
+        .translateMonitorContent(AgentType.TELEGRAF, "1.13.2", "original content");
+
+    assertThat(result).isEqualTo("converted content");
   }
 }
