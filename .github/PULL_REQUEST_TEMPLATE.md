@@ -10,14 +10,18 @@
 
 <How is the PR designed to solve the problem?>
 
-## How to test
+# How to test
 
 <instructions for verifying the changes specific to this PR>
 
 # Why
 
-<Why was the final approach taken? Were alternatives considered?>
+<OPTIONAL: Why was the final approach taken? Were alternatives considered?>
 
 # TODO
 
-<outstanding tasks before this PR is considered 'ready'>
+<OPTIONAL: outstanding tasks before this PR is considered 'ready'>
+
+# Depends on
+
+<OPTIONAL: list links to other PRs that this PR requires to compile/use>
