@@ -41,7 +41,7 @@ public class MonitorTranslationOperatorCreate {
 
   /**
    * Optional field that conveys applicable version ranges
-   * <a href="https://github.com/zafarkhaja/jsemver#external-dsl"></a>in the form of jsemver's external DSL</a>
+   * <a href="https://maven.apache.org/enforcer/enforcer-rules/versionRanges.html">in the form of Maven's version range spec</a>
    */
   String agentVersions;
 
