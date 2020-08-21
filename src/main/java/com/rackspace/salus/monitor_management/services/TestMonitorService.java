@@ -114,6 +114,8 @@ public class TestMonitorService {
       event = new TestMonitorRequestEvent()
           .setCorrelationId(correlationId)
           .setAgentType(monitorCU.getAgentType())
+          .setMonitorType(monitorCU.getMonitorType())
+          .setScope(monitorCU.getSelectorScope())
           .setTenantId(tenantId)
           .setResourceId(resourceId);
       final Optional<Resource> optionalResource = resourceRepository

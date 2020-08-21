@@ -26,6 +26,8 @@ import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.MonitorTranslationOperatorRepository;
 import com.rackspace.salus.telemetry.translators.MonitorTranslator;
@@ -153,7 +155,11 @@ public class MonitorContentTranslationService {
             return new BoundMonitorDTO(boundMonitor)
                 .setRenderedContent(
                     translateMonitorContent(
-                        getOperatorsForMonitor(operatorsByAgentType, boundMonitor),
+                        prepareOperatorsForMonitor(
+                            operatorsByAgentType.get(boundMonitor.getMonitor().getAgentType()),
+                            boundMonitor.getMonitor().getMonitorType(),
+                            boundMonitor.getMonitor().getSelectorScope()
+                        ),
                         boundMonitor.getRenderedContent()
                     )
                 );
@@ -259,14 +265,20 @@ public class MonitorContentTranslationService {
             .collect(Collectors.toList());
   }
 
-  private List<MonitorTranslationOperator> getOperatorsForMonitor(
-      Map<AgentType, List<MonitorTranslationOperator>> operatorsByAgentType,
-      BoundMonitor bound) {
+  /**
+   * Filters and orders the given operators for just the specifically given monitor type and scope.
+   * @param operators the superset of operators for an agent type and version
+   * @param monitorType the monitor type to evaluate
+   * @param selectorScope the scope to evaluate
+   * @return operators filtered and ordered for given monitor type and scope
+   */
+  public List<MonitorTranslationOperator> prepareOperatorsForMonitor(
+      List<MonitorTranslationOperator> operators, MonitorType monitorType,
+      ConfigSelectorScope selectorScope) {
 
-    List<MonitorTranslationOperator> operators = operatorsByAgentType.get(bound.getMonitor().getAgentType());
     return operators.stream()
-        .filter(o -> o.getMonitorType() == null || o.getMonitorType() == bound.getMonitor().getMonitorType())
-        .filter(o -> o.getSelectorScope() == null || o.getSelectorScope() == bound.getMonitor().getSelectorScope())
+        .filter(o -> o.getMonitorType() == null || o.getMonitorType() == monitorType)
+        .filter(o -> o.getSelectorScope() == null || o.getSelectorScope() == selectorScope)
         .sorted(Comparator.comparingInt(MonitorTranslationOperator::getOrder))
         .collect(Collectors.toList());
   }

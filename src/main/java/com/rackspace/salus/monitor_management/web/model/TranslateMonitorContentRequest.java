@@ -17,6 +17,8 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -29,4 +31,8 @@ public class TranslateMonitorContentRequest {
   AgentType agentType;
   @NotBlank
   String agentVersion;
+  @NotNull
+  MonitorType monitorType;
+  @NotNull
+  ConfigSelectorScope scope;
 }
