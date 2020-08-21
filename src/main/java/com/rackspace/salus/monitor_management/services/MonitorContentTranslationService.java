@@ -261,7 +261,6 @@ public class MonitorContentTranslationService {
                   }
                 }
             )
-            .sorted(MonitorContentTranslationService::highestPrecedenceFirst)
             .collect(Collectors.toList());
   }
 
@@ -283,19 +282,4 @@ public class MonitorContentTranslationService {
         .collect(Collectors.toList());
   }
 
-  private static int highestPrecedenceFirst(MonitorTranslationOperator lhs,
-                                            MonitorTranslationOperator rhs) {
-    if (lhs.getAgentVersions() == null && rhs.getAgentVersions() == null) {
-      return 0;
-    } else if (lhs.getAgentVersions() == null || rhs.getAgentVersions() == null) {
-      // ones with null versions are less specific, so sorted "greater than"
-      return rhs.getAgentVersions() != null ? 1 : -1;
-    } else {
-      // When both have versions, resort to a reverse textual comparison trying to put something
-      // like ">=1.12" ahead of ">=1.11". The ordering within these cases is not particularly
-      // important since loadOperators will filter down to operators that apply to the
-      // agent versions anyway.
-      return rhs.getAgentVersions().compareTo(lhs.getAgentVersions());
-    }
-  }
 }
