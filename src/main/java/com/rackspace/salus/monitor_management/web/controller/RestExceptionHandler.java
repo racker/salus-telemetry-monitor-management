@@ -66,12 +66,11 @@ public class RestExceptionHandler extends
     }
 
     @ExceptionHandler({TransactionSystemException.class})
-    public ResponseEntity<?> handleIllegalArgumentException(HttpServletRequest request, Exception e) {
+    public ResponseEntity<?> handleTransactionSystemException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
         if(e.getCause() instanceof RollbackException) {
             if(e.getCause().getCause() instanceof ConstraintViolationException) {
-                ConstraintViolationException constraintViolationException = (ConstraintViolationException) e.getCause().getCause();
-                return respondWith(request, HttpStatus.BAD_REQUEST, constraintViolationException.getMessage());
+                return respondWith(request, HttpStatus.BAD_REQUEST, e.getCause().getCause().getMessage());
             }
         }
         return respondWith(request, HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
