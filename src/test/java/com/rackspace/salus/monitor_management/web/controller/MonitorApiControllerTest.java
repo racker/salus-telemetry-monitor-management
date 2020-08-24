@@ -1055,6 +1055,9 @@ public class MonitorApiControllerTest {
     when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
         .thenReturn(Map.of(AgentType.TELEGRAF, operators));
 
+    when(monitorContentTranslationService.prepareOperatorsForMonitor(any(), any(), any()))
+        .thenReturn(operators);
+
     when(monitorContentTranslationService.translateMonitorContent(any(), any()))
         .thenReturn("translated content");
 
@@ -1063,6 +1066,8 @@ public class MonitorApiControllerTest {
             new TranslateMonitorContentRequest()
                 .setAgentType(AgentType.TELEGRAF)
                 .setAgentVersion("1.13.2")
+                .setMonitorType(MonitorType.cpu)
+                .setScope(ConfigSelectorScope.LOCAL)
                 .setContent("original content")
         ))
         .contentType(MediaType.APPLICATION_JSON)
@@ -1074,6 +1079,9 @@ public class MonitorApiControllerTest {
     verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
         Map.of(AgentType.TELEGRAF, "1.13.2")
     );
+
+    verify(monitorContentTranslationService)
+        .prepareOperatorsForMonitor(operators, MonitorType.cpu, ConfigSelectorScope.LOCAL);
 
     verify(monitorContentTranslationService).translateMonitorContent(operators, "original content");
 
