@@ -124,7 +124,11 @@ public class MonitorApiController {
             );
 
     return monitorContentTranslationService.translateMonitorContent(
-        operatorsByType.get(request.getAgentType()),
+        monitorContentTranslationService.prepareOperatorsForMonitor(
+            operatorsByType.get(request.getAgentType()),
+            request.getMonitorType(),
+            request.getScope()
+        ),
         request.getContent()
     );
   }

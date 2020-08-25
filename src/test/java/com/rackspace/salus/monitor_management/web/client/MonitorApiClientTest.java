@@ -33,6 +33,8 @@ import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import java.io.IOException;
 import java.util.Arrays;
@@ -165,6 +167,8 @@ public class MonitorApiClientTest {
     final TranslateMonitorContentRequest request = new TranslateMonitorContentRequest()
         .setAgentType(AgentType.TELEGRAF)
         .setAgentVersion("1.13.2")
+        .setMonitorType(MonitorType.cpu)
+        .setScope(ConfigSelectorScope.LOCAL)
         .setContent("original content");
 
     mockServer.expect(requestTo("/api/admin/translate-monitor-content"))
@@ -173,7 +177,9 @@ public class MonitorApiClientTest {
         .andRespond(withSuccess("converted content", MediaType.TEXT_PLAIN));
 
     final String result = monitorApiClient
-        .translateMonitorContent(AgentType.TELEGRAF, "1.13.2", "original content");
+        .translateMonitorContent(AgentType.TELEGRAF, "1.13.2",
+            MonitorType.cpu, ConfigSelectorScope.LOCAL,
+            "original content");
 
     assertThat(result).isEqualTo("converted content");
   }

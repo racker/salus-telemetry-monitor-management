@@ -32,7 +32,9 @@ import com.rackspace.salus.telemetry.translators.RenameFieldKeyTranslator;
 import com.rackspace.salus.telemetry.translators.ScalarToArrayTranslator;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +67,11 @@ public class MonitorContentTranslationServiceTest {
 
   @Autowired
   TestEntityManager entityManager;
+
+  @After
+  public void tearDown() throws Exception {
+    repository.deleteAll();
+  }
 
   @Test
   public void testCreate_noNullFields() {
@@ -113,12 +120,37 @@ public class MonitorContentTranslationServiceTest {
             .setTranslations(List.of("'target' becomes the singleton array named 'sources'")));
   }
 
-  private void createTranslations() {
+  @Test
+  public void testLoadOperatorsByAgentTypeAndVersion() {
+    createTranslations();
+
+    final Map<AgentType, List<MonitorTranslationOperator>> results = service
+        .loadOperatorsByAgentTypeAndVersion(
+            // specify a version less than the >= 1.12.0 case of cpu-rename
+            Map.of(AgentType.TELEGRAF, "1.11.0")
+        );
+
+    assertThat(results).hasSize(1);
+    assertThat(results).containsKey(AgentType.TELEGRAF);
+    assertThat(results.get(AgentType.TELEGRAF))
+        // easiest is to assert by name (see createTranslations for those)
+        .extracting(MonitorTranslationOperator::getName)
+        // making sure cpu-rename is excluded
+        .containsExactlyInAnyOrder(
+            "http-url-list",
+            "http-go-timeout",
+            "http-rename-timeout",
+            "ssl-local-sources-list"
+        );
+  }
+
+  @Test
+  public void testPrepareOperatorsForMonitor() {
     List<MonitorTranslationOperator> operators = List.of(
         new MonitorTranslationOperator()
             .setName("cpu-rename")
             .setAgentType(AgentType.TELEGRAF)
-            .setAgentVersions(">= 1.12.0")
+            .setAgentVersions("[1.12.0,)")
             .setMonitorType(MonitorType.cpu)
             .setSelectorScope(ConfigSelectorScope.LOCAL)
             .setTranslatorSpec(new RenameFieldKeyTranslator()
@@ -129,7 +161,69 @@ public class MonitorContentTranslationServiceTest {
         new MonitorTranslationOperator()
             .setName("http-rename-timeout")
             .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions("[1.10.2,)")
+            .setMonitorType(MonitorType.http)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setTranslatorSpec(new RenameFieldKeyTranslator()
+                .setFrom("timeout")
+                .setTo("responseTimeout")
+            )
+            .setOrder(2),
+        new MonitorTranslationOperator()
+            .setName("http-go-timeout")
+            .setAgentType(AgentType.TELEGRAF)
             .setAgentVersions(null)
+            .setMonitorType(MonitorType.http)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setTranslatorSpec(new GoDurationTranslator()
+                .setField("timeout")
+            )
+            .setOrder(1),
+        new MonitorTranslationOperator()
+            .setName("http-url-list")
+            .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions(null)
+            .setMonitorType(MonitorType.http)
+            .setSelectorScope(ConfigSelectorScope.REMOTE)
+            .setTranslatorSpec(new ScalarToArrayTranslator()
+                .setFrom("url")
+                .setTo("urls")
+            )
+            .setOrder(0)
+    );
+
+    // EXECUTE
+    final List<MonitorTranslationOperator> results = service
+        .prepareOperatorsForMonitor(operators, MonitorType.http, ConfigSelectorScope.REMOTE);
+
+    assertThat(results).hasSize(3);
+    assertThat(results)
+        .extracting(MonitorTranslationOperator::getName)
+        // assert ordering
+        .containsExactly(
+            "http-url-list",
+            "http-go-timeout",
+            "http-rename-timeout"
+        );
+  }
+
+  private void createTranslations() {
+    List<MonitorTranslationOperator> operators = List.of(
+        new MonitorTranslationOperator()
+            .setName("cpu-rename")
+            .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions("[1.12.0,)")
+            .setMonitorType(MonitorType.cpu)
+            .setSelectorScope(ConfigSelectorScope.LOCAL)
+            .setTranslatorSpec(new RenameFieldKeyTranslator()
+                .setFrom("from-field")
+                .setTo("to-field")
+            )
+            .setOrder(0),
+        new MonitorTranslationOperator()
+            .setName("http-rename-timeout")
+            .setAgentType(AgentType.TELEGRAF)
+            .setAgentVersions("[1.10.2,)")
             .setMonitorType(MonitorType.http)
             .setSelectorScope(ConfigSelectorScope.REMOTE)
             .setTranslatorSpec(new RenameFieldKeyTranslator()

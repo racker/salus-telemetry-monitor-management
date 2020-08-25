@@ -26,6 +26,8 @@ import com.rackspace.salus.monitor_management.web.model.TestMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.TestMonitorResult;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.MonitorType;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -161,7 +163,10 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public String translateMonitorContent(AgentType agentType, String agentVersion, String content) {
+  public String translateMonitorContent(AgentType agentType, String agentVersion,
+                                        MonitorType monitorType,
+                                        ConfigSelectorScope scope,
+                                        String content) {
     return mapRestClientExceptions(
         SERVICE_NAME,
         () -> restTemplate.postForEntity(
@@ -170,6 +175,8 @@ public class MonitorApiClient implements MonitorApi {
                 new TranslateMonitorContentRequest()
                     .setAgentType(agentType)
                     .setAgentVersion(agentVersion)
+                    .setMonitorType(monitorType)
+                    .setScope(scope)
                     .setContent(content)
             ),
             String.class
