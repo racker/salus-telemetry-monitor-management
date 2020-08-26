@@ -110,6 +110,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.ObjectUtils;
 
 
 @Slf4j
@@ -1234,13 +1235,15 @@ public class MonitorManagement {
 
     // If a new one is to be bound, bind it
     if (StringUtils.isNotBlank(updatedResourceId)) {
-      ResourceDTO resource  = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
-      affectedEnvoys.addAll(
-          upsertBindingToResource(
-              Collections.singletonList(monitor),
-              resource,
-              null
-          ));
+      ResourceDTO resource = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
+      if (!ObjectUtils.isEmpty(resource)) {
+        affectedEnvoys.addAll(
+            upsertBindingToResource(
+                Collections.singletonList(monitor),
+                resource,
+                null
+            ));
+      }
     }
 
     return affectedEnvoys;
