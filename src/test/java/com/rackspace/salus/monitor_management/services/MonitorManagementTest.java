@@ -4378,4 +4378,71 @@ public class MonitorManagementTest {
     assertThat(result.getNumberOfElements(), equalTo(0));
   }
 
+  @Test
+  public void testPatchExistingMonitor_nonExistingResource() {
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
+        .setContent("static content")
+        .setTenantId("t-1")
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setLabelSelector(Map.of("os", "linux"))
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    // Called when binding new resource
+    when(resourceApi.getByResourceId("t-1", "r-1"))
+        .thenReturn(null);
+    when(resourceRepository.findByTenantIdAndResourceId("t-1", "r-1"))
+        .thenReturn(Optional.empty());
+
+    // Called when unbinding old resources
+    when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
+        .thenReturn(Collections.emptySet());
+
+    // EXECUTE
+    String newResourceIdBinding = "r-1";
+
+    final MonitorCU update = new MonitorCU()
+        .setResourceId(newResourceIdBinding)
+        .setLabelSelector(null)
+        // for a patch we need to set all the other values to the same as the original
+        .setZones(monitor.getZones())
+        .setMonitorType(monitor.getMonitorType())
+        .setMonitorName(monitor.getMonitorName())
+        .setContent(monitor.getContent())
+        .setAgentType(monitor.getAgentType())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setInterval(monitor.getInterval())
+        .setSelectorScope(monitor.getSelectorScope())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
+
+    final Monitor updatedMonitor = monitorManagement
+        .updateMonitor("t-1", monitor.getId(), update, true);
+
+    // VERIFY
+    // confirm monitor is updated
+    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.cpu)
+                .setContent("static content")
+                .setMonitorMetadataFields(List.of("monitorName"))
+                .setTenantId("t-1")
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setResourceId(newResourceIdBinding)
+                .setLabelSelector(null)
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
+
+    verifyNoMoreInteractions(monitorEventProducer);
+  }
+
 }
