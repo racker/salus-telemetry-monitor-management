@@ -44,6 +44,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -4381,11 +4382,14 @@ public class MonitorManagementTest {
   @Test
   public void testPatchExistingMonitor_nonExistingResource() {
 
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
         .setMonitorType(MonitorType.cpu)
         .setContent("static content")
-        .setTenantId("t-1")
+        .setTenantId(tenantId)
         .setResourceId(null)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
@@ -4395,9 +4399,9 @@ public class MonitorManagementTest {
     entityManager.persist(monitor);
 
     // Called when binding new resource
-    when(resourceApi.getByResourceId("t-1", "r-1"))
+    when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(null);
-    when(resourceRepository.findByTenantIdAndResourceId("t-1", "r-1"))
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId))
         .thenReturn(Optional.empty());
 
     // Called when unbinding old resources
@@ -4405,10 +4409,9 @@ public class MonitorManagementTest {
         .thenReturn(Collections.emptySet());
 
     // EXECUTE
-    String newResourceIdBinding = "r-1";
 
     final MonitorCU update = new MonitorCU()
-        .setResourceId(newResourceIdBinding)
+        .setResourceId(resourceId)
         .setLabelSelector(null)
         // for a patch we need to set all the other values to the same as the original
         .setZones(monitor.getZones())
@@ -4422,11 +4425,11 @@ public class MonitorManagementTest {
         .setPluginMetadataFields(monitor.getPluginMetadataFields());
 
     final Monitor updatedMonitor = monitorManagement
-        .updateMonitor("t-1", monitor.getId(), update, true);
+        .updateMonitor(tenantId, monitor.getId(), update, true);
 
     // VERIFY
     // confirm monitor is updated
-    org.assertj.core.api.Assertions.assertThat(Collections.singleton(updatedMonitor))
+    assertThat(Collections.singleton(updatedMonitor))
         .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
         .containsExactly(
             new Monitor()
@@ -4435,12 +4438,18 @@ public class MonitorManagementTest {
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
                 .setMonitorMetadataFields(List.of("monitorName"))
-                .setTenantId("t-1")
+                .setTenantId(tenantId)
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setResourceId(newResourceIdBinding)
+                .setResourceId(resourceId)
                 .setLabelSelector(null)
                 .setLabelSelectorMethod(LabelSelectorMethod.AND)
                 .setInterval(Duration.ofSeconds(60)));
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
+
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
+
+    verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
 
     verifyNoMoreInteractions(monitorEventProducer);
   }
