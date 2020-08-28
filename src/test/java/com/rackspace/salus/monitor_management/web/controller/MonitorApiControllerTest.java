@@ -1073,7 +1073,7 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isOk())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
         .andExpect(content().string("translated content"));
 
     verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
@@ -1117,5 +1117,76 @@ public class MonitorApiControllerTest {
       update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
       return this;
     }
+  }
+
+  @Test
+  public void testGetAgentConfig() throws Exception {
+    final List<MonitorTranslationOperator> operators = List
+        .of(new MonitorTranslationOperator().setName("for-testing"));
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID monitorId = UUID.randomUUID();
+
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setTenantId(tenantId);
+    monitor.setId(monitorId);
+
+    when(monitorManagement.getMonitor(anyString(),any())).thenReturn(Optional.of(monitor));
+
+    when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
+        .thenReturn(Map.of(AgentType.TELEGRAF, operators));
+
+    when(monitorContentTranslationService.prepareOperatorsForMonitor(any(), any(), any()))
+        .thenReturn(operators);
+
+    when(monitorContentTranslationService.translateMonitorContent(any(), any()))
+        .thenReturn("translated content");
+
+    mockMvc.perform(post("/api/tenant/{tenantId}/monitors/{monitorId}/agent-config", tenantId, monitorId)
+        .content(objectMapper.writeValueAsString(
+            new TranslateMonitorContentRequest()
+                .setAgentType(AgentType.TELEGRAF)
+                .setAgentVersion("1.13.2")
+        ))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
+        .andExpect(content().string("translated content"));
+
+    verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
+        Map.of(AgentType.TELEGRAF, "1.13.2")
+    );
+
+    verify(monitorContentTranslationService)
+        .prepareOperatorsForMonitor(operators, monitor.getMonitorType(), monitor.getSelectorScope());
+
+    verify(monitorContentTranslationService).translateMonitorContent(operators, monitor.getContent());
+
+    verify(monitorManagement).getMonitor(tenantId, monitorId);
+    verifyNoMoreInteractions(monitorContentTranslationService);
+  }
+
+  @Test
+  public void testGetAgentConfigMonitorNotFound() throws Exception {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID monitorId = UUID.randomUUID();
+
+    when(monitorManagement.getMonitor(anyString(),any())).thenReturn(Optional.empty());
+
+    mockMvc.perform(post("/api/tenant/{tenantId}/monitors/{monitorId}/agent-config", tenantId, monitorId)
+        .content(objectMapper.writeValueAsString(
+            new TranslateMonitorContentRequest()
+                .setAgentType(AgentType.TELEGRAF)
+                .setAgentVersion("1.13.2")
+        ))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE));
+
+    verify(monitorManagement).getMonitor(tenantId, monitorId);
+    verifyNoMoreInteractions(monitorContentTranslationService);
   }
 }

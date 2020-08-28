@@ -43,7 +43,6 @@ import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import javax.json.JsonPatch;
 import lombok.extern.slf4j.Slf4j;
@@ -116,7 +115,7 @@ public class MonitorApiController {
 
   @PostMapping(value="/admin/translate-monitor-content", produces = MediaType.APPLICATION_JSON_VALUE)
   @ApiOperation("Translate monitor content for a specific agent type and version")
-  public String translateMonitorContent(@RequestBody @Validated(ValidationGroups.TranslateMonitorContent.class) TranslateMonitorContentRequest request)
+  public String translateMonitorContent(@RequestBody @Validated(ValidationGroups.TranslationWithoutMonitorProvided.class) TranslateMonitorContentRequest request)
       throws MonitorContentTranslationException {
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
         monitorContentTranslationService
@@ -380,10 +379,9 @@ public class MonitorApiController {
   public String getAgentConfig(@PathVariable String tenantId, @PathVariable UUID monitorId,
       @RequestBody @Validated TranslateMonitorContentRequest request)
       throws MonitorContentTranslationException {
-    Optional<Monitor> monitor = monitorManagement.getMonitor(tenantId, monitorId);
-    if(monitor.isEmpty()) {
-      throw new NotFoundException(String.format("No policy monitor found for %s", monitorId));
-    }
+    Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId).orElseThrow(
+        () -> new NotFoundException(String.format("No policy monitor found for %s", monitorId)));
+
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
         monitorContentTranslationService
             .loadOperatorsByAgentTypeAndVersion(
@@ -393,10 +391,10 @@ public class MonitorApiController {
     return monitorContentTranslationService.translateMonitorContent(
         monitorContentTranslationService.prepareOperatorsForMonitor(
             operatorsByType.get(request.getAgentType()),
-            monitor.get().getMonitorType(),
-            monitor.get().getSelectorScope()
+            monitor.getMonitorType(),
+            monitor.getSelectorScope()
         ),
-        monitor.get().getContent()
+        monitor.getContent()
     );
   }
 }

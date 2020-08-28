@@ -27,14 +27,14 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Validated
 public class TranslateMonitorContentRequest {
-  @NotBlank(groups = {ValidationGroups.TranslateMonitorContent.class})
+  @NotBlank(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
   String content;
   @NotNull
   AgentType agentType;
   @NotBlank
   String agentVersion;
-  @NotNull(groups = {ValidationGroups.TranslateMonitorContent.class})
+  @NotNull(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
   MonitorType monitorType;
-  @NotNull(groups = {ValidationGroups.TranslateMonitorContent.class})
+  @NotNull(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
   ConfigSelectorScope scope;
 }
