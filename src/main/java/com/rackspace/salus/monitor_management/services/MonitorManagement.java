@@ -1234,13 +1234,15 @@ public class MonitorManagement {
 
     // If a new one is to be bound, bind it
     if (StringUtils.isNotBlank(updatedResourceId)) {
-      ResourceDTO resource  = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
-      affectedEnvoys.addAll(
-          upsertBindingToResource(
-              Collections.singletonList(monitor),
-              resource,
-              null
-          ));
+      ResourceDTO resource = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
+      if (resource != null) {
+        affectedEnvoys.addAll(
+            upsertBindingToResource(
+                Collections.singletonList(monitor),
+                resource,
+                null
+            ));
+      }
     }
 
     return affectedEnvoys;

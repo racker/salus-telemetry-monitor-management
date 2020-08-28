@@ -44,6 +44,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -4376,6 +4377,81 @@ public class MonitorManagementTest {
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(any(), any());
     verify(boundMonitorRepository).deleteAll(any());
     assertThat(result.getNumberOfElements(), equalTo(0));
+  }
+
+  @Test
+  public void testPatchExistingMonitor_nonExistingResource() {
+
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.cpu)
+        .setContent("static content")
+        .setTenantId(tenantId)
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.LOCAL)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setLabelSelector(Map.of("os", "linux"))
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    // Called when binding new resource
+    when(resourceApi.getByResourceId(tenantId, resourceId))
+        .thenReturn(null);
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId))
+        .thenReturn(Optional.empty());
+
+    // Called when unbinding old resources
+    when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
+        .thenReturn(Collections.emptySet());
+
+    // EXECUTE
+
+    final MonitorCU update = new MonitorCU()
+        .setResourceId(resourceId)
+        .setLabelSelector(null)
+        // for a patch we need to set all the other values to the same as the original
+        .setZones(monitor.getZones())
+        .setMonitorType(monitor.getMonitorType())
+        .setMonitorName(monitor.getMonitorName())
+        .setContent(monitor.getContent())
+        .setAgentType(monitor.getAgentType())
+        .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
+        .setInterval(monitor.getInterval())
+        .setSelectorScope(monitor.getSelectorScope())
+        .setPluginMetadataFields(monitor.getPluginMetadataFields());
+
+    final Monitor updatedMonitor = monitorManagement
+        .updateMonitor(tenantId, monitor.getId(), update, true);
+
+    // VERIFY
+    // confirm monitor is updated
+    assertThat(Collections.singleton(updatedMonitor))
+        .usingElementComparatorIgnoringFields("createdTimestamp", "updatedTimestamp")
+        .containsExactly(
+            new Monitor()
+                .setId(monitor.getId())
+                .setAgentType(AgentType.TELEGRAF)
+                .setMonitorType(MonitorType.cpu)
+                .setContent("static content")
+                .setMonitorMetadataFields(List.of("monitorName"))
+                .setTenantId(tenantId)
+                .setSelectorScope(ConfigSelectorScope.LOCAL)
+                .setResourceId(resourceId)
+                .setLabelSelector(null)
+                .setLabelSelectorMethod(LabelSelectorMethod.AND)
+                .setInterval(Duration.ofSeconds(60)));
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
+
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
+
+    verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
+
+    verifyNoMoreInteractions(monitorEventProducer);
   }
 
 }
