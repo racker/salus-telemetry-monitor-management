@@ -21,11 +21,13 @@ import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.J
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.web.model.AgentConfigRequest;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -115,7 +117,7 @@ public class MonitorApiController {
 
   @PostMapping(value="/admin/translate-monitor-content", produces = MediaType.APPLICATION_JSON_VALUE)
   @ApiOperation("Translate monitor content for a specific agent type and version")
-  public String translateMonitorContent(@RequestBody @Validated(ValidationGroups.TranslationWithoutMonitorProvided.class) TranslateMonitorContentRequest request)
+  public String translateMonitorContent(@RequestBody @Validated TranslateMonitorContentRequest request)
       throws MonitorContentTranslationException {
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
         monitorContentTranslationService
@@ -377,10 +379,10 @@ public class MonitorApiController {
   @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)
   @ApiOperation("Translate monitor content for a specific agent type and version")
   public String getAgentConfig(@PathVariable String tenantId, @PathVariable UUID monitorId,
-      @RequestBody @Validated TranslateMonitorContentRequest request)
+      @RequestBody @Validated AgentConfigRequest request)
       throws MonitorContentTranslationException {
-    Monitor monitor = monitorManagement.getMonitor(tenantId, monitorId).orElseThrow(
-        () -> new NotFoundException(String.format("No policy monitor found for %s", monitorId)));
+
+    RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement.renderMonitorTemplate(monitorId, request.getResourceId(), tenantId);
 
     final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
         monitorContentTranslationService
@@ -391,10 +393,10 @@ public class MonitorApiController {
     return monitorContentTranslationService.translateMonitorContent(
         monitorContentTranslationService.prepareOperatorsForMonitor(
             operatorsByType.get(request.getAgentType()),
-            monitor.getMonitorType(),
-            monitor.getSelectorScope()
+            renderedMonitorTemplate.getMonitor().getMonitorType(),
+            renderedMonitorTemplate.getMonitor().getSelectorScope()
         ),
-        monitor.getContent()
+        renderedMonitorTemplate.getRenderedContent()
     );
   }
 }

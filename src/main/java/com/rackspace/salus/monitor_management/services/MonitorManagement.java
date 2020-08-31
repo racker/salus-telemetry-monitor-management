@@ -32,6 +32,7 @@ import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -2287,5 +2288,37 @@ public class MonitorManagement {
               .collect(Collectors.toList()));
       monitorRepository.deleteAllByTenantId(tenantId);
     }
+  }
+
+  public RenderedMonitorTemplate renderMonitorTemplate(UUID monitorId, String resourceId,
+      String tenantId) {
+    //Get existing monitor
+    Monitor monitor = getMonitor(tenantId, monitorId).orElseThrow(
+        () -> new NotFoundException(String.format("No policy monitor found for %s", monitorId)));
+
+    //Set Render monitor template
+    RenderedMonitorTemplate renderedMonitorTemplate = new RenderedMonitorTemplate();
+    renderedMonitorTemplate.setMonitor(monitor);
+    renderedMonitorTemplate.setRenderedContent(monitor.getContent());
+
+    if (StringUtils.isBlank(resourceId)) {
+      return renderedMonitorTemplate;
+    }
+    ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
+
+    if (resource != null) {
+      try {
+        final String renderedContent = getRenderedContent(monitor.getContent(), resource);
+        renderedMonitorTemplate.setRenderedContent(renderedContent);
+      } catch (InvalidTemplateException e) {
+        log.warn("Unable to render content='{}' of monitor={} for resource={}",
+            monitor.getContent(), monitor, resource, e);
+        invalidTemplateErrors.increment();
+      }
+    } else {
+      log.warn("Failed to find resourceId={} during processing of monitor={}",
+          resourceId, monitor);
+    }
+    return renderedMonitorTemplate;
   }
 }

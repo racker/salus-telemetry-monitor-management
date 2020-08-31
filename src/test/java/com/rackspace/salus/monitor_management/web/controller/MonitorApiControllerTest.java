@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
+import com.rackspace.salus.monitor_management.web.model.AgentConfigRequest;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -57,6 +58,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
@@ -1126,12 +1128,19 @@ public class MonitorApiControllerTest {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID monitorId = UUID.randomUUID();
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
 
+    RenderedMonitorTemplate renderedMonitorTemplate = podamFactory.manufacturePojo(RenderedMonitorTemplate.class);
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setTenantId(tenantId);
     monitor.setId(monitorId);
+    renderedMonitorTemplate.setMonitor(monitor);
 
-    when(monitorManagement.getMonitor(anyString(),any())).thenReturn(Optional.of(monitor));
+    AgentConfigRequest agentConfigRequest = podamFactory.manufacturePojo(AgentConfigRequest.class);
+    agentConfigRequest.setResourceId(resourceId);
+    agentConfigRequest.setAgentVersion("1.13.2");
+
+    when(monitorManagement.renderMonitorTemplate(any(), anyString(), anyString())).thenReturn(renderedMonitorTemplate);
 
     when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
         .thenReturn(Map.of(AgentType.TELEGRAF, operators));
@@ -1143,11 +1152,7 @@ public class MonitorApiControllerTest {
         .thenReturn("translated content");
 
     mockMvc.perform(post("/api/tenant/{tenantId}/monitors/{monitorId}/agent-config", tenantId, monitorId)
-        .content(objectMapper.writeValueAsString(
-            new TranslateMonitorContentRequest()
-                .setAgentType(AgentType.TELEGRAF)
-                .setAgentVersion("1.13.2")
-        ))
+        .content(objectMapper.writeValueAsString(agentConfigRequest))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isOk())
@@ -1155,38 +1160,15 @@ public class MonitorApiControllerTest {
         .andExpect(content().string("translated content"));
 
     verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
-        Map.of(AgentType.TELEGRAF, "1.13.2")
+        Map.of(AgentType.TELEGRAF, agentConfigRequest.getAgentVersion())
     );
 
     verify(monitorContentTranslationService)
-        .prepareOperatorsForMonitor(operators, monitor.getMonitorType(), monitor.getSelectorScope());
+        .prepareOperatorsForMonitor(operators, renderedMonitorTemplate.getMonitor().getMonitorType(), renderedMonitorTemplate.getMonitor().getSelectorScope());
 
-    verify(monitorContentTranslationService).translateMonitorContent(operators, monitor.getContent());
+    verify(monitorContentTranslationService).translateMonitorContent(operators, renderedMonitorTemplate.getRenderedContent());
 
-    verify(monitorManagement).getMonitor(tenantId, monitorId);
-    verifyNoMoreInteractions(monitorContentTranslationService);
-  }
-
-  @Test
-  public void testGetAgentConfigMonitorNotFound() throws Exception {
-
-    String tenantId = RandomStringUtils.randomAlphanumeric(10);
-    UUID monitorId = UUID.randomUUID();
-
-    when(monitorManagement.getMonitor(anyString(),any())).thenReturn(Optional.empty());
-
-    mockMvc.perform(post("/api/tenant/{tenantId}/monitors/{monitorId}/agent-config", tenantId, monitorId)
-        .content(objectMapper.writeValueAsString(
-            new TranslateMonitorContentRequest()
-                .setAgentType(AgentType.TELEGRAF)
-                .setAgentVersion("1.13.2")
-        ))
-        .contentType(MediaType.APPLICATION_JSON)
-        .characterEncoding(StandardCharsets.UTF_8.name()))
-        .andExpect(status().isNotFound())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE));
-
-    verify(monitorManagement).getMonitor(tenantId, monitorId);
+    verify(monitorManagement).renderMonitorTemplate(monitorId, resourceId, tenantId);
     verifyNoMoreInteractions(monitorContentTranslationService);
   }
 }

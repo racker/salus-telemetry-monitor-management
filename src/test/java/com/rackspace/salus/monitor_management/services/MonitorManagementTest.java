@@ -17,10 +17,12 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC_PREFIX;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static junit.framework.TestCase.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -44,7 +46,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -57,6 +58,7 @@ import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.validator.ValidUpdateMonitor;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
@@ -85,6 +87,7 @@ import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -4452,6 +4455,94 @@ public class MonitorManagementTest {
     verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
 
     verifyNoMoreInteractions(monitorEventProducer);
+  }
+
+  @Test
+  public void testRenderedMonitorTemplate() throws IOException {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+
+    String monitorContent = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent(monitorContent)
+        .setTenantId(tenantId)
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    final ResourceDTO r1 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setMetadata(new HashMap<>())
+        .setResourceId(resourceId)
+        .setTenantId(tenantId);
+
+    when(resourceApi.getByResourceId(tenantId, resourceId))
+        .thenReturn(r1);
+
+    final RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
+        .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
+
+    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
+    assertNotNull(renderedMonitorTemplate.getRenderedContent());
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
+  }
+
+  @Test(expected = NotFoundException.class)
+  public void testRenderedMonitorTemplate_MonitorNotFound() {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+    UUID monitorId = UUID.randomUUID();
+
+    monitorManagement.renderMonitorTemplate(monitorId, resourceId, tenantId);
+  }
+
+  @Test
+  public void testRenderedMonitorTemplate_ResourceNotPresent() throws IOException {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+
+    String monitorContent = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent(monitorContent)
+        .setTenantId(tenantId)
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    when(resourceApi.getByResourceId(tenantId, resourceId))
+        .thenReturn(null);
+
+    RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
+        .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
+
+    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
+    assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
+
+    renderedMonitorTemplate = monitorManagement
+        .renderMonitorTemplate(monitor.getId(), null, tenantId);
+
+    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
+    assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
 
 }

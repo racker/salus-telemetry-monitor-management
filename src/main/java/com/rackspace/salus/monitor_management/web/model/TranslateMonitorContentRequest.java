@@ -22,19 +22,17 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
-import org.springframework.validation.annotation.Validated;
 
 @Data
-@Validated
 public class TranslateMonitorContentRequest {
-  @NotBlank(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
+  @NotBlank
   String content;
   @NotNull
   AgentType agentType;
   @NotBlank
   String agentVersion;
-  @NotNull(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
+  @NotNull
   MonitorType monitorType;
-  @NotNull(groups = {ValidationGroups.TranslationWithoutMonitorProvided.class})
+  @NotNull
   ConfigSelectorScope scope;
 }
