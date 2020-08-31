@@ -40,5 +40,5 @@ public class ZonesProperties {
    * assignment count will be considered over-assigned. Those Envoys that are over-assigned will
    * have bound monitors reassigned to other Envoys in the zone.
    */
-  float rebalanceStandardDeviations = 1.0f;
+  float rebalanceStandardDeviations = 0.2f;
 }
