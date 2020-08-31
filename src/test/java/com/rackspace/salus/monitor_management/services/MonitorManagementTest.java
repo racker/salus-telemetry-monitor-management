@@ -4458,7 +4458,7 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testRenderedMonitorTemplate() throws IOException {
+  public void testRenderedMonitorTemplate() throws IOException, InvalidTemplateException {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String resourceId = RandomStringUtils.randomAlphanumeric(10);
@@ -4486,11 +4486,17 @@ public class MonitorManagementTest {
     when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(r1);
 
+    final MonitorContentProperties properties = new MonitorContentProperties();
+    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
+
+    final String rendered = renderer.render(monitor.getContent(), r1);
+
     final RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
         .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
 
     assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
     assertNotNull(renderedMonitorTemplate.getRenderedContent());
+    assertEquals(renderedMonitorTemplate.getRenderedContent(), rendered);
 
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
@@ -4506,7 +4512,34 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void testRenderedMonitorTemplate_ResourceNotPresent() throws IOException {
+  public void testRenderedMonitorTemplate_ResourceNotPresentInRequest() throws IOException {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+
+    String monitorContent = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent(monitorContent)
+        .setTenantId(tenantId)
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
+        .renderMonitorTemplate(monitor.getId(), null, tenantId);
+
+    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
+    assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
+  }
+
+  @Test(expected = NotFoundException.class)
+  public void testRenderedMonitorTemplate_ResourceNotFound() throws IOException {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String resourceId = RandomStringUtils.randomAlphanumeric(10);
@@ -4528,21 +4561,43 @@ public class MonitorManagementTest {
     when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(null);
 
-    RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
-        .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
-
-    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
-    assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
-
-    verify(resourceApi).getByResourceId(tenantId, resourceId);
-
-    renderedMonitorTemplate = monitorManagement
-        .renderMonitorTemplate(monitor.getId(), null, tenantId);
-
-    assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
-    assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
+    monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
 
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testRenderedMonitorTemplate_InvalidTemplate() throws IOException {
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+
+    String monitorContent = "value=${resource.wrong.reference}";
+
+    final Monitor monitor = new Monitor()
+        .setAgentType(AgentType.TELEGRAF)
+        .setMonitorType(MonitorType.ping)
+        .setContent(monitorContent)
+        .setTenantId(tenantId)
+        .setResourceId(null)
+        .setSelectorScope(ConfigSelectorScope.REMOTE)
+        .setLabelSelectorMethod(LabelSelectorMethod.AND)
+        .setZones(Collections.emptyList())
+        .setInterval(Duration.ofSeconds(60));
+    entityManager.persist(monitor);
+
+    final ResourceDTO r1 = new ResourceDTO()
+        .setLabels(Collections.singletonMap("os", "linux"))
+        .setMetadata(new HashMap<>())
+        .setResourceId(resourceId)
+        .setTenantId(tenantId)
+        .setMetadata(Collections.emptyMap());
+
+    when(resourceApi.getByResourceId(tenantId, resourceId))
+        .thenReturn(r1);
+
+    monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
+
+    verify(resourceApi).getByResourceId(tenantId, resourceId);
+  }
 }

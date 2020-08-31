@@ -2294,7 +2294,7 @@ public class MonitorManagement {
       String tenantId) {
     //Get existing monitor
     Monitor monitor = getMonitor(tenantId, monitorId).orElseThrow(
-        () -> new NotFoundException(String.format("No policy monitor found for %s", monitorId)));
+        () -> new NotFoundException(String.format("No monitor found for %s", monitorId)));
 
     //Set Render monitor template
     RenderedMonitorTemplate renderedMonitorTemplate = new RenderedMonitorTemplate();
@@ -2311,13 +2311,18 @@ public class MonitorManagement {
         final String renderedContent = getRenderedContent(monitor.getContent(), resource);
         renderedMonitorTemplate.setRenderedContent(renderedContent);
       } catch (InvalidTemplateException e) {
-        log.warn("Unable to render content='{}' of monitor={} for resource={}",
+        log.error("Unable to render content='{}' of monitor={} for resource={}",
             monitor.getContent(), monitor, resource, e);
-        invalidTemplateErrors.increment();
+        throw new IllegalArgumentException(
+            String.format("Unable to render content=%s of monitor=%s for resource=%s",
+                monitor.getContent(), monitor, resource));
       }
     } else {
-      log.warn("Failed to find resourceId={} during processing of monitor={}",
+      log.error("Failed to find resourceId={} during processing of monitor={}",
           resourceId, monitor);
+      throw new NotFoundException(
+          String.format("Failed to find resourceId=%s during processing of monitor=%s",
+              resourceId, monitorId));
     }
     return renderedMonitorTemplate;
   }
