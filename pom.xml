@@ -331,6 +331,7 @@
           </execution>
           <execution>
             <id>generate-html-public</id>
+            <phase>package</phase>
             <goals><goal>generate</goal></goals>
             <configuration>
               <inputSpec>${project.build.directory}/generated/swagger/adminConvertedOutput.json</inputSpec>
