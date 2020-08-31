@@ -2314,8 +2314,8 @@ public class MonitorManagement {
         log.error("Unable to render content='{}' of monitor={} for resource={}",
             monitor.getContent(), monitor, resource, e);
         throw new IllegalArgumentException(
-            String.format("Unable to render content=%s of monitor=%s for resource=%s",
-                monitor.getContent(), monitor, resource));
+            String.format("Unable to render content=%s for resource=%s",
+                monitor.getContent(), resource));
       }
     } else {
       log.error("Failed to find resourceId={} during processing of monitor={}",

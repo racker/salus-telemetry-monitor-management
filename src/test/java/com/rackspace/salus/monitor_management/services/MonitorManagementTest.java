@@ -229,6 +229,9 @@ public class MonitorManagementTest {
   @Captor
   private ArgumentCaptor<List<BoundMonitor>> captorOfBoundMonitorList;
 
+  @Autowired
+  private MonitorContentRenderer monitorContentRenderer;
+
   @Before
   public void setUp() {
     Monitor monitor = new Monitor()
@@ -4463,7 +4466,7 @@ public class MonitorManagementTest {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String resourceId = RandomStringUtils.randomAlphanumeric(10);
 
-    String monitorContent = readContent("/MonitorConversionServiceTest_ping_with_policy.json");
+    String monitorContent = "value=${resource.labels.os}";
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
@@ -4486,10 +4489,7 @@ public class MonitorManagementTest {
     when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(r1);
 
-    final MonitorContentProperties properties = new MonitorContentProperties();
-    final MonitorContentRenderer renderer = new MonitorContentRenderer(properties);
-
-    final String rendered = renderer.render(monitor.getContent(), r1);
+    final String rendered = monitorContentRenderer.render(monitor.getContent(), r1);
 
     final RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
         .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
@@ -4497,6 +4497,7 @@ public class MonitorManagementTest {
     assertEquals(renderedMonitorTemplate.getMonitor().getId(), monitor.getId());
     assertNotNull(renderedMonitorTemplate.getRenderedContent());
     assertEquals(renderedMonitorTemplate.getRenderedContent(), rendered);
+    assertEquals(renderedMonitorTemplate.getRenderedContent(), "value=linux");
 
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
