@@ -1143,7 +1143,7 @@ public class MonitorApiControllerTest {
     when(monitorManagement.renderMonitorTemplate(any(), anyString(), anyString())).thenReturn(renderedMonitorTemplate);
 
     when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
-        .thenReturn(Map.of(AgentType.TELEGRAF, operators));
+        .thenReturn(Map.of(agentConfigRequest.getAgentType(), operators));
 
     when(monitorContentTranslationService.prepareOperatorsForMonitor(any(), any(), any()))
         .thenReturn(operators);
@@ -1160,7 +1160,7 @@ public class MonitorApiControllerTest {
         .andExpect(content().string("translated content"));
 
     verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
-        Map.of(AgentType.TELEGRAF, agentConfigRequest.getAgentVersion())
+        Map.of(agentConfigRequest.getAgentType(), agentConfigRequest.getAgentVersion())
     );
 
     verify(monitorContentTranslationService)
