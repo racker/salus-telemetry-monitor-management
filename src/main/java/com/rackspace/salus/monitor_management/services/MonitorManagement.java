@@ -2318,11 +2318,11 @@ public class MonitorManagement {
                 monitor.getContent(), resource));
       }
     } else {
-      log.error("Failed to find resourceId={} during processing of monitor={}",
-          resourceId, monitor);
+      log.info("Invalid resourceId={} provided when rendering monitorId={} template for tenantId={}",
+          resourceId, monitorId, tenantId);
       throw new NotFoundException(
-          String.format("Failed to find resourceId=%s during processing of monitor=%s",
-              resourceId, monitorId));
+          String.format("Invalid resourceId=%s provided when rendering monitorId=%s template for tenantId=%s",
+              resourceId, monitorId, tenantId));
     }
     return renderedMonitorTemplate;
   }

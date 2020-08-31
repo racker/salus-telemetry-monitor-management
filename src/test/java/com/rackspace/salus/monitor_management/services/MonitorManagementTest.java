@@ -23,6 +23,7 @@ import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivat
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
 import static junit.framework.TestCase.assertEquals;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -4475,7 +4476,7 @@ public class MonitorManagementTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
-    entityManager.persist(monitor);
+    monitorRepository.save(monitor);
 
     final ResourceDTO r1 = new ResourceDTO()
         .setLabels(Collections.singletonMap("os", "linux"))
@@ -4496,14 +4497,19 @@ public class MonitorManagementTest {
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
 
-  @Test(expected = NotFoundException.class)
+  @Test
   public void testRenderedMonitorTemplate_MonitorNotFound() {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     String resourceId = RandomStringUtils.randomAlphanumeric(10);
     UUID monitorId = UUID.randomUUID();
 
-    monitorManagement.renderMonitorTemplate(monitorId, resourceId, tenantId);
+    assertThatThrownBy(() -> monitorManagement.renderMonitorTemplate(monitorId, resourceId, tenantId))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage(
+            String.format("No monitor found for %s", monitorId)
+        );
+
   }
 
   @Test
@@ -4524,7 +4530,7 @@ public class MonitorManagementTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
-    entityManager.persist(monitor);
+    monitorRepository.save(monitor);
 
     RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
         .renderMonitorTemplate(monitor.getId(), null, tenantId);
@@ -4533,7 +4539,7 @@ public class MonitorManagementTest {
     assertEquals(renderedMonitorTemplate.getRenderedContent(), monitor.getContent());
   }
 
-  @Test(expected = NotFoundException.class)
+  @Test
   public void testRenderedMonitorTemplate_ResourceNotFound() throws IOException {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
@@ -4551,17 +4557,22 @@ public class MonitorManagementTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
-    entityManager.persist(monitor);
+    monitorRepository.save(monitor);
 
     when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(null);
 
-    monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
+    assertThatThrownBy(() -> monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage(
+            String.format("Invalid resourceId=%s provided when rendering monitorId=%s template for tenantId=%s",
+                resourceId, monitor.getId(), tenantId)
+        );
 
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testRenderedMonitorTemplate_InvalidTemplate() throws IOException {
 
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
@@ -4579,7 +4590,7 @@ public class MonitorManagementTest {
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setZones(Collections.emptyList())
         .setInterval(Duration.ofSeconds(60));
-    entityManager.persist(monitor);
+    monitorRepository.save(monitor);
 
     final ResourceDTO r1 = new ResourceDTO()
         .setLabels(Collections.singletonMap("os", "linux"))
@@ -4591,8 +4602,12 @@ public class MonitorManagementTest {
     when(resourceApi.getByResourceId(tenantId, resourceId))
         .thenReturn(r1);
 
-    monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
-
+    assertThatThrownBy(() -> monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            String.format("Unable to render content=%s for resource=%s",
+                monitor.getContent(), r1)
+        );
     verify(resourceApi).getByResourceId(tenantId, resourceId);
   }
 }
