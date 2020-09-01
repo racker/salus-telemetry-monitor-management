@@ -50,6 +50,7 @@ import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
+import com.rackspace.salus.monitor_management.web.model.AgentConfigRequest;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -57,6 +58,7 @@ import com.rackspace.salus.monitor_management.web.model.LocalMonitorDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
 import com.rackspace.salus.monitor_management.web.model.Protocol;
 import com.rackspace.salus.monitor_management.web.model.RemoteMonitorDetails;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Mem;
 import com.rackspace.salus.monitor_management.web.model.telegraf.NetResponse;
@@ -1073,7 +1075,7 @@ public class MonitorApiControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isOk())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
         .andExpect(content().string("translated content"));
 
     verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
@@ -1117,5 +1119,56 @@ public class MonitorApiControllerTest {
       update.setDetails(new LocalMonitorDetails().setPlugin(new Mem()));
       return this;
     }
+  }
+
+  @Test
+  public void testGetAgentConfig() throws Exception {
+    final List<MonitorTranslationOperator> operators = List
+        .of(new MonitorTranslationOperator().setName("for-testing"));
+
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID monitorId = UUID.randomUUID();
+    String resourceId = RandomStringUtils.randomAlphanumeric(10);
+
+    RenderedMonitorTemplate renderedMonitorTemplate = podamFactory.manufacturePojo(RenderedMonitorTemplate.class);
+    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
+    monitor.setTenantId(tenantId);
+    monitor.setId(monitorId);
+    renderedMonitorTemplate.setMonitor(monitor);
+
+    AgentConfigRequest agentConfigRequest = podamFactory.manufacturePojo(AgentConfigRequest.class);
+    agentConfigRequest.setResourceId(resourceId);
+    agentConfigRequest.setAgentVersion("1.13.2");
+
+    when(monitorManagement.renderMonitorTemplate(any(), anyString(), anyString())).thenReturn(renderedMonitorTemplate);
+
+    when(monitorContentTranslationService.loadOperatorsByAgentTypeAndVersion(any()))
+        .thenReturn(Map.of(agentConfigRequest.getAgentType(), operators));
+
+    when(monitorContentTranslationService.prepareOperatorsForMonitor(any(), any(), any()))
+        .thenReturn(operators);
+
+    when(monitorContentTranslationService.translateMonitorContent(any(), any()))
+        .thenReturn("translated content");
+
+    mockMvc.perform(post("/api/tenant/{tenantId}/monitors/{monitorId}/agent-config", tenantId, monitorId)
+        .content(objectMapper.writeValueAsString(agentConfigRequest))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON_VALUE))
+        .andExpect(content().string("translated content"));
+
+    verify(monitorContentTranslationService).loadOperatorsByAgentTypeAndVersion(
+        Map.of(agentConfigRequest.getAgentType(), agentConfigRequest.getAgentVersion())
+    );
+
+    verify(monitorContentTranslationService)
+        .prepareOperatorsForMonitor(operators, renderedMonitorTemplate.getMonitor().getMonitorType(), renderedMonitorTemplate.getMonitor().getSelectorScope());
+
+    verify(monitorContentTranslationService).translateMonitorContent(operators, renderedMonitorTemplate.getRenderedContent());
+
+    verify(monitorManagement).renderMonitorTemplate(monitorId, resourceId, tenantId);
+    verifyNoMoreInteractions(monitorContentTranslationService);
   }
 }

@@ -21,11 +21,13 @@ import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.J
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
+import com.rackspace.salus.monitor_management.web.model.AgentConfigRequest;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorsRequest;
 import com.rackspace.salus.monitor_management.web.model.CloneMonitorRequest;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorOutput;
+import com.rackspace.salus.monitor_management.web.model.RenderedMonitorTemplate;
 import com.rackspace.salus.monitor_management.web.model.TranslateMonitorContentRequest;
 import com.rackspace.salus.monitor_management.web.model.ValidationGroups;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
@@ -113,7 +115,7 @@ public class MonitorApiController {
     );
   }
 
-  @PostMapping(value="/admin/translate-monitor-content", produces = MediaType.TEXT_PLAIN_VALUE)
+  @PostMapping(value="/admin/translate-monitor-content", produces = MediaType.APPLICATION_JSON_VALUE)
   @ApiOperation("Translate monitor content for a specific agent type and version")
   public String translateMonitorContent(@RequestBody @Validated TranslateMonitorContentRequest request)
       throws MonitorContentTranslationException {
@@ -372,5 +374,29 @@ public class MonitorApiController {
   @ApiOperation("Deletes all monitors for a particular tenant")
   public void deleteAllTenantMonitors(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
     monitorManagement.removeAllTenantMonitors(tenantId, sendEvents);
+  }
+
+  @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ApiOperation("Translate monitor content for a specific agent type and version")
+  public String getAgentConfig(@PathVariable String tenantId, @PathVariable UUID monitorId,
+      @RequestBody @Validated AgentConfigRequest request)
+      throws MonitorContentTranslationException {
+
+    RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement.renderMonitorTemplate(monitorId, request.getResourceId(), tenantId);
+
+    final Map<AgentType, List<MonitorTranslationOperator>> operatorsByType =
+        monitorContentTranslationService
+            .loadOperatorsByAgentTypeAndVersion(
+                Map.of(request.getAgentType(), request.getAgentVersion())
+            );
+
+    return monitorContentTranslationService.translateMonitorContent(
+        monitorContentTranslationService.prepareOperatorsForMonitor(
+            operatorsByType.get(request.getAgentType()),
+            renderedMonitorTemplate.getMonitor().getMonitorType(),
+            renderedMonitorTemplate.getMonitor().getSelectorScope()
+        ),
+        renderedMonitorTemplate.getRenderedContent()
+    );
   }
 }
