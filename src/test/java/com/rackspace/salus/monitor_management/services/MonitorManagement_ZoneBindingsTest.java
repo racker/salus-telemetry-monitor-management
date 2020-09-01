@@ -213,10 +213,10 @@ public class MonitorManagement_ZoneBindingsTest {
     // VERIFY
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "zone1", "r-1", "zone1-e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-1", "zoneWest-e-2"),
-        new BoundMonitorMatcher(monitor, "zone1", "r-2", "zone1-e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-2", "zoneWest-e-2")
+        new BoundMonitorMatcher("t-1", "zone1", "r-1", "zone1-e-1"),
+        new BoundMonitorMatcher("t-1", "public/west", "r-1", "zoneWest-e-2"),
+        new BoundMonitorMatcher("t-1", "zone1", "r-2", "zone1-e-1"),
+        new BoundMonitorMatcher("t-1", "public/west", "r-2", "zoneWest-e-2")
     );
 
     assertThat(affectedEnvoys, containsInAnyOrder("zone1-e-1", "zoneWest-e-2"));
@@ -275,7 +275,7 @@ public class MonitorManagement_ZoneBindingsTest {
     // Verify the envoy ID was NOT be set for this
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "zone1", "r-1", null)
+        new BoundMonitorMatcher(tenantId, "zone1", "r-1", null)
     );
 
     assertThat(affectedEnvoys, hasSize(0));
@@ -318,9 +318,9 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-1"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-1"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-1")
+        new BoundMonitorMatcher(tenantId, "z-1", "r-1", "e-1"),
+        new BoundMonitorMatcher(tenantId, "z-1", "r-2", "e-1"),
+        new BoundMonitorMatcher(tenantId, "z-1", "r-3", "e-1")
     );
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
@@ -364,9 +364,9 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/west", "r-1", "e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-2", "e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-3", "e-1")
+        new BoundMonitorMatcher(tenantId, "public/west", "r-1", "e-1"),
+        new BoundMonitorMatcher(tenantId, "public/west", "r-2", "e-1"),
+        new BoundMonitorMatcher(tenantId, "public/west", "r-3", "e-1")
     );
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
@@ -389,9 +389,9 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-2")
+        new BoundMonitorMatcher(tenantId, "z-1", "r-1", "e-2"),
+        new BoundMonitorMatcher(tenantId, "z-1", "r-2", "e-2"),
+        new BoundMonitorMatcher(tenantId, "z-1", "r-3", "e-2")
     );
 
     verify(zoneStorage).changeBoundCount(
@@ -433,9 +433,9 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-3", "e-2")
+        new BoundMonitorMatcher(tenantId, "public/1", "r-1", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-2", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-3", "e-2")
     );
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
@@ -476,13 +476,13 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-3", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-4", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-5", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-6", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-7", "e-2")
+        new BoundMonitorMatcher(tenantId, "public/1", "r-1", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-2", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-3", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-4", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-5", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-6", "e-2"),
+        new BoundMonitorMatcher(tenantId, "public/1", "r-7", "e-2")
     );
 
     verify(zoneStorage).changeBoundCount(
@@ -801,7 +801,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor2.getId(),
-        new BoundMonitorMatcher(monitor2, "z-1", "r-0", "e-2")
+        new BoundMonitorMatcher(tenantId, "z-1", "r-0", "e-2")
     );
 
     verifyNoMoreInteractions(zoneStorage);
@@ -870,8 +870,8 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-2", "r-1", "e-existing"),
-        new BoundMonitorMatcher(monitor, "z-3", "r-1", "e-new")
+        new BoundMonitorMatcher(tenantId, "z-2", "r-1", "e-existing"),
+        new BoundMonitorMatcher(tenantId, "z-3", "r-1", "e-new")
     );
 
     verify(monitorEventProducer).sendMonitorEvent(
@@ -1023,8 +1023,8 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/newZone", resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, "public/newZone", resourceId1, newEnvoy)
+        new BoundMonitorMatcher(tenantId, "public/newZone", resourceId0, newEnvoy),
+        new BoundMonitorMatcher(tenantId, "public/newZone", resourceId1, newEnvoy)
     );
 
     verifyNoMoreInteractions(resourceRepository);
@@ -1135,10 +1135,10 @@ public class MonitorManagement_ZoneBindingsTest {
     
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, newZones1.get(0), resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones1.get(1), resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones2.get(0), resourceId1, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones2.get(1), resourceId1, newEnvoy)
+        new BoundMonitorMatcher(tenantId, newZones1.get(0), resourceId0, newEnvoy),
+        new BoundMonitorMatcher(tenantId, newZones1.get(1), resourceId0, newEnvoy),
+        new BoundMonitorMatcher(tenantId, newZones2.get(0), resourceId1, newEnvoy),
+        new BoundMonitorMatcher(tenantId, newZones2.get(1), resourceId1, newEnvoy)
     );
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
@@ -1226,6 +1226,7 @@ public class MonitorManagement_ZoneBindingsTest {
                     .setMonitor(monitor)
                     .setTenantId(monitor.getTenantId())
                     .setEnvoyId(pollerEnvoyId)
+                    .setPollerResourceId(pollerResourceId)
                     .setZoneName(zoneName)
                     .setResourceId(String.format("r-%d", i))
             )
