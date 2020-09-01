@@ -3,7 +3,6 @@ substitutions:
   _SALUS_PROJECT: salus-telemetry-monitor-management
 
 steps:
-
   # Pull down settings file for Artifactory settings
   - id: GET_SETTINGS
     name: 'gcr.io/cloud-builders/gsutil'
@@ -51,4 +50,3 @@ steps:
     volumes:
     - name: user.home
       path: /root
-
