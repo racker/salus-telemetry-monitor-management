@@ -17,18 +17,28 @@
 package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Monitor;
 import java.util.Objects;
-import lombok.AllArgsConstructor;
+import java.util.UUID;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 
-@AllArgsConstructor
 public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
 
-  final String tenantId;
-  final String zoneName;
-  final String resourceId;
-  final String envoyId;
+  final private UUID monitorId;
+  final private String tenantId;
+  final private String zoneName;
+  final private String resourceId;
+  final private String envoyId;
+
+  public BoundMonitorMatcher(Monitor monitor, String zoneName, String resourceId,
+                             String envoyId) {
+    this.tenantId = monitor.getTenantId();
+    this.monitorId = monitor.getId();
+    this.zoneName = zoneName;
+    this.resourceId = resourceId;
+    this.envoyId = envoyId;
+  }
 
   @Override
   public boolean matches(Object o) {
@@ -36,7 +46,9 @@ public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
       return false;
     }
     final BoundMonitor boundMonitor = (BoundMonitor) o;
-    return Objects.equals(boundMonitor.getTenantId(), tenantId) &&
+    return
+        Objects.equals(boundMonitor.getMonitor().getId(), monitorId) &&
+        Objects.equals(boundMonitor.getTenantId(), tenantId) &&
         Objects.equals(boundMonitor.getZoneName(), zoneName) &&
         Objects.equals(boundMonitor.getResourceId(), resourceId) &&
         Objects.equals(boundMonitor.getEnvoyId(), envoyId);
@@ -44,8 +56,9 @@ public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
 
   @Override
   public void describeTo(Description description) {
-    description.appendText("BoundMonitor with ")
-        .appendText("tenantId=").appendValue(tenantId)
+    description.appendText("BoundMonitor with")
+        .appendText(" monitorId=").appendValue(monitorId)
+        .appendText(" tenantId=").appendValue(tenantId)
         .appendText(" zoneName=").appendValue(zoneName)
         .appendText(" resourceId=").appendValue(resourceId)
         .appendText(" envoyId=").appendValue(envoyId);
