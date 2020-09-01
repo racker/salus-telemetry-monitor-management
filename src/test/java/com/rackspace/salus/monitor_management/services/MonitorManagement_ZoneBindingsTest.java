@@ -1226,7 +1226,6 @@ public class MonitorManagement_ZoneBindingsTest {
                     .setMonitor(monitor)
                     .setTenantId(monitor.getTenantId())
                     .setEnvoyId(pollerEnvoyId)
-                    .setPollerResourceId(pollerResourceId)
                     .setZoneName(zoneName)
                     .setResourceId(String.format("r-%d", i))
             )
