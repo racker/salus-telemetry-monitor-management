@@ -20,7 +20,7 @@ import static com.google.common.collect.Collections2.transform;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
-import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -619,12 +619,8 @@ public class MonitorManagement {
         .setZoneName("");
   }
 
-  String findLeastLoadedEnvoyInZone(String tenantId, String zone) {
-    final ResolvedZone resolvedZone = resolveZone(tenantId, zone);
-
-    final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
-
-    return result.isEmpty() ? null : result.get().getEnvoyId();
+  public Optional<EnvoyResourcePair> findLeastLoadedEnvoyInZone(ResolvedZone resolvedZone) {
+    return zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
   }
 
   private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
@@ -633,7 +629,7 @@ public class MonitorManagement {
 
     final ResolvedZone resolvedZone = resolveZone(resource.getTenantId(), zone);
 
-    final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+    final Optional<EnvoyResourcePair> result = findLeastLoadedEnvoyInZone(resolvedZone);
 
     final String envoyId;
     if (result.isPresent()) {
@@ -681,7 +677,7 @@ public class MonitorManagement {
 
     for (BoundMonitor boundMonitor : onesWithoutEnvoy) {
 
-      final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
+      final Optional<EnvoyResourcePair> result = findLeastLoadedEnvoyInZone(resolvedZone);
       if (result.isPresent()) {
         boundMonitor.setEnvoyId(result.get().getEnvoyId());
         assigned.add(boundMonitor);
@@ -732,16 +728,6 @@ public class MonitorManagement {
     // Also check to make sure there are no unassigned bound monitors
     // This can happen if new monitors are created while all poller-envoys in a zone are down
     handleNewEnvoyInZone(tenantId, zoneName);
-  }
-
-  private ResolvedZone resolveZone(String tenantId, String zone) {
-    if (zone.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
-      return createPublicZone(zone);
-    }
-    else {
-      Assert.notNull(tenantId, "Private zones require a tenantId");
-      return createPrivateZone(tenantId, zone);
-    }
   }
 
   List<String> determineMonitoringZones(Monitor monitor, ResourceDTO resource) {

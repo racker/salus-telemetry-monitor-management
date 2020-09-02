@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.services;
 
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -38,6 +39,7 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -377,8 +379,8 @@ public class TestMonitorServiceTest {
     when(monitorManagement.determineMonitoringZones(any(), (String) any()))
         .then(invocationOnMock -> invocationOnMock.getArgument(0));
 
-    when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
-        .thenReturn("e-1");
+    when(monitorManagement.findLeastLoadedEnvoyInZone(any()))
+        .thenReturn(Optional.of(new EnvoyResourcePair().setEnvoyId("e-1")));
 
     when(monitorContentRenderer.render(any(), any()))
         .thenReturn("rendered-1");
@@ -448,7 +450,7 @@ public class TestMonitorServiceTest {
     }));
 
     verify(monitorManagement).determineMonitoringZones(monitoringZones, null);
-    verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
+    verify(monitorManagement).findLeastLoadedEnvoyInZone(resolveZone("t-1", "z-1"));
 
     verifyNoMoreInteractions(
         monitorConversionService, monitorContentRenderer, resourceRepository,
@@ -558,8 +560,8 @@ public class TestMonitorServiceTest {
         .then(invocationOnMock -> invocationOnMock.getArgument(0));
 
     //noinspection ConstantConditions
-    when(monitorManagement.findLeastLoadedEnvoyInZone(any(), any()))
-        .thenReturn(envoyId);
+    when(monitorManagement.findLeastLoadedEnvoyInZone(any()))
+        .thenReturn(Optional.empty());
 
     // EXECUTE
 
@@ -590,7 +592,7 @@ public class TestMonitorServiceTest {
     verify(resourceRepository).findByTenantIdAndResourceId("t-1", "r-1");
 
     verify(monitorManagement).determineMonitoringZones(monitoringZones, null);
-    verify(monitorManagement).findLeastLoadedEnvoyInZone("t-1", "z-1");
+    verify(monitorManagement).findLeastLoadedEnvoyInZone(resolveZone("t-1", "z-1"));
 
     verifyNoMoreInteractions(
         monitorConversionService, monitorContentRenderer, resourceRepository,
