@@ -20,6 +20,7 @@ import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.PUBLIC_PREFIX;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -87,6 +88,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -104,20 +106,27 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @EnableTestContainersDatabase
 @DataJpaTest(showSql = false)
-@Import({ServicesProperties.class, ObjectMapper.class, MonitorManagement.class,
-    MonitorContentRenderer.class,
-    MonitorContentProperties.class,
-    MetadataUtils.class,
-    DatabaseConfig.class,
-    ServicesProperties.class,
-    ZonesProperties.class,
-    SimpleMeterRegistry.class,
-})
 @TestPropertySource(properties = {
     "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",
     "salus.services.policyManagementUrl=http://this-is-a-non-null-value"
 })
 public class MonitorManagement_ZoneBindingsTest {
+  /**
+   * Provides minimal app context config mainly to avoid picking up Spring Boot configs like
+   * TelemetryCoreEtcdModule.
+   */
+  @Configuration
+  @Import({ObjectMapper.class, MonitorManagement.class,
+      MonitorContentRenderer.class,
+      MonitorContentProperties.class,
+      MetadataUtils.class,
+      DatabaseConfig.class,
+      ServicesProperties.class,
+      ZonesProperties.class,
+      SimpleMeterRegistry.class,
+      ZoneAllocationResolverFactory.class,
+  })
+  public static class TestConfig { }
 
   @MockBean
   MonitorConversionService monitorConversionService;
@@ -137,6 +146,8 @@ public class MonitorManagement_ZoneBindingsTest {
   ZoneManagement zoneManagement;
   @MockBean
   PatchHelper patchHelper;
+  @MockBean
+  ZoneAllocationResolver zoneAllocationResolver;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -155,7 +166,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
   @Autowired
   private MonitorManagement monitorManagement;
-  private PodamFactory podamFactory = new PodamFactoryImpl();
+  private final PodamFactory podamFactory = new PodamFactoryImpl();
 
   @After
   public void tearDown() throws Exception {
@@ -168,17 +179,15 @@ public class MonitorManagement_ZoneBindingsTest {
     final ResolvedZone zone1 = createPrivateZone("t-1", "zone1");
     final ResolvedZone zoneWest = createPublicZone("public/west");
 
-    when(zoneStorage.findLeastLoadedEnvoy(zone1))
-        .thenReturn(CompletableFuture.completedFuture(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(zone1))
+        .thenReturn(
             Optional.of(
                 new EnvoyResourcePair().setEnvoyId("zone1-e-1").setResourceId("r-e-1"))
-        ));
-    when(zoneStorage.findLeastLoadedEnvoy(zoneWest))
-        .thenReturn(CompletableFuture.completedFuture(
+        );
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(zoneWest))
+        .thenReturn(
             Optional.of(new EnvoyResourcePair().setEnvoyId("zoneWest-e-2").setResourceId("r-e-2"))
-        ));
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+        );
 
     when(resourceApi.getResourcesWithLabels(any(), any(), eq(LabelSelectorMethod.AND)))
         .thenReturn(List.of(
@@ -213,21 +222,18 @@ public class MonitorManagement_ZoneBindingsTest {
     // VERIFY
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "zone1", "r-1", "zone1-e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-1", "zoneWest-e-2"),
-        new BoundMonitorMatcher(monitor, "zone1", "r-2", "zone1-e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-2", "zoneWest-e-2")
+        new BoundMonitorMatcher(monitor, "zone1", "r-1", "zone1-e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-1", "zoneWest-e-2", "r-e-2"),
+        new BoundMonitorMatcher(monitor, "zone1", "r-2", "zone1-e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-2", "zoneWest-e-2", "r-e-2")
     );
 
     assertThat(affectedEnvoys, containsInAnyOrder("zone1-e-1", "zoneWest-e-2"));
 
-    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone1);
-    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zoneWest);
+    verify(zoneAllocationResolver, times(2)).findLeastLoadedEnvoy(zone1);
+    verify(zoneAllocationResolver, times(2)).findLeastLoadedEnvoy(zoneWest);
 
-    verify(zoneStorage, times(2)).incrementBoundCount(zone1, "r-e-1");
-    verify(zoneStorage, times(2)).incrementBoundCount(zoneWest, "r-e-2");
-
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -235,12 +241,10 @@ public class MonitorManagement_ZoneBindingsTest {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final ResolvedZone zone1 = createPrivateZone(tenantId, "zone1");
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
             Optional.empty()
-        ));
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+        );
 
     Monitor monitor = persistNewMonitor(tenantId, "zone1");
 
@@ -270,18 +274,18 @@ public class MonitorManagement_ZoneBindingsTest {
         .bindMonitor(tenantId, monitor, monitor.getZones());
 
     // VERIFY
-    verify(zoneStorage).findLeastLoadedEnvoy(zone1);
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(zone1);
 
     // Verify the envoy ID was NOT be set for this
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "zone1", "r-1", null)
+        new BoundMonitorMatcher(monitor, "zone1", "r-1", null, null)
     );
 
     assertThat(affectedEnvoys, hasSize(0));
 
     // ...and no MonitorBoundEvent was sent
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -289,13 +293,13 @@ public class MonitorManagement_ZoneBindingsTest {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, "z-1");
     // simulate that three in zone are needing envoys
-    persistBoundMonitor("r-1", "z-1", null, monitor);
-    persistBoundMonitor("r-2", "z-1", null, monitor);
-    persistBoundMonitor("r-3", "z-1", null, monitor);
+    persistBoundMonitor("r-1", "z-1", null, "poller-0", monitor);
+    persistBoundMonitor("r-2", "z-1", null, "poller-0", monitor);
+    persistBoundMonitor("r-3", "z-1", null, "poller-0", monitor);
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
-            Optional.of(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"))));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
+            Optional.of(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1")));
 
     // EXECUTE
 
@@ -303,13 +307,8 @@ public class MonitorManagement_ZoneBindingsTest {
 
     // VERIFY
 
-    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+    verify(zoneAllocationResolver, times(3)).findLeastLoadedEnvoy(
         createPrivateZone(tenantId, "z-1")
-    );
-
-    verify(zoneStorage, times(3)).incrementBoundCount(
-        createPrivateZone(tenantId, "z-1"),
-        "r-e-1"
     );
 
     // two assignments to same envoy, but verify only one event
@@ -318,12 +317,12 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-1"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-1"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-1")
+        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-1", "r-e-1")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -332,13 +331,13 @@ public class MonitorManagement_ZoneBindingsTest {
     final Monitor monitor = persistNewMonitor(
         tenantId, "public/west");
     // simulate that three in zone are needing envoys
-    persistBoundMonitor("r-1", "public/west", null, monitor);
-    persistBoundMonitor("r-2", "public/west", null, monitor);
-    persistBoundMonitor("r-3", "public/west", null, monitor);
+    persistBoundMonitor("r-1", "public/west", null, "poller-0", monitor);
+    persistBoundMonitor("r-2", "public/west", null, "poller-0", monitor);
+    persistBoundMonitor("r-3", "public/west", null, "poller-0", monitor);
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
-            Optional.of(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1"))));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
+            Optional.of(new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("r-e-1")));
 
     // EXECUTE
 
@@ -349,13 +348,8 @@ public class MonitorManagement_ZoneBindingsTest {
 
     // VERIFY
 
-    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(
+    verify(zoneAllocationResolver, times(3)).findLeastLoadedEnvoy(
         createPublicZone("public/west")
-    );
-
-    verify(zoneStorage, times(3)).incrementBoundCount(
-        createPublicZone("public/west"),
-        "r-e-1"
     );
 
     // two assignments to same envoy, but verify only one event
@@ -364,81 +358,73 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/west", "r-1", "e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-2", "e-1"),
-        new BoundMonitorMatcher(monitor, "public/west", "r-3", "e-1")
+        new BoundMonitorMatcher(monitor, "public/west", "r-1", "e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-2", "e-1", "r-e-1"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-3", "e-1", "r-e-1")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
   public void testHandleZoneResourceChanged_privateZone() {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, "z-1");
-    persistBoundMonitor("r-1", "z-1", "e-1", monitor);
-    persistBoundMonitor("r-2", "z-1", "e-1", monitor);
-    persistBoundMonitor("r-3", "z-1", "e-1", monitor);
+    persistBoundMonitor("r-1", "z-1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-2", "z-1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-3", "z-1", "e-1", "poller-0", monitor);
 
     // EXECUTE
 
     monitorManagement.handleEnvoyResourceChangedInZone(
-        tenantId, "z-1", "r-1", "e-1", "e-2");
+        tenantId, "z-1", "poller-new", "e-1", "e-new");
 
     // VERIFY
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-2")
-    );
-
-    verify(zoneStorage).changeBoundCount(
-        createPrivateZone(tenantId, "z-1"),
-        "r-1",
-        3
+        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-new", "poller-new")
     );
 
     verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
-        .setEnvoyId("e-2"));
+        .setEnvoyId("e-new"));
+    // NOTE: e-1 doesn't get notified since handleEnvoyResourceChangedInZone knows/assumes that one went away
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
   public void testHandleZoneResourceChanged_publicZone() {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, "public/1");
-    persistBoundMonitor("r-1", "public/1", "e-1", monitor);
-    persistBoundMonitor("r-2", "public/1", "e-1", monitor);
-    persistBoundMonitor("r-3", "public/1", "e-1", monitor);
+    persistBoundMonitor("r-1", "public/1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-2", "public/1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-3", "public/1", "e-1", "poller-0", monitor);
 
     // EXECUTE
 
     // The main thing being tested is that a null zone tenant ID...
     monitorManagement.handleEnvoyResourceChangedInZone(
-        null, "public/1", "r-1", "e-1", "e-2");
+        null, "public/1", "poller-1", "e-1", "e-2");
 
     // VERIFY
-
-    verify(zoneStorage).changeBoundCount(
-        createPublicZone("public/1"),
-        "r-1",
-        3
-    );
 
     verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
         .setEnvoyId("e-2"));
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-3", "e-2")
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-1", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-2", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-3", "e-2", "poller-1")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   /**
@@ -450,22 +436,22 @@ public class MonitorManagement_ZoneBindingsTest {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, "public/1");
     // set up bound monitors that were previously bound to this envoy
-    persistBoundMonitor("r-1", "public/1", "e-1", monitor);
-    persistBoundMonitor("r-2", "public/1", "e-1", monitor);
-    persistBoundMonitor("r-3", "public/1", "e-1", monitor);
+    persistBoundMonitor("r-1", "public/1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-2", "public/1", "e-1", "poller-0", monitor);
+    persistBoundMonitor("r-3", "public/1", "e-1", "poller-0", monitor);
 
     // set up bound monitors that have never been assigned to an envoy
     // using 4 to make clear where the numbers in the asserts below came from
-    persistBoundMonitor("r-4", "public/1", null, monitor);
-    persistBoundMonitor("r-5", "public/1", null, monitor);
-    persistBoundMonitor("r-6", "public/1", null, monitor);
-    persistBoundMonitor("r-7", "public/1", null, monitor);
+    persistBoundMonitor("r-4", "public/1", null, null, monitor);
+    persistBoundMonitor("r-5", "public/1", null, null, monitor);
+    persistBoundMonitor("r-6", "public/1", null, null, monitor);
+    persistBoundMonitor("r-7", "public/1", null, null, monitor);
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
             Optional.of(new EnvoyResourcePair()
                 .setEnvoyId("e-2")
-                .setResourceId("poller-1"))));
+                .setResourceId("poller-1")));
 
     // EXECUTE
 
@@ -476,26 +462,25 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/1", "r-1", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-2", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-3", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-4", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-5", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-6", "e-2"),
-        new BoundMonitorMatcher(monitor, "public/1", "r-7", "e-2")
-    );
-
-    verify(zoneStorage).changeBoundCount(
-        createPublicZone("public/1"),
-        "poller-1",
-        3
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-1", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-2", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-3", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-4", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-5", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-6", "e-2", "poller-1"),
+        new BoundMonitorMatcher(
+            monitor, "public/1", "r-7", "e-2", "poller-1")
     );
 
     // then verify that it picks up the other unbound monitors
-    verify(zoneStorage, times(4)).findLeastLoadedEnvoy(
+    verify(zoneAllocationResolver, times(4)).findLeastLoadedEnvoy(
         createPublicZone("public/1"));
-    verify(zoneStorage, times(4)).incrementBoundCount(
-        createPublicZone("public/1"), "poller-1");
 
     // one event for preexisting and one for unassigned monitors
     verify(monitorEventProducer, times(2)).sendMonitorEvent(
@@ -503,7 +488,7 @@ public class MonitorManagement_ZoneBindingsTest {
             .setEnvoyId("e-2")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -512,7 +497,7 @@ public class MonitorManagement_ZoneBindingsTest {
     rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
     rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
 
-    when(zoneStorage.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(rawCounts));
 
     // EXECUTE
@@ -522,19 +507,18 @@ public class MonitorManagement_ZoneBindingsTest {
 
     // VERIFY
 
-    assertThat(counts, hasSize(2));
     assertThat(counts, containsInAnyOrder(
         new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5),
         new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6)
 
     ));
 
-    verify(zoneStorage).getZoneBindingCounts(
+    verify(zoneAllocationResolver).getZoneBindingCounts(
         ResolvedZone.createPrivateZone("t-1", "z-1")
     );
 
     verifyNoMoreInteractions(envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi
+        zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
     );
   }
 
@@ -547,13 +531,13 @@ public class MonitorManagement_ZoneBindingsTest {
     final Monitor monitor = persistNewMonitor(tenantId, "z-1");
     Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(monitor, "z-1");
 
-    when(zoneStorage.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(
             new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-        )));
+        ));
 
     // EXECUTE
 
@@ -562,7 +546,7 @@ public class MonitorManagement_ZoneBindingsTest {
     // VERIFY
 
     final ResolvedZone zone = createPrivateZone(tenantId, "z-1");
-    verify(zoneStorage).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -571,13 +555,10 @@ public class MonitorManagement_ZoneBindingsTest {
         new MonitorBoundEvent().setEnvoyId("e-least")
     );
 
-    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
-
-    verify(zoneStorage).changeBoundCount(zone, "poller-3", -2);
-    verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+    verify(zoneAllocationResolver, times(2)).findLeastLoadedEnvoy(zone);
 
     verifyNoMoreInteractions(envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi
+        zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
     );
   }
 
@@ -591,13 +572,13 @@ public class MonitorManagement_ZoneBindingsTest {
     Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(
         monitor, "public/west");
 
-    when(zoneStorage.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(
             new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-        )));
+        ));
 
     // EXECUTE
 
@@ -609,7 +590,7 @@ public class MonitorManagement_ZoneBindingsTest {
     assertThat(reassigned, equalTo(2));
 
     final ResolvedZone zone = createPublicZone("public/west");
-    verify(zoneStorage).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -618,13 +599,10 @@ public class MonitorManagement_ZoneBindingsTest {
         new MonitorBoundEvent().setEnvoyId("e-least")
     );
 
-    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(zone);
-
-    verify(zoneStorage).changeBoundCount(zone, "poller-3", -2);
-    verify(zoneStorage, times(2)).incrementBoundCount(zone, "r-least");
+    verify(zoneAllocationResolver, times(2)).findLeastLoadedEnvoy(zone);
 
     verifyNoMoreInteractions(envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi
+        zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
     );
   }
 
@@ -639,13 +617,13 @@ public class MonitorManagement_ZoneBindingsTest {
     final Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(
         monitor, "public/west");
 
-    when(zoneStorage.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(
             new EnvoyResourcePair().setResourceId("r-least").setEnvoyId("e-least")
-        )));
+        ));
 
     // EXECUTE
 
@@ -657,7 +635,7 @@ public class MonitorManagement_ZoneBindingsTest {
     assertThat(reassigned, equalTo(3));
 
     final ResolvedZone zone = createPublicZone("public/west");
-    verify(zoneStorage).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -666,18 +644,16 @@ public class MonitorManagement_ZoneBindingsTest {
         new MonitorBoundEvent().setEnvoyId("e-least")
     );
 
-    verify(zoneStorage, times(3)).findLeastLoadedEnvoy(zone);
-
-    verify(zoneStorage).changeBoundCount(zone, "poller-3", -3);
-    verify(zoneStorage, times(3)).incrementBoundCount(zone, "r-least");
+    verify(zoneAllocationResolver, times(3)).findLeastLoadedEnvoy(zone);
 
     verifyNoMoreInteractions(
-        envoyResourceManagement, zoneStorage, monitorEventProducer, resourceApi);
+        envoyResourceManagement, zoneStorage, monitorEventProducer, resourceApi,
+        zoneAllocationResolver);
   }
 
   @Test
   public void testRebalanceZone_emptyZone() {
-    when(zoneStorage.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(
             Collections.emptyMap()
         ));
@@ -691,10 +667,10 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertThat(reassigned, equalTo(0));
 
-    verify(zoneStorage).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
+    verify(zoneAllocationResolver).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
 
     verifyNoMoreInteractions(envoyResourceManagement,
-        zoneStorage, monitorEventProducer, resourceApi
+        zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
     );
   }
 
@@ -703,11 +679,7 @@ public class MonitorManagement_ZoneBindingsTest {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, "z-1");
 
-    persistBoundMonitor("r-1", "z-1", "e-goner", monitor);
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(
-            CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+    persistBoundMonitor("r-1", "z-1", "e-goner", "poller-0", monitor);
 
     // EXECUTE
 
@@ -721,18 +693,12 @@ public class MonitorManagement_ZoneBindingsTest {
     // assert no bindings remain for given monitor
     assertBindings(monitor.getId());
 
-    verify(zoneStorage).decrementBoundCount(
-        ResolvedZone.createPrivateZone(tenantId, "z-1"),
-        "r-gone"
-    );
-    verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPrivateZone(tenantId, "z-1"));
-
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent()
             .setEnvoyId("e-goner")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -741,11 +707,7 @@ public class MonitorManagement_ZoneBindingsTest {
     final String tenantId = RandomStringUtils.randomAlphanumeric(10);
     final Monitor monitor = persistNewMonitor(tenantId, zoneName);
 
-    persistBoundMonitor("r-1", zoneName, "e-goner", monitor);
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(
-            CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+    persistBoundMonitor("r-1", zoneName, "e-goner", "poller-0", monitor);
 
     // EXECUTE
 
@@ -759,18 +721,12 @@ public class MonitorManagement_ZoneBindingsTest {
     // assert no bindings remain for given monitor
     assertBindings(monitor.getId());
 
-    verify(zoneStorage).decrementBoundCount(
-        ResolvedZone.createPublicZone(zoneName),
-        "r-gone"
-    );
-    verify(zoneStorage).getEnvoyIdToResourceIdMap(ResolvedZone.createPublicZone(zoneName));
-
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent()
             .setEnvoyId("e-goner")
     );
 
-    verifyNoMoreInteractions(zoneStorage, monitorEventProducer);
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
 
   @Test
@@ -779,12 +735,8 @@ public class MonitorManagement_ZoneBindingsTest {
     final Monitor monitor1 = persistNewMonitor(tenantId, "z-1");
     final Monitor monitor2 = persistNewMonitor(tenantId, "z-1");
 
-    persistBoundMonitor("r-0", "z-1", "e-1", monitor1);
-    persistBoundMonitor("r-0", "z-1", "e-2", monitor2);
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-1", "r-e-1")))
-        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-2", "r-e-2")));
+    persistBoundMonitor("r-0", "z-1", "e-1", "poller-0", monitor1);
+    persistBoundMonitor("r-0", "z-1", "e-2", "poller-0", monitor2);
 
     // EXECUTE
 
@@ -795,16 +747,12 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertThat(affectedEnvoys, contains("e-1"));
 
-    final ResolvedZone resolvedZone = createPrivateZone(tenantId, "z-1");
-    verify(zoneStorage).decrementBoundCount(resolvedZone, "r-e-1");
-    verify(zoneStorage).getEnvoyIdToResourceIdMap(resolvedZone);
-
     assertBindings(
         monitor2.getId(),
-        new BoundMonitorMatcher(monitor2, "z-1", "r-0", "e-2")
+        new BoundMonitorMatcher(monitor2, "z-1", "r-0", "e-2", "poller-0")
     );
 
-    verifyNoMoreInteractions(zoneStorage);
+    verifyNoMoreInteractions(zoneStorage, zoneAllocationResolver);
   }
 
   @Test
@@ -817,18 +765,16 @@ public class MonitorManagement_ZoneBindingsTest {
                 .setResourceId("r-1")
         ));
 
-    EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
-
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(
+            new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("poller-new")
+        ));
 
     final Monitor monitor = persistNewMonitor(
         tenantId, Map.of("os", "linux"), List.of("z-1", "z-2"));
 
-    persistBoundMonitor("r-1", "z-1", "e-existing", monitor);
-    persistBoundMonitor("r-1", "z-2", "e-existing", monitor);
+    persistBoundMonitor("r-1", "z-1", "e-z-1-existing", "poller-z-1-0", monitor);
+    persistBoundMonitor("r-1", "z-2", "e-z-2-existing", "poller-z-2-0", monitor);
 
     List<Zone> zones = List.of(
         new Zone().setName("z-1"),
@@ -838,10 +784,6 @@ public class MonitorManagement_ZoneBindingsTest {
 
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(new PageImpl<>(zones, Pageable.unpaged(), zones.size()));
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(
-            CompletableFuture.completedFuture(Collections.singletonMap("e-existing", "r-exist")));
 
     // EXECUTE
 
@@ -863,19 +805,16 @@ public class MonitorManagement_ZoneBindingsTest {
     );
 
     final ResolvedZone resolvedZ3 = createPrivateZone(tenantId, "z-3");
-    verify(zoneStorage).findLeastLoadedEnvoy(resolvedZ3);
-    verify(zoneStorage).incrementBoundCount(resolvedZ3, "r-new-1");
-    verify(zoneStorage).decrementBoundCount(createPrivateZone(tenantId, "z-1"), "r-exist");
-    verify(zoneStorage).getEnvoyIdToResourceIdMap(createPrivateZone(tenantId, "z-1"));
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(resolvedZ3);
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "z-2", "r-1", "e-existing"),
-        new BoundMonitorMatcher(monitor, "z-3", "r-1", "e-new")
+        new BoundMonitorMatcher(monitor, "z-2", "r-1", "e-z-2-existing", "poller-z-2-0"),
+        new BoundMonitorMatcher(monitor, "z-3", "r-1", "e-new", "poller-new")
     );
 
     verify(monitorEventProducer).sendMonitorEvent(
-        new MonitorBoundEvent().setEnvoyId("e-existing")
+        new MonitorBoundEvent().setEnvoyId("e-z-1-existing")
     );
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-new")
@@ -884,17 +823,8 @@ public class MonitorManagement_ZoneBindingsTest {
     verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
-        zoneStorage, monitorEventProducer, zoneManagement
+        zoneStorage, monitorEventProducer, zoneManagement, zoneAllocationResolver
     );
-  }
-
-  private void assertBindings(UUID monitorId, BoundMonitorMatcher... matchers) {
-    final List<BoundMonitor> results = boundMonitorRepository
-        .findAllByMonitor_Id(monitorId);
-
-    assertThat(results, hasSize(matchers.length));
-
-    assertThat(results, containsInAnyOrder(matchers));
   }
 
   @Test
@@ -928,7 +858,7 @@ public class MonitorManagement_ZoneBindingsTest {
     verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
-        zoneStorage, monitorEventProducer, zoneManagement
+        zoneStorage, monitorEventProducer, zoneManagement, zoneAllocationResolver
     );
   }
 
@@ -969,8 +899,8 @@ public class MonitorManagement_ZoneBindingsTest {
     final String resourceId0 = resources.get(0).getResourceId();
     final String resourceId1 = resources.get(1).getResourceId();
 
-    persistBoundMonitor(resourceId0, originalZoneForResource, oldEnvoy1, monitor);
-    persistBoundMonitor(resourceId1, originalZoneForResource, oldEnvoy2, monitor);
+    persistBoundMonitor(resourceId0, originalZoneForResource, oldEnvoy1, "poller-0", monitor);
+    persistBoundMonitor(resourceId1, originalZoneForResource, oldEnvoy2, "poller-0", monitor);
 
     // DISCOVERY OPERATIONS
 
@@ -978,23 +908,12 @@ public class MonitorManagement_ZoneBindingsTest {
         .thenReturn(Optional.of(resources.get(0)))
         .thenReturn(Optional.of(resources.get(1)));
 
-    // UNBIND OPERATIONS
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture
-            .completedFuture(Collections.singletonMap(oldEnvoy1, "resourceValueDoesntMatter")))
-        .thenReturn(CompletableFuture
-            .completedFuture(Collections.singletonMap(oldEnvoy2, "resourceValueDoesntMatter")));
-
     // BIND OPERATIONS
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
             Optional.of(
-                new EnvoyResourcePair().setEnvoyId(newEnvoy).setResourceId("new-envoy-resource"))));
-
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+                new EnvoyResourcePair().setEnvoyId(newEnvoy).setResourceId("new-envoy-resource")));
 
     ResourceInfo info = new ResourceInfo();
     when(envoyResourceManagement.getOne(any(), any()))
@@ -1018,16 +937,15 @@ public class MonitorManagement_ZoneBindingsTest {
 
     // verify bind operations / each operation is performed once per resource
     ResolvedZone newResolvedZone = ResolvedZone.createPublicZone("public/newZone");
-    verify(zoneStorage, times(2)).findLeastLoadedEnvoy(newResolvedZone);
-    verify(zoneStorage, times(2)).incrementBoundCount(newResolvedZone, "new-envoy-resource");
+    verify(zoneAllocationResolver, times(2)).findLeastLoadedEnvoy(newResolvedZone);
 
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, "public/newZone", resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, "public/newZone", resourceId1, newEnvoy)
+        new BoundMonitorMatcher(monitor, "public/newZone", resourceId0, newEnvoy, "new-envoy-resource"),
+        new BoundMonitorMatcher(monitor, "public/newZone", resourceId1, newEnvoy, "new-envoy-resource")
     );
 
-    verifyNoMoreInteractions(resourceRepository);
+    verifyNoMoreInteractions(resourceRepository, zoneAllocationResolver);
   }
 
   /**
@@ -1072,9 +990,9 @@ public class MonitorManagement_ZoneBindingsTest {
     final String resourceId1 = resources.get(1).getResourceId();
     List<BoundMonitor> originalBoundMonitors = List.of(
         persistBoundMonitor(
-            resourceId0, originalZones.get(0), oldEnvoy1, monitor),
+            resourceId0, originalZones.get(0), oldEnvoy1, "poller-0", monitor),
         persistBoundMonitor(
-            resourceId1, originalZones.get(0), oldEnvoy2, monitor)
+            resourceId1, originalZones.get(0), oldEnvoy2, "poller-0", monitor)
     );
 
     // DISCOVERY OPERATIONS
@@ -1090,23 +1008,13 @@ public class MonitorManagement_ZoneBindingsTest {
         .getDefaultMonitoringZones(resources.get(1).getMetadata().get(REGION_METADATA), true))
         .thenReturn(newZones2);
 
-    // UNBIND OPERATIONS
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture
-            .completedFuture(Collections.singletonMap(oldEnvoy1, "resourceValueDoesntMatter")))
-        .thenReturn(CompletableFuture
-            .completedFuture(Collections.singletonMap(oldEnvoy2, "resourceValueDoesntMatter")));
-
     // BIND OPERATIONS
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
             Optional.of(
-                new EnvoyResourcePair().setEnvoyId(newEnvoy).setResourceId("new-envoy-resource"))));
+                new EnvoyResourcePair().setEnvoyId(newEnvoy).setResourceId("new-envoy-resource")));
 
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
     ResourceInfo info = new ResourceInfo();
     when(envoyResourceManagement.getOne(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(info));
@@ -1129,20 +1037,25 @@ public class MonitorManagement_ZoneBindingsTest {
     verify(policyApi).getDefaultMonitoringZones("testRegion1", true);
     verify(policyApi).getDefaultMonitoringZones("testRegion2", true);
 
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(resolveZone(null, newZones1.get(0)));
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(resolveZone(null, newZones1.get(1)));
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(resolveZone(null, newZones2.get(0)));
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(resolveZone(null, newZones2.get(1)));
+
     Set<String> allNewZones = new HashSet<>();
     allNewZones.addAll(newZones1);
     allNewZones.addAll(newZones2);
     
     assertBindings(
         monitor.getId(),
-        new BoundMonitorMatcher(monitor, newZones1.get(0), resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones1.get(1), resourceId0, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones2.get(0), resourceId1, newEnvoy),
-        new BoundMonitorMatcher(monitor, newZones2.get(1), resourceId1, newEnvoy)
+        new BoundMonitorMatcher(monitor, newZones1.get(0), resourceId0, newEnvoy, "new-envoy-resource"),
+        new BoundMonitorMatcher(monitor, newZones1.get(1), resourceId0, newEnvoy, "new-envoy-resource"),
+        new BoundMonitorMatcher(monitor, newZones2.get(0), resourceId1, newEnvoy, "new-envoy-resource"),
+        new BoundMonitorMatcher(monitor, newZones2.get(1), resourceId1, newEnvoy, "new-envoy-resource")
     );
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
-        monitorEventProducer, zoneManagement
+        monitorEventProducer, zoneManagement, zoneAllocationResolver
     );
   }
 
@@ -1158,15 +1071,11 @@ public class MonitorManagement_ZoneBindingsTest {
     Monitor monitor = persistNewMonitor(tenantId, "public/z-1");
 
     BoundMonitor orphanedBoundMonitor =
-        persistBoundMonitor(resourceId, "public/z-1", "e-1", monitor);
+        persistBoundMonitor(resourceId, "public/z-1", "e-1", "poller-0", monitor);
 
     // return no resource for an orphaned bound monitor
     when(resourceRepository.findByTenantIdAndResourceId(anyString(), anyString()))
         .thenReturn(Optional.empty());
-
-    when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture
-            .completedFuture(Collections.singletonMap("e-1", "resourceValueDoesntMatter")));
 
     // EXECUTE
 
@@ -1180,13 +1089,11 @@ public class MonitorManagement_ZoneBindingsTest {
     verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
 
     final ResolvedZone resolvedZone = createPublicZone("public/z-1");
-    verify(zoneStorage).getEnvoyIdToResourceIdMap(resolvedZone);
-    verify(zoneStorage).decrementBoundCount(resolvedZone, "resourceValueDoesntMatter");
 
     // assert no bindings remain
     assertBindings(monitor.getId());
 
-    verifyNoMoreInteractions(zoneStorage, resourceRepository);
+    verifyNoMoreInteractions(zoneStorage, resourceRepository, zoneAllocationResolver);
   }
 
   private Monitor persistNewMonitor(String tenantId, String zoneName) {
@@ -1226,6 +1133,7 @@ public class MonitorManagement_ZoneBindingsTest {
                     .setMonitor(monitor)
                     .setTenantId(monitor.getTenantId())
                     .setEnvoyId(pollerEnvoyId)
+                    .setPollerResourceId(pollerResourceId)
                     .setZoneName(zoneName)
                     .setResourceId(String.format("r-%d", i))
             )
@@ -1235,13 +1143,14 @@ public class MonitorManagement_ZoneBindingsTest {
 
   private BoundMonitor persistBoundMonitor(String resourceId, String zoneName,
                                            String pollerEnvoyId,
-                                           Monitor monitor) {
+                                           String pollerResourceId, Monitor monitor) {
     return boundMonitorRepository.save(
         new BoundMonitor()
             .setTenantId(monitor.getTenantId())
             .setResourceId(resourceId)
             .setZoneName(zoneName)
             .setEnvoyId(pollerEnvoyId)
+            .setPollerResourceId(pollerResourceId)
             .setMonitor(monitor)
             .setRenderedContent("{}")
     );
@@ -1264,6 +1173,13 @@ public class MonitorManagement_ZoneBindingsTest {
     counts.put(new EnvoyResourcePair().setResourceId("poller-4").setEnvoyId("e-4"), 2);
     persistBoundMonitors(2, zoneName, "e-4", "poller-4", monitor);
     return counts;
+  }
+
+  private void assertBindings(UUID monitorId, BoundMonitorMatcher... matchers) {
+    final List<BoundMonitor> results = boundMonitorRepository
+        .findAllByMonitor_Id(monitorId);
+
+    assertThat(results, containsInAnyOrder(matchers));
   }
 
 }

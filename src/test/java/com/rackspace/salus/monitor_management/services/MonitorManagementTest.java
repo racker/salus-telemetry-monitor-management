@@ -82,7 +82,6 @@ import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.time.Duration;
@@ -115,9 +114,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -139,7 +136,12 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentRenderer.class,
     MonitorContentProperties.class,
     MetadataUtils.class,
-    DatabaseConfig.class})
+    DatabaseConfig.class,
+    ZoneAllocationResolverFactory.class,
+    ZonesProperties.class,
+    SimpleMeterRegistry.class,
+
+})
 @TestPropertySource(properties = {
     "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",
     "salus.services.policyManagementUrl=http://this-is-a-non-null-value"
@@ -150,25 +152,6 @@ public class MonitorManagementTest {
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
   private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
-
-  @TestConfiguration
-  public static class Config {
-    @Bean
-    public ZonesProperties zonesProperties() {
-      return new ZonesProperties();
-    }
-
-    @Bean
-    public ServicesProperties servicesProperties() {
-      return new ServicesProperties()
-          .setResourceManagementUrl("");
-    }
-
-    @Bean
-    MeterRegistry meterRegistry() {
-      return new SimpleMeterRegistry();
-    }
-  }
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -202,6 +185,9 @@ public class MonitorManagementTest {
 
   @MockBean
   PatchHelper patchHelper;
+
+  @MockBean
+  ZoneAllocationResolver zoneAllocationResolver;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -2369,12 +2355,9 @@ public class MonitorManagementTest {
     when(envoyResourceManagement.getOne(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(resourceInfo));
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(
-            new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("r-1"))));
-
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(
+            new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("poller-2")));
 
     when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(m0, "r-1"))
         .thenReturn(Collections.emptyList());
@@ -2413,10 +2396,8 @@ public class MonitorManagementTest {
 
     final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
     final ResolvedZone z2 = createPrivateZone("t-1", "z-2");
-    verify(zoneStorage).findLeastLoadedEnvoy(z1);
-    verify(zoneStorage).findLeastLoadedEnvoy(z2);
-    verify(zoneStorage).incrementBoundCount(z1, "r-1");
-    verify(zoneStorage).incrementBoundCount(z2, "r-1");
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(z1);
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(z2);
 
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
@@ -2436,6 +2417,7 @@ public class MonitorManagementTest {
                 .setTenantId("t-1")
                 .setResourceId("r-1")
                 .setEnvoyId("e-2")
+                .setPollerResourceId("poller-2")
                 .setRenderedContent("new remote domain=prod")
                 .setZoneName("z-1"),
             new BoundMonitor()
@@ -2443,6 +2425,7 @@ public class MonitorManagementTest {
                 .setTenantId("t-1")
                 .setResourceId("r-1")
                 .setEnvoyId("e-2")
+                .setPollerResourceId("poller-2")
                 .setRenderedContent("new remote domain=prod")
                 .setZoneName("z-2"),
             new BoundMonitor()
@@ -2458,7 +2441,7 @@ public class MonitorManagementTest {
     );
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-        zoneStorage);
+        zoneStorage, zoneAllocationResolver);
   }
 
   @Test
@@ -2493,9 +2476,8 @@ public class MonitorManagementTest {
     when(envoyResourceManagement.getOne(any(), any()))
         .thenReturn(CompletableFuture.completedFuture(null));
 
-    // ...and therefore none registered in the zone
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.empty());
 
     // EXERCISE
 
@@ -2509,7 +2491,7 @@ public class MonitorManagementTest {
     verify(envoyResourceManagement).getOne("t-1", "r-1");
 
     final ResolvedZone z1 = createPrivateZone("t-1", "z-1");
-    verify(zoneStorage).findLeastLoadedEnvoy(z1);
+    verify(zoneAllocationResolver).findLeastLoadedEnvoy(z1);
 
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m0, "r-1");
     verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(m1, "r-1");
@@ -2532,8 +2514,9 @@ public class MonitorManagementTest {
         )
     );
 
+
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement,
-        zoneStorage
+        zoneStorage, zoneAllocationResolver
     );
   }
 

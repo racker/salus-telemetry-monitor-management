@@ -73,7 +73,6 @@ import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -117,7 +116,10 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorContentProperties.class,
     MonitorConversionService.class,
     MetadataUtils.class,
-    DatabaseConfig.class})
+    DatabaseConfig.class,
+    SimpleMeterRegistry.class,
+    ZoneAllocationResolverFactory.class,
+})
 @TestPropertySource(properties = {
     "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",
     "salus.services.policyManagementUrl=http://this-is-a-non-null-value"
@@ -125,14 +127,6 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 public class MonitorManagementPolicyTest {
 
   private static final String DEFAULT_RESOURCE_ID = "os:LINUX";
-
-  @TestConfiguration
-  static class TestConfig {
-    @Bean
-    MeterRegistry meterRegistry() {
-      return new SimpleMeterRegistry();
-    }
-  }
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -169,6 +163,9 @@ public class MonitorManagementPolicyTest {
 
   @MockBean
   MonitorConversionService monitorConversionService;
+
+  @MockBean
+  ZoneAllocationResolver zoneAllocationResolver;
 
   @Autowired
   EntityManager entityManager;
@@ -233,10 +230,8 @@ public class MonitorManagementPolicyTest {
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-    when(zoneStorage.incrementBoundCount(any(), anyString()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(pair));
 
     ResourceInfo resourceInfo = new ResourceInfo()
         .setResourceId("r-1")
@@ -246,9 +241,6 @@ public class MonitorManagementPolicyTest {
 
     when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
         .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-new", "r-new-1")));
-
-    when(zoneStorage.decrementBoundCount(any(), anyString()))
-        .thenReturn(CompletableFuture.completedFuture(1));
   }
 
   @Test

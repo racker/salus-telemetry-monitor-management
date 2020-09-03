@@ -25,19 +25,21 @@ import org.hamcrest.Description;
 
 public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
 
-  final private UUID monitorId;
-  final private String tenantId;
-  final private String zoneName;
-  final private String resourceId;
-  final private String envoyId;
+  private final UUID monitorId;
+  private final String tenantId;
+  private final String zoneName;
+  private final String resourceId;
+  private final String envoyId;
+  private final String pollerResourceId;
 
   public BoundMonitorMatcher(Monitor monitor, String zoneName, String resourceId,
-                             String envoyId) {
+                             String envoyId, String pollerResourceId) {
     this.tenantId = monitor.getTenantId();
     this.monitorId = monitor.getId();
     this.zoneName = zoneName;
     this.resourceId = resourceId;
     this.envoyId = envoyId;
+    this.pollerResourceId = pollerResourceId;
   }
 
   @Override
@@ -51,7 +53,8 @@ public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
         Objects.equals(boundMonitor.getTenantId(), tenantId) &&
         Objects.equals(boundMonitor.getZoneName(), zoneName) &&
         Objects.equals(boundMonitor.getResourceId(), resourceId) &&
-        Objects.equals(boundMonitor.getEnvoyId(), envoyId);
+        Objects.equals(boundMonitor.getEnvoyId(), envoyId) &&
+        Objects.equals(boundMonitor.getPollerResourceId(), pollerResourceId);
   }
 
   @Override
@@ -61,6 +64,8 @@ public class BoundMonitorMatcher extends BaseMatcher<BoundMonitor> {
         .appendText(" tenantId=").appendValue(tenantId)
         .appendText(" zoneName=").appendValue(zoneName)
         .appendText(" resourceId=").appendValue(resourceId)
-        .appendText(" envoyId=").appendValue(envoyId);
+        .appendText(" envoyId=").appendValue(envoyId)
+        .appendText(" pollerResourceId=").appendValue(pollerResourceId)
+    ;
   }
 }
