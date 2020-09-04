@@ -34,16 +34,18 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 /**
- * This stateful component encapsulates and caches the resolving of poller-envoys to allocate for
- * monitor binding. It is recommended to use {@link ZoneAllocationResolverFactory} to create
+ * This stateful component is used once per monitor operation to locate the poller-envoy
+ * with the least number of bound monitors.
+ * It is recommended to use {@link ZoneAllocationResolverFactory} to create
  * instances of this component prior to iterating over monitor binding changes.
  * <p>
- *   The caching optimizes for the common scenario where a remote monitor is binding to a potentially
- *   large number of resources. Rather than query etcd and SQL for the poller-envoy loads repeatedly,
- *   a snapshot of each zone is retrieved as needed and tracks across repeated use.
- *   The downside of using mutable snapshots is that concurrent use of these resolvers across the
- *   system can result in potential imbalance in poller-envoy allocations; however, some amount of
- *   imbalance is fine and can be rectified by a rebalance operation.
+ *   The stateful behavior optimizes for the common scenario where a remote monitor is binding to a
+ *   potentially large number of resources.
+ *   For example, rather than repeatedly query etcd and SQL for every resource of a monitor
+ *   to be bound, a snapshot of each zone is retrieved as needed and locally incremented.
+ *   The downside of using a mutable snapshot is that each monitor operation can slightly
+ *   diverge in tracking poller-envoy allocations; however, some amount of imbalance is fine
+ *   and can be rectified by a rebalance operation.
  * </p>
  */
 @Component
@@ -53,8 +55,8 @@ public class ZoneAllocationResolver {
   private final ZoneStorage zoneStorage;
   private final EntityManager entityManager;
 
-  private final Map<ResolvedZone, CompletableFuture<Map<String, String>>> resourceIdToEnvoyIdCache = new HashMap<>();
-  private final Map<ResolvedZone, CompletableFuture<Map<String, Integer>>> pollerCountCache = new HashMap<>();
+  private final Map<ResolvedZone, CompletableFuture<Map<String, String>>> resourceIdToEnvoyIdSnapshot = new HashMap<>();
+  private final Map<ResolvedZone, CompletableFuture<Map<String, Integer>>> pollerCountSnapshot = new HashMap<>();
 
   @Autowired
   public ZoneAllocationResolver(ZoneStorage zoneStorage, EntityManager entityManager) {
@@ -62,6 +64,15 @@ public class ZoneAllocationResolver {
     this.entityManager = entityManager;
   }
 
+  /**
+   * Identify the poller-envoy that has the least number of bound monitors in the requested zone.
+   * It is assumed that the caller will create a {@link com.rackspace.salus.telemetry.entities.BoundMonitor}
+   * referencing the returned instance and the internal count will be incremented.
+   * As such, repeated calls to this method will retrieve an answer based on the incrementing
+   * counts.
+   * @param zone the zone to retrieve
+   * @return the least loaded envoy-poller or an empty value if none are active in the requested zone
+   */
   public Optional<EnvoyResourcePair> findLeastLoadedEnvoy(ResolvedZone zone) {
 
     // Get the (cached) poller-envoy binding counts for the zone
@@ -74,7 +85,8 @@ public class ZoneAllocationResolver {
                         // Pick the smallest, least-assigned entry
                         .min(Comparator.comparingLong(Entry::getValue))
                         .map(entry -> {
-                          // In our cache, count a binding to that poller-envoy
+                          // In our cache, count a binding to that poller-envoy since it is
+                          // assumed the caller will create a BoundMonitor referencing this envoy-poller.
                           // setValue works here since getPollerResourceCounts provides
                           // a map for us to mutate
                           entry.setValue(entry.getValue() + 1);
@@ -89,15 +101,14 @@ public class ZoneAllocationResolver {
   }
 
   private CompletableFuture<Map<String, Integer>> getPollerResourceCounts(ResolvedZone zone) {
-    return pollerCountCache.computeIfAbsent(
+    return pollerCountSnapshot.computeIfAbsent(
         zone,
         this::retrievePollerResourceCounts
     );
   }
 
   /**
-   * Combines tracking of active poller-envoys with the currently bound monitors into a count of
-   * of bound monitors per poller-envoy
+   * Returns a map of active poller-envoys to number of monitors bound to each.
    *
    * @param zone the zone to retrieve
    * @return mapping of envoy-pollers to bound monitor counts
@@ -168,7 +179,7 @@ public class ZoneAllocationResolver {
   }
 
   private CompletableFuture<Map<String, String>> getResourceIdToEnvoyIdMap(ResolvedZone zone) {
-    return resourceIdToEnvoyIdCache.computeIfAbsent(
+    return resourceIdToEnvoyIdSnapshot.computeIfAbsent(
         zone,
         zoneStorage::getResourceIdToEnvoyIdMap
     );
