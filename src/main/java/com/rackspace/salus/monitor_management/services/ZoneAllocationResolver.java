@@ -34,10 +34,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 /**
- * This stateful component is used once per monitor operation to locate the poller-envoy
+ * This component is used once per monitor operation to locate the poller-envoy
  * with the least number of bound monitors.
- * It is recommended to use {@link ZoneAllocationResolverFactory} to create
- * instances of this component prior to iterating over monitor binding changes.
+ * This component <b>must not be directly injected</b>, but instead instances should be created by calling
+ * {@link ZoneAllocationResolverFactory} prior to iterating over a set of monitor binding changes.
  * <p>
  *   The stateful behavior optimizes for the common scenario where a remote monitor is binding to a
  *   potentially large number of resources.
