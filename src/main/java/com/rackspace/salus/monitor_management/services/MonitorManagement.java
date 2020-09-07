@@ -48,6 +48,7 @@ import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
@@ -105,6 +106,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -2254,7 +2256,7 @@ public class MonitorManagement {
     if (StringUtils.isBlank(resourceId)) {
       return renderedMonitorTemplate;
     }
-    ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
+    ResourceDTO resource = findResourceByTenantIdAndResourceId(tenantId, resourceId);
 
     if (resource != null) {
       try {
