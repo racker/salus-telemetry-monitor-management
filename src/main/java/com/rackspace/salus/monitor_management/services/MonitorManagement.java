@@ -527,7 +527,7 @@ public class MonitorManagement {
         for (String zone : zonesForResource) {
           try {
             boundMonitors.add(
-                bindRemoteMonitor(monitor, resource, zone, zoneAllocationResolver)
+                bindRemoteMonitor(monitor, resource, zone)
             );
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
