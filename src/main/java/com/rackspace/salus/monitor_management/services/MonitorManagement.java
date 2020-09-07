@@ -2254,7 +2254,7 @@ public class MonitorManagement {
     if (StringUtils.isBlank(resourceId)) {
       return renderedMonitorTemplate;
     }
-    ResourceDTO resource = findResourceByTenantIdAndResourceId(tenantId, resourceId);
+    ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
 
     if (resource != null) {
       try {
