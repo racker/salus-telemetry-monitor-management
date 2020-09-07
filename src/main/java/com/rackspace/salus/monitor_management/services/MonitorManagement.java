@@ -1153,7 +1153,7 @@ public class MonitorManagement {
     for (Entry<String, List<BoundMonitor>> resourceEntry : groupedByResourceId.entrySet()) {
 
       final String resourceId = resourceEntry.getKey();
-      final ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
+      final ResourceDTO resource = findResourceByTenantIdAndResourceId(tenantId, resourceId);
 
       if (resource != null) {
         try {
@@ -1212,7 +1212,7 @@ public class MonitorManagement {
 
     // If a new one is to be bound, bind it
     if (StringUtils.isNotBlank(updatedResourceId)) {
-      ResourceDTO resource = resourceApi.getByResourceId(monitor.getTenantId(), updatedResourceId);
+      ResourceDTO resource = findResourceByTenantIdAndResourceId(monitor.getTenantId(), updatedResourceId);
       if (resource != null) {
         affectedEnvoys.addAll(
             upsertBindingToResource(
@@ -2254,7 +2254,7 @@ public class MonitorManagement {
     if (StringUtils.isBlank(resourceId)) {
       return renderedMonitorTemplate;
     }
-    ResourceDTO resource = resourceApi.getByResourceId(tenantId, resourceId);
+    ResourceDTO resource = findResourceByTenantIdAndResourceId(tenantId, resourceId);
 
     if (resource != null) {
       try {
@@ -2275,5 +2275,18 @@ public class MonitorManagement {
               resourceId, monitorId, tenantId));
     }
     return renderedMonitorTemplate;
+  }
+
+  public ResourceDTO findResourceByTenantIdAndResourceId(String tenantId, String resourceId) {
+    Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
+        .orElseGet(() -> null);
+
+    if (resource == null) {
+      return null;
+    }
+    ResourceInfo resourceInfo = envoyResourceManagement
+        .getOne(resource.getTenantId(), resource.getResourceId()).join();
+    return new ResourceDTO(resource,
+        resourceInfo == null ? null : resourceInfo.getEnvoyId());
   }
 }
