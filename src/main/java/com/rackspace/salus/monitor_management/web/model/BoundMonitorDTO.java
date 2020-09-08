@@ -54,6 +54,7 @@ public class BoundMonitorDTO {
   AgentType agentType;
   String renderedContent;
   String envoyId;
+  String pollerResourceId;
   String createdTimestamp;
   String updatedTimestamp;
 
@@ -69,6 +70,7 @@ public class BoundMonitorDTO {
     this.agentType = boundMonitor.getMonitor().getAgentType();
     this.renderedContent = boundMonitor.getRenderedContent();
     this.envoyId = boundMonitor.getEnvoyId();
+    this.pollerResourceId = boundMonitor.getPollerResourceId();
     this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(boundMonitor.getCreatedTimestamp());
     this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(boundMonitor.getUpdatedTimestamp());
   }
