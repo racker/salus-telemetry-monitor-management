@@ -2279,14 +2279,8 @@ public class MonitorManagement {
 
   public ResourceDTO findResourceByTenantIdAndResourceId(String tenantId, String resourceId) {
     Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
-        .orElseGet(() -> null);
+        .orElse(null);
 
-    if (resource == null) {
-      return null;
-    }
-    ResourceInfo resourceInfo = envoyResourceManagement
-        .getOne(resource.getTenantId(), resource.getResourceId()).join();
-    return new ResourceDTO(resource,
-        resourceInfo == null ? null : resourceInfo.getEnvoyId());
+    return resource == null ? null : new ResourceDTO(resource, null);
   }
 }
