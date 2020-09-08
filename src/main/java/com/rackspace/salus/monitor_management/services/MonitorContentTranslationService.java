@@ -75,6 +75,7 @@ public class MonitorContentTranslationService {
 
   // metric counters
   private final Counter monitorTranslateErrors;
+  private final Counter monitorTranslateSuccess;
 
   @Autowired
   public MonitorContentTranslationService(
@@ -84,6 +85,8 @@ public class MonitorContentTranslationService {
     this.objectMapper = objectMapper;
 
     this.monitorTranslateErrors = meterRegistry.counter("errors",
+        "operation", "monitorTranslate");
+    this.monitorTranslateSuccess = meterRegistry.counter("success",
         "operation", "monitorTranslate");
   }
 
@@ -152,7 +155,7 @@ public class MonitorContentTranslationService {
     return boundMonitors.stream()
         .map(boundMonitor -> {
           try {
-            return new BoundMonitorDTO(boundMonitor)
+            BoundMonitorDTO boundMonitorDTO = new BoundMonitorDTO(boundMonitor)
                 .setRenderedContent(
                     translateMonitorContent(
                         prepareOperatorsForMonitor(
@@ -163,6 +166,8 @@ public class MonitorContentTranslationService {
                         boundMonitor.getRenderedContent()
                     )
                 );
+            monitorTranslateSuccess.increment();
+            return boundMonitorDTO;
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
             monitorTranslateErrors.increment();
@@ -211,8 +216,10 @@ public class MonitorContentTranslationService {
     try {
       contentTree = (ObjectNode) objectMapper.readTree(monitorContent);
     } catch (IOException e) {
+      monitorTranslateErrors.increment();
       throw new MonitorContentTranslationException("Unable to parse monitor content as JSON", e);
     } catch (ClassCastException e) {
+      monitorTranslateErrors.increment();
       throw new MonitorContentTranslationException(
           "Content did not contain an object structure", e);
     }
@@ -222,14 +229,17 @@ public class MonitorContentTranslationService {
     }
 
     if (!contentTree.hasNonNull(MonitorTranslator.TYPE_PROPERTY)) {
+      monitorTranslateErrors.increment();
       throw new MonitorContentTranslationException(
           "Content translation resulted is missing JSON type property");
     }
 
     // swap out rendered content with rendered->translated content
     try {
+      monitorTranslateSuccess.increment();
       return objectMapper.writeValueAsString(contentTree);
     } catch (JsonProcessingException e) {
+      monitorTranslateErrors.increment();
       throw new MonitorContentTranslationException(
           String.format("Failed to serialize translated contentTree=%s", contentTree), e);
     }
