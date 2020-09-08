@@ -53,7 +53,9 @@ public class BoundMonitorDTO {
   ConfigSelectorScope selectorScope;
   AgentType agentType;
   String renderedContent;
+  @JsonView(View.Internal.class)
   String envoyId;
+  @JsonView(View.Admin.class)
   String pollerResourceId;
   String createdTimestamp;
   String updatedTimestamp;
