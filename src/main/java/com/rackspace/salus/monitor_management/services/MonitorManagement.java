@@ -2046,8 +2046,8 @@ public class MonitorManagement {
     if (boundMonitors.isEmpty()) {
       return;
     }
-    log.info("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
-        envoyId, zoneName, zoneTenantId);
+    log.info("Reassigning bound monitors count={} for disconnected envoy={} with zoneName={} and zoneTenantId={}",
+        boundMonitors.size(), envoyId, zoneName, zoneTenantId);
     for (BoundMonitor boundMonitor : boundMonitors) {
       boundMonitor
           .setEnvoyId(null)
