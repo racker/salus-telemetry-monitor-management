@@ -1212,8 +1212,6 @@ public class MonitorManagementTest {
         .setResourceId("r-1")
         .setTenantId("t-1");
 
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(r1);
     when(envoyResourceManagement.getOne("t-1", "r-2"))
         .thenReturn(
             CompletableFuture.completedFuture(
@@ -1394,8 +1392,6 @@ public class MonitorManagementTest {
 
 
     // Called when binding new resource
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(new ResourceDTO(resource, null));
     when(envoyResourceManagement.getOne("t-1", "r-1"))
         .thenReturn(
             CompletableFuture.completedFuture(
