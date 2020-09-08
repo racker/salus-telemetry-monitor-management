@@ -88,7 +88,6 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -110,23 +109,19 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",
     "salus.services.policyManagementUrl=http://this-is-a-non-null-value"
 })
+@Import({
+    ObjectMapper.class,
+    MonitorManagement.class,
+    MonitorContentRenderer.class,
+    MonitorContentProperties.class,
+    MetadataUtils.class,
+    DatabaseConfig.class,
+    ServicesProperties.class,
+    ZonesProperties.class,
+    SimpleMeterRegistry.class,
+    ZoneAllocationResolverFactory.class,
+})
 public class MonitorManagement_ZoneBindingsTest {
-  /**
-   * Provides minimal app context config mainly to avoid picking up Spring Boot configs like
-   * TelemetryCoreEtcdModule.
-   */
-  @Configuration
-  @Import({ObjectMapper.class, MonitorManagement.class,
-      MonitorContentRenderer.class,
-      MonitorContentProperties.class,
-      MetadataUtils.class,
-      DatabaseConfig.class,
-      ServicesProperties.class,
-      ZonesProperties.class,
-      SimpleMeterRegistry.class,
-      ZoneAllocationResolverFactory.class,
-  })
-  public static class TestConfig { }
 
   @MockBean
   MonitorConversionService monitorConversionService;
@@ -361,6 +356,85 @@ public class MonitorManagement_ZoneBindingsTest {
         new BoundMonitorMatcher(monitor, "public/west", "r-1", "e-1", "r-e-1"),
         new BoundMonitorMatcher(monitor, "public/west", "r-2", "e-1", "r-e-1"),
         new BoundMonitorMatcher(monitor, "public/west", "r-3", "e-1", "r-e-1")
+    );
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
+  }
+
+  @Test
+  public void testHandleExpiredEnvoy_privateZone() {
+    final String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    final Monitor monitor = persistNewMonitor(tenantId, "z-1");
+    // simulate that three in zone are needing envoys
+    persistBoundMonitor("r-3", "z-1", "e-old", "poller-old", monitor);
+    persistBoundMonitor("r-1", "z-1", "e-old", "poller-old", monitor);
+    persistBoundMonitor("r-2", "z-1", "e-old", "poller-old", monitor);
+
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
+            Optional.of(new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("poller-new")));
+
+    // EXECUTE
+
+    monitorManagement.handleExpiredEnvoy(tenantId, "z-1", "e-old");
+
+    // VERIFY
+
+    verify(zoneAllocationResolver, times(3)).findLeastLoadedEnvoy(
+        createPrivateZone(tenantId, "z-1")
+    );
+
+    // two assignments to same envoy, but verify only one event
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-new"));
+
+    assertBindings(
+        monitor.getId(),
+        new BoundMonitorMatcher(monitor, "z-1", "r-1", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-2", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "z-1", "r-3", "e-new", "poller-new")
+    );
+
+    verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
+  }
+
+  @Test
+  public void testHandleExpiredEnvoy_publicZone() {
+    final String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    final Monitor monitor = persistNewMonitor(
+        tenantId, "public/west");
+    // simulate that three in zone are needing envoys
+    persistBoundMonitor("r-1", "public/west", "e-old", "poller-old", monitor);
+    persistBoundMonitor("r-2", "public/west", "e-old", "poller-old", monitor);
+    persistBoundMonitor("r-3", "public/west", "e-old", "poller-old", monitor);
+
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(
+            // new envoy, but same resourceId assigned
+            Optional.of(new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("poller-new")));
+
+    // EXECUTE
+
+    // Main difference from testHandleNewEnvoyInZone_privateZone is that the
+    // tenantId is null from the event
+
+    monitorManagement.handleExpiredEnvoy(null, "public/west", "e-old");
+
+    // VERIFY
+
+    verify(zoneAllocationResolver, times(3)).findLeastLoadedEnvoy(
+        createPublicZone("public/west")
+    );
+
+    // two assignments to same envoy, but verify only one event
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent()
+        .setEnvoyId("e-new"));
+
+    assertBindings(
+        monitor.getId(),
+        new BoundMonitorMatcher(monitor, "public/west", "r-1", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-2", "e-new", "poller-new"),
+        new BoundMonitorMatcher(monitor, "public/west", "r-3", "e-new", "poller-new")
     );
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);

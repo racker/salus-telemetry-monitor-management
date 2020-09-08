@@ -196,15 +196,12 @@ public class TestMonitorService {
           "test-monitor requires only one monitoring zone to be given");
     }
 
-    final Optional<EnvoyResourcePair> leastLoaded = monitorManagement
-        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)));
+    final EnvoyResourcePair leastLoaded = monitorManagement
+        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)))
+        .orElseThrow(() -> new MissingRequirementException(
+            "No envoys were available in the given monitoring zone"));
 
-    if (leastLoaded.isEmpty()) {
-      throw new MissingRequirementException(
-          "No envoys were available in the given monitoring zone");
-    }
-
-    return leastLoaded.get().getEnvoyId();
+    return leastLoaded.getEnvoyId();
   }
 
   private String resolveLocalEnvoy(String tenantId, String resourceId) {

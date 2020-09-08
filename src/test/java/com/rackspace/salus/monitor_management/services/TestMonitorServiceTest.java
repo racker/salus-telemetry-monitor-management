@@ -539,7 +539,6 @@ public class TestMonitorServiceTest {
   public void testPerformTestMonitorOnResource_remote_noEnvoyInZone()
       throws InterruptedException, ExecutionException, TimeoutException {
     final List<String> monitoringZones = List.of("z-1");
-    final String envoyId = null;
 
     MonitorCU monitorCU = new MonitorCU()
         .setAgentType(AgentType.TELEGRAF)

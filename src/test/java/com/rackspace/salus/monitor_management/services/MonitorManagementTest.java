@@ -140,7 +140,6 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     ZoneAllocationResolverFactory.class,
     ZonesProperties.class,
     SimpleMeterRegistry.class,
-
 })
 @TestPropertySource(properties = {
     "salus.services.resourceManagementUrl=http://this-is-a-non-null-value",

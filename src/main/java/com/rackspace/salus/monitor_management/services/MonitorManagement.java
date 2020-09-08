@@ -2042,14 +2042,16 @@ public class MonitorManagement {
    */
   @SuppressWarnings("WeakerAccess")
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
-    log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
-        envoyId, zoneName, zoneTenantId);
     List<BoundMonitor> boundMonitors = getAllBoundMonitorsByEnvoyId(envoyId);
     if (boundMonitors.isEmpty()) {
       return;
     }
+    log.info("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
+        envoyId, zoneName, zoneTenantId);
     for (BoundMonitor boundMonitor : boundMonitors) {
-      boundMonitor.setEnvoyId(null);
+      boundMonitor
+          .setEnvoyId(null)
+          .setPollerResourceId(null);
     }
 
     saveBoundMonitors(boundMonitors);
@@ -2083,7 +2085,7 @@ public class MonitorManagement {
   public CompletableFuture<Integer> rebalanceZone(@Nullable String zoneTenantId, String zoneName) {
     final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
 
-    log.debug("Rebalancing zone={}", zone);
+    log.info("Rebalancing zone={}", zone);
 
     return zoneAllocationResolverFactory.create()
         .getZoneBindingCounts(zone)
