@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
@@ -30,6 +31,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.MissingRequirementException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
+import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
@@ -194,15 +196,12 @@ public class TestMonitorService {
           "test-monitor requires only one monitoring zone to be given");
     }
 
-    final String envoyId = monitorManagement
-        .findLeastLoadedEnvoyInZone(tenantId, monitoringZones.get(0));
+    final EnvoyResourcePair leastLoaded = monitorManagement
+        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)))
+        .orElseThrow(() -> new MissingRequirementException(
+            "No envoys were available in the given monitoring zone"));
 
-    if (envoyId == null) {
-      throw new MissingRequirementException(
-          "No envoys were available in the given monitoring zone");
-    }
-
-    return envoyId;
+    return leastLoaded.getEnvoyId();
   }
 
   private String resolveLocalEnvoy(String tenantId, String resourceId) {

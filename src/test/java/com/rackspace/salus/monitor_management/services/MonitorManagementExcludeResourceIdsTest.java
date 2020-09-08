@@ -74,7 +74,8 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest(classes = {
     DatabaseConfig.class,
     MonitorManagement.class,
-    ZonesProperties.class
+    ZonesProperties.class,
+    ZoneAllocationResolverFactory.class,
 })
 @EnableTestContainersDatabase
 @AutoConfigureDataJpa
@@ -120,6 +121,9 @@ public class MonitorManagementExcludeResourceIdsTest {
 
   @MockBean
   ResourceApi resourceApi;
+
+  @MockBean
+  ZoneAllocationResolver zoneAllocationResolver;
 
   @Test
   public void testCreate_noResources() {

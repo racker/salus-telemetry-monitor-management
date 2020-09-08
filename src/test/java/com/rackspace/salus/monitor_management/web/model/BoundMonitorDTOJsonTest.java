@@ -110,6 +110,7 @@ public class BoundMonitorDTOJsonTest {
         .setAgentType(AgentType.TELEGRAF)
         .setRenderedContent("{}")
         .setEnvoyId("e-1")
+        .setPollerResourceId("poller-1")
         .setInterval(Duration.ofSeconds(30))
         .setCreatedTimestamp(DEFAULT_TIMESTAMP)
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP);
