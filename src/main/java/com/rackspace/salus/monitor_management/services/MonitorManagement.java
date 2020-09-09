@@ -26,6 +26,7 @@ import static org.springframework.util.CollectionUtils.isEmpty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
+import com.rackspace.salus.common.config.MetricsName;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
@@ -140,14 +141,12 @@ public class MonitorManagement {
 
   private JdbcTemplate jdbcTemplate;
 
+  MeterRegistry meterRegistry;
+
   // metrics counters
-  private final Counter boundMonitorSaveAllErrors;
-  private final Counter boundMonitorSaveErrors;
-  private final Counter monitorMetadataContentUpdateErrors;
-  private final Counter invalidTemplateErrors;
-  private final Counter orphanedBoundMonitorRemoved;
-  private final Counter orphanedPolicyMonitors;
-  private final Counter policyIntegrityErrors;
+  private final Counter.Builder orphanedBoundMonitorRemoved;
+  private final Counter.Builder createMonitorSuccess;
+  private final Counter.Builder createMonitorFailed;
 
   @Autowired
   public MonitorManagement(
@@ -183,20 +182,11 @@ public class MonitorManagement {
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
-    boundMonitorSaveAllErrors = meterRegistry.counter("errors",
-        "operation", "boundMonitorSaveAll");
-    boundMonitorSaveErrors = meterRegistry.counter("errors",
-        "operation", "boundMonitorSave");
-    monitorMetadataContentUpdateErrors = meterRegistry.counter("errors",
-        "operation", "updateMonitorContentWithPolicy");
-    invalidTemplateErrors = meterRegistry.counter("errors",
-        "operation", "renderMonitorTemplate");
-    orphanedBoundMonitorRemoved = meterRegistry.counter("orphaned",
-        "objectType", "boundMonitor");
-    orphanedPolicyMonitors = meterRegistry.counter("policy_integrity",
-        "operation", "handleMonitorPolicyEvent", "reason", "orphanedPolicyMonitor");
-    policyIntegrityErrors = meterRegistry.counter("policy_integrity",
-        "operation", "handleMonitorPolicyEvent", "reason", "tooManyClones");
+
+    this.meterRegistry = meterRegistry;
+    createMonitorSuccess = Counter.builder(MetricsName.SERVICE_OPERATION_SUCCEEDED_METRIC_NAME);
+    createMonitorFailed  = Counter.builder(MetricsName.SERVICE_OPERATION_FAILED_METRIC_NAME);
+    orphanedBoundMonitorRemoved = Counter.builder("orphaned");
   }
 
   /**
@@ -306,6 +296,11 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = bindMonitor(tenantId, monitor, monitor.getZones());
     sendMonitorBoundEvents(affectedEnvoys);
+    if (meterRegistry != null) {
+      createMonitorSuccess.tags("operation", "createMonitor").register(meterRegistry).increment();
+    } else {
+      log.info("meterRegistry got null");
+    }
     return monitor;
   }
 
@@ -370,6 +365,7 @@ public class MonitorManagement {
         clonedMonitor, affectedEnvoys.size(), newTenant);
 
     sendMonitorBoundEvents(affectedEnvoys);
+    createMonitorSuccess.tags("operation","cloneMonitor").register(meterRegistry).increment();
     return clonedMonitor;
   }
 
@@ -409,6 +405,7 @@ public class MonitorManagement {
     metadataUtils.setMetadataFieldsForMonitor(POLICY_TENANT, monitor, false);
 
     monitor = monitorRepository.save(monitor);
+    createMonitorSuccess.tags("operation","createMonitor","objectType","policyMonitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -519,7 +516,7 @@ public class MonitorManagement {
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource, e);
-          invalidTemplateErrors.increment();
+          createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
         }
       }
     } else {
@@ -540,7 +537,7 @@ public class MonitorManagement {
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
                 monitor, resource, e);
-            invalidTemplateErrors.increment();
+            createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
           }
         }
       }
@@ -577,14 +574,16 @@ public class MonitorManagement {
       boundMonitorRepository.saveAll(boundMonitors);
     } catch (DataIntegrityViolationException e) {
       log.warn("BoundMonitor saveAll failed. Retrying monitor saves individually.", e);
-      boundMonitorSaveAllErrors.increment();
+
+      createMonitorFailed.tags("operation","boundMonitorSaveAll").register(meterRegistry).increment();
+
       for (BoundMonitor bound : boundMonitors) {
         try {
           // save does not fail if the entry already exists, it will act like an update instead.
           boundMonitorRepository.save(bound);
         } catch (Exception ex) {
           log.error("Failed to save boundMonitor={}", bound, ex);
-          boundMonitorSaveErrors.increment();
+          createMonitorFailed.tags("operation","boundMonitorSave").register(meterRegistry).increment();
         }
       }
     }
@@ -820,7 +819,7 @@ public class MonitorManagement {
     monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
-
+    createMonitorSuccess.tags("operation","updateMonitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -975,7 +974,7 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
-
+    createMonitorSuccess.tags("operation","updateMonitor","objectType","policyMonitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -1080,7 +1079,7 @@ public class MonitorManagement {
       if (resource.isEmpty()) {
         // remove any orphaned bound monitors
         log.warn("Removing orphaned bound monitor for resourceId={} and monitor={}", resourceId, monitor);
-        orphanedBoundMonitorRemoved.increment();
+        orphanedBoundMonitorRemoved.tags("objectType", "boundMonitor").register(meterRegistry).increment();
         affectedEnvoys.addAll(unbindByResourceId(monitor.getId(), List.of(resourceId)));
         continue;
       }
@@ -1120,7 +1119,7 @@ public class MonitorManagement {
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource.get(), e);
-          invalidTemplateErrors.increment();
+          createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
         }
       }
       saveBoundMonitors(newBoundMonitors);
@@ -1191,7 +1190,7 @@ public class MonitorManagement {
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render updatedContent='{}' of monitor={} for resource={}",
               updatedContent, monitor, resource, e);
-          invalidTemplateErrors.increment();
+          createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
         }
 
       }
@@ -1360,6 +1359,7 @@ public class MonitorManagement {
     }
 
     unbindAndRemoveMonitor(monitor);
+    createMonitorSuccess.tags("operation","removeMonitor").register(meterRegistry).increment();
   }
 
   private void unbindAndRemoveMonitor(Monitor monitor) {
@@ -1382,13 +1382,16 @@ public class MonitorManagement {
    */
   public void removePolicyMonitor(UUID id) {
     if (!monitorRepository.existsByIdAndTenantId(id, POLICY_TENANT)) {
+      createMonitorFailed.tags("operation","removePolicyMonitor").register(meterRegistry).increment();
       throw new NotFoundException(String.format("No policy monitor found for %s", id));
     }
 
     if (monitorPolicyRepository.existsByMonitorId(id)) {
+      createMonitorFailed.tags("operation","removePolicyMonitor").register(meterRegistry).increment();
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.deleteById(id);
+    createMonitorSuccess.tags("operation","removeMonitor","objectType","policyMonitor").register(meterRegistry).increment();
   }
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
@@ -1450,7 +1453,7 @@ public class MonitorManagement {
     List<Monitor> existingPolicyMonitor = existingPolicyIds.stream()
         .map(id -> monitorPolicyRepository.findById(id).orElseGet(() -> {
           log.warn("Monitor is tied to non-existent policy={}", id);
-          orphanedPolicyMonitors.increment();
+          createMonitorFailed.tags("operation","handleMonitorPolicyEvent","reason","orphanedPolicyMonitor").register(meterRegistry).increment();
           return null;
         }))
         .filter(Objects::nonNull)
@@ -1466,7 +1469,7 @@ public class MonitorManagement {
 
     if (existingPolicyMonitor.size() > 1) {
       log.error("More than one cloned monitor exists for policy={} on tenant={}", event.getPolicyId(), tenantId);
-      policyIntegrityErrors.increment();
+      createMonitorFailed.tags("operation","handleMonitorPolicyEvent","reason","tooManyClones").register(meterRegistry).increment();
     }
     Monitor existing = existingPolicyMonitor.get(0);
     log.debug("Updating cloned policy monitor={} with new policyId={}", existing, policyId);
@@ -1512,7 +1515,7 @@ public class MonitorManagement {
     if (newPolicyIds.size() > 1) {
       log.error("More than one effective policy configured to use the same monitorId={} for tenant={}",
           monitorId, tenantId);
-      policyIntegrityErrors.increment();
+      createMonitorFailed.tags("operation","handleMonitorPolicyEvent","reason","tooManyClones").register(meterRegistry).increment();
     }
     UUID newPolicyId = newPolicyIds.get(0);
     log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor, newPolicyId);
@@ -1617,7 +1620,7 @@ public class MonitorManagement {
             // what went wrong and how it should be corrected.
             log.error("Failed to update monitor plugin contents={} for event={}",
                 monitor.getContent(), event, e);
-            monitorMetadataContentUpdateErrors.increment();
+            createMonitorFailed.tags("operation","updateMonitorContentWithPolicy").register(meterRegistry).increment();
           }
         }
         monitorRepository.save(monitor);
@@ -1812,7 +1815,7 @@ public class MonitorManagement {
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
                 monitor, resource, e);
-            invalidTemplateErrors.increment();
+            createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
           }
         } else {
           // remote monitor
@@ -1827,7 +1830,7 @@ public class MonitorManagement {
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
                 monitor, resource, e);
-            invalidTemplateErrors.increment();
+            createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
           }
         }
       } else {
@@ -1864,7 +1867,7 @@ public class MonitorManagement {
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}, removing existing bindings={}",
               monitor, resource, existing, e);
-          invalidTemplateErrors.increment();
+          createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
 
           boundMonitorRepository.deleteAll(existing);
           affectedEnvoys.addAll(
@@ -2313,6 +2316,7 @@ public class MonitorManagement {
       } catch (InvalidTemplateException e) {
         log.error("Unable to render content='{}' of monitor={} for resource={}",
             monitor.getContent(), monitor, resource, e);
+        createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
         throw new IllegalArgumentException(
             String.format("Unable to render content=%s for resource=%s",
                 monitor.getContent(), resource));
@@ -2320,10 +2324,12 @@ public class MonitorManagement {
     } else {
       log.info("Invalid resourceId={} provided when rendering monitorId={} template for tenantId={}",
           resourceId, monitorId, tenantId);
+      createMonitorFailed.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
       throw new NotFoundException(
           String.format("Invalid resourceId=%s provided when rendering monitorId=%s template for tenantId=%s",
               resourceId, monitorId, tenantId));
     }
+    createMonitorSuccess.tags("operation","renderMonitorTemplate").register(meterRegistry).increment();
     return renderedMonitorTemplate;
   }
 }

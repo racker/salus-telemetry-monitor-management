@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 
+import com.rackspace.salus.common.config.MetricsName;
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -35,6 +36,8 @@ import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +74,12 @@ public class TestMonitorService {
   private ConcurrentHashMap<String/*correlationId*/, CompletableFuture<TestMonitorResult>> pending =
       new ConcurrentHashMap<>();
 
+  MeterRegistry meterRegistry;
+
+  // metrics counters
+  private final Counter.Builder testMonitorSuccess;
+  private final Counter.Builder testMonitorFailed;
+
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
       ResourceRepository resourceRepository,
@@ -78,7 +87,8 @@ public class TestMonitorService {
       MonitorContentRenderer monitorContentRenderer,
       MonitorManagement monitorManagement,
       TestMonitorProperties testMonitorProperties,
-      TestMonitorEventProducer testMonitorEventProducer) {
+      TestMonitorEventProducer testMonitorEventProducer,
+      MeterRegistry meterRegistry) {
     this.monitorConversionService = monitorConversionService;
     this.resourceRepository = resourceRepository;
     this.envoyResourceManagement = envoyResourceManagement;
@@ -86,6 +96,10 @@ public class TestMonitorService {
     this.monitorManagement = monitorManagement;
     this.testMonitorEventProducer = testMonitorEventProducer;
     this.testMonitorProperties = testMonitorProperties;
+
+    this.meterRegistry = meterRegistry;
+    testMonitorSuccess = Counter.builder(MetricsName.SERVICE_OPERATION_SUCCEEDED_METRIC_NAME);
+    testMonitorFailed  = Counter.builder(MetricsName.SERVICE_OPERATION_FAILED_METRIC_NAME);
   }
 
   public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
@@ -106,6 +120,7 @@ public class TestMonitorService {
     final TestMonitorRequestEvent event;
     try {
       if (!SUPPORTED_AGENT_TYPES.contains(monitorCU.getAgentType())) {
+        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
         throw new IllegalArgumentException("The given monitor type does not support test-monitors");
       }
 
@@ -121,6 +136,7 @@ public class TestMonitorService {
       final Optional<Resource> optionalResource = resourceRepository
           .findByTenantIdAndResourceId(tenantId, resourceId);
       if (optionalResource.isEmpty()) {
+        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
         return CompletableFuture.completedFuture(new TestMonitorResult()
             .setErrors(List.of("Unable to locate the resource for the test-monitor")));
       }
@@ -141,9 +157,11 @@ public class TestMonitorService {
             monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource, null))
         );
       } catch (InvalidTemplateException e) {
+        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
         throw new IllegalArgumentException("Failed to render monitor configuration content", e);
       }
     } catch (MissingRequirementException | IllegalArgumentException e) {
+      testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
       return CompletableFuture
           .completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
     }
@@ -168,12 +186,15 @@ public class TestMonitorService {
           removeCompletedRequest(correlationId);
 
           if (throwable instanceof TimeoutException) {
+            testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
             return buildTimedOutResult();
           } else if (throwable != null) {
+            testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
             return new TestMonitorResult()
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
           } else {
+            testMonitorSuccess.tags("operation", "performTestMonitor").register(meterRegistry).increment();
             return testMonitorOutput;
           }
         });
