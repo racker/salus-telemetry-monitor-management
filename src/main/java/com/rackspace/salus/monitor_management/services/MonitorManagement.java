@@ -1331,6 +1331,7 @@ public class MonitorManagement {
             id, tenantId)));
 
     if (monitor.getPolicyId() != null) {
+      createMonitorFailed.tags("operation","removeMonitor").register(meterRegistry).increment();
       throw new DeletionNotAllowedException(
           "Cannot remove monitor configured by Policy. Contact your support team to opt out of the policy.");
     }
@@ -1359,12 +1360,12 @@ public class MonitorManagement {
    */
   public void removePolicyMonitor(UUID id) {
     if (!monitorRepository.existsByIdAndTenantId(id, POLICY_TENANT)) {
-      createMonitorFailed.tags("operation","removePolicyMonitor").register(meterRegistry).increment();
+      createMonitorFailed.tags("operation","removeMonitor", "objectType","policyMonitor").register(meterRegistry).increment();
       throw new NotFoundException(String.format("No policy monitor found for %s", id));
     }
 
     if (monitorPolicyRepository.existsByMonitorId(id)) {
-      createMonitorFailed.tags("operation","removePolicyMonitor").register(meterRegistry).increment();
+      createMonitorFailed.tags("operation","removeMonitor", "objectType","policyMonitor").register(meterRegistry).increment();
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.deleteById(id);
