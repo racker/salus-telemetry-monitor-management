@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.services;
 
 import static com.google.common.collect.Collections2.transform;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -24,7 +25,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -42,7 +42,6 @@ import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
 import com.rackspace.salus.monitor_management.config.ServicesProperties;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
-import com.rackspace.salus.monitor_management.services.MonitorManagement_MetadataPolicyTest.TestConfig;
 import com.rackspace.salus.monitor_management.utils.MetadataUtils;
 import com.rackspace.salus.monitor_management.web.converter.PatchHelper;
 import com.rackspace.salus.monitor_management.web.model.MonitorCU;
@@ -73,7 +72,6 @@ import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -104,9 +102,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ContextConfiguration;
@@ -129,7 +125,10 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
     MonitorConversionService.class,
     MetadataUtils.class,
     DatabaseConfig.class,
-    TestConfig.class
+    ZoneAllocationResolverFactory.class,
+    SimpleMeterRegistry.class,
+    ZonesProperties.class,
+    ServicesProperties.class,
 })
 public class MonitorManagement_MetadataPolicyTest {
 
@@ -140,25 +139,6 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
-
-  @TestConfiguration
-  static class TestConfig {
-    @Bean
-    MeterRegistry meterRegistry() {
-      return new SimpleMeterRegistry();
-    }
-
-    @Bean
-    public ZonesProperties zonesProperties() {
-      return new ZonesProperties();
-    }
-
-    @Bean
-    public ServicesProperties servicesProperties() {
-      return new ServicesProperties()
-          .setResourceManagementUrl("");
-    }
-  }
 
   @MockBean
   MonitorEventProducer monitorEventProducer;
@@ -189,6 +169,9 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @MockBean
   PatchHelper patchHelper;
+
+  @MockBean
+  ZoneAllocationResolver zoneAllocationResolver;
 
   @Autowired
   ObjectMapper objectMapper;
@@ -239,12 +222,8 @@ public class MonitorManagement_MetadataPolicyTest {
 
     EnvoyResourcePair pair = new EnvoyResourcePair().setEnvoyId("e-new").setResourceId("r-new-1");
 
-    when(zoneStorage.findLeastLoadedEnvoy(any()))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(pair)));
-    when(zoneStorage.incrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
-    when(zoneStorage.decrementBoundCount(any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(1));
+    when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
+        .thenReturn(Optional.of(pair));
 
     when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
         .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-new", "r-new-1")));
@@ -893,6 +872,7 @@ public class MonitorManagement_MetadataPolicyTest {
             .setTenantId(newTenant)
             .setResourceId(resourceDto.getResourceId())
             .setEnvoyId("e-new")
+            .setPollerResourceId("r-new-1")
             .setRenderedContent(objectMapper.writeValueAsString(updatedPlugin))
             .setZoneName("public/z-1")
     ));
