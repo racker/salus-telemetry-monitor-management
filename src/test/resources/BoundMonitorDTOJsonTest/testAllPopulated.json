@@ -9,6 +9,7 @@
   "agentType": "TELEGRAF",
   "renderedContent": "{}",
   "envoyId": "e-1",
+  "pollerResourceId": "poller-1",
   "zoneName": "z-1",
   "interval": "PT30S",
   "createdTimestamp": "1970-01-02T03:46:40Z",

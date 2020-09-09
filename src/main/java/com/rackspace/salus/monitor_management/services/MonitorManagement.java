@@ -19,8 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static com.google.common.collect.Collections2.transform;
 import static com.rackspace.salus.telemetry.entities.Monitor.POLICY_TENANT;
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
-import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPrivateZone;
-import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.createPublicZone;
+import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -50,7 +49,6 @@ import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
-import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
@@ -108,7 +106,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -121,11 +118,11 @@ public class MonitorManagement {
   private final ResourceRepository resourceRepository;
   private final MonitorPolicyRepository monitorPolicyRepository;
   private final BoundMonitorRepository boundMonitorRepository;
-  private final ZoneStorage zoneStorage;
   private final MonitorEventProducer monitorEventProducer;
   private final MonitorContentRenderer monitorContentRenderer;
   private final PolicyApi policyApi;
   private final ResourceApi resourceApi;
+  private final ZoneAllocationResolverFactory zoneAllocationResolverFactory;
   private final ZoneManagement zoneManagement;
   private final ZonesProperties zonesProperties;
   private final String labelMatchQuery;
@@ -155,11 +152,12 @@ public class MonitorManagement {
       MonitorRepository monitorRepository, EntityManager entityManager,
       EnvoyResourceManagement envoyResourceManagement,
       BoundMonitorRepository boundMonitorRepository,
-      ZoneStorage zoneStorage,
       MonitorEventProducer monitorEventProducer,
       MonitorContentRenderer monitorContentRenderer,
       PolicyApi policyApi, ResourceApi resourceApi,
-      ZoneManagement zoneManagement, ZonesProperties zonesProperties,
+      ZoneAllocationResolverFactory zoneAllocationResolverFactory,
+      ZoneManagement zoneManagement,
+      ZonesProperties zonesProperties,
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
       JdbcTemplate jdbcTemplate)
@@ -170,11 +168,11 @@ public class MonitorManagement {
     this.entityManager = entityManager;
     this.envoyResourceManagement = envoyResourceManagement;
     this.boundMonitorRepository = boundMonitorRepository;
-    this.zoneStorage = zoneStorage;
     this.monitorEventProducer = monitorEventProducer;
     this.monitorContentRenderer = monitorContentRenderer;
     this.policyApi = policyApi;
     this.resourceApi = resourceApi;
+    this.zoneAllocationResolverFactory = zoneAllocationResolverFactory;
     this.zoneManagement = zoneManagement;
     this.zonesProperties = zonesProperties;
     this.monitorConversionService = monitorConversionService;
@@ -187,14 +185,6 @@ public class MonitorManagement {
     createMonitorSuccess = Counter.builder(MetricsName.SERVICE_OPERATION_SUCCEEDED_METRIC_NAME);
     createMonitorFailed  = Counter.builder(MetricsName.SERVICE_OPERATION_FAILED_METRIC_NAME);
     orphanedBoundMonitorRemoved = Counter.builder("orphaned");
-  }
-
-  /**
-   * FOR UNIT TESTING, provides the zone properties
-   * @return the {@link ZonesProperties} used by this service
-   */
-  ZonesProperties getZonesProperties() {
-    return zonesProperties;
   }
 
   /**
@@ -522,6 +512,8 @@ public class MonitorManagement {
     } else {
       // REMOTE MONITOR
 
+      final ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
+
       for (ResourceDTO resource : resources) {
         List<String> zonesForResource = zones;
 
@@ -532,7 +524,7 @@ public class MonitorManagement {
         for (String zone : zonesForResource) {
           try {
             boundMonitors.add(
-                bindRemoteMonitor(monitor, resource, zone)
+                bindRemoteMonitor(monitor, resource, zone, zoneAllocationResolver)
             );
           } catch (InvalidTemplateException e) {
             log.warn("Unable to render monitor={} onto resource={}",
@@ -618,39 +610,32 @@ public class MonitorManagement {
         .setZoneName("");
   }
 
-  String findLeastLoadedEnvoyInZone(String tenantId, String zone) {
-    final ResolvedZone resolvedZone = resolveZone(tenantId, zone);
-
-    final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
-
-    return result.isEmpty() ? null : result.get().getEnvoyId();
+  public Optional<EnvoyResourcePair> findLeastLoadedEnvoyInZone(ResolvedZone resolvedZone) {
+    return zoneAllocationResolverFactory.create()
+        .findLeastLoadedEnvoy(resolvedZone);
   }
 
-  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone)
+  private BoundMonitor bindRemoteMonitor(Monitor monitor, ResourceDTO resource, String zone,
+                                         ZoneAllocationResolver zoneAllocationResolver)
       throws InvalidTemplateException {
     final String renderedContent = getRenderedContent(monitor.getContent(), resource);
 
     final ResolvedZone resolvedZone = resolveZone(resource.getTenantId(), zone);
 
-    final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
-
-    final String envoyId;
-    if (result.isPresent()) {
-      envoyId = result.get().getEnvoyId();
-      zoneStorage.incrementBoundCount(resolvedZone, result.get().getResourceId())
-          .join();
-    }
-    else {
-      envoyId = null;
-    }
-
-    return new BoundMonitor()
+    final BoundMonitor boundMonitor = new BoundMonitor()
         .setZoneName(zone)
         .setMonitor(monitor)
         .setTenantId(resource.getTenantId())
         .setResourceId(resource.getResourceId())
-        .setEnvoyId(envoyId)
         .setRenderedContent(renderedContent);
+
+    zoneAllocationResolver.findLeastLoadedEnvoy(resolvedZone)
+        .ifPresent(poller ->
+            boundMonitor
+                .setEnvoyId(poller.getEnvoyId())
+                .setPollerResourceId(poller.getResourceId()));
+
+    return boundMonitor;
   }
 
   /**
@@ -678,14 +663,16 @@ public class MonitorManagement {
 
     final List<BoundMonitor> assigned = new ArrayList<>(onesWithoutEnvoy.size());
 
-    for (BoundMonitor boundMonitor : onesWithoutEnvoy) {
+    final ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
 
-      final Optional<EnvoyResourcePair> result = zoneStorage.findLeastLoadedEnvoy(resolvedZone).join();
-      if (result.isPresent()) {
-        boundMonitor.setEnvoyId(result.get().getEnvoyId());
-        assigned.add(boundMonitor);
-        zoneStorage.incrementBoundCount(resolvedZone, result.get().getResourceId());
-      }
+    for (BoundMonitor boundMonitor : onesWithoutEnvoy) {
+      zoneAllocationResolver.findLeastLoadedEnvoy(resolvedZone)
+          .ifPresent(poller -> {
+            boundMonitor
+                .setEnvoyId(poller.getEnvoyId())
+                .setPollerResourceId(poller.getResourceId());
+            assigned.add(boundMonitor);
+          });
     }
 
     if (!assigned.isEmpty()) {
@@ -699,7 +686,7 @@ public class MonitorManagement {
 
   @SuppressWarnings("WeakerAccess")
   public void handleEnvoyResourceChangedInZone(@Nullable String tenantId,
-      String zoneName, String resourceId,
+      String zoneName, String pollerResourceId,
       String fromEnvoyId, String toEnvoyId) {
     log.debug("Moving bound monitors to new envoy for same resource");
 
@@ -711,16 +698,12 @@ public class MonitorManagement {
     if (!boundToPrev.isEmpty()) {
       log.debug("Re-assigning bound monitors={} to envoy={}", boundToPrev, toEnvoyId);
       for (BoundMonitor boundMonitor : boundToPrev) {
-        boundMonitor.setEnvoyId(toEnvoyId);
+        boundMonitor
+            .setEnvoyId(toEnvoyId)
+            .setPollerResourceId(pollerResourceId);
       }
 
       saveBoundMonitors(boundToPrev);
-
-      zoneStorage.changeBoundCount(
-          createPrivateZone(tenantId, zoneName),
-          resourceId,
-          boundToPrev.size()
-      );
 
       sendMonitorBoundEvent(toEnvoyId);
     }
@@ -731,16 +714,6 @@ public class MonitorManagement {
     // Also check to make sure there are no unassigned bound monitors
     // This can happen if new monitors are created while all poller-envoys in a zone are down
     handleNewEnvoyInZone(tenantId, zoneName);
-  }
-
-  private ResolvedZone resolveZone(String tenantId, String zone) {
-    if (zone.startsWith(ResolvedZone.PUBLIC_PREFIX)) {
-      return createPublicZone(zone);
-    }
-    else {
-      Assert.notNull(tenantId, "Private zones require a tenantId");
-      return createPrivateZone(tenantId, zone);
-    }
   }
 
   List<String> determineMonitoringZones(Monitor monitor, ResourceDTO resource) {
@@ -1073,6 +1046,8 @@ public class MonitorManagement {
     Set<String> boundResourceIds = boundMonitors.stream().map(BoundMonitor::getResourceId).collect(
         Collectors.toSet());
 
+    final ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
+
     // handle the bound monitor changes for each individual resource
     for (String resourceId : boundResourceIds) {
       Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(monitor.getTenantId(), resourceId);
@@ -1115,7 +1090,9 @@ public class MonitorManagement {
           // passing in null because envoyId is not necessary for bindRemoteMonitor.
           // A future ticket should look at whether we can change the header for bindRemoteMonitor to accept a Resource instead of a ResourceDTO
           newBoundMonitors.add(
-              bindRemoteMonitor(monitor, new ResourceDTO(resource.get(), null), zone));
+              bindRemoteMonitor(monitor, new ResourceDTO(resource.get(), null), zone,
+                  zoneAllocationResolver
+              ));
         } catch (InvalidTemplateException e) {
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource.get(), e);
@@ -1798,6 +1775,8 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = new HashSet<>();
 
+    final ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
+
     for (Monitor monitor : monitors) {
       final List<BoundMonitor> existing = boundMonitorRepository
           .findAllByMonitor_IdAndResourceId(monitor.getId(), resource.getResourceId());
@@ -1824,7 +1803,7 @@ public class MonitorManagement {
 
             for (String zone : zones) {
               boundMonitors.add(
-                  bindRemoteMonitor(monitor, resource, zone)
+                  bindRemoteMonitor(monitor, resource, zone, zoneAllocationResolver)
               );
             }
           } catch (InvalidTemplateException e) {
@@ -1908,7 +1887,6 @@ public class MonitorManagement {
     log.debug("Unbinding {} from monitorIds={}",
         boundMonitors, monitorIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
-    decrementBoundCounts(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
   }
@@ -1929,7 +1907,6 @@ public class MonitorManagement {
     log.debug("Unbinding {} from resourceId={} and monitorIdsToUnbind={}",
         boundMonitors, resourceId, monitorIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
-    decrementBoundCounts(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
   }
@@ -1950,7 +1927,6 @@ public class MonitorManagement {
     log.debug("Unbinding {} from monitorId={} resourceIds={}", boundMonitors,
         monitorId, resourceIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
-    decrementBoundCounts(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
   }
@@ -1967,8 +1943,6 @@ public class MonitorManagement {
     log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
     boundMonitorRepository.deleteAll(needToDelete);
 
-    decrementBoundCounts(needToDelete);
-
     return extractEnvoyIds(needToDelete);
   }
 
@@ -1983,8 +1957,6 @@ public class MonitorManagement {
     log.debug("Unbinding monitorId={} on resourceId={} from zones={}: {}", monitorId, resourceId, zones, needToDelete);
     boundMonitorRepository.deleteAll(needToDelete);
 
-    decrementBoundCounts(needToDelete);
-
     return extractEnvoyIds(needToDelete);
   }
 
@@ -1996,33 +1968,6 @@ public class MonitorManagement {
         .map(BoundMonitor::getEnvoyId)
         .filter(Objects::nonNull)
         .collect(Collectors.toSet());
-  }
-
-  /**
-   * Determines the resource id each monitor is bound to and decreases the count of
-   * monitors it is bound to.
-   * @param needToDelete A list of bound monitors to act on.
-   */
-  private void decrementBoundCounts(List<BoundMonitor> needToDelete) {
-    Map<String, String> envoyToResource = new HashMap<>();
-    for (BoundMonitor boundMonitor : needToDelete) {
-      if (boundMonitor.getEnvoyId() != null &&
-          boundMonitor.getMonitor().getSelectorScope() == ConfigSelectorScope.REMOTE) {
-        ResolvedZone zone = resolveZone(boundMonitor.getTenantId(), boundMonitor.getZoneName());
-        String envoyId = boundMonitor.getEnvoyId();
-        String resourceId = envoyToResource.get(envoyId);
-        // If we don't know the resourceId yet, try look it up
-        if (resourceId == null) {
-          envoyToResource.putAll(zoneStorage.getEnvoyIdToResourceIdMap(zone).join());
-          resourceId = envoyToResource.get(envoyId);
-        }
-
-        // If the resourceId is still not known, the envoy must have disconnected, so skip
-        if (resourceId != null) {
-          zoneStorage.decrementBoundCount(zone, resourceId);
-        }
-      }
-    }
   }
 
   /**
@@ -2100,14 +2045,16 @@ public class MonitorManagement {
    */
   @SuppressWarnings("WeakerAccess")
   public void handleExpiredEnvoy(@Nullable String zoneTenantId, String zoneName, String envoyId) {
-    log.debug("Reassigning bound monitors for disconnected envoy={} with zoneName={} and zoneTenantId={}",
-        envoyId, zoneName, zoneTenantId);
     List<BoundMonitor> boundMonitors = getAllBoundMonitorsByEnvoyId(envoyId);
     if (boundMonitors.isEmpty()) {
       return;
     }
+    log.info("Reassigning bound monitors count={} for disconnected envoy={} with zoneName={} and zoneTenantId={}",
+        boundMonitors.size(), envoyId, zoneName, zoneTenantId);
     for (BoundMonitor boundMonitor : boundMonitors) {
-      boundMonitor.setEnvoyId(null);
+      boundMonitor
+          .setEnvoyId(null)
+          .setPollerResourceId(null);
     }
 
     saveBoundMonitors(boundMonitors);
@@ -2119,7 +2066,8 @@ public class MonitorManagement {
 
     final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
 
-    return zoneStorage.getZoneBindingCounts(zone)
+    return zoneAllocationResolverFactory.create()
+        .getZoneBindingCounts(zone)
         .thenApply(bindingCounts ->
             bindingCounts.entrySet().stream()
                 .map(entry ->
@@ -2140,7 +2088,10 @@ public class MonitorManagement {
   public CompletableFuture<Integer> rebalanceZone(@Nullable String zoneTenantId, String zoneName) {
     final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
 
-    return zoneStorage.getZoneBindingCounts(zone)
+    log.info("Rebalancing zone={}", zone);
+
+    return zoneAllocationResolverFactory.create()
+        .getZoneBindingCounts(zone)
         .thenApply(bindingCounts ->
             rebalanceWithZoneBindingCounts(zone, bindingCounts)
         );
@@ -2197,11 +2148,6 @@ public class MonitorManagement {
             zone, entry.getKey().getEnvoyId(), limit);
 
         overAssigned.addAll(boundMonitors);
-
-        // decrease the assignment count of bound monitors
-        zoneStorage.changeBoundCount(
-            zone, entry.getKey().getResourceId(), -amountToUnassign
-        );
       }
     }
 
@@ -2210,7 +2156,11 @@ public class MonitorManagement {
     final Set<String> overassignedEnvoyIds = extractEnvoyIds(overAssigned);
 
     // "unassign" the bound monitors
-    overAssigned.forEach(boundMonitor -> boundMonitor.setEnvoyId(null));
+    overAssigned.forEach(boundMonitor ->
+        boundMonitor
+            .setEnvoyId(null)
+            .setPollerResourceId(null)
+    );
     saveBoundMonitors(overAssigned);
 
     // tell previous envoys to stop unassigned monitors

@@ -16,25 +16,51 @@
 
 package com.rackspace.salus.monitor_management.web.model;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.isEmptyString;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.common.web.View;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
 import java.lang.reflect.Field;
 import java.util.Map;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.json.JsonTest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.ReflectionUtils;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
+@RunWith(SpringRunner.class)
+@JsonTest
 public class BoundMonitorDTOTest {
+  /*
+  Provide empty config to avoid failed attempt to setup unrelated component:
+  org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'com.rackspace.salus.telemetry.web.TenantVerificationWebConfig'
+   */
+  @Configuration
+  public static class TestConfig {}
+
   final PodamFactory podamFactory = new PodamFactoryImpl();
 
+  /*
+  Use Spring Boot provided ObjectMapper since default one fails with:
+  com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Cannot construct instance of `java.time.Duration` (no Creators, like default constructor, exist): cannot deserialize from Object value (no delegate- or property-based Creator)
+  */
+  @Autowired
+  ObjectMapper objectMapper;
+
   @Test
-  public void testFieldsCovered() {
+  public void testFieldsCovered() throws JsonProcessingException {
     final BoundMonitor boundMonitor = podamFactory.manufacturePojo(BoundMonitor.class);
 
     final BoundMonitorDTO dto = new BoundMonitorDTO(boundMonitor);
@@ -49,7 +75,7 @@ public class BoundMonitorDTOTest {
       final Object value = ReflectionUtils.getField(field, dto);
       assertThat(field.getName(), value, notNullValue());
       if (value instanceof String) {
-        assertThat(((String) value), not(isEmptyString()));
+        assertThat(((String) value), not(is(emptyString())));
       }
     }
 
@@ -64,6 +90,25 @@ public class BoundMonitorDTOTest {
     assertThat(dto.getAgentType(), equalTo(boundMonitor.getMonitor().getAgentType()));
     assertThat(dto.getRenderedContent(), equalTo(boundMonitor.getRenderedContent()));
     assertThat(dto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));
+    assertThat(dto.getPollerResourceId(), equalTo(boundMonitor.getPollerResourceId()));
     assertThat(dto.getInterval(), equalTo(boundMonitor.getMonitor().getInterval()));
+
+    BoundMonitorDTO convertedDto = objectMapper.readValue(
+        objectMapper.writerWithView(View.Public.class).writeValueAsString(dto),
+        BoundMonitorDTO.class);
+    assertThat(convertedDto.getPollerResourceId(), nullValue());
+    assertThat(convertedDto.getEnvoyId(), nullValue());
+
+    convertedDto = objectMapper.readValue(
+        objectMapper.writerWithView(View.Internal.class).writeValueAsString(dto),
+        BoundMonitorDTO.class);
+    assertThat(convertedDto.getPollerResourceId(), nullValue());
+    assertThat(convertedDto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));
+
+    convertedDto = objectMapper.readValue(
+        objectMapper.writerWithView(View.Admin.class).writeValueAsString(dto),
+        BoundMonitorDTO.class);
+    assertThat(convertedDto.getPollerResourceId(), equalTo(boundMonitor.getPollerResourceId()));
+    assertThat(convertedDto.getEnvoyId(), equalTo(boundMonitor.getEnvoyId()));
   }
 }
