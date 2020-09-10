@@ -910,32 +910,36 @@ public class MonitorManagementTest {
     final Map<String, String> r1metadata = new HashMap<>();
     r1metadata.put("ping_ip", "something_else");
     r1metadata.put("address", "localhost");
-    final ResourceDTO r1 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setMetadata(r1metadata)
-        .setResourceId("r-1")
-        .setTenantId("t-1");
 
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(r1);
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId1 = RandomStringUtils.randomAlphanumeric(10);
+    String resourceId2 = RandomStringUtils.randomAlphanumeric(10);
+
+    final Resource resource1 = podamFactory.manufacturePojo(Resource.class);
+    resource1.setResourceId(resourceId1);
+    resource1.setTenantId(tenantId);
+    resource1.setLabels(Collections.singletonMap("os", "linux"));
+    resource1.setMetadata(r1metadata);
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId1)).thenReturn(Optional.of(resource1));
 
     // ...and this resource will NOT since both metadata values are the same
     final Map<String, String> r2metadata = new HashMap<>();
     r2metadata.put("ping_ip", "localhost");
     r2metadata.put("address", "localhost");
-    final ResourceDTO r2 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setMetadata(r2metadata)
-        .setResourceId("r-2")
-        .setTenantId("t-1");
 
-    when(resourceApi.getByResourceId("t-1", "r-2"))
-        .thenReturn(r2);
+    final Resource resource2 = podamFactory.manufacturePojo(Resource.class);
+    resource2.setResourceId(resourceId2);
+    resource2.setTenantId(tenantId);
+    resource2.setLabels(Collections.singletonMap("os", "linux"));
+    resource2.setMetadata(r1metadata);
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId2)).thenReturn(Optional.of(resource2));
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
         .setContent("address=${resource.metadata.ping_ip}")
-        .setTenantId("t-1")
+        .setTenantId(tenantId)
         .setSelectorScope(ConfigSelectorScope.REMOTE)
         .setMonitorType(MonitorType.ping)
         .setLabelSelector(Collections.singletonMap("os", "linux"))
@@ -945,8 +949,8 @@ public class MonitorManagementTest {
 
     final BoundMonitor bound1 = new BoundMonitor()
         .setMonitor(monitor)
-        .setTenantId("t-1")
-        .setResourceId("r-1")
+        .setTenantId(tenantId)
+        .setResourceId(resourceId1)
         .setEnvoyId("e-1")
         .setZoneName("z-1")
         .setRenderedContent("address=something_else");
@@ -954,8 +958,8 @@ public class MonitorManagementTest {
 
     final BoundMonitor bound2 = new BoundMonitor()
         .setMonitor(monitor)
-        .setTenantId("t-1")
-        .setResourceId("r-2")
+        .setTenantId(tenantId)
+        .setResourceId(resourceId2)
         .setEnvoyId("e-2")
         .setZoneName("z-1")
         .setRenderedContent("address=localhost");
@@ -964,8 +968,8 @@ public class MonitorManagementTest {
     // same resource r-2, but different zone to ensure query-by-resource is normalize to one query each
     final BoundMonitor bound3 = new BoundMonitor()
         .setMonitor(monitor)
-        .setTenantId("t-1")
-        .setResourceId("r-2")
+        .setTenantId(tenantId)
+        .setResourceId(resourceId2)
         .setEnvoyId("e-3")
         .setZoneName("z-2")
         .setRenderedContent("address=localhost");
@@ -978,7 +982,7 @@ public class MonitorManagementTest {
 
     final MonitorCU update = new MonitorCU()
         .setContent("address=${resource.metadata.address}");
-    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+    final Monitor updatedMonitor = monitorManagement.updateMonitor(tenantId, monitor.getId(), update);
 
     // VERIFY
 
@@ -991,7 +995,7 @@ public class MonitorManagementTest {
                 .setMonitorType(MonitorType.ping)
                 .setContent("address=${resource.metadata.address}")
                 .setMonitorMetadataFields(List.of("monitorName"))
-                .setTenantId("t-1")
+                .setTenantId(tenantId)
                 .setSelectorScope(ConfigSelectorScope.REMOTE)
                 .setLabelSelector(Collections.singletonMap("os", "linux"))
                 .setLabelSelectorMethod(LabelSelectorMethod.AND)
@@ -1005,16 +1009,16 @@ public class MonitorManagementTest {
         .containsExactly(
             new BoundMonitor()
                 .setMonitor(monitor)
-                .setTenantId("t-1")
-                .setResourceId("r-1")
+                .setTenantId(tenantId)
+                .setResourceId(resourceId1)
                 .setEnvoyId("e-1")
                 .setZoneName("z-1")
                 .setRenderedContent("address=localhost")
         );
 
-    verify(resourceApi).getByResourceId("t-1", "r-1");
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId1);
     // even though two bindings for r-2, the queries were grouped by resource and only one call here
-    verify(resourceApi).getByResourceId("t-1", "r-2");
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId2);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-1")
@@ -1090,59 +1094,62 @@ public class MonitorManagementTest {
     // updates it to point to another resource
     // confirms monitor is updated, old binding is removed, new binding is added
     reset(envoyResourceManagement, resourceApi);
-    final ResourceDTO r1 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setResourceId("r-1")
-        .setTenantId("t-1");
+      String tenantId = RandomStringUtils.randomAlphanumeric(10);
+      String resourceId1 = RandomStringUtils.randomAlphanumeric(10);
+      String resourceId2 = RandomStringUtils.randomAlphanumeric(10);
 
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(r1);
-    when(envoyResourceManagement.getOne("t-1", "r-2"))
+    final Resource resource1 = podamFactory.manufacturePojo(Resource.class);
+    resource1.setResourceId(resourceId1);
+    resource1.setTenantId(tenantId);
+    resource1.setLabels(Collections.singletonMap("os", "linux"));
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId1)).thenReturn(Optional.of(resource1));
+
+    when(envoyResourceManagement.getOne(tenantId, resourceId2))
         .thenReturn(
             CompletableFuture.completedFuture(
-                new ResourceInfo().setResourceId("r-2").setEnvoyId("e-2")
+                new ResourceInfo().setResourceId(resourceId2).setEnvoyId("e-2")
             )
         );
 
-    final ResourceDTO r2 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setResourceId("r-2")
-        .setTenantId("t-1")
-        .setAssociatedWithEnvoy(true);
+    final Resource resource2 = podamFactory.manufacturePojo(Resource.class);
+    resource2.setResourceId(resourceId2);
+    resource2.setTenantId(tenantId);
+    resource2.setLabels(Collections.singletonMap("os", "linux"));
+    resource2.setAssociatedWithEnvoy(true);
 
-    when(resourceApi.getByResourceId("t-1", "r-2"))
-        .thenReturn(r2);
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId2)).thenReturn(Optional.of(resource2));
 
     final Monitor monitor = new Monitor()
         .setAgentType(AgentType.TELEGRAF)
         .setMonitorType(MonitorType.cpu)
         .setContent("static content")
-        .setTenantId("t-1")
-        .setResourceId("r-1")
+        .setTenantId(tenantId)
+        .setResourceId(resourceId1)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setInterval(Duration.ofSeconds(60));
     entityManager.persist(monitor);
 
     final BoundMonitor bound1 = new BoundMonitor()
-        .setTenantId("t-1")
+        .setTenantId(tenantId)
         .setMonitor(monitor)
-        .setResourceId("r-1")
+        .setResourceId(resourceId1)
         .setZoneName("")
         .setEnvoyId("e-1");
     entityManager.persist(bound1);
 
-    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1"))
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId1))
         .thenReturn(Collections.singletonList(bound1));
 
-    when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1")))
+    when(boundMonitorRepository.findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList(resourceId1)))
         .thenReturn(Collections.singletonList(bound1));
 
     // EXECUTE
 
     final MonitorCU update = new MonitorCU()
-        .setResourceId("r-2");
-    final Monitor updatedMonitor = monitorManagement.updateMonitor("t-1", monitor.getId(), update);
+        .setResourceId(resourceId2);
+    final Monitor updatedMonitor = monitorManagement.updateMonitor(tenantId, monitor.getId(), update);
 
     // VERIFY
     // confirm monitor is updated
@@ -1155,22 +1162,22 @@ public class MonitorManagementTest {
                 .setMonitorType(MonitorType.cpu)
                 .setContent("static content")
                 .setMonitorMetadataFields(List.of("monitorName"))
-                .setTenantId("t-1")
+                .setTenantId(tenantId)
                 .setSelectorScope(ConfigSelectorScope.LOCAL)
-                .setResourceId("r-2")
+                .setResourceId(resourceId2)
                 .setLabelSelectorMethod(LabelSelectorMethod.AND)
                 .setInterval(Duration.ofSeconds(60)));
 
-    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-1");
-    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), "r-2");
-    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList("r-1"));
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId1);
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceId(monitor.getId(), resourceId2);
+    verify(boundMonitorRepository).findAllByMonitor_IdAndResourceIdIn(monitor.getId(), Collections.singletonList(resourceId1));
 
     // confirm new binding saved
     verify(boundMonitorRepository).saveAll(Collections.singletonList(
         new BoundMonitor()
-            .setTenantId("t-1")
+            .setTenantId(tenantId)
             .setMonitor(monitor)
-            .setResourceId("r-2")
+            .setResourceId(resourceId2)
             .setZoneName("")
             .setEnvoyId("e-2")
             .setRenderedContent("static content")
@@ -1179,7 +1186,7 @@ public class MonitorManagementTest {
     // confirm old binding deleted
     verify(boundMonitorRepository).deleteAll(Collections.singletonList(bound1));
 
-    verify(resourceApi).getByResourceId("t-1", "r-2");
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId2);
 
     // confirm event sent for both old and new binding
     verify(monitorEventProducer).sendMonitorEvent(
@@ -1189,7 +1196,7 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-2")
     );
-    verify(envoyResourceManagement).getOne("t-1", "r-2");
+    verify(envoyResourceManagement).getOne(tenantId, resourceId2);
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer);
   }
@@ -1205,8 +1212,6 @@ public class MonitorManagementTest {
         .setResourceId("r-1")
         .setTenantId("t-1");
 
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(r1);
     when(envoyResourceManagement.getOne("t-1", "r-2"))
         .thenReturn(
             CompletableFuture.completedFuture(
@@ -1387,8 +1392,6 @@ public class MonitorManagementTest {
 
 
     // Called when binding new resource
-    when(resourceApi.getByResourceId("t-1", "r-1"))
-        .thenReturn(new ResourceDTO(resource, null));
     when(envoyResourceManagement.getOne("t-1", "r-1"))
         .thenReturn(
             CompletableFuture.completedFuture(
@@ -3286,7 +3289,7 @@ public class MonitorManagementTest {
         .setMonitorType(MonitorType.cpu)
         .setContent("static content")
         .setTenantId(tenantId)
-        .setResourceId(null)
+        .setResourceId(resourceId)
         .setSelectorScope(ConfigSelectorScope.LOCAL)
         .setLabelSelectorMethod(LabelSelectorMethod.AND)
         .setLabelSelector(Map.of("os", "linux"))
@@ -3295,14 +3298,15 @@ public class MonitorManagementTest {
     entityManager.persist(monitor);
 
     // Called when binding new resource
-    when(resourceApi.getByResourceId(tenantId, resourceId))
-        .thenReturn(null);
     when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId))
         .thenReturn(Optional.empty());
 
     // Called when unbinding old resources
     when(boundMonitorRepository.findResourceIdsBoundToMonitor(any()))
         .thenReturn(Collections.emptySet());
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId))
+        .thenReturn(Optional.empty());
 
     // EXECUTE
 
@@ -3341,11 +3345,11 @@ public class MonitorManagementTest {
                 .setLabelSelectorMethod(LabelSelectorMethod.AND)
                 .setInterval(Duration.ofSeconds(60)));
 
-    verify(resourceApi).getByResourceId(tenantId, resourceId);
-
     verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
 
     verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
+
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
 
     verifyNoMoreInteractions(monitorEventProducer);
   }
@@ -3370,14 +3374,14 @@ public class MonitorManagementTest {
         .setInterval(Duration.ofSeconds(60));
     monitorRepository.save(monitor);
 
-    final ResourceDTO r1 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setMetadata(new HashMap<>())
-        .setResourceId(resourceId)
-        .setTenantId(tenantId);
+    final Resource resource = podamFactory.manufacturePojo(Resource.class);
+    resource.setResourceId(resourceId);
+    resource.setTenantId(tenantId);
+    resource.setLabels(Collections.singletonMap("os", "linux"));
 
-    when(resourceApi.getByResourceId(tenantId, resourceId))
-        .thenReturn(r1);
+    final ResourceDTO r1 = new ResourceDTO(resource, null);
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)).thenReturn(Optional.of(resource));
 
     final RenderedMonitorTemplate renderedMonitorTemplate = monitorManagement
         .renderMonitorTemplate(monitor.getId(), resourceId, tenantId);
@@ -3386,7 +3390,7 @@ public class MonitorManagementTest {
     assertNotNull(renderedMonitorTemplate.getRenderedContent());
     assertEquals(renderedMonitorTemplate.getRenderedContent(), "value=linux");
 
-    verify(resourceApi).getByResourceId(tenantId, resourceId);
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
   }
 
   @Test
@@ -3451,8 +3455,7 @@ public class MonitorManagementTest {
         .setInterval(Duration.ofSeconds(60));
     monitorRepository.save(monitor);
 
-    when(resourceApi.getByResourceId(tenantId, resourceId))
-        .thenReturn(null);
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId))
         .isInstanceOf(NotFoundException.class)
@@ -3461,7 +3464,7 @@ public class MonitorManagementTest {
                 resourceId, monitor.getId(), tenantId)
         );
 
-    verify(resourceApi).getByResourceId(tenantId, resourceId);
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
   }
 
   @Test
@@ -3484,15 +3487,13 @@ public class MonitorManagementTest {
         .setInterval(Duration.ofSeconds(60));
     monitorRepository.save(monitor);
 
-    final ResourceDTO r1 = new ResourceDTO()
-        .setLabels(Collections.singletonMap("os", "linux"))
-        .setMetadata(new HashMap<>())
-        .setResourceId(resourceId)
-        .setTenantId(tenantId)
-        .setMetadata(Collections.emptyMap());
+    final Resource resource = podamFactory.manufacturePojo(Resource.class);
+    resource.setResourceId(resourceId);
+    resource.setTenantId(tenantId);
 
-    when(resourceApi.getByResourceId(tenantId, resourceId))
-        .thenReturn(r1);
+    final ResourceDTO r1 = new ResourceDTO(resource, null);
+
+    when(resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)).thenReturn(Optional.of(resource));
 
     assertThatThrownBy(() -> monitorManagement.renderMonitorTemplate(monitor.getId(), resourceId, tenantId))
         .isInstanceOf(IllegalArgumentException.class)
@@ -3500,6 +3501,6 @@ public class MonitorManagementTest {
             String.format("Unable to render content=%s for resource=%s",
                 monitor.getContent(), r1)
         );
-    verify(resourceApi).getByResourceId(tenantId, resourceId);
+    verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
   }
 }
