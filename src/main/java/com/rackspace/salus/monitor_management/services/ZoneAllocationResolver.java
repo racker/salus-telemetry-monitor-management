@@ -163,8 +163,9 @@ public class ZoneAllocationResolver {
           }
 
           // Merge bindings counts into the active poller mappings
+
           query
-              .getResultStream()
+              .getResultList()
               .forEach(tuple -> {
                 pollerResourceLoading.put(
                     // resourceId
