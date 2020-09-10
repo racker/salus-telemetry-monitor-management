@@ -19,7 +19,7 @@ package com.rackspace.salus.monitor_management.services;
 import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 
-import com.rackspace.salus.common.config.MetricsName;
+import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -36,6 +36,7 @@ import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import io.micrometer.core.instrument.Counter;
@@ -100,8 +101,8 @@ public class TestMonitorService {
     this.testMonitorProperties = testMonitorProperties;
 
     this.meterRegistry = meterRegistry;
-    testMonitorSuccess = Counter.builder(MetricsName.SERVICE_OPERATION_SUCCEEDED_METRIC_NAME);
-    testMonitorFailed  = Counter.builder(MetricsName.SERVICE_OPERATION_FAILED_METRIC_NAME);
+    testMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED);
+    testMonitorFailed  = Counter.builder(MetricNames.SERVICE_OPERATION_FAILED);
   }
 
   public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
@@ -122,8 +123,9 @@ public class TestMonitorService {
     final TestMonitorRequestEvent event;
     try {
       if (!SUPPORTED_AGENT_TYPES.contains(monitorCU.getAgentType())) {
-        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
-        throw new IllegalArgumentException("The given monitor type does not support test-monitors");
+        IllegalArgumentException exception = new IllegalArgumentException("The given monitor type does not support test-monitors");
+        testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
+        throw exception;
       }
 
       correlationId = UUID.randomUUID().toString();
@@ -138,9 +140,10 @@ public class TestMonitorService {
       final Optional<Resource> optionalResource = resourceRepository
           .findByTenantIdAndResourceId(tenantId, resourceId);
       if (optionalResource.isEmpty()) {
-        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
+        NotFoundException exception = new NotFoundException("Unable to locate the resource for the test-monitor");
+        testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
         return CompletableFuture.completedFuture(new TestMonitorResult()
-            .setErrors(List.of("Unable to locate the resource for the test-monitor")));
+            .setErrors(List.of(exception.getMessage())));
       }
 
       Resource resource = optionalResource.get();
@@ -163,7 +166,7 @@ public class TestMonitorService {
         throw new IllegalArgumentException("Failed to render monitor configuration content", e);
       }
     } catch (MissingRequirementException | IllegalArgumentException e) {
-      testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
+      testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
       return CompletableFuture
           .completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
     }
@@ -188,15 +191,15 @@ public class TestMonitorService {
           removeCompletedRequest(correlationId);
 
           if (throwable instanceof TimeoutException) {
-            testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
+            testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",throwable.getClass().getSimpleName()).register(meterRegistry).increment();
             return buildTimedOutResult();
           } else if (throwable != null) {
-            testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
+            testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",throwable.getClass().getSimpleName()).register(meterRegistry).increment();
             return new TestMonitorResult()
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
           } else {
-            testMonitorSuccess.tags("operation", "performTestMonitor").register(meterRegistry).increment();
+            testMonitorSuccess.tags("operation","perform","objectType","testMonitor").register(meterRegistry).increment();
             return testMonitorOutput;
           }
         });
@@ -211,18 +214,25 @@ public class TestMonitorService {
   private String resolveRemoteEnvoy(String tenantId,
       List<String> monitoringZones) {
     if (CollectionUtils.isEmpty(monitoringZones)) {
-      throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
+      IllegalArgumentException exception = new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
+      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
+      throw exception;
     } else if (monitoringZones.size() > 1) {
-      throw new IllegalArgumentException(
+      IllegalArgumentException exception = new IllegalArgumentException(
           "test-monitor requires only one monitoring zone to be given");
+      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
+      throw exception;
     }
 
-    final EnvoyResourcePair leastLoaded = monitorManagement
-        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)))
-        .orElseThrow(() -> new MissingRequirementException(
-            "No envoys were available in the given monitoring zone"));
-
-    return leastLoaded.getEnvoyId();
+    final Optional<EnvoyResourcePair> leastLoadedOptional = monitorManagement
+        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)));
+    if(leastLoadedOptional.isEmpty()) {
+      MissingRequirementException exception = new MissingRequirementException(
+          "No envoys were available in the given monitoring zone");
+      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
+      throw exception;
+    }
+    return leastLoadedOptional.get().getEnvoyId();
   }
 
   private String resolveLocalEnvoy(String tenantId, String resourceId) {
@@ -231,12 +241,15 @@ public class TestMonitorService {
       resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
           .get();
     } catch (InterruptedException | ExecutionException e) {
+      testMonitorFailed.tags("operation","resolve","objectType","localEnvoys","exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
       throw new IllegalStateException("Failed to locate Envoy for resource", e);
     }
 
     if (resourceInfo == null) {
-      throw new MissingRequirementException(
+      MissingRequirementException exception = new MissingRequirementException(
           "An Envoy is not currently attached for the requested resource");
+      testMonitorFailed.tags("operation","resolve","objectType","localEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
+      throw exception;
     }
     return resourceInfo.getEnvoyId();
   }
