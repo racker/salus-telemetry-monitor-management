@@ -36,7 +36,6 @@ import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.TestMonitorRequestEvent;
 import com.rackspace.salus.telemetry.messaging.TestMonitorResultsEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import io.micrometer.core.instrument.Counter;
@@ -81,7 +80,6 @@ public class TestMonitorService {
 
   // metrics counters
   private final Counter.Builder testMonitorSuccess;
-  private final Counter.Builder testMonitorFailed;
 
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
@@ -102,7 +100,6 @@ public class TestMonitorService {
 
     this.meterRegistry = meterRegistry;
     testMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED);
-    testMonitorFailed  = Counter.builder(MetricNames.SERVICE_OPERATION_FAILED);
   }
 
   public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
@@ -123,9 +120,7 @@ public class TestMonitorService {
     final TestMonitorRequestEvent event;
     try {
       if (!SUPPORTED_AGENT_TYPES.contains(monitorCU.getAgentType())) {
-        IllegalArgumentException exception = new IllegalArgumentException("The given monitor type does not support test-monitors");
-        testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
-        throw exception;
+        throw new IllegalArgumentException("The given monitor type does not support test-monitors");
       }
 
       correlationId = UUID.randomUUID().toString();
@@ -140,10 +135,8 @@ public class TestMonitorService {
       final Optional<Resource> optionalResource = resourceRepository
           .findByTenantIdAndResourceId(tenantId, resourceId);
       if (optionalResource.isEmpty()) {
-        NotFoundException exception = new NotFoundException("Unable to locate the resource for the test-monitor");
-        testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
         return CompletableFuture.completedFuture(new TestMonitorResult()
-            .setErrors(List.of(exception.getMessage())));
+            .setErrors(List.of("Unable to locate the resource for the test-monitor")));
       }
 
       Resource resource = optionalResource.get();
@@ -162,11 +155,9 @@ public class TestMonitorService {
             monitorContentRenderer.render(monitorCU.getContent(), new ResourceDTO(resource, null))
         );
       } catch (InvalidTemplateException e) {
-        testMonitorFailed.tags("operation", "performTestMonitor").register(meterRegistry).increment();
         throw new IllegalArgumentException("Failed to render monitor configuration content", e);
       }
     } catch (MissingRequirementException | IllegalArgumentException e) {
-      testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
       return CompletableFuture
           .completedFuture(new TestMonitorResult().setErrors(List.of(e.getMessage())));
     }
@@ -191,10 +182,8 @@ public class TestMonitorService {
           removeCompletedRequest(correlationId);
 
           if (throwable instanceof TimeoutException) {
-            testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",throwable.getClass().getSimpleName()).register(meterRegistry).increment();
             return buildTimedOutResult();
           } else if (throwable != null) {
-            testMonitorFailed.tags("operation","perform","objectType","testMonitor","exception",throwable.getClass().getSimpleName()).register(meterRegistry).increment();
             return new TestMonitorResult()
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
@@ -214,23 +203,17 @@ public class TestMonitorService {
   private String resolveRemoteEnvoy(String tenantId,
       List<String> monitoringZones) {
     if (CollectionUtils.isEmpty(monitoringZones)) {
-      IllegalArgumentException exception = new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
-      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
-      throw exception;
+      throw new IllegalArgumentException("test-monitor requires one monitoring zone to be given");
     } else if (monitoringZones.size() > 1) {
-      IllegalArgumentException exception = new IllegalArgumentException(
+      throw new IllegalArgumentException(
           "test-monitor requires only one monitoring zone to be given");
-      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
-      throw exception;
     }
 
     final Optional<EnvoyResourcePair> leastLoadedOptional = monitorManagement
         .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)));
     if(leastLoadedOptional.isEmpty()) {
-      MissingRequirementException exception = new MissingRequirementException(
+      throw new MissingRequirementException(
           "No envoys were available in the given monitoring zone");
-      testMonitorFailed.tags("operation","resolve","objectType","remoteEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
-      throw exception;
     }
     return leastLoadedOptional.get().getEnvoyId();
   }
@@ -241,15 +224,12 @@ public class TestMonitorService {
       resourceInfo = envoyResourceManagement.getOne(tenantId, resourceId)
           .get();
     } catch (InterruptedException | ExecutionException e) {
-      testMonitorFailed.tags("operation","resolve","objectType","localEnvoys","exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
       throw new IllegalStateException("Failed to locate Envoy for resource", e);
     }
 
     if (resourceInfo == null) {
-      MissingRequirementException exception = new MissingRequirementException(
+      throw new MissingRequirementException(
           "An Envoy is not currently attached for the requested resource");
-      testMonitorFailed.tags("operation","resolve","objectType","localEnvoys","exception",exception.getClass().getSimpleName()).register(meterRegistry).increment();
-      throw exception;
     }
     return resourceInfo.getEnvoyId();
   }

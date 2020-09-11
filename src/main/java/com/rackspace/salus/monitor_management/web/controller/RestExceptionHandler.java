@@ -54,21 +54,21 @@ public class RestExceptionHandler extends
     @ExceptionHandler({NotFoundException.class})
     public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("exception","NotFoundException").register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler({AlreadyExistsException.class})
     public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("exception","AlreadyExistsException").register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("exception","JDBCException").register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
         if (e instanceof DataIntegrityViolationException) {
             return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
         } else {
@@ -79,7 +79,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({TransactionSystemException.class})
     public ResponseEntity<?> handleTransactionSystemException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("exception","TransactionSystemException").register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
         if(e.getCause() instanceof RollbackException) {
             if(e.getCause().getCause() instanceof ConstraintViolationException) {
                 return respondWith(request, HttpStatus.BAD_REQUEST, e.getCause().getCause().getMessage());
