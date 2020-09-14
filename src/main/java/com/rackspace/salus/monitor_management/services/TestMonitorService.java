@@ -20,6 +20,7 @@ import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 
 import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.monitor_management.config.TestMonitorProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
 import com.rackspace.salus.monitor_management.web.model.DetailedMonitorInput;
@@ -99,7 +100,8 @@ public class TestMonitorService {
     this.testMonitorProperties = testMonitorProperties;
 
     this.meterRegistry = meterRegistry;
-    testMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED);
+    testMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
+        MetricTags.SERVICE_METRIC_TAG,"TestMonitorService");
   }
 
   public CompletableFuture<TestMonitorResult> performTestMonitorOnResource(String tenantId,
@@ -188,7 +190,7 @@ public class TestMonitorService {
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
           } else {
-            testMonitorSuccess.tags("operation","perform","objectType","testMonitor").register(meterRegistry).increment();
+            testMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,"perform",MetricTags.OBJECT_TYPE_METRIC_TAG,"testMonitor").register(meterRegistry).increment();
             return testMonitorOutput;
           }
         });
@@ -209,13 +211,12 @@ public class TestMonitorService {
           "test-monitor requires only one monitoring zone to be given");
     }
 
-    final Optional<EnvoyResourcePair> leastLoadedOptional = monitorManagement
-        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)));
-    if(leastLoadedOptional.isEmpty()) {
-      throw new MissingRequirementException(
-          "No envoys were available in the given monitoring zone");
-    }
-    return leastLoadedOptional.get().getEnvoyId();
+    final EnvoyResourcePair leastLoaded = monitorManagement
+        .findLeastLoadedEnvoyInZone(resolveZone(tenantId, monitoringZones.get(0)))
+        .orElseThrow(() -> new MissingRequirementException(
+            "No envoys were available in the given monitoring zone"));
+
+    return leastLoaded.getEnvoyId();
   }
 
   private String resolveLocalEnvoy(String tenantId, String resourceId) {

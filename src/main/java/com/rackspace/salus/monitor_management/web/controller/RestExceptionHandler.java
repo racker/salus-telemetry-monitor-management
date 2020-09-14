@@ -17,6 +17,7 @@
 package com.rackspace.salus.monitor_management.web.controller;
 
 import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.common.errors.ResponseMessages;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -54,21 +55,24 @@ public class RestExceptionHandler extends
     @ExceptionHandler({NotFoundException.class})
     public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+            MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler({AlreadyExistsException.class})
     public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+            MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+            MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         if (e instanceof DataIntegrityViolationException) {
             return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
         } else {
@@ -79,7 +83,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({TransactionSystemException.class})
     public ResponseEntity<?> handleTransactionSystemException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags("uri",request.getServletPath(),"exception",e.getClass().getSimpleName()).register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(), MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         if(e.getCause() instanceof RollbackException) {
             if(e.getCause().getCause() instanceof ConstraintViolationException) {
                 return respondWith(request, HttpStatus.BAD_REQUEST, e.getCause().getCause().getMessage());
