@@ -18,7 +18,7 @@ package com.rackspace.salus.monitor_management.services;
 
 import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.common.config.MetricTags;
-import com.rackspace.salus.common.config.MetricTagsValues;
+import com.rackspace.salus.common.config.MetricTagValues;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
@@ -122,7 +122,7 @@ public class ZoneManagement {
             .setPublic(false);
 
         zoneRepository.save(zone);
-        zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG,MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
+        zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
         return zone;
     }
 
@@ -149,7 +149,7 @@ public class ZoneManagement {
         .setPublic(true);
 
     zoneRepository.save(zone);
-    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
     return zone;
   }
 
@@ -195,7 +195,7 @@ public class ZoneManagement {
         new NotFoundException(String.format("No zone found named %s on tenant %s",
             name, tenantId)));
     Zone updateZone = updateZone(zone, updatedZone);
-    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
     return updateZone;
   }
 
@@ -209,7 +209,7 @@ public class ZoneManagement {
     Zone zone = getPublicZone(name).orElseThrow(() ->
         new NotFoundException(String.format("No public zone found named %s", name)));
     Zone updateZone = updateZone(zone, updatedZone);
-    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
     return updateZone;
   }
 
@@ -250,7 +250,7 @@ public class ZoneManagement {
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);
-      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
+      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
     }
 
     /**
@@ -270,7 +270,7 @@ public class ZoneManagement {
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);
-      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
+      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
     }
 
     private long getActiveEnvoyCountForZone(Zone zone) {

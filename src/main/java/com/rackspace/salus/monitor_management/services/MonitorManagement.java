@@ -27,7 +27,7 @@ import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.common.config.MetricTags;
-import com.rackspace.salus.common.config.MetricTagsValues;
+import com.rackspace.salus.common.config.MetricTagValues;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
@@ -91,7 +91,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.swing.text.html.Option;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -294,7 +293,7 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = bindMonitor(tenantId, monitor, monitor.getZones());
     sendMonitorBoundEvents(affectedEnvoys);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -400,7 +399,7 @@ public class MonitorManagement {
     metadataUtils.setMetadataFieldsForMonitor(POLICY_TENANT, monitor, false);
 
     monitor = monitorRepository.save(monitor);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -801,7 +800,7 @@ public class MonitorManagement {
     monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -956,7 +955,7 @@ public class MonitorManagement {
 
     monitor = monitorRepository.save(monitor);
     log.info("Policy monitor={} stored with new values={}", id, monitor);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,MetricTagsValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -1103,6 +1102,8 @@ public class MonitorManagement {
                   zoneAllocationResolver
               ));
         } catch (InvalidTemplateException e) {
+          invalidTemplateErrors.tags(MetricTags.OPERATION_METRIC_TAG, "renderMonitorTemplate", MetricTags.EXCEPTION_METRIC_TAG,"Unable to render monitor")
+              .register(meterRegistry).increment();
           log.warn("Unable to render monitor={} onto resource={}",
               monitor, resource.get(), e);
         }
@@ -1173,6 +1174,8 @@ public class MonitorManagement {
             }
           }
         } catch (InvalidTemplateException e) {
+          invalidTemplateErrors.tags(MetricTags.OPERATION_METRIC_TAG, "renderMonitorTemplate", MetricTags.EXCEPTION_METRIC_TAG,"Unable to render monitor")
+              .register(meterRegistry).increment();
           log.warn("Unable to render updatedContent='{}' of monitor={} for resource={}",
               updatedContent, monitor, resource, e);
         }
@@ -1343,7 +1346,7 @@ public class MonitorManagement {
     }
 
     unbindAndRemoveMonitor(monitor);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,MetricTagsValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
   }
 
   private void unbindAndRemoveMonitor(Monitor monitor) {
@@ -1373,7 +1376,7 @@ public class MonitorManagement {
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.deleteById(id);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,MetricTagsValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
   }
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
@@ -1435,6 +1438,8 @@ public class MonitorManagement {
     List<Monitor> existingPolicyMonitor = existingPolicyIds.stream()
         .map(id -> monitorPolicyRepository.findById(id).orElseGet(() -> {
           log.warn("Monitor is tied to non-existent policy={}", id);
+          policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", MetricTags.EXCEPTION_METRIC_TAG, "orphanedPolicyMonitor")
+              .register(meterRegistry).increment();
           return null;
         }))
         .filter(Objects::nonNull)

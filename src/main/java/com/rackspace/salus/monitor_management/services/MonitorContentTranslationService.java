@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.common.config.MetricTags;
-import com.rackspace.salus.common.config.MetricTagsValues;
+import com.rackspace.salus.common.config.MetricTagValues;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
@@ -80,6 +80,7 @@ public class MonitorContentTranslationService {
 
   // metrics counters
   private final Counter.Builder translateMonitorContentSuccess;
+  private final Counter.Builder monitorTranslateErrors;
 
   @Autowired
   public MonitorContentTranslationService(
@@ -90,6 +91,8 @@ public class MonitorContentTranslationService {
 
     this.meterRegistry = meterRegistry;
     translateMonitorContentSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED)
+        .tag(MetricTags.SERVICE_METRIC_TAG,"MonitorContentTranslationService");
+    monitorTranslateErrors = Counter.builder("errors")
         .tag(MetricTags.SERVICE_METRIC_TAG,"MonitorContentTranslationService");
   }
 
@@ -106,7 +109,7 @@ public class MonitorContentTranslationService {
 
     log.info("Creating new monitorTranslationOperator={}", operator);
     MonitorTranslationOperator monitorTranslationOperator = monitorTranslationOperatorRepository.save(operator);
-    translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTranslationOperator").register(meterRegistry).increment();
+    translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTranslationOperator").register(meterRegistry).increment();
     return monitorTranslationOperator;
   }
 
@@ -174,6 +177,9 @@ public class MonitorContentTranslationService {
             return boundMonitorDTO;
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
+            monitorTranslateErrors
+                .tags(MetricTags.OPERATION_METRIC_TAG,"translateBoundMonitors",MetricTags.EXCEPTION_METRIC_TAG,"Failed to translate boundMonitor")
+                .register(meterRegistry).increment();
             return null;
           }
         })

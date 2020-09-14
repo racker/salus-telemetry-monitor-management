@@ -81,6 +81,7 @@ public class TestMonitorService {
 
   // metrics counters
   private final Counter.Builder testMonitorSuccess;
+  private final Counter.Builder testMonitorErrors;
 
   @Autowired
   public TestMonitorService(MonitorConversionService monitorConversionService,
@@ -101,6 +102,8 @@ public class TestMonitorService {
 
     this.meterRegistry = meterRegistry;
     testMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
+        MetricTags.SERVICE_METRIC_TAG,"TestMonitorService");
+    testMonitorErrors = Counter.builder("testMonitor-errors").tag(
         MetricTags.SERVICE_METRIC_TAG,"TestMonitorService");
   }
 
@@ -186,6 +189,8 @@ public class TestMonitorService {
           if (throwable instanceof TimeoutException) {
             return buildTimedOutResult();
           } else if (throwable != null) {
+            testMonitorErrors.tags(MetricTags.OPERATION_METRIC_TAG, "performTestMonitorOnResource", MetricTags.EXCEPTION_METRIC_TAG, throwable.getMessage())
+                .register(meterRegistry).increment();
             return new TestMonitorResult()
                 .setErrors(List.of(String
                     .format("An unexpected internal error occurred: %s", throwable.getMessage())));
