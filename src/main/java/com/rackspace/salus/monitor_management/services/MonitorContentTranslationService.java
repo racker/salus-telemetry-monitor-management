@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.common.config.MetricTags;
+import com.rackspace.salus.common.config.MetricTagsValues;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
@@ -105,7 +106,7 @@ public class MonitorContentTranslationService {
 
     log.info("Creating new monitorTranslationOperator={}", operator);
     MonitorTranslationOperator monitorTranslationOperator = monitorTranslationOperatorRepository.save(operator);
-    translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, "create",MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTranslationOperator").register(meterRegistry).increment();
+    translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagsValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTranslationOperator").register(meterRegistry).increment();
     return monitorTranslationOperator;
   }
 
