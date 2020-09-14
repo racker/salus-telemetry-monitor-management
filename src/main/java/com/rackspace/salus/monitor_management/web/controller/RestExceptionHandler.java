@@ -36,6 +36,7 @@ import org.springframework.transaction.TransactionSystemException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.HandlerMapping;
 
 @ControllerAdvice(basePackages = "com.rackspace.salus.monitor_management.web")
 @ResponseBody
@@ -55,7 +56,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({NotFoundException.class})
     public ResponseEntity<?> handleNotFound(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(),
             MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.NOT_FOUND);
     }
@@ -63,7 +64,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({AlreadyExistsException.class})
     public ResponseEntity<?> handleUnprocessable(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(),
             MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
@@ -71,7 +72,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(),
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(),
             MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         if (e instanceof DataIntegrityViolationException) {
             return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
@@ -83,7 +84,7 @@ public class RestExceptionHandler extends
     @ExceptionHandler({TransactionSystemException.class})
     public ResponseEntity<?> handleTransactionSystemException(HttpServletRequest request, Exception e) {
         logRequestFailure(request, e);
-        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getServletPath(), MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
+        monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(), MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         if(e.getCause() instanceof RollbackException) {
             if(e.getCause().getCause() instanceof ConstraintViolationException) {
                 return respondWith(request, HttpStatus.BAD_REQUEST, e.getCause().getCause().getMessage());
