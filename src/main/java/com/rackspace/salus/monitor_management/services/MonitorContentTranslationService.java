@@ -19,6 +19,9 @@ package com.rackspace.salus.monitor_management.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTags;
+import com.rackspace.salus.common.config.MetricTagValues;
 import com.rackspace.salus.monitor_management.web.model.BoundMonitorDTO;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationDetails;
 import com.rackspace.salus.monitor_management.web.model.MonitorTranslationOperatorCreate;
@@ -73,8 +76,11 @@ public class MonitorContentTranslationService {
   private final MonitorTranslationOperatorRepository monitorTranslationOperatorRepository;
   private final ObjectMapper objectMapper;
 
-  // metric counters
-  private final Counter monitorTranslateErrors;
+  MeterRegistry meterRegistry;
+
+  // metrics counters
+  private final Counter.Builder translateMonitorContentSuccess;
+  private final Counter.Builder monitorTranslateErrors;
 
   @Autowired
   public MonitorContentTranslationService(
@@ -83,8 +89,11 @@ public class MonitorContentTranslationService {
     this.monitorTranslationOperatorRepository = monitorTranslationOperatorRepository;
     this.objectMapper = objectMapper;
 
-    this.monitorTranslateErrors = meterRegistry.counter("errors",
-        "operation", "monitorTranslate");
+    this.meterRegistry = meterRegistry;
+    translateMonitorContentSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED)
+        .tag(MetricTags.SERVICE_METRIC_TAG,"MonitorContentTranslationService");
+    monitorTranslateErrors = Counter.builder("errors")
+        .tag(MetricTags.SERVICE_METRIC_TAG,"MonitorContentTranslationService");
   }
 
   public MonitorTranslationOperator create(MonitorTranslationOperatorCreate in) {
@@ -99,7 +108,9 @@ public class MonitorContentTranslationService {
         .setOrder(in.getOrder());
 
     log.info("Creating new monitorTranslationOperator={}", operator);
-    return monitorTranslationOperatorRepository.save(operator);
+    MonitorTranslationOperator monitorTranslationOperator = monitorTranslationOperatorRepository.save(operator);
+    translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTranslationOperator").register(meterRegistry).increment();
+    return monitorTranslationOperator;
   }
 
   public Page<MonitorTranslationOperator> getAll(Pageable pageable) {
@@ -107,8 +118,8 @@ public class MonitorContentTranslationService {
   }
 
   public MonitorTranslationOperator getById(UUID operatorId) {
-    return monitorTranslationOperatorRepository.findById(operatorId)
-        .orElseThrow(() -> new NotFoundException("Could not find monitor translation operator"));
+    return monitorTranslationOperatorRepository.findById(operatorId).orElseThrow(() ->
+         new NotFoundException("Could not find monitor translation operator"));
   }
 
   public void delete(UUID operatorId) {
@@ -152,7 +163,7 @@ public class MonitorContentTranslationService {
     return boundMonitors.stream()
         .map(boundMonitor -> {
           try {
-            return new BoundMonitorDTO(boundMonitor)
+            BoundMonitorDTO boundMonitorDTO = new BoundMonitorDTO(boundMonitor)
                 .setRenderedContent(
                     translateMonitorContent(
                         prepareOperatorsForMonitor(
@@ -163,9 +174,12 @@ public class MonitorContentTranslationService {
                         boundMonitor.getRenderedContent()
                     )
                 );
+            return boundMonitorDTO;
           } catch (MonitorContentTranslationException e) {
             log.error("Failed to translate boundMonitor={}", boundMonitor, e);
-            monitorTranslateErrors.increment();
+            monitorTranslateErrors
+                .tags(MetricTags.OPERATION_METRIC_TAG,"translateBoundMonitors",MetricTags.EXCEPTION_METRIC_TAG,"Failed to translate boundMonitor")
+                .register(meterRegistry).increment();
             return null;
           }
         })
@@ -228,7 +242,9 @@ public class MonitorContentTranslationService {
 
     // swap out rendered content with rendered->translated content
     try {
-      return objectMapper.writeValueAsString(contentTree);
+      String translatedMonitorContent = objectMapper.writeValueAsString(contentTree);
+      translateMonitorContentSuccess.tags(MetricTags.OPERATION_METRIC_TAG, "translate",MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorContent").register(meterRegistry).increment();
+      return translatedMonitorContent;
     } catch (JsonProcessingException e) {
       throw new MonitorContentTranslationException(
           String.format("Failed to serialize translated contentTree=%s", contentTree), e);

@@ -48,7 +48,7 @@ import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
-import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +65,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestEnti
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -81,6 +82,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureDataJpa
 @AutoConfigureTestEntityManager
 @Transactional
+@Import({SimpleMeterRegistry.class})
 public class MonitorManagementExcludeResourceIdsTest {
 
   @Autowired
@@ -112,9 +114,6 @@ public class MonitorManagementExcludeResourceIdsTest {
 
   @MockBean
   MetadataUtils metadataUtils;
-
-  @MockBean
-  MeterRegistry meterRegistry;
 
   @MockBean
   PolicyApi policyApi;

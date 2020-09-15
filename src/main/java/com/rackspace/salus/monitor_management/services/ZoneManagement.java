@@ -16,6 +16,9 @@
  */
 package com.rackspace.salus.monitor_management.services;
 
+import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTags;
+import com.rackspace.salus.common.config.MetricTagValues;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
@@ -28,6 +31,8 @@ import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ZoneRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.Optional;
 import javax.validation.Valid;
@@ -45,11 +50,23 @@ public class ZoneManagement {
     private final ZoneStorage zoneStorage;
     private final MonitorRepository monitorRepository;
 
+  MeterRegistry meterRegistry;
+
+  // metrics counters
+  private final Counter.Builder zoneManagementSuccess;
+
     @Autowired
-    public ZoneManagement(ZoneRepository zoneRepository, ZoneStorage zoneStorage, MonitorRepository monitorRepository) {
+    public ZoneManagement(ZoneRepository zoneRepository,
+        ZoneStorage zoneStorage,
+        MonitorRepository monitorRepository,
+        MeterRegistry meterRegistry) {
       this.zoneRepository = zoneRepository;
       this.zoneStorage = zoneStorage;
       this.monitorRepository = monitorRepository;
+
+      this.meterRegistry = meterRegistry;
+      zoneManagementSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
+          MetricTags.SERVICE_METRIC_TAG,"ZoneManagement");
     }
 
   /**
@@ -90,8 +107,8 @@ public class ZoneManagement {
      */
     public Zone createPrivateZone(String tenantId, @Valid ZoneCreatePrivate newZone) throws AlreadyExistsException {
         if (exists(tenantId, newZone.getName())) {
-            throw new AlreadyExistsException(String.format("Zone already exists with name %s on tenant %s",
-                    newZone.getName(), tenantId));
+          throw new AlreadyExistsException(String.format("Zone already exists with name %s on tenant %s",
+              newZone.getName(), tenantId));
         }
 
         Zone zone = new Zone()
@@ -105,7 +122,7 @@ public class ZoneManagement {
             .setPublic(false);
 
         zoneRepository.save(zone);
-
+        zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
         return zone;
     }
 
@@ -132,7 +149,7 @@ public class ZoneManagement {
         .setPublic(true);
 
     zoneRepository.save(zone);
-
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
     return zone;
   }
 
@@ -177,7 +194,9 @@ public class ZoneManagement {
     Zone zone = getPrivateZone(tenantId, name).orElseThrow(() ->
         new NotFoundException(String.format("No zone found named %s on tenant %s",
             name, tenantId)));
-    return updateZone(zone, updatedZone);
+    Zone updateZone = updateZone(zone, updatedZone);
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
+    return updateZone;
   }
 
   /**
@@ -189,7 +208,9 @@ public class ZoneManagement {
   public Zone updatePublicZone(String name, @Valid ZoneUpdate updatedZone) {
     Zone zone = getPublicZone(name).orElseThrow(() ->
         new NotFoundException(String.format("No public zone found named %s", name)));
-    return updateZone(zone, updatedZone);
+    Zone updateZone = updateZone(zone, updatedZone);
+    zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
+    return updateZone;
   }
 
   /**
@@ -200,8 +221,8 @@ public class ZoneManagement {
     long activeEnvoys = getActiveEnvoyCountForZone(zone);
     log.debug("Found {} active envoys for zone {}", activeEnvoys, zone.getName());
     if (activeEnvoys > 0) {
-        throw new DeletionNotAllowedException(
-                String.format("Cannot remove zone with connected pollers. Found %d.", activeEnvoys));
+      throw new DeletionNotAllowedException(
+          String.format("Cannot remove zone with connected pollers. Found %d.", activeEnvoys));
     }
 
     zoneRepository.deleteById(zone.getId());
@@ -229,6 +250,7 @@ public class ZoneManagement {
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);
+      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "privateZone").register(meterRegistry).increment();
     }
 
     /**
@@ -248,6 +270,7 @@ public class ZoneManagement {
             String.format("Cannot remove zone with configured monitors. Found %s.", monitors));
       }
       removeZone(zone);
+      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG, "publicZone").register(meterRegistry).increment();
     }
 
     private long getActiveEnvoyCountForZone(Zone zone) {
@@ -329,5 +352,6 @@ public class ZoneManagement {
       }else {
         zoneRepository.deleteAllByTenantId(tenantId);
       }
+      zoneManagementSuccess.tags(MetricTags.OPERATION_METRIC_TAG,"removeAll",MetricTags.OBJECT_TYPE_METRIC_TAG,"privateZone").register(meterRegistry).increment();
     }
 }

@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.rackspace.salus.monitor_management.services.SchemaService;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorSchemaController.class)
-@Import({SchemaService.class})
+@Import({SchemaService.class, SimpleMeterRegistry.class})
 public class MonitorSchemaControllerTest {
   @Autowired
   MockMvc mockMvc;

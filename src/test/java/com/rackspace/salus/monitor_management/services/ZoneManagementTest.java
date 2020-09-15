@@ -43,6 +43,7 @@ import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,7 +68,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @EnableTestContainersDatabase
 @DataJpaTest(showSql = false)
-@Import({ZoneManagement.class, ObjectMapper.class, DatabaseConfig.class})
+@Import({ZoneManagement.class, ObjectMapper.class, DatabaseConfig.class,
+    SimpleMeterRegistry.class})
 public class ZoneManagementTest {
 
     @MockBean

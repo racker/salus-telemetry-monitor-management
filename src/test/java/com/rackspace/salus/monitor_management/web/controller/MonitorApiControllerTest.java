@@ -79,6 +79,7 @@ import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import com.rackspace.salus.telemetry.web.TenantVerification;
 import com.rackspace.salus.telemetry.web.TenantVerificationWebConfig;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -117,7 +118,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = MonitorApiController.class)
 @Import({MonitorConversionService.class, MetadataUtils.class, PatchHelper.class, JsonConfig.class,
-    TenantVerificationWebConfig.class})
+    TenantVerificationWebConfig.class, SimpleMeterRegistry.class})
 public class MonitorApiControllerTest {
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
