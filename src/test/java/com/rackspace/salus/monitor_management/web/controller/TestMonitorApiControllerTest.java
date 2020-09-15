@@ -36,8 +36,11 @@ import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,6 +48,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(TestMonitorApiController.class)
+@Import({MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
 public class TestMonitorApiControllerTest {
 
   @Autowired
