@@ -82,7 +82,7 @@ public class TestMonitorServiceTest {
   private static final Duration resultsTimeout = Duration.ofMillis(500);
 
   @Configuration
-  @Import({TestMonitorService.class, MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
+  @Import({TestMonitorService.class, SimpleMeterRegistry.class})
   public static class TestConfig {
 
     @Bean
