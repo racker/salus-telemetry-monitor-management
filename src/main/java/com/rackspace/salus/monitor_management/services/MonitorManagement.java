@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.monitor_management.services;
@@ -1894,14 +1895,20 @@ public class MonitorManagement {
       return new HashSet<>();
     }
 
-    final List<BoundMonitor> boundMonitors =
-        boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
+    PageRequest page = PageRequest.of(0, 1000);
+    Page<BoundMonitor> boundMonitorsPaged =
+        boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, page);
+    Set<String> envoyIds = new HashSet();
+    while(boundMonitorsPaged.hasNext()) {
+      log.debug("Unbinding {} from monitorIds={}",
+          boundMonitorsPaged, monitorIdsToUnbind);
+      boundMonitorRepository.deleteAll(boundMonitorsPaged);
 
-    log.debug("Unbinding {} from monitorIds={}",
-        boundMonitors, monitorIdsToUnbind);
-    boundMonitorRepository.deleteAll(boundMonitors);
+      envoyIds.addAll(extractEnvoyIds(boundMonitorsPaged.getContent()));
+      boundMonitorsPaged = boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, boundMonitorsPaged.nextPageable());
+    }
 
-    return extractEnvoyIds(boundMonitors);
+    return envoyIds;
   }
 
   /**
