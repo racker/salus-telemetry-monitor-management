@@ -739,6 +739,6 @@ public class ZoneApiControllerTest {
             .characterEncoding(StandardCharsets.UTF_8.name()))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message",
-                equalTo("One or more field validations failed: name must be public")));
+                equalTo("One or more field validations failed: name")));
     }
 }
