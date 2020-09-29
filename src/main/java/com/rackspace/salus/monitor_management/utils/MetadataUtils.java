@@ -301,6 +301,12 @@ public class MetadataUtils {
       region = MetadataPolicy.DEFAULT_ZONE;
     }
     log.debug("Querying policy api for monitoring zones for region={}", region);
-    return policyApi.getDefaultMonitoringZones(region, useCache);
+    List<String> zones = policyApi.getDefaultMonitoringZones(region, useCache);
+
+    if (!region.equals(MetadataPolicy.DEFAULT_ZONE) && zones.isEmpty()) {
+      // if the custom region didn't have any default zones, retry using the default zone policy
+      zones = policyApi.getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, useCache);
+    }
+    return zones;
   }
 }
