@@ -725,4 +725,20 @@ public class ZoneApiControllerTest {
 
         verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
+
+    @Test
+    public void testCreatePublicZoneInvalidPublicZoneName() throws Exception {
+        ZoneCreatePublic create = newZoneCreatePublic();
+        create.setName("invalid/zone");
+        create.setSourceIpAddresses(Collections.singletonList("127.0.0.1/27"));
+
+        mvc.perform(post(
+            "/api/admin/zones")
+            .content(objectMapper.writeValueAsString(create))
+            .contentType(MediaType.APPLICATION_JSON)
+            .characterEncoding(StandardCharsets.UTF_8.name()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message",
+                equalTo("One or more field validations failed: name")));
+    }
 }
