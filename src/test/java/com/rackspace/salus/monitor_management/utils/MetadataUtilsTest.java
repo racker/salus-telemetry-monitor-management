@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.monitor_management.web.model.telegraf.Disk;
@@ -30,11 +31,13 @@ import com.rackspace.salus.monitor_management.web.model.telegraf.HttpResponse;
 import com.rackspace.salus.monitor_management.web.model.telegraf.Ping;
 import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.policy.manage.web.model.MonitorMetadataPolicyDTO;
+import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.model.MetadataValueType;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.TargetClassName;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -313,5 +316,62 @@ public class MetadataUtilsTest {
     assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
 
     verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null, true);
+  }
+
+  @Test
+  public void testGetDefaultZonesForResource_nullRegion() {
+    List<String> defaultZones = List.of("public/defaultZone1" ,"public/defaultZone2");
+    when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
+        .thenReturn(defaultZones);
+
+    List<String> zones = metadataUtils.getDefaultZonesForResource(null, false);
+
+    assertThat(zones).containsExactlyInAnyOrderElementsOf(defaultZones);
+    verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, false);
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetDefaultZonesForResource_blankRegion() {
+    List<String> defaultZones = List.of("public/defaultZone1" ,"public/defaultZone2");
+    when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
+        .thenReturn(defaultZones);
+
+    List<String> zones = metadataUtils.getDefaultZonesForResource("", false);
+
+    assertThat(zones).containsExactlyInAnyOrderElementsOf(defaultZones);
+    verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, false);
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetDefaultZonesForResource_validRegion() {
+    List<String> defaultZones = List.of("public/defaultZone1" ,"public/defaultZone2");
+
+    // first request returns nothing, so the default request will follow after
+    when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
+        .thenReturn(Collections.emptyList())
+        .thenReturn(defaultZones);
+
+    List<String> zones = metadataUtils.getDefaultZonesForResource("invalidZone", false);
+
+    assertThat(zones).containsExactlyInAnyOrderElementsOf(defaultZones);
+
+    verify(policyApi).getDefaultMonitoringZones("invalidZone", false);
+    verify(policyApi).getDefaultMonitoringZones(MetadataPolicy.DEFAULT_ZONE, false);
+    verifyNoMoreInteractions(policyApi);
+  }
+
+  @Test
+  public void testGetDefaultZonesForResource_invalidRegion() {
+    List<String> defaultZones = List.of("public/defaultZone1" ,"public/defaultZone2");
+    when(policyApi.getDefaultMonitoringZones(anyString(), anyBoolean()))
+        .thenReturn(defaultZones);
+
+    List<String> zones = metadataUtils.getDefaultZonesForResource("validZone", false);
+
+    assertThat(zones).containsExactlyInAnyOrderElementsOf(defaultZones);
+    verify(policyApi).getDefaultMonitoringZones("validZone", false);
+    verifyNoMoreInteractions(policyApi);
   }
 }
