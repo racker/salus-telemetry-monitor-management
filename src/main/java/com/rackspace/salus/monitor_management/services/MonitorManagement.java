@@ -1897,8 +1897,8 @@ public class MonitorManagement {
     final List<BoundMonitor> boundMonitors =
         boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
 
-    log.debug("Unbinding {} from monitorIds={}",
-        boundMonitors, monitorIdsToUnbind);
+    log.debug("Unbinding {} from {} monitors",
+        boundMonitors.size(), monitorIdsToUnbind.size());
     boundMonitorRepository.deleteAll(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
