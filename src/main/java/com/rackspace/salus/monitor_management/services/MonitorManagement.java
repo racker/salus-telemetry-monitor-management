@@ -1897,8 +1897,8 @@ public class MonitorManagement {
     final List<BoundMonitor> boundMonitors =
         boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
 
-    log.debug("Unbinding {} from monitorIds={}",
-        boundMonitors, monitorIdsToUnbind);
+    log.debug("Unbinding boundMonitorCount={} from monitorCount={}",
+        boundMonitors.size(), monitorIdsToUnbind.size());
     boundMonitorRepository.deleteAll(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
@@ -1917,8 +1917,8 @@ public class MonitorManagement {
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
         .findMonitorsBoundToTenantAndResourceAndMonitor_IdIn(tenantId, resourceId, monitorIdsToUnbind);
 
-    log.debug("Unbinding {} from resourceId={} and monitorIdsToUnbind={}",
-        boundMonitors, resourceId, monitorIdsToUnbind);
+    log.debug("Unbinding boundMonitorCount={} from resourceId={} and monitorCount={}",
+        boundMonitors.size(), resourceId, monitorIdsToUnbind.size());
     boundMonitorRepository.deleteAll(boundMonitors);
 
     return extractEnvoyIds(boundMonitors);
@@ -1937,7 +1937,7 @@ public class MonitorManagement {
     final List<BoundMonitor> boundMonitors = boundMonitorRepository
         .findAllByMonitor_IdAndResourceIdIn(monitorId, resourceIdsToUnbind);
 
-    log.debug("Unbinding {} from monitorId={} resourceIds={}", boundMonitors,
+    log.debug("Unbinding boundMonitorCount={} from monitorId={} resourceIds={}", boundMonitors.size(),
         monitorId, resourceIdsToUnbind);
     boundMonitorRepository.deleteAll(boundMonitors);
 
@@ -1953,7 +1953,8 @@ public class MonitorManagement {
     final List<BoundMonitor> needToDelete = boundMonitorRepository
         .findAllByMonitor_IdAndZoneNameIn(monitorId, zones);
 
-    log.debug("Unbinding monitorId={} from zones={}: {}", monitorId, zones, needToDelete);
+    log.debug("Unbinding monitorId={} from zones={} with boundMonitorCount={}", monitorId, zones,
+        needToDelete.size());
     boundMonitorRepository.deleteAll(needToDelete);
 
     return extractEnvoyIds(needToDelete);
@@ -1967,7 +1968,8 @@ public class MonitorManagement {
     final List<BoundMonitor> needToDelete = boundMonitorRepository
         .findAllByMonitor_IdAndResourceIdAndZoneNameIn(monitorId, resourceId, zones);
 
-    log.debug("Unbinding monitorId={} on resourceId={} from zones={}: {}", monitorId, resourceId, zones, needToDelete);
+    log.debug("Unbinding monitorId={} on resourceId={} from zones={} with boundMonitorCount={}",
+        monitorId, resourceId, zones, needToDelete.size());
     boundMonitorRepository.deleteAll(needToDelete);
 
     return extractEnvoyIds(needToDelete);
