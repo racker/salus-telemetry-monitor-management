@@ -62,6 +62,8 @@ import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
+import com.rackspace.salus.telemetry.entities.BoundMonitorProjection;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
@@ -1526,12 +1528,7 @@ public class MonitorManagementTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setInterval(Duration.ofSeconds(60)));
 
-    final BoundMonitor boundMonitor = new BoundMonitor()
-        .setTenantId("t-1")
-        .setMonitor(monitor)
-        .setResourceId("r-1")
-        .setRenderedContent("{}")
-        .setEnvoyId("e-goner");
+    final BoundMonitorProjection boundMonitor = new BoundMonitorProjection("e-goner", monitor, "t-1", "r-1", "zoneA");
 
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
         .thenReturn(Collections.singletonList(boundMonitor));
@@ -1550,7 +1547,9 @@ public class MonitorManagementTest {
 
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
 
-    verify(boundMonitorRepository).deleteAll(Collections.singletonList(boundMonitor));
+    verify(boundMonitorRepository).deleteById(
+        new PrimaryKey(boundMonitor.getMonitor().getId(), boundMonitor.getTenantId(),
+            boundMonitor.getResourceId(), boundMonitor.getZoneName()));
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent()
@@ -3274,7 +3273,6 @@ public class MonitorManagementTest {
     Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 
     verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(any(), any());
-    verify(boundMonitorRepository).deleteAll(any());
     assertThat(result.getNumberOfElements(), equalTo(0));
   }
 

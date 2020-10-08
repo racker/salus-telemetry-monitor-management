@@ -44,6 +44,8 @@ import com.rackspace.salus.policy.manage.web.model.PolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
+import com.rackspace.salus.telemetry.entities.BoundMonitorProjection;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
@@ -1894,14 +1896,18 @@ public class MonitorManagement {
       return new HashSet<>();
     }
 
-    final List<BoundMonitor> boundMonitors =
+    final List<BoundMonitorProjection> boundMonitors =
         boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
 
     log.debug("Unbinding boundMonitorCount={} from monitorCount={}",
         boundMonitors.size(), monitorIdsToUnbind.size());
-    boundMonitorRepository.deleteAll(boundMonitors);
+    boundMonitors.parallelStream().forEach(boundMonitor -> {
+      boundMonitorRepository.deleteById(
+          new PrimaryKey(boundMonitor.getMonitor().getId(), boundMonitor.getTenantId(),
+              boundMonitor.getResourceId(), boundMonitor.getZoneName()));
+    });
 
-    return extractEnvoyIds(boundMonitors);
+    return extractEnvoyIdsFromBoundMonitorProjection(boundMonitors);
   }
 
   /**
@@ -1981,6 +1987,21 @@ public class MonitorManagement {
   static Set<String> extractEnvoyIds(List<BoundMonitor> boundMonitors) {
     return boundMonitors.stream()
         .map(BoundMonitor::getEnvoyId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Extracts the distinct, non-null envoy IDs from the given BoundMonitorProjection object
+   * bindings.
+   *
+   * @param boundMonitors
+   * @return
+   */
+  static Set<String> extractEnvoyIdsFromBoundMonitorProjection(
+      List<BoundMonitorProjection> boundMonitors) {
+    return boundMonitors.stream()
+        .map(BoundMonitorProjection::getEnvoyId)
         .filter(Objects::nonNull)
         .collect(Collectors.toSet());
   }
