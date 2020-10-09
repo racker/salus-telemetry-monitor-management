@@ -56,6 +56,7 @@ import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -689,8 +690,6 @@ public class MonitorManagementPolicyTest {
 
     // policy monitor no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
-
-    verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 
   /**
@@ -932,8 +931,6 @@ public class MonitorManagementPolicyTest {
 
     // policy monitor no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
-
-    verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 
   /**
@@ -965,8 +962,6 @@ public class MonitorManagementPolicyTest {
 
     // policy monitor no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
-
-    verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 
   /**
@@ -999,7 +994,6 @@ public class MonitorManagementPolicyTest {
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, originalPolicyId).isEmpty());
 
     verify(policyApi).getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
-    verify(boundMonitorRepository).deleteAll(anyIterable());
   }
 
   @Test
