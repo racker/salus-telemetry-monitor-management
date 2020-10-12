@@ -117,6 +117,7 @@ public class MonitorConversionService {
         .setInterval(monitor.getInterval())
         .setDetails(convertContentToDetails(monitor))
         .setPolicy(monitor.getPolicyId() != null)
+        .setPolicyId(monitor.getPolicyId() != null ? monitor.getPolicyId() : null)
         .setCreatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp()))
         .setUpdatedTimestamp(DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp()));
 
