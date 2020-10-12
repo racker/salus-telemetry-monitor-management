@@ -530,7 +530,7 @@ public class MonitorConversionServiceTest {
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
-    assertThat(result.isPolicy()).isTrue();
+    assertThat(result.getPolicyId()).isNullOrEmpty();
   }
 
   @Test
@@ -543,7 +543,7 @@ public class MonitorConversionServiceTest {
         .setCreatedTimestamp(Instant.EPOCH)
         .setUpdatedTimestamp(Instant.EPOCH);
     final DetailedMonitorOutput result = conversionService.convertToOutput(monitor);
-    assertThat(result.isPolicy()).isFalse();
+    assertThat(result.getPolicyId()).isNullOrEmpty();
   }
 
   @Test

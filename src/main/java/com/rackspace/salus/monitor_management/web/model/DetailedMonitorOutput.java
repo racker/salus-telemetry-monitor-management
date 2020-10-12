@@ -18,6 +18,8 @@
 package com.rackspace.salus.monitor_management.web.model;
 
 
+import com.fasterxml.jackson.annotation.JsonView;
+import com.rackspace.salus.common.web.View;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import io.swagger.annotations.ApiModelProperty;
 import java.time.Duration;
@@ -36,7 +38,9 @@ public class DetailedMonitorOutput {
     Duration interval;
     @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\", \"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false, \"reportActive\": false, \"totalcpu\": true} }")
     MonitorDetails details;
-    boolean isPolicy;
+
+    @JsonView(View.Admin.class)
+    String policyId;
     String createdTimestamp;
     String updatedTimestamp;
 
