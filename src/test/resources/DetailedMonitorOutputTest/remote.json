@@ -21,6 +21,7 @@
       "timeout": "PT20S"
     }
   },
+  "policy": false,
   "policyId": null,
   "summary": {"key": "value"},
   "createdTimestamp": "1970-01-01T00:00:00Z",
