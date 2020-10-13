@@ -103,6 +103,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ContextConfiguration;
@@ -539,6 +540,9 @@ public class MonitorManagement_MetadataPolicyTest {
         .collect(Collectors.toList());
     List<UUID> monitorIds = monitorsThatUseMetadata.stream().map(Monitor::getId).collect(Collectors.toList());
 
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(any(),any(),any())).thenReturn(
+        Page.empty());
+
     monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
         .setTenantId(tenantId)
         .setPolicyId(policyId));
@@ -627,6 +631,8 @@ public class MonitorManagement_MetadataPolicyTest {
         .collect(Collectors.toList());
     List<UUID> monitorIds = monitorsThatUseMetadata.stream().map(Monitor::getId).collect(Collectors.toList());
 
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(any(),any(),any())).thenReturn(
+        Page.empty());
     monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
         .setTenantId(tenantId)
         .setPolicyId(policyId));
@@ -693,6 +699,9 @@ public class MonitorManagement_MetadataPolicyTest {
 
         .setLabelSelector(Collections.emptyMap())
         .setInterval(Duration.ofSeconds(60)));
+
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(any(),any(),any())).thenReturn(
+        Page.empty());
 
     monitorManagement.handleMetadataPolicyEvent((MetadataPolicyEvent) new MetadataPolicyEvent()
         .setTenantId(tenantId)
