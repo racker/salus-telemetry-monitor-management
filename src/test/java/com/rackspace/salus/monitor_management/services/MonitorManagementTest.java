@@ -1531,9 +1531,11 @@ public class MonitorManagementTest {
     b.setResourceId("r-1");
     b.setEnvoyId("e-goner");
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
-        .thenReturn(new PageImpl<>(Collections.singletonList(b))).thenReturn(Page.empty());
+        .thenReturn(new PageImpl<>(Collections.singletonList(b)))
+        .thenReturn(Page.empty());
     when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+        .thenReturn(
+            CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
 
     // EXECUTE
 
