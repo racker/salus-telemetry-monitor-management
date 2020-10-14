@@ -1893,7 +1893,7 @@ public class MonitorManagement {
     if (monitorIdsToUnbind.isEmpty()) {
       return new HashSet<>();
     }
-    Pageable pageRequest = PageRequest.of(0, 100);
+    Pageable pageRequest = PageRequest.of(0, 1000);
     Page<BoundMonitor> boundMonitors =boundMonitorRepository
         .findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, pageRequest);
     Set<String> extractedEnvoyIds = new HashSet<>();

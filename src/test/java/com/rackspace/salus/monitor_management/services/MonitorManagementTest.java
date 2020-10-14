@@ -1526,10 +1526,10 @@ public class MonitorManagementTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setInterval(Duration.ofSeconds(60)));
 
-    BoundMonitor b = new BoundMonitor();
-    b.setMonitor(monitor);
-    b.setResourceId("r-1");
-    b.setEnvoyId("e-goner");
+    BoundMonitor b = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setEnvoyId("e-goner");
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
         .thenReturn(new PageImpl<>(Collections.singletonList(b)))
         .thenReturn(Page.empty());
@@ -3274,16 +3274,19 @@ public class MonitorManagementTest {
     when(boundMonitorRepository
         .findAllByTenantIdAndMonitor_IdIn(any(), any(), any()))
         .thenReturn(Page.empty());
+    Page<Monitor> monitorsBeforeDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 
     monitorManagement.removeAllTenantMonitors("t-1", false);
 
-    Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
-    List<UUID> monitorIds = result.get()
+    List<UUID> monitorIds = monitorsBeforeDeletion.get()
         .map(Monitor::getId)
         .collect(Collectors.toList());
 
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(any(), any(), any());
-    assertThat(result.getNumberOfElements(), equalTo(0));
+    Page<Monitor> monitorsAfterDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+
+    verify(boundMonitorRepository)
+        .findAllByTenantIdAndMonitor_IdIn("t-1", monitorIds, PageRequest.of(0, 1000));
+    assertThat(monitorsAfterDeletion.getNumberOfElements(), equalTo(0));
   }
 
   @Test
