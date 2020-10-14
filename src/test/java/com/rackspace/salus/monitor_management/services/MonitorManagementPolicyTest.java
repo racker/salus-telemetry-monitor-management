@@ -56,7 +56,6 @@ import com.rackspace.salus.policy.manage.web.model.MonitorPolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
 import com.rackspace.salus.telemetry.entities.Zone;
@@ -680,11 +679,11 @@ public class MonitorManagementPolicyTest {
 
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
-
+    PageRequest pageRequest = PageRequest.of(0,1000);
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
-        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
 
     monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
 
@@ -917,11 +916,12 @@ public class MonitorManagementPolicyTest {
 
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+    PageRequest pageRequest = PageRequest.of(0,1000);
 
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
-        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -951,8 +951,10 @@ public class MonitorManagementPolicyTest {
 
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
-        .thenReturn(Collections.emptyList());
+    PageRequest pageRequest = PageRequest.of(0, 1000);
+
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -977,12 +979,14 @@ public class MonitorManagementPolicyTest {
 
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, originalPolicyId);
+    PageRequest pageRequest = PageRequest.of(0,1000);
+
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, originalPolicyId).isPresent());
 
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(Collections.emptyList());
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId())))
-        .thenReturn(Collections.emptyList());
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(null)

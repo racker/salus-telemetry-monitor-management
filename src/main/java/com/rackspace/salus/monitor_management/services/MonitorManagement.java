@@ -26,8 +26,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
 import com.rackspace.salus.common.config.MetricNames;
-import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.common.config.MetricTagValues;
+import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
@@ -44,8 +44,6 @@ import com.rackspace.salus.policy.manage.web.model.PolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
-import com.rackspace.salus.telemetry.entities.BoundMonitorProjection;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
@@ -1895,19 +1893,22 @@ public class MonitorManagement {
     if (monitorIdsToUnbind.isEmpty()) {
       return new HashSet<>();
     }
-
-    final List<BoundMonitorProjection> boundMonitors =
-        boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind);
+    Pageable pageRequest = PageRequest.of(0, 1000);
+    Page<BoundMonitor> boundMonitors =boundMonitorRepository
+        .findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, pageRequest);
+    Set<String> extractedEnvoyIds = new HashSet<>();
 
     log.debug("Unbinding boundMonitorCount={} from monitorCount={}",
-        boundMonitors.size(), monitorIdsToUnbind.size());
-    boundMonitors.parallelStream().forEach(boundMonitor -> {
-      boundMonitorRepository.deleteById(
-          new PrimaryKey(boundMonitor.getMonitor().getId(), boundMonitor.getTenantId(),
-              boundMonitor.getResourceId(), boundMonitor.getZoneName()));
-    });
+        boundMonitors.getTotalElements(), monitorIdsToUnbind.size());
 
-    return extractEnvoyIdsFromBoundMonitorProjection(boundMonitors);
+    while (!boundMonitors.isEmpty()) {
+      boundMonitorRepository.deleteAll(boundMonitors.toList());
+      extractedEnvoyIds.addAll(extractEnvoyIds(boundMonitors.toList()));
+      boundMonitors = boundMonitorRepository
+          .findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, pageRequest);
+    }
+
+    return extractedEnvoyIds;
   }
 
   /**
@@ -1987,21 +1988,6 @@ public class MonitorManagement {
   static Set<String> extractEnvoyIds(List<BoundMonitor> boundMonitors) {
     return boundMonitors.stream()
         .map(BoundMonitor::getEnvoyId)
-        .filter(Objects::nonNull)
-        .collect(Collectors.toSet());
-  }
-
-  /**
-   * Extracts the distinct, non-null envoy IDs from the given BoundMonitorProjection object
-   * bindings.
-   *
-   * @param boundMonitors
-   * @return
-   */
-  static Set<String> extractEnvoyIdsFromBoundMonitorProjection(
-      List<BoundMonitorProjection> boundMonitors) {
-    return boundMonitors.stream()
-        .map(BoundMonitorProjection::getEnvoyId)
         .filter(Objects::nonNull)
         .collect(Collectors.toSet());
   }
