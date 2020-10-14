@@ -1546,7 +1546,7 @@ public class MonitorManagementTest {
     final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
     assertThat(retrieved.isPresent(), equalTo(false));
 
-    verify(boundMonitorRepository, times(2)).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()), PageRequest.of(0, 100));
+    verify(boundMonitorRepository, times(2)).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()), PageRequest.of(0, 1000));
 
     verify(boundMonitorRepository).deleteAll(Collections.singletonList(b));
 
