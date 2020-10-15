@@ -1488,27 +1488,36 @@ public class MonitorManagement {
     List<MonitorPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorPoliciesForTenant(tenantId, false);
 
     // if the old policy had been overriding another one using the same monitorId, find the other one
-    List<UUID> newPolicyIds = effectivePolicies.stream()
-        .filter(p -> p.getMonitorId().equals(monitorId))
-        .map(PolicyDTO::getId)
-        .collect(Collectors.toList());
+    try {
+      List<UUID> newPolicyIds = effectivePolicies.stream()
+          .filter(p -> p.getMonitorId().equals(monitorId))
+          .map(PolicyDTO::getId)
+          .collect(Collectors.toList());
 
-    if (newPolicyIds.isEmpty()) {
-      log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
-      unbindAndRemoveMonitor(clonedMonitor);
-      return;
-    }
+      if (newPolicyIds.isEmpty()) {
+        log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
+        unbindAndRemoveMonitor(clonedMonitor);
+        return;
+      }
 
-    if (newPolicyIds.size() > 1) {
-      log.error("More than one effective policy configured to use the same monitorId={} for tenant={}",
-          monitorId, tenantId);
-      policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", "reason", "tooManyClones")
-          .register(meterRegistry).increment();
+      if (newPolicyIds.size() > 1) {
+        log.error(
+            "More than one effective policy configured to use the same monitorId={} for tenant={}",
+            monitorId, tenantId);
+        policyIntegrityErrors
+            .tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", "reason",
+                "tooManyClones")
+            .register(meterRegistry).increment();
+      }
+      UUID newPolicyId = newPolicyIds.get(0);
+      log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor,
+          newPolicyId);
+      clonedMonitor.setPolicyId(newPolicyId);
+      monitorRepository.save(clonedMonitor);
+    } catch(Exception e)  {
+      log.error("error occurred while processing policy removal event for policy monitor={} and cloned monitor={}",
+          monitorId, clonedMonitor.getId());
     }
-    UUID newPolicyId = newPolicyIds.get(0);
-    log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor, newPolicyId);
-    clonedMonitor.setPolicyId(newPolicyId);
-    monitorRepository.save(clonedMonitor);
   }
 
   /**
