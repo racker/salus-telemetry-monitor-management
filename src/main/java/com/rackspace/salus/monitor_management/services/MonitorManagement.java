@@ -148,6 +148,7 @@ public class MonitorManagement {
   private final Counter.Builder invalidTemplateErrors;
   private final Counter.Builder boundMonitorSaveErrors;
   private final Counter.Builder createMonitorSuccess;
+  private final Counter.Builder policyRemvalErrors;
 
   @Autowired
   public MonitorManagement(
@@ -192,6 +193,7 @@ public class MonitorManagement {
     policyIntegrityErrors = Counter.builder("policy_integrity").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     invalidTemplateErrors = Counter.builder("template_errors").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     boundMonitorSaveErrors = Counter.builder("bound_monitor_jpa_error").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
+    policyRemvalErrors = Counter.builder("policy_removal_errors").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
   }
 
   /**
@@ -1489,10 +1491,18 @@ public class MonitorManagement {
 
     // if the old policy had been overriding another one using the same monitorId, find the other one
     try {
-      List<UUID> newPolicyIds = effectivePolicies.stream()
-          .filter(p -> p.getMonitorId().equals(monitorId))
-          .map(PolicyDTO::getId)
-          .collect(Collectors.toList());
+      List<UUID> newPolicyIds = null;
+      //if policy is in effect and monitor not found
+      try {
+        newPolicyIds = effectivePolicies.stream()
+            .filter(p -> p.getMonitorId().equals(monitorId))
+            .map(PolicyDTO::getId)
+            .collect(Collectors.toList());
+      } catch(NullPointerException e)  {
+        log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
+        unbindAndRemoveMonitor(clonedMonitor);
+        return;
+      }
 
       if (newPolicyIds.isEmpty()) {
         log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
@@ -1517,6 +1527,9 @@ public class MonitorManagement {
     } catch(Exception e)  {
       log.error("error occurred while processing policy removal event for policy monitor={} and cloned monitor={}",
           monitorId, clonedMonitor.getId());
+      policyRemvalErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyRemovalEvent","reason",
+          e.getClass().getSimpleName())
+          .register(meterRegistry).increment();
     }
   }
 
