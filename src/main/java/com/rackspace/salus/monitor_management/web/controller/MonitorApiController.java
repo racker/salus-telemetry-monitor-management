@@ -35,6 +35,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.JobName;
+import com.rackspace.salus.telemetry.model.JobStatus;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -372,8 +374,19 @@ public class MonitorApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
-  public void deleteAllTenantMonitors(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
-    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents);
+  public void deleteAllTenantMonitors(
+      @PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+
+    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents)
+        .whenComplete((res, throwable) -> {
+          if (throwable == null) {
+            monitorManagement
+                .saveJobResults(tenantId, JobName.DELETE_TENANT, JobStatus.SUCCESS, null);
+          } else {
+            monitorManagement.saveJobResults(tenantId, JobName.DELETE_TENANT, JobStatus.FAILURE,
+                throwable.getMessage());
+          }
+        });
   }
 
   @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)

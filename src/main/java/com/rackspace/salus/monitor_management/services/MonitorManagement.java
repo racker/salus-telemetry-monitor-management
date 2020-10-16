@@ -22,6 +22,7 @@ import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
+import brave.Tracer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
@@ -44,6 +45,7 @@ import com.rackspace.salus.policy.manage.web.model.PolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
+import com.rackspace.salus.telemetry.entities.Jobs;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
@@ -59,12 +61,15 @@ import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.JobName;
+import com.rackspace.salus.telemetry.model.JobStatus;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
+import com.rackspace.salus.telemetry.repositories.JobsRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -91,6 +96,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.transaction.Transactional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -107,6 +113,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -142,6 +149,11 @@ public class MonitorManagement {
 
   MeterRegistry meterRegistry;
 
+  @Autowired
+  Tracer tracer;
+
+  JobsRepository jobsRepository;
+
   // metrics counters
   private final Counter.Builder orphanedBoundMonitorRemoved;
   private final Counter.Builder policyIntegrityErrors;
@@ -164,7 +176,8 @@ public class MonitorManagement {
       ZonesProperties zonesProperties,
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
-      JdbcTemplate jdbcTemplate)
+      JdbcTemplate jdbcTemplate,
+      JobsRepository jobsRepository)
       throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
@@ -184,7 +197,7 @@ public class MonitorManagement {
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
-
+    this.jobsRepository = jobsRepository;
     this.meterRegistry = meterRegistry;
     createMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
         MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
@@ -2253,7 +2266,8 @@ public class MonitorManagement {
     return monitorRepository.search(tenantId, searchCriteria, page);
   }
 
-  public void removeAllTenantMonitors(String tenantId, boolean sendEvents) {
+  @Async
+  public CompletableFuture<Void> removeAllTenantMonitors(String tenantId, boolean sendEvents) {
     if(sendEvents) {
       getMonitors(tenantId, Pageable.unpaged()).forEach(monitor -> removeMonitor(tenantId, monitor.getId()));
     }else {
@@ -2263,6 +2277,7 @@ public class MonitorManagement {
               .collect(Collectors.toList()));
       monitorRepository.deleteAllByTenantId(tenantId);
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   public RenderedMonitorTemplate renderMonitorTemplate(UUID monitorId, String resourceId,
@@ -2307,5 +2322,24 @@ public class MonitorManagement {
     return resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
         .map(resource -> new ResourceDTO(resource, null))
         .orElse(null);
+  }
+
+  /**
+   * Saves the Job results in jobs table.
+   *
+   * @param tenantId
+   * @param jobName
+   * @param jobStatus
+   * @param description
+   */
+  public void saveJobResults(String tenantId, JobName jobName, JobStatus jobStatus, String description) {
+    String id = tracer.currentSpan().context().traceIdString();
+    Jobs job = new Jobs()
+        .setId(id)
+        .setName(jobName.getValue())
+        .setStatus(jobStatus)
+        .setDescription(description)
+        .setTenantId(tenantId);
+    jobsRepository.save(job);
   }
 }
