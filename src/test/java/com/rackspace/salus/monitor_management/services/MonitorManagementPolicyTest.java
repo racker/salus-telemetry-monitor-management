@@ -39,6 +39,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import brave.Tracer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -178,6 +179,9 @@ public class MonitorManagementPolicyTest {
 
   @Autowired
   private MonitorManagement monitorManagement;
+
+  @MockBean
+  Tracer tracer;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 

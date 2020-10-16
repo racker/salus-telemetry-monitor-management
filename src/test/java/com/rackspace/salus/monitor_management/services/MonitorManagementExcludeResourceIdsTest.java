@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import brave.Tracer;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.ZonesProperties;
 import com.rackspace.salus.monitor_management.errors.InvalidTemplateException;
@@ -123,6 +124,9 @@ public class MonitorManagementExcludeResourceIdsTest {
 
   @MockBean
   ZoneAllocationResolver zoneAllocationResolver;
+
+  @MockBean
+  Tracer tracer;
 
   @Test
   public void testCreate_noResources() {
