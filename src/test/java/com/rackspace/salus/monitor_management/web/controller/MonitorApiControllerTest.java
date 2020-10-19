@@ -43,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import brave.Tracer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
@@ -152,6 +153,9 @@ public class MonitorApiControllerTest {
 
   @Autowired
   MetadataUtils metadataUtils;
+
+  @MockBean
+  Tracer tracer;
 
   @Test
   public void testTenantVerification_Success() throws Exception {

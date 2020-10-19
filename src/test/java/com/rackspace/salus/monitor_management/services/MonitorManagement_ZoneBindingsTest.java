@@ -34,7 +34,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import brave.Tracer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
 import com.rackspace.salus.monitor_management.config.MonitorContentProperties;
@@ -159,8 +158,6 @@ public class MonitorManagement_ZoneBindingsTest {
   MetadataUtils metadataUtils;
   @Autowired
   ZonesProperties zonesProperties;
-  @MockBean
-  Tracer tracer;
 
   @Autowired
   private MonitorManagement monitorManagement;

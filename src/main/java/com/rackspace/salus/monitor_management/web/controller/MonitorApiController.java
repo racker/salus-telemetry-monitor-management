@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 
+import brave.Tracer;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -86,14 +87,17 @@ public class MonitorApiController {
   private MonitorManagement monitorManagement;
   private MonitorConversionService monitorConversionService;
   private final MonitorContentTranslationService monitorContentTranslationService;
+  Tracer tracer;
 
   @Autowired
   public MonitorApiController(MonitorManagement monitorManagement,
-                              MonitorConversionService monitorConversionService,
-                              MonitorContentTranslationService monitorContentTranslationService) {
+      MonitorConversionService monitorConversionService,
+      MonitorContentTranslationService monitorContentTranslationService,
+      Tracer tracer) {
     this.monitorManagement = monitorManagement;
     this.monitorConversionService = monitorConversionService;
     this.monitorContentTranslationService = monitorContentTranslationService;
+    this.tracer = tracer;
   }
 
   @GetMapping("/admin/monitors")
@@ -376,14 +380,16 @@ public class MonitorApiController {
   @ApiOperation("Deletes all monitors for a particular tenant")
   public void deleteAllTenantMonitors(
       @PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
-
+    String id = tracer.currentSpan().context().traceIdString();
+    monitorManagement
+        .saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.IN_PROGRESS, null);
     monitorManagement.removeAllTenantMonitors(tenantId, sendEvents)
         .whenComplete((res, throwable) -> {
           if (throwable == null) {
             monitorManagement
-                .saveJobResults(tenantId, JobType.DELETE_TENANT, JobStatus.SUCCESS, null);
+                .saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.SUCCESS, null);
           } else {
-            monitorManagement.saveJobResults(tenantId, JobType.DELETE_TENANT, JobStatus.FAILURE,
+            monitorManagement.saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.FAILURE,
                 throwable.getMessage());
           }
         });

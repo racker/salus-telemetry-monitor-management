@@ -36,7 +36,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import brave.Tracer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.DatabaseConfig;
@@ -186,9 +185,6 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Autowired
   MetadataUtils metadataUtils;
-
-  @MockBean
-  Tracer tracer;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
 

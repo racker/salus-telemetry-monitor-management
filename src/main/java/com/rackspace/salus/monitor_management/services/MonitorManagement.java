@@ -148,8 +148,6 @@ public class MonitorManagement {
 
   MeterRegistry meterRegistry;
 
-  Tracer tracer;
-
   JobRepository jobRepository;
 
   // metrics counters
@@ -175,8 +173,7 @@ public class MonitorManagement {
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
       JdbcTemplate jdbcTemplate,
-      JobRepository jobRepository,
-      Tracer tracer)
+      JobRepository jobRepository)
       throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
@@ -198,7 +195,6 @@ public class MonitorManagement {
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
     this.jobRepository = jobRepository;
     this.meterRegistry = meterRegistry;
-    this.tracer = tracer;
     createMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
         MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     orphanedBoundMonitorRemoved = Counter.builder("orphaned").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
@@ -2324,7 +2320,7 @@ public class MonitorManagement {
         .orElse(null);
   }
 
-  /**
+  /**R
    * Saves the Job results in jobs table.
    *
    * @param tenantId
@@ -2332,8 +2328,7 @@ public class MonitorManagement {
    * @param jobStatus
    * @param description
    */
-  public void saveJobResults(String tenantId, JobType jobType, JobStatus jobStatus, String description) {
-    String id = tracer.currentSpan().context().traceIdString();
+  public void saveJobResults(String id, String tenantId, JobType jobType, JobStatus jobStatus, String description) {
     Job job = new Job()
         .setId(id)
         .setType(jobType)
