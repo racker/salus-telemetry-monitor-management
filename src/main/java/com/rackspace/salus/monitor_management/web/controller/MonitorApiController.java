@@ -35,7 +35,7 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.JobName;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.JobStatus;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
@@ -381,9 +381,9 @@ public class MonitorApiController {
         .whenComplete((res, throwable) -> {
           if (throwable == null) {
             monitorManagement
-                .saveJobResults(tenantId, JobName.DELETE_TENANT, JobStatus.SUCCESS, null);
+                .saveJobResults(tenantId, JobType.DELETE_TENANT, JobStatus.SUCCESS, null);
           } else {
-            monitorManagement.saveJobResults(tenantId, JobName.DELETE_TENANT, JobStatus.FAILURE,
+            monitorManagement.saveJobResults(tenantId, JobType.DELETE_TENANT, JobStatus.FAILURE,
                 throwable.getMessage());
           }
         });

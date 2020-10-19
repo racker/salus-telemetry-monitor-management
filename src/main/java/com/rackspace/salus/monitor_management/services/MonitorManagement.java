@@ -45,7 +45,7 @@ import com.rackspace.salus.policy.manage.web.model.PolicyDTO;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.Jobs;
+import com.rackspace.salus.telemetry.entities.Job;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorPolicy;
@@ -61,7 +61,7 @@ import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.JobName;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.JobStatus;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
@@ -69,7 +69,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.model.TargetClassName;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
-import com.rackspace.salus.telemetry.repositories.JobsRepository;
+import com.rackspace.salus.telemetry.repositories.JobRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -96,7 +96,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.transaction.Transactional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -149,10 +148,9 @@ public class MonitorManagement {
 
   MeterRegistry meterRegistry;
 
-  @Autowired
   Tracer tracer;
 
-  JobsRepository jobsRepository;
+  JobRepository jobRepository;
 
   // metrics counters
   private final Counter.Builder orphanedBoundMonitorRemoved;
@@ -177,7 +175,8 @@ public class MonitorManagement {
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
       JdbcTemplate jdbcTemplate,
-      JobsRepository jobsRepository)
+      JobRepository jobRepository,
+      Tracer tracer)
       throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
@@ -197,8 +196,9 @@ public class MonitorManagement {
     this.jdbcTemplate = jdbcTemplate;
     this.labelMatchQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_query.sql");
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
-    this.jobsRepository = jobsRepository;
+    this.jobRepository = jobRepository;
     this.meterRegistry = meterRegistry;
+    this.tracer = tracer;
     createMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
         MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     orphanedBoundMonitorRemoved = Counter.builder("orphaned").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
@@ -2328,18 +2328,18 @@ public class MonitorManagement {
    * Saves the Job results in jobs table.
    *
    * @param tenantId
-   * @param jobName
+   * @param jobType
    * @param jobStatus
    * @param description
    */
-  public void saveJobResults(String tenantId, JobName jobName, JobStatus jobStatus, String description) {
+  public void saveJobResults(String tenantId, JobType jobType, JobStatus jobStatus, String description) {
     String id = tracer.currentSpan().context().traceIdString();
-    Jobs job = new Jobs()
+    Job job = new Job()
         .setId(id)
-        .setName(jobName.getValue())
+        .setType(jobType)
         .setStatus(jobStatus)
         .setDescription(description)
         .setTenantId(tenantId);
-    jobsRepository.save(job);
+    jobRepository.save(job);
   }
 }
