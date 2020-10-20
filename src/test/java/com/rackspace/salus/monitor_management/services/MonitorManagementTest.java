@@ -62,8 +62,6 @@ import com.rackspace.salus.policy.manage.web.client.PolicyApi;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.entities.BoundMonitor;
-import com.rackspace.salus.telemetry.entities.BoundMonitor.PrimaryKey;
-import com.rackspace.salus.telemetry.entities.BoundMonitorProjection;
 import com.rackspace.salus.telemetry.entities.MetadataPolicy;
 import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.Resource;
@@ -1528,13 +1526,16 @@ public class MonitorManagementTest {
             .setLabelSelectorMethod(LabelSelectorMethod.AND)
             .setInterval(Duration.ofSeconds(60)));
 
-    final BoundMonitorProjection boundMonitor = new BoundMonitorProjection("e-goner", monitor, "t-1", "r-1", "zoneA");
-
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any()))
-        .thenReturn(Collections.singletonList(boundMonitor));
-
+    BoundMonitor b = new BoundMonitor()
+        .setMonitor(monitor)
+        .setResourceId("r-1")
+        .setEnvoyId("e-goner");
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(b)))
+        .thenReturn(Page.empty());
     when(zoneStorage.getEnvoyIdToResourceIdMap(any()))
-        .thenReturn(CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
+        .thenReturn(
+            CompletableFuture.completedFuture(Collections.singletonMap("e-goner", "r-gone")));
 
     // EXECUTE
 
@@ -1545,11 +1546,9 @@ public class MonitorManagementTest {
     final Optional<Monitor> retrieved = monitorManagement.getMonitor("t-1", monitor.getId());
     assertThat(retrieved.isPresent(), equalTo(false));
 
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()));
+    verify(boundMonitorRepository, times(2)).findAllByTenantIdAndMonitor_IdIn("t-1", Collections.singletonList(monitor.getId()), PageRequest.of(0, 1000));
 
-    verify(boundMonitorRepository).deleteById(
-        new PrimaryKey(boundMonitor.getMonitor().getId(), boundMonitor.getTenantId(),
-            boundMonitor.getResourceId(), boundMonitor.getZoneName()));
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(b));
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent()
@@ -3254,6 +3253,10 @@ public class MonitorManagementTest {
 
   @Test
   public void deleteAllMonitorsForTenant() {
+    when(boundMonitorRepository
+        .findAllByTenantIdAndMonitor_IdIn(any(), any(), any()))
+        .thenReturn(Page.empty());
+
     createMonitorsForTenant(20, "t-1");
 
     monitorManagement.removeAllTenantMonitors("t-1", true);
@@ -3268,12 +3271,22 @@ public class MonitorManagementTest {
   public void deleteAllMonitorsForTenant_noEvents() {
     createMonitorsForTenant(20, "t-1");
 
+    when(boundMonitorRepository
+        .findAllByTenantIdAndMonitor_IdIn(any(), any(), any()))
+        .thenReturn(Page.empty());
+    Page<Monitor> monitorsBeforeDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+
     monitorManagement.removeAllTenantMonitors("t-1", false);
 
-    Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+    List<UUID> monitorIds = monitorsBeforeDeletion.get()
+        .map(Monitor::getId)
+        .collect(Collectors.toList());
 
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(any(), any());
-    assertThat(result.getNumberOfElements(), equalTo(0));
+    Page<Monitor> monitorsAfterDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+
+    verify(boundMonitorRepository)
+        .findAllByTenantIdAndMonitor_IdIn("t-1", monitorIds, PageRequest.of(0, 1000));
+    assertThat(monitorsAfterDeletion.getNumberOfElements(), equalTo(0));
   }
 
   @Test
