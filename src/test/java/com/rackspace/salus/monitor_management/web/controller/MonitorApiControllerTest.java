@@ -31,9 +31,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,7 +45,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import brave.Span;
 import brave.Tracer;
+import brave.propagation.TraceContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.monitor_management.config.JsonConfig;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
@@ -72,6 +76,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
+import com.rackspace.salus.telemetry.model.JobStatus;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -91,7 +97,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hibernate.HibernateException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,6 +164,9 @@ public class MonitorApiControllerTest {
 
   @MockBean
   Tracer tracer;
+
+  @MockBean
+  Span span;
 
   @Test
   public void testTenantVerification_Success() throws Exception {
@@ -1176,4 +1187,71 @@ public class MonitorApiControllerTest {
     verify(monitorManagement).renderMonitorTemplate(monitorId, resourceId, tenantId);
     verifyNoMoreInteractions(monitorContentTranslationService);
   }
+
+  @Test
+  public void testDeleteAllTenantMonitors() throws Exception {
+    doNothing().when(monitorManagement)
+        .saveJobResults(anyString(), anyString(), any(), any(), anyString());
+
+    when(monitorManagement.removeAllTenantMonitors(anyString(), anyBoolean())).thenReturn(
+        CompletableFuture.completedFuture(null));
+
+    doNothing().when(monitorManagement)
+        .updateJobResults(anyString(), any(), anyString());
+    when(tracer.currentSpan()).thenReturn(span);
+
+    TraceContext traceContext = TraceContext.newBuilder().traceId(12245221l).spanId(124323433l)
+        .build();
+    when(span.context()).thenReturn(traceContext);
+
+    mockMvc.perform(delete(
+        "/api/admin/tenant/{tenantId}/monitors",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isAccepted());
+
+    verify(monitorManagement)
+        .saveJobResults(traceContext.traceIdString(), "t-1", JobType.DELETE_TENANT_MONITORS,
+            JobStatus.IN_PROGRESS, null);
+
+    verify(monitorManagement)
+        .updateJobResults(traceContext.traceIdString(),
+            JobStatus.SUCCESS, null);
+
+    verify(monitorManagement).removeAllTenantMonitors("t-1", true);
+  }
+
+  @Test
+  public void testDeleteAllTenantMonitorsException() throws Exception {
+
+    when(monitorManagement.removeAllTenantMonitors(anyString(), anyBoolean())).thenReturn(CompletableFuture.failedFuture(new HibernateException("Deletion Failed")));
+
+    doNothing().when(monitorManagement)
+        .saveJobResults(anyString(), anyString(), any(), any(), anyString());
+
+    doNothing().when(monitorManagement)
+        .updateJobResults(anyString(), any(), anyString());
+    when(tracer.currentSpan()).thenReturn(span);
+
+    TraceContext traceContext = TraceContext.newBuilder().traceId(12245221l).spanId(124323433l)
+        .build();
+    when(span.context()).thenReturn(traceContext);
+
+    mockMvc.perform(delete(
+        "/api/admin/tenant/{tenantId}/monitors",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isAccepted());
+
+    verify(monitorManagement)
+        .saveJobResults(traceContext.traceIdString(), "t-1", JobType.DELETE_TENANT_MONITORS,
+            JobStatus.IN_PROGRESS, null);
+
+    verify(monitorManagement)
+        .updateJobResults(traceContext.traceIdString(),
+            JobStatus.FAILURE, "Deletion Failed");
+
+    verify(monitorManagement).removeAllTenantMonitors("t-1", true);
+  }
+
 }

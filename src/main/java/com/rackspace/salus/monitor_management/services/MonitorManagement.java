@@ -2320,7 +2320,7 @@ public class MonitorManagement {
         .orElse(null);
   }
 
-  /**R
+  /**
    * Saves the Job results in jobs table.
    *
    * @param tenantId
@@ -2335,6 +2335,21 @@ public class MonitorManagement {
         .setStatus(jobStatus)
         .setDescription(description)
         .setTenantId(tenantId);
+    jobRepository.save(job);
+  }
+
+  /**
+   * Updates the job results.
+   *
+   * @param id
+   * @param jobStatus
+   * @param description
+   */
+  public void updateJobResults(String id, JobStatus jobStatus, String description) {
+    Job job = jobRepository.findById(id)
+        .orElseThrow(() -> new NotFoundException("Job is not yet created with id %s" + id));
+    job.setStatus(jobStatus);
+    job.setDescription(description);
     jobRepository.save(job);
   }
 }

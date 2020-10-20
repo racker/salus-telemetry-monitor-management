@@ -57,6 +57,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -378,21 +379,23 @@ public class MonitorApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
-  public void deleteAllTenantMonitors(
+  public ResponseEntity<Void> deleteAllTenantMonitors(
       @PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
     String id = tracer.currentSpan().context().traceIdString();
     monitorManagement
-        .saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.IN_PROGRESS, null);
+        .saveJobResults(id, tenantId, JobType.DELETE_TENANT_MONITORS, JobStatus.IN_PROGRESS, null);
     monitorManagement.removeAllTenantMonitors(tenantId, sendEvents)
         .whenComplete((res, throwable) -> {
           if (throwable == null) {
             monitorManagement
-                .saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.SUCCESS, null);
+                .updateJobResults(id, JobStatus.SUCCESS, null);
           } else {
-            monitorManagement.saveJobResults(id, tenantId, JobType.DELETE_TENANT, JobStatus.FAILURE,
-                throwable.getMessage());
+            monitorManagement
+                .updateJobResults(id, JobStatus.FAILURE,
+                    throwable.getMessage());
           }
         });
+    return new ResponseEntity<>(HttpStatus.ACCEPTED);
   }
 
   @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)
