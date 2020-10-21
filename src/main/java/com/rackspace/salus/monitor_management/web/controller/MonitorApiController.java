@@ -379,7 +379,8 @@ public class MonitorApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
-  public ResponseEntity<Void> deleteAllTenantMonitors(
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  public void deleteAllTenantMonitors(
       @PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
     String id = tracer.currentSpan().context().traceIdString();
     monitorManagement
@@ -395,7 +396,6 @@ public class MonitorApiController {
                     throwable.getMessage());
           }
         });
-    return new ResponseEntity<>(HttpStatus.ACCEPTED);
   }
 
   @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)
