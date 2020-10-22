@@ -18,6 +18,7 @@ package com.rackspace.salus.monitor_management.web.controller;
 
 import static com.rackspace.salus.monitor_management.web.converter.PatchHelper.JSON_PATCH_TYPE;
 
+import brave.Tracer;
 import com.rackspace.salus.monitor_management.services.MonitorContentTranslationService;
 import com.rackspace.salus.monitor_management.services.MonitorConversionService;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
@@ -35,6 +36,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
+import com.rackspace.salus.telemetry.model.JobType;
+import com.rackspace.salus.telemetry.model.JobStatus;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -54,6 +57,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -84,14 +88,17 @@ public class MonitorApiController {
   private MonitorManagement monitorManagement;
   private MonitorConversionService monitorConversionService;
   private final MonitorContentTranslationService monitorContentTranslationService;
+  Tracer tracer;
 
   @Autowired
   public MonitorApiController(MonitorManagement monitorManagement,
-                              MonitorConversionService monitorConversionService,
-                              MonitorContentTranslationService monitorContentTranslationService) {
+      MonitorConversionService monitorConversionService,
+      MonitorContentTranslationService monitorContentTranslationService,
+      Tracer tracer) {
     this.monitorManagement = monitorManagement;
     this.monitorConversionService = monitorConversionService;
     this.monitorContentTranslationService = monitorContentTranslationService;
+    this.tracer = tracer;
   }
 
   @GetMapping("/admin/monitors")
@@ -372,8 +379,23 @@ public class MonitorApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/monitors")
   @ApiOperation("Deletes all monitors for a particular tenant")
-  public void deleteAllTenantMonitors(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
-    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents);
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  public void deleteAllTenantMonitors(
+      @PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+    String id = tracer.currentSpan().context().traceIdString();
+    monitorManagement
+        .saveJobResults(id, tenantId, JobType.DELETE_TENANT_MONITORS, JobStatus.IN_PROGRESS, null);
+    monitorManagement.removeAllTenantMonitors(tenantId, sendEvents)
+        .whenComplete((res, throwable) -> {
+          if (throwable == null) {
+            monitorManagement
+                .updateJobResults(id, JobStatus.SUCCESS, null);
+          } else {
+            monitorManagement
+                .updateJobResults(id, JobStatus.FAILURE,
+                    throwable.getMessage());
+          }
+        });
   }
 
   @PostMapping(value = "/tenant/{tenantId}/monitors/{monitorId}/agent-config", produces = MediaType.APPLICATION_JSON_VALUE)
