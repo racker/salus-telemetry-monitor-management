@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -955,6 +956,41 @@ public class MonitorManagementPolicyTest {
 
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
         .thenReturn(Page.empty());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(policyMonitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+  }
+
+  /**
+   * Receive a remove monitor policy event and process it for a tenant
+   * that was previously using the policy and its entry in monitor_policies having
+   * null as monitor id
+   *
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicy_null_monitor_id() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    List<MonitorPolicyDTO> list = List.of((MonitorPolicyDTO) new MonitorPolicyDTO()
+        .setMonitorId(null)
+        .setId(policyId));
+
+    doReturn(list).when(policyApi).getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean());
+
+    PageRequest pageRequest = PageRequest.of(0, 1000);
+
+    doReturn(Page.empty()).when(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)

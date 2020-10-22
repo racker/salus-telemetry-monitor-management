@@ -1491,8 +1491,7 @@ public class MonitorManagement {
 
     // if the old policy had been overriding another one using the same monitorId, find the other one
     List<UUID>  newPolicyIds = effectivePolicies.stream()
-        .filter(p -> event.getMonitorId() != null)
-        .filter(p -> p.getMonitorId().equals(monitorId))
+        .filter(p -> Objects.equals(p.getMonitorId(), monitorId))
         .map(PolicyDTO::getId)
         .collect(Collectors.toList());
 
