@@ -33,7 +33,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -969,8 +968,7 @@ public class MonitorManagementPolicyTest {
 
   /**
    * Receive a remove monitor policy event and process it for a tenant
-   * that was previously using the policy and its entry in monitor_policies having
-   * null as monitor id
+   * that was previously using the policy but the monitor is not found
    *
    */
   @Test
@@ -986,11 +984,12 @@ public class MonitorManagementPolicyTest {
         .setMonitorId(null)
         .setId(policyId));
 
-    doReturn(list).when(policyApi).getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean());
+    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean())).thenReturn(list);
 
     PageRequest pageRequest = PageRequest.of(0, 1000);
 
-    doReturn(Page.empty()).when(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -1000,6 +999,10 @@ public class MonitorManagementPolicyTest {
 
     // policy monitor no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+
+    verify(policyApi).getEffectiveMonitorPoliciesForTenant(tenantId, false);
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
+    verifyNoMoreInteractions(boundMonitorRepository, policyApi, monitorEventProducer);
   }
 
   /**
