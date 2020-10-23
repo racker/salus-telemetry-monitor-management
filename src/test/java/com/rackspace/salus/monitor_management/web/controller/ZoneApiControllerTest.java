@@ -44,6 +44,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
@@ -60,6 +61,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,6 +101,9 @@ public class ZoneApiControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    ZoneStorage zoneStorage;
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -740,5 +745,64 @@ public class ZoneApiControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message",
                 equalTo("One or more field validations failed: name")));
+    }
+
+    @Test
+    public void testGetExpiredPollerPublicZone() throws Exception {
+
+        when(zoneStorage.getExpiredPollerResourceIdsInZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(List.of("r-1", "r-2")));
+
+        ResolvedZone resolvedZone = ResolvedZone.createPublicZone("public/testPublicZone");
+        final MvcResult result = mvc.perform(
+            get("/api/admin/detached-pollers/{name}",
+                "public/testPublicZone"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("*").value(Matchers.containsInAnyOrder("r-1", "r-2")));
+
+        verify(zoneStorage).getExpiredPollerResourceIdsInZone(resolvedZone);
+    }
+
+    @Test
+    public void testGetExpiredPollerPrivateZone() throws Exception {
+
+        when(zoneStorage.getExpiredPollerResourceIdsInZone(any()))
+            .thenReturn(CompletableFuture.completedFuture(List.of("r-1", "r-2")));
+
+        ResolvedZone resolvedZone = ResolvedZone.createPrivateZone("t-1", "testZone");
+
+        final MvcResult result = mvc.perform(
+            get("/api/tenant/{tenantId}/detached-pollers/{zone}",
+                "t-1", "testZone"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("*").value(Matchers.containsInAnyOrder("r-1", "r-2")));
+
+        verify(zoneStorage).getExpiredPollerResourceIdsInZone(resolvedZone);
+
+        final MvcResult res = mvc.perform(
+            get("/api/tenant/{tenantId}/detached-pollers",
+                "t-1"
+            )
+        )
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(res))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("*").value(Matchers.containsInAnyOrder("r-1", "r-2")));
+
+        verify(zoneStorage).getExpiredPollerResourceIdsInZone(resolvedZone);
     }
 }

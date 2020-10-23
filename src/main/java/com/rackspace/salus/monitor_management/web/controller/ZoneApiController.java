@@ -27,6 +27,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -71,10 +72,13 @@ public class ZoneApiController {
 
   private ZoneManagement zoneManagement;
   private final MonitorManagement monitorManagement;
+  private ZoneStorage zoneStorage;
 
-  public ZoneApiController(ZoneManagement zoneManagement, MonitorManagement monitorManagement) {
+  public ZoneApiController(ZoneManagement zoneManagement, MonitorManagement monitorManagement,
+      ZoneStorage zoneStorage) {
     this.zoneManagement = zoneManagement;
     this.monitorManagement = monitorManagement;
+    this.zoneStorage = zoneStorage;
   }
 
   @GetMapping("/tenant/{tenantId}/zones/**")
@@ -258,5 +262,20 @@ public class ZoneApiController {
   @ApiOperation(value = "Delete all zones associated with given tenant")
   public void deleteTenantZones(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
         zoneManagement.removeAllTenantZones(tenantId, sendEvents);
+  }
+
+  @GetMapping("/admin/detached-pollers/**")
+  public CompletableFuture<List<String>> getExpiredPollerAdmin(HttpServletRequest request) {
+    String zone = extractPublicZoneNameFromUri(request);
+    ResolvedZone resolvedZone = ResolvedZone.createPublicZone(zone);
+    return zoneStorage.getExpiredPollerResourceIdsInZone(resolvedZone);
+  }
+
+  @GetMapping(value = {"/tenant/{tenantId}/detached-pollers/{zone}", "/tenant/{tenantId}/detached-pollers"})
+  public CompletableFuture<List<String>> getExpiredPollerPublic(@PathVariable String tenantId,
+      @PathVariable Optional<String> zone) {
+    String zoneName = zone.orElse("");
+    ResolvedZone resolvedZone = ResolvedZone.createPrivateZone(tenantId, zoneName);
+    return zoneStorage.getExpiredPollerResourceIdsInZone(resolvedZone);
   }
 }
