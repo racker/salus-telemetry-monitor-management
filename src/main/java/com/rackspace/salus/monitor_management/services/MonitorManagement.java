@@ -22,7 +22,6 @@ import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
-import brave.Tracer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
@@ -61,8 +60,8 @@ import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.JobStatus;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -1395,14 +1394,18 @@ public class MonitorManagement {
 
     String tenantId = event.getTenantId();
     UUID policyId = event.getPolicyId();
-    UUID monitorId = event.getMonitorId();
+    MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
 
-    if (monitorId == null) {
+    if (policy != null) {
+      // if policy exists do not trust the monitorId in the event is up to date
+      // delays in processing can occur.
+      event.setMonitorId(policy.getMonitorId());
+    }
+    if (event.getMonitorId() == null) {
       handlePolicyOptOutEvent(event);
       return;
     }
 
-    MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
     Monitor clonedMonitorForEventPolicy = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId)
         .orElse(null);
 
@@ -1909,7 +1912,7 @@ public class MonitorManagement {
       return new HashSet<>();
     }
     Pageable pageRequest = PageRequest.of(0, 1000);
-    Page<BoundMonitor> boundMonitors =boundMonitorRepository
+    Page<BoundMonitor> boundMonitors = boundMonitorRepository
         .findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, pageRequest);
     Set<String> extractedEnvoyIds = new HashSet<>();
 

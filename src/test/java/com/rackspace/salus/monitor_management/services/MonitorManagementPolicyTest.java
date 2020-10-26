@@ -62,6 +62,7 @@ import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
+import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -967,12 +968,15 @@ public class MonitorManagementPolicyTest {
   }
 
   /**
-   * Receive a remove monitor policy event and process it for a tenant
-   * that was previously using the policy but the monitor is not found
+   * Process a MonitorPolicyEvent that contains outdated details.
    *
+   * Receives a policy event for a policy that has since been updated to be an opt-out policy.
+   *
+   * The service should ignore the specific values in the kafka event and instead rely
+   * on what is stored in the database.
    */
   @Test
-  public void testHandleMonitorPolicyEvent_removePolicy_null_monitor_id() {
+  public void testHandleMonitorPolicyEvent_optOut_lateProcessing() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
     UUID policyMonitorId = currentMonitor.getId();
@@ -984,12 +988,24 @@ public class MonitorManagementPolicyTest {
         .setMonitorId(null)
         .setId(policyId));
 
-    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean())).thenReturn(list);
+    // return the opt-out policy from the db
+    when(monitorPolicyRepository.findById(any()))
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(null)));
+
+    // this returns empty since we exclude null policies
+    when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
+        .thenReturn(Collections.emptyList());
 
     PageRequest pageRequest = PageRequest.of(0, 1000);
 
-    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
-        .thenReturn(Page.empty());
+    // return the bound monitors associated to the cloned monitor
+    BoundMonitor b = new BoundMonitor()
+        .setMonitor(clonedMonitor)
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(b)))
+        .thenReturn(Page.empty()); // this page is returned after the first is removed
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -997,12 +1013,16 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant
+    // despite the event containing a monitorId, the cloned monitor should be removed
+    // due to the policy having a null monitorId in the db
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
 
-    verify(policyApi).getEffectiveMonitorPoliciesForTenant(tenantId, false);
-    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
-    verifyNoMoreInteractions(boundMonitorRepository, policyApi, monitorEventProducer);
+    verify(policyApi).getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
+    verify(monitorPolicyRepository).findById(policyId);
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(b));
+    verify(boundMonitorRepository, times(2)).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
+    verify(monitorEventProducer).sendMonitorEvent(new MonitorBoundEvent().setEnvoyId("e-1"));
+    verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, policyApi, monitorEventProducer);
   }
 
   /**
