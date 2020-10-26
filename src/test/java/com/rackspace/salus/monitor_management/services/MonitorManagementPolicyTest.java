@@ -976,7 +976,7 @@ public class MonitorManagementPolicyTest {
    * on what is stored in the database.
    */
   @Test
-  public void testHandleMonitorPolicyEvent_optOut_lateProcessing() {
+  public void testHandleMonitorPolicyEvent_lateProcessing() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
     UUID policyMonitorId = currentMonitor.getId();
@@ -1026,12 +1026,14 @@ public class MonitorManagementPolicyTest {
   }
 
   /**
-   * Receive a remove monitor policy event and process it for a tenant
-   * that was previously using an effective policy which is not in effect and
-   * having a null monitor id against it
+   * Receive a remove monitor policy event for a tenant whose only remaining policy
+   * is an opt-out policy.
+   *
+   * The null monitorId in the opt-out policy should not cause any problems and the newly
+   * removed policy should trigger the previously stored monitor to be deleted.
    */
   @Test
-  public void testHandleMonitorPolicyEvent_removePolicy_null_monitor_id_for_unrelated_policy() {
+  public void testHandleMonitorPolicyEvent_removePolicy_unrelatedOptOutHasNoEffect() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
     UUID policyMonitorId = currentMonitor.getId();
@@ -1040,17 +1042,17 @@ public class MonitorManagementPolicyTest {
     // store a monitor for the tenant that is tied to the policy in the event
     Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
 
+    // only return the separate opt-out policy
+    // the policy related to the stored monitor has been deleted so will not be returned
     List<MonitorPolicyDTO> list = List.of(
-        (MonitorPolicyDTO) new MonitorPolicyDTO()
-        .setMonitorId(policyMonitorId)
-        .setId(policyId),
         (MonitorPolicyDTO) new MonitorPolicyDTO()
         .setMonitorId(null)
         .setId(anotherPolicyId));
 
-    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean())).thenReturn(list);
-
-    PageRequest pageRequest = PageRequest.of(0, 1000);
+    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean()))
+        .thenReturn(list);
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
+        .thenReturn(Page.empty());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
         .setMonitorId(policyMonitorId)
@@ -1058,11 +1060,14 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant
-    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
+    // no monitors exist for the newly removed policy or the still existing opt-out policy
+    assertTrue(monitorRepository.findById(clonedMonitor.getId()).isEmpty());
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, anotherPolicyId).isEmpty());
 
     verify(policyApi).getEffectiveMonitorPoliciesForTenant(tenantId, false);
+    PageRequest pageRequest = PageRequest.of(0,1000);
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
     verifyNoMoreInteractions(boundMonitorRepository, policyApi, monitorEventProducer);
   }
 
