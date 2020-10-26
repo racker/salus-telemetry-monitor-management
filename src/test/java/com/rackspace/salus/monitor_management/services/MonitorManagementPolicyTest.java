@@ -707,7 +707,7 @@ public class MonitorManagementPolicyTest {
     // handle initial lookup to see if policy exists
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
-            .setMonitorId(UUID.randomUUID())
+            .setMonitorId(policyMonitorId)
             .setName(RandomStringUtils.randomAlphabetic(5))
             .setId(policyId)
             .setScope(PolicyScope.GLOBAL)));
