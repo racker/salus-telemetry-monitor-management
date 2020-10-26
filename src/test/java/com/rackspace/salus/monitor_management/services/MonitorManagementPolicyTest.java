@@ -968,8 +968,47 @@ public class MonitorManagementPolicyTest {
 
   /**
    * Receive a remove monitor policy event and process it for a tenant
-   * that was previously using the policy which is not in effect and
-   * having a null monitor id
+   * that was previously using the policy but the monitor is not found
+   *
+   */
+  @Test
+  public void testHandleMonitorPolicyEvent_removePolicy_null_monitor_id() {
+    String tenantId = RandomStringUtils.randomAlphanumeric(10);
+    UUID policyId = UUID.randomUUID();
+    UUID policyMonitorId = currentMonitor.getId();
+
+    // store a monitor for the tenant that is tied to the policy in the event
+    Monitor clonedMonitor = createMonitorForPolicyForTenant(tenantId, policyId);
+
+    List<MonitorPolicyDTO> list = List.of((MonitorPolicyDTO) new MonitorPolicyDTO()
+        .setMonitorId(null)
+        .setId(policyId));
+
+    when(policyApi.getEffectiveMonitorPoliciesForTenant(anyString(), anyBoolean())).thenReturn(list);
+
+    PageRequest pageRequest = PageRequest.of(0, 1000);
+
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
+        .thenReturn(Page.empty());
+
+    MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
+        .setMonitorId(policyMonitorId)
+        .setTenantId(tenantId)
+        .setPolicyId(policyId);
+    monitorManagement.handleMonitorPolicyEvent(event);
+
+    // policy monitor no longer exists on tenant
+    assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
+
+    verify(policyApi).getEffectiveMonitorPoliciesForTenant(tenantId, false);
+    verify(boundMonitorRepository).findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest);
+    verifyNoMoreInteractions(boundMonitorRepository, policyApi, monitorEventProducer);
+  }
+
+  /**
+   * Receive a remove monitor policy event and process it for a tenant
+   * that was previously using an effective policy which is not in effect and
+   * having a null monitor id against it
    */
   @Test
   public void testHandleMonitorPolicyEvent_removePolicy_null_monitor_id_for_unrelated_policy() {
