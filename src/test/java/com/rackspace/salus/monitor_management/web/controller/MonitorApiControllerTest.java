@@ -242,7 +242,7 @@ public class MonitorApiControllerTest {
     monitor.setContent("{\"type\":\"mem\"}");
     monitor.setTenantId(POLICY_TENANT);
 
-    when(monitorManagement.getPolicyMonitor(any()))
+    when(monitorManagement.getMonitorTemplate(any()))
         .thenReturn(Optional.of(monitor));
 
     String url = String.format("/api/admin/policy-monitors/%s", monitor.getId());
@@ -253,13 +253,13 @@ public class MonitorApiControllerTest {
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
 
-    verify(monitorManagement).getPolicyMonitor(monitor.getId());
+    verify(monitorManagement).getMonitorTemplate(monitor.getId());
     verifyNoMoreInteractions(monitorManagement);
   }
 
   @Test
   public void testGetPolicyMonitor_doesntExist() throws Exception {
-    when(monitorManagement.getPolicyMonitor(any()))
+    when(monitorManagement.getMonitorTemplate(any()))
         .thenReturn(Optional.empty());
 
     UUID id = UUID.randomUUID();
@@ -270,7 +270,7 @@ public class MonitorApiControllerTest {
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
 
-    verify(monitorManagement).getPolicyMonitor(id);
+    verify(monitorManagement).getMonitorTemplate(id);
     verifyNoMoreInteractions(monitorManagement);
   }
 
@@ -644,9 +644,9 @@ public class MonitorApiControllerTest {
     monitor.setLabelSelector(Map.of("os", "linux"));
     monitor.setInterval(Duration.ofSeconds(60));
 
-    when(monitorManagement.getPolicyMonitor(any()))
+    when(monitorManagement.getMonitorTemplate(any()))
         .thenReturn(Optional.of(monitor));
-    when(monitorManagement.updatePolicyMonitor(any(), any(), anyBoolean()))
+    when(monitorManagement.updateMonitorTemplate(any(), any(), anyBoolean()))
         .thenReturn(monitor);
 
     UUID id = monitor.getId();
@@ -668,7 +668,7 @@ public class MonitorApiControllerTest {
     // Basic verification that the expected method was called with the patchOperation value provided.
     // In this case mockito had issues when argThat was used to validate params, so I opted
     // for even more generic validation.
-    verify(monitorManagement).updatePolicyMonitor(any(), any(), anyBoolean());
+    verify(monitorManagement).updateMonitorTemplate(any(), any(), anyBoolean());
   }
 
   @Test
