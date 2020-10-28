@@ -60,8 +60,8 @@ import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
-import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.JobStatus;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -159,6 +159,7 @@ public class MonitorManagement {
   private final Counter.Builder invalidTemplateErrors;
   private final Counter.Builder boundMonitorSaveErrors;
   private final Counter.Builder createMonitorSuccess;
+  private final Counter.Builder policyRemvalErrors;
 
   @Autowired
   public MonitorManagement(
@@ -206,6 +207,7 @@ public class MonitorManagement {
     policyIntegrityErrors = Counter.builder("policy_integrity").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     invalidTemplateErrors = Counter.builder("template_errors").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     boundMonitorSaveErrors = Counter.builder("bound_monitor_jpa_error").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
+    policyRemvalErrors = Counter.builder("policy_removal_errors").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
   }
 
   /**
@@ -1398,14 +1400,18 @@ public class MonitorManagement {
 
     String tenantId = event.getTenantId();
     UUID policyId = event.getPolicyId();
-    UUID monitorId = event.getMonitorId();
+    MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
 
-    if (monitorId == null) {
+    if (policy != null) {
+      // if policy exists do not trust the monitorId in the event is up to date
+      // delays in processing can occur.
+      event.setMonitorId(policy.getMonitorId());
+    }
+    if (event.getMonitorId() == null) {
       handlePolicyOptOutEvent(event);
       return;
     }
 
-    MonitorPolicy policy = monitorPolicyRepository.findById(policyId).orElse(null);
     Monitor clonedMonitorForEventPolicy = monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId)
         .orElse(null);
 
@@ -1502,8 +1508,8 @@ public class MonitorManagement {
     List<MonitorPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorPoliciesForTenant(tenantId, false);
 
     // if the old policy had been overriding another one using the same monitorId, find the other one
-    List<UUID> newPolicyIds = effectivePolicies.stream()
-        .filter(p -> p.getMonitorId().equals(monitorId))
+    List<UUID>  newPolicyIds = effectivePolicies.stream()
+        .filter(p -> Objects.equals(p.getMonitorId(), monitorId))
         .map(PolicyDTO::getId)
         .collect(Collectors.toList());
 
@@ -1514,13 +1520,17 @@ public class MonitorManagement {
     }
 
     if (newPolicyIds.size() > 1) {
-      log.error("More than one effective policy configured to use the same monitorId={} for tenant={}",
+      log.error(
+          "More than one effective policy configured to use the same monitorId={} for tenant={}",
           monitorId, tenantId);
-      policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", "reason", "tooManyClones")
+      policyIntegrityErrors
+          .tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", "reason",
+              "tooManyClones")
           .register(meterRegistry).increment();
     }
     UUID newPolicyId = newPolicyIds.get(0);
-    log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor, newPolicyId);
+    log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor,
+        newPolicyId);
     clonedMonitor.setPolicyId(newPolicyId);
     monitorRepository.save(clonedMonitor);
   }
@@ -1908,7 +1918,7 @@ public class MonitorManagement {
       return new HashSet<>();
     }
     Pageable pageRequest = PageRequest.of(0, 1000);
-    Page<BoundMonitor> boundMonitors =boundMonitorRepository
+    Page<BoundMonitor> boundMonitors = boundMonitorRepository
         .findAllByTenantIdAndMonitor_IdIn(tenantId, monitorIdsToUnbind, pageRequest);
     Set<String> extractedEnvoyIds = new HashSet<>();
 
