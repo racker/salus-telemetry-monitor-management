@@ -571,7 +571,7 @@ public class MonitorManagement_ZoneBindingsTest {
     rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
     rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
 
-    when(zoneAllocationResolver.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(rawCounts));
 
     // EXECUTE
@@ -587,7 +587,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
     ));
 
-    verify(zoneAllocationResolver).getZoneBindingCounts(
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(
         ResolvedZone.createPrivateZone("t-1", "z-1")
     );
 
@@ -605,7 +605,7 @@ public class MonitorManagement_ZoneBindingsTest {
     final Monitor monitor = persistNewMonitor(tenantId, "z-1");
     Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(monitor, "z-1");
 
-    when(zoneAllocationResolver.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
     when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
@@ -620,7 +620,7 @@ public class MonitorManagement_ZoneBindingsTest {
     // VERIFY
 
     final ResolvedZone zone = createPrivateZone(tenantId, "z-1");
-    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -646,7 +646,7 @@ public class MonitorManagement_ZoneBindingsTest {
     Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(
         monitor, "public/west");
 
-    when(zoneAllocationResolver.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
     when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
@@ -664,7 +664,7 @@ public class MonitorManagement_ZoneBindingsTest {
     assertThat(reassigned, equalTo(2));
 
     final ResolvedZone zone = createPublicZone("public/west");
-    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -691,7 +691,7 @@ public class MonitorManagement_ZoneBindingsTest {
     final Map<EnvoyResourcePair, Integer> counts = persistBindingsToRebalance(
         monitor, "public/west");
 
-    when(zoneAllocationResolver.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(counts));
 
     when(zoneAllocationResolver.findLeastLoadedEnvoy(any()))
@@ -709,7 +709,7 @@ public class MonitorManagement_ZoneBindingsTest {
     assertThat(reassigned, equalTo(3));
 
     final ResolvedZone zone = createPublicZone("public/west");
-    verify(zoneAllocationResolver).getZoneBindingCounts(zone);
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(zone);
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
@@ -727,7 +727,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
   @Test
   public void testRebalanceZone_emptyZone() {
-    when(zoneAllocationResolver.getZoneBindingCounts(any()))
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(
             Collections.emptyMap()
         ));
@@ -741,7 +741,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
     assertThat(reassigned, equalTo(0));
 
-    verify(zoneAllocationResolver).getZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(ResolvedZone.createPrivateZone("t-1", "z-1"));
 
     verifyNoMoreInteractions(envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver

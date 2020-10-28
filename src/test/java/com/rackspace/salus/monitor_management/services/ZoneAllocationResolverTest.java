@@ -355,7 +355,7 @@ public class ZoneAllocationResolverTest {
     // EXECUTE
 
     final Map<EnvoyResourcePair, Integer> result = zoneAllocationResolver
-        .getZoneBindingCounts(zone)
+        .getActiveZoneBindingCounts(zone)
         .join();
 
     // VERIFY

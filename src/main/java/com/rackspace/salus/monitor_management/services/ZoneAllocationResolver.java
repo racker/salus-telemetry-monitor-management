@@ -21,6 +21,7 @@ import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -56,7 +57,8 @@ public class ZoneAllocationResolver {
   private final EntityManager entityManager;
 
   private final Map<ResolvedZone, CompletableFuture<Map<String, String>>> resourceIdToEnvoyIdSnapshot = new HashMap<>();
-  private final Map<ResolvedZone, CompletableFuture<Map<String, Integer>>> pollerCountSnapshot = new HashMap<>();
+  private final Map<ResolvedZone, CompletableFuture<Map<String, Integer>>> activePollerCountSnapshot = new HashMap<>();
+  private final Map<ResolvedZone, CompletableFuture<Map<String, Integer>>> expiredPollerCountSnapshot = new HashMap<>();
 
   @Autowired
   public ZoneAllocationResolver(ZoneStorage zoneStorage, EntityManager entityManager) {
@@ -76,7 +78,7 @@ public class ZoneAllocationResolver {
   public Optional<EnvoyResourcePair> findLeastLoadedEnvoy(ResolvedZone zone) {
 
     // Get the (cached) poller-envoy binding counts for the zone
-    return getPollerResourceCounts(zone)
+    return getActivePollerResourceCounts(zone)
         .thenCompose(pollerResourceCounts ->
             // ...and get a mapping of poller resourceIds to current envoyIds
             getResourceIdToEnvoyIdMap(zone)
@@ -100,10 +102,17 @@ public class ZoneAllocationResolver {
         .join();
   }
 
-  private CompletableFuture<Map<String, Integer>> getPollerResourceCounts(ResolvedZone zone) {
-    return pollerCountSnapshot.computeIfAbsent(
+  private CompletableFuture<Map<String, Integer>> getActivePollerResourceCounts(ResolvedZone zone) {
+    return activePollerCountSnapshot.computeIfAbsent(
         zone,
-        this::retrievePollerResourceCounts
+        this::retrieveActivePollerResourceCounts
+    );
+  }
+
+  private CompletableFuture<Map<String, Integer>> getExpiredPollerResourceCounts(ResolvedZone zone) {
+    return expiredPollerCountSnapshot.computeIfAbsent(
+        zone,
+        this::retrieveExpiredPollerResourceCounts
     );
   }
 
@@ -113,9 +122,34 @@ public class ZoneAllocationResolver {
    * @param zone the zone to retrieve
    * @return mapping of envoy-pollers to bound monitor counts
    */
-  public CompletableFuture<Map<EnvoyResourcePair, Integer>> getZoneBindingCounts(ResolvedZone zone) {
+  public CompletableFuture<Map<EnvoyResourcePair, Integer>> getActiveZoneBindingCounts(ResolvedZone zone) {
     // Combine the poller counts by resourceId
-    return getPollerResourceCounts(zone)
+    return getActivePollerResourceCounts(zone)
+        .thenCompose(pollerResourceCounts ->
+            // ...with the resourceId to envoyId mappings
+            getResourceIdToEnvoyIdMap(zone)
+                .thenApply(resourceIdToEnvoyIdMap ->
+                    // ...and re-map each key into an EnvoyResourcePair
+                    pollerResourceCounts.entrySet().stream()
+                        .collect(Collectors.toMap(
+                            entry ->
+                                new EnvoyResourcePair()
+                                    .setResourceId(entry.getKey())
+                                    .setEnvoyId(resourceIdToEnvoyIdMap.get(entry.getKey())),
+                            Entry::getValue
+                        ))
+                ));
+  }
+
+  /**
+   * Returns a map of expired poller-envoys to number of monitors bound to each.
+   *
+   * @param zone the zone to retrieve
+   * @return mapping of envoy-pollers to bound monitor counts
+   */
+  public CompletableFuture<Map<EnvoyResourcePair, Integer>> getExpiredZoneBindingCounts(ResolvedZone zone) {
+    // Combine the poller counts by resourceId
+    return getExpiredPollerResourceCounts(zone)
         .thenCompose(pollerResourceCounts ->
             // ...with the resourceId to envoyId mappings
             getResourceIdToEnvoyIdMap(zone)
@@ -138,44 +172,14 @@ public class ZoneAllocationResolver {
    * @param zone the zone to retrieve
    * @return a mutable map of envoy-poller resourceId to binding counts
    */
-  private CompletableFuture<Map<String, Integer>> retrievePollerResourceCounts(ResolvedZone zone) {
+  private CompletableFuture<Map<String, Integer>> retrieveActivePollerResourceCounts(
+      ResolvedZone zone) {
     return zoneStorage.getActivePollerResourceIdsInZone(zone)
         .thenApply(activePollerResources -> {
-          // Start with a count of 0 for all active poller resource IDs
-          // ...that ensures that pollers with no bindings are considered
-          final Map<String, Integer> pollerResourceLoading = new HashMap<>(
-              activePollerResources.size());
-          for (String resourceId : activePollerResources) {
-            pollerResourceLoading.put(resourceId, 0);
+          if (!activePollerResources.isEmpty()) {
+            return getPollerResourcesCounts(zone, activePollerResources);
           }
-
-          // Count bindings per poller resource ID
-          final TypedQuery<Tuple> query;
-          if (zone.isPublicZone()) {
-            query = entityManager
-                .createNamedQuery("BoundMonitor.publicPollerLoading", Tuple.class)
-                .setParameter("zoneName", zone.getName());
-          } else {
-            query = entityManager
-                .createNamedQuery("BoundMonitor.privatePollerLoading", Tuple.class)
-                .setParameter("tenantId", zone.getTenantId())
-                .setParameter("zoneName", zone.getName());
-          }
-
-          // Merge bindings counts into the active poller mappings
-
-          query
-              .getResultList()
-              .forEach(tuple -> {
-                pollerResourceLoading.put(
-                    // resourceId
-                    (String) tuple.get(0),
-                    // count
-                    ((Number) tuple.get(1)).intValue()
-                );
-              });
-
-          return pollerResourceLoading;
+          return new HashMap<String, Integer>();
         });
   }
 
@@ -184,5 +188,56 @@ public class ZoneAllocationResolver {
         zone,
         zoneStorage::getResourceIdToEnvoyIdMap
     );
+  }
+
+  private CompletableFuture<Map<String, Integer>> retrieveExpiredPollerResourceCounts(
+      ResolvedZone zone) {
+    return zoneStorage.getExpiredPollerResourceIdsInZone(zone)
+        .thenApply(expiredPollerResources -> {
+          if (!expiredPollerResources.isEmpty()) {
+            return getPollerResourcesCounts(zone, expiredPollerResources);
+          }
+          return new HashMap<String, Integer>();
+        });
+  }
+
+  private Map<String, Integer> getPollerResourcesCounts(ResolvedZone zone,
+      List<String> activePollerResources) {
+
+    // Start with a count of 0 for all active poller resource IDs
+    // ...that ensures that pollers with no bindings are considered
+    final Map<String, Integer> pollerResourceLoading = new HashMap<>(
+        activePollerResources.size());
+    for (String resourceId : activePollerResources) {
+      pollerResourceLoading.put(resourceId, 0);
+    }
+
+    // Count bindings per poller resource ID
+    final TypedQuery<Tuple> query;
+    if (zone.isPublicZone()) {
+      query = entityManager
+          .createNamedQuery("BoundMonitor.publicPollerLoading", Tuple.class)
+          .setParameter("zoneName", zone.getName());
+    } else {
+      query = entityManager
+          .createNamedQuery("BoundMonitor.privatePollerLoading", Tuple.class)
+          .setParameter("tenantId", zone.getTenantId())
+          .setParameter("zoneName", zone.getName());
+    }
+
+    // Merge bindings counts into the active poller mappings
+
+    query
+        .getResultList()
+        .forEach(tuple -> {
+          pollerResourceLoading.put(
+              // resourceId
+              (String) tuple.get(0),
+              // count
+              ((Number) tuple.get(1)).intValue()
+          );
+        });
+
+    return pollerResourceLoading;
   }
 }

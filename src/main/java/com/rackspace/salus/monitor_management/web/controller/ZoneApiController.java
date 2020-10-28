@@ -37,6 +37,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.servlet.http.HttpServletRequest;
@@ -141,13 +142,19 @@ public class ZoneApiController {
   @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
   public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
-      @PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
+      @PathVariable String tenantId, @PathVariable @PrivateZoneName Optional<String> name) {
 
-    if (!zoneManagement.exists(tenantId, name)) {
-      throw new NotFoundException(String.format("No private zone found named %s", name));
-    }
+    String zoneName = name.orElse("");
 
-    return monitorManagement.getZoneAssignmentCounts(tenantId, name);
+    return monitorManagement.getZoneAssignmentCounts(tenantId, zoneName);
+  }
+
+  @GetMapping("/tenant/{tenantId}/zone-assignment-counts")
+  @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in all the private zones of a tenant")
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPrivateZoneAssignmentCountsPerTenant(
+      @PathVariable String tenantId) {
+
+    return monitorManagement.getAssignmentCountForTenant(tenantId);
   }
 
   @GetMapping("/admin/zone-assignment-counts/**")
@@ -162,6 +169,12 @@ public class ZoneApiController {
     }
 
     return monitorManagement.getZoneAssignmentCounts(null, name);
+  }
+
+  @GetMapping("/admin/zone-assignment-counts")
+  @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys for all the public zones")
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPublicZoneAssignmentCountsPerTenant() {
+    return monitorManagement.getAssignmentCountForTenant(ResolvedZone.PUBLIC);
   }
 
   @PostMapping("/tenant/{tenantId}/zones")
@@ -262,20 +275,5 @@ public class ZoneApiController {
   @ApiOperation(value = "Delete all zones associated with given tenant")
   public void deleteTenantZones(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
         zoneManagement.removeAllTenantZones(tenantId, sendEvents);
-  }
-
-  @GetMapping("/admin/detached-pollers/**")
-  public CompletableFuture<List<String>> getExpiredPollerAdmin(HttpServletRequest request) {
-    String zone = extractPublicZoneNameFromUri(request);
-    ResolvedZone resolvedZone = ResolvedZone.createPublicZone(zone);
-    return zoneStorage.getExpiredPollerResourceIdsInZone(resolvedZone);
-  }
-
-  @GetMapping(value = {"/tenant/{tenantId}/detached-pollers/{zone}", "/tenant/{tenantId}/detached-pollers"})
-  public CompletableFuture<List<String>> getExpiredPollerPublic(@PathVariable String tenantId,
-      @PathVariable Optional<String> zone) {
-    String zoneName = zone.orElse("");
-    ResolvedZone resolvedZone = ResolvedZone.createPrivateZone(tenantId, zoneName);
-    return zoneStorage.getExpiredPollerResourceIdsInZone(resolvedZone);
   }
 }

@@ -23,4 +23,5 @@ public class ZoneAssignmentCount {
   String resourceId;
   String envoyId;
   int assignments;
+  boolean connected;
 }

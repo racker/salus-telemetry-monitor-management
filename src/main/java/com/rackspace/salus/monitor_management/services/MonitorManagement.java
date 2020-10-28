@@ -22,7 +22,6 @@ import static com.rackspace.salus.telemetry.entities.Resource.REGION_METADATA;
 import static com.rackspace.salus.telemetry.etcd.types.ResolvedZone.resolveZone;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
-import brave.Tracer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Streams;
 import com.google.common.math.Stats;
@@ -73,6 +72,7 @@ import com.rackspace.salus.telemetry.repositories.JobRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
@@ -91,6 +91,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -150,6 +151,8 @@ public class MonitorManagement {
 
   JobRepository jobRepository;
 
+  ZoneRepository zoneRepository;
+
   // metrics counters
   private final Counter.Builder orphanedBoundMonitorRemoved;
   private final Counter.Builder policyIntegrityErrors;
@@ -173,7 +176,8 @@ public class MonitorManagement {
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
       JdbcTemplate jdbcTemplate,
-      JobRepository jobRepository)
+      JobRepository jobRepository,
+      ZoneRepository zoneRepository)
       throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
@@ -195,6 +199,7 @@ public class MonitorManagement {
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
     this.jobRepository = jobRepository;
     this.meterRegistry = meterRegistry;
+    this.zoneRepository = zoneRepository;
     createMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
         MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     orphanedBoundMonitorRemoved = Counter.builder("orphaned").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
@@ -2096,18 +2101,36 @@ public class MonitorManagement {
       @Nullable String zoneTenantId, String zoneName) {
 
     final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
+    ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
 
-    return zoneAllocationResolverFactory.create()
-        .getZoneBindingCounts(zone)
-        .thenApply(bindingCounts ->
-            bindingCounts.entrySet().stream()
-                .map(entry ->
-                    new ZoneAssignmentCount()
-                        .setResourceId(entry.getKey().getResourceId())
-                        .setEnvoyId(entry.getKey().getEnvoyId())
-                        .setAssignments(entry.getValue()))
-                .collect(Collectors.toList()));
+    return zoneAllocationResolver.getActiveZoneBindingCounts(zone)
+        .thenApply(bindingCounts -> getZoneAssingmentPollerCount(bindingCounts, true))
+        .thenApply(pollerCounts -> {
+          pollerCounts.addAll(getZoneAssingmentPollerCount(
+              zoneAllocationResolver.getExpiredZoneBindingCounts(zone).join(), false));
+          return pollerCounts;
+        });
   }
+
+  /**
+   * This method maps the bindingcount map to the ZoneAssignmentCount list.
+   *
+   * @param bindingCounts
+   * @param isConnected
+   * @return
+   */
+  public List<ZoneAssignmentCount> getZoneAssingmentPollerCount(
+      Map<EnvoyResourcePair, Integer> bindingCounts, boolean isConnected) {
+    return bindingCounts.entrySet().stream()
+        .map(entry ->
+            new ZoneAssignmentCount()
+                .setResourceId(entry.getKey().getResourceId())
+                .setEnvoyId(entry.getKey().getEnvoyId())
+                .setAssignments(entry.getValue())
+                .setConnected(isConnected))
+        .collect(Collectors.toList());
+  }
+
 
   /**
    * Rebalances a zone by re-assigning bound monitors from envoys that are over-assigned
@@ -2122,7 +2145,7 @@ public class MonitorManagement {
     log.info("Rebalancing zone={}", zone);
 
     return zoneAllocationResolverFactory.create()
-        .getZoneBindingCounts(zone)
+        .getActiveZoneBindingCounts(zone)
         .thenApply(bindingCounts ->
             rebalanceWithZoneBindingCounts(zone, bindingCounts)
         );
@@ -2351,5 +2374,27 @@ public class MonitorManagement {
     job.setStatus(jobStatus);
     job.setDescription(description);
     jobRepository.save(job);
+  }
+
+  /**
+   * Gets the zone assignment count for all zones of a tenant.
+   *
+   * @param tenantId
+   * @return
+   */
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getAssignmentCountForTenant(
+      String tenantId) {
+    Page<String> page = zoneRepository.findAllZoneNameForTenant(tenantId, Pageable.unpaged());
+    if (page.isEmpty()) {
+      throw new NotFoundException("No zones present for tenant %s" + tenantId);
+    }
+    Map<String, List<ZoneAssignmentCount>> zoneAssignmentCountMap = new HashMap<>();
+    page.stream().forEach(zone -> {
+      List<ZoneAssignmentCount> assignmentCounts = getZoneAssignmentCounts(tenantId, zone).join();
+      if (!assignmentCounts.isEmpty()) {
+        zoneAssignmentCountMap.put(zone, assignmentCounts);
+      }
+    });
+    return CompletableFuture.completedFuture(zoneAssignmentCountMap);
   }
 }
