@@ -2106,6 +2106,13 @@ public class MonitorManagement {
     handleNewEnvoyInZone(zoneTenantId, zoneName);
   }
 
+  /**
+   * Returns the list of ZoneAssignmentCount for a particular zone of a tenant.
+   *
+   * @param zoneTenantId
+   * @param zoneName
+   * @return
+   */
   public CompletableFuture<List<ZoneAssignmentCount>> getZoneAssignmentCounts(
       @Nullable String zoneTenantId, String zoneName) {
 
@@ -2113,23 +2120,24 @@ public class MonitorManagement {
     ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
 
     return zoneAllocationResolver.getActiveZoneBindingCounts(zone)
-        .thenApply(activePollerMap -> getZoneAssignmentPollerCount(activePollerMap, true))
+        .thenApply(activePollerMap -> mapToZoneAssignmentCount(activePollerMap, true))
         .thenCompose(assignmentCounts -> zoneAllocationResolver.getExpiringZoneBindingCounts(zone)
             .thenApply(envoyResourcePairIntegerMap -> {
               assignmentCounts
-                  .addAll(getZoneAssignmentPollerCount(envoyResourcePairIntegerMap, false));
+                  .addAll(mapToZoneAssignmentCount(envoyResourcePairIntegerMap, false));
               return assignmentCounts;
             }));
   }
 
   /**
-   * This method maps the bindingcount map to the ZoneAssignmentCount list.
+   * This method is used to convert the map of EnvoyResourcePair count to list of
+   * ZoneAssignmentCount.
    *
    * @param bindingCounts
    * @param isConnected
    * @return
    */
-  public List<ZoneAssignmentCount> getZoneAssignmentPollerCount(
+  public List<ZoneAssignmentCount> mapToZoneAssignmentCount(
       Map<EnvoyResourcePair, Integer> bindingCounts, boolean isConnected) {
     return bindingCounts.entrySet().stream()
         .map(entry ->

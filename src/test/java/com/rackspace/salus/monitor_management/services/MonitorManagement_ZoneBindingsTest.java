@@ -1278,6 +1278,7 @@ public class MonitorManagement_ZoneBindingsTest {
 
     ResolvedZone resolvedZone1 = ResolvedZone.createPrivateZone("t-1", "z-1");
     ResolvedZone resolvedZone2 = ResolvedZone.createPrivateZone("t-1", "z-2");
+    ResolvedZone resolvedZone3 = ResolvedZone.createPrivateZone("t-1", "z-3");
 
     Map<EnvoyResourcePair, Integer> activeZoneCountsForZone1 = new HashMap<>();
     activeZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
@@ -1288,11 +1289,12 @@ public class MonitorManagement_ZoneBindingsTest {
     activeZoneCountsForZone2.put(new EnvoyResourcePair().setResourceId("r-4").setEnvoyId("e-4"), 1);
 
     when(zoneRepository.findAllZoneNameForTenant("t-1", Pageable.unpaged()))
-        .thenReturn(new PageImpl<>(List.of("z-1", "z-2")));
+        .thenReturn(new PageImpl<>(List.of("z-1", "z-2", "z-3")));
 
     when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(activeZoneCountsForZone1))
-        .thenReturn(CompletableFuture.completedFuture(activeZoneCountsForZone2));
+        .thenReturn(CompletableFuture.completedFuture(activeZoneCountsForZone2))
+        .thenReturn(CompletableFuture.completedFuture(Collections.emptyMap()));
 
     Map<EnvoyResourcePair, Integer> expiredZoneCountsForZone1 = new HashMap<>();
     expiredZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-5").setEnvoyId("e-5"), 2);
@@ -1304,7 +1306,8 @@ public class MonitorManagement_ZoneBindingsTest {
 
     when(zoneAllocationResolver.getExpiringZoneBindingCounts(any()))
         .thenReturn(CompletableFuture.completedFuture(expiredZoneCountsForZone1))
-        .thenReturn(CompletableFuture.completedFuture(expiredZoneCountsForZone2));
+        .thenReturn(CompletableFuture.completedFuture(expiredZoneCountsForZone2))
+        .thenReturn(CompletableFuture.completedFuture(Collections.emptyMap()));
 
     // EXECUTE
 
@@ -1327,11 +1330,15 @@ public class MonitorManagement_ZoneBindingsTest {
         new ZoneAssignmentCount().setResourceId("r-8").setEnvoyId("e-8").setAssignments(5).setConnected(false)
     ));
 
+    assertThat(counts.get("z-3"), hasSize(0));
+
     verify(zoneAllocationResolver).getActiveZoneBindingCounts(resolvedZone1);
     verify(zoneAllocationResolver).getActiveZoneBindingCounts(resolvedZone2);
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(resolvedZone3);
 
     verify(zoneAllocationResolver).getExpiringZoneBindingCounts(resolvedZone1);
     verify(zoneAllocationResolver).getExpiringZoneBindingCounts(resolvedZone2);
+    verify(zoneAllocationResolver).getExpiringZoneBindingCounts(resolvedZone3);
 
     verifyNoMoreInteractions(envoyResourceManagement,
         zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
