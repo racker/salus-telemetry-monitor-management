@@ -165,7 +165,7 @@ public class MonitorApiController {
   @GetMapping("/tenant/{tenantId}/monitor-templates/{uuid}")
   @ApiOperation(value = "Gets Monitor using template for Tenant")
   public DetailedMonitorOutput getMonitorUsingTemplatesForTenant(
-      @PathVariable String tenantId, UUID uuid)
+      @PathVariable String tenantId, @PathVariable UUID uuid)
       throws NotFoundException {
 
     Monitor monitor = monitorManagement.getMonitorUsingTemplatesForTenant(uuid, tenantId).orElseThrow(() ->
