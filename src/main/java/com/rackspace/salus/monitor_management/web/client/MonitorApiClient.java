@@ -100,14 +100,14 @@ public class MonitorApiClient implements MonitorApi {
   }
 
   @Override
-  public DetailedMonitorOutput getPolicyMonitorById(String monitorId) {
+  public DetailedMonitorOutput getMonitorTemplateById(String monitorId) {
 
     return mapRestClientExceptions(
         SERVICE_NAME,
         () -> {
           try {
             return restTemplate.getForObject(
-                "/api/admin/policy-monitors/{monitorId}",
+                "/api/admin/monitor-templates/{monitorId}",
                 DetailedMonitorOutput.class,
                 monitorId
             );

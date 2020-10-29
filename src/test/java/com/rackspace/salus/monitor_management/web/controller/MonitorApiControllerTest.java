@@ -235,7 +235,7 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testGetPolicyMonitor() throws Exception {
+  public void testGetMonitorTemplate() throws Exception {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
     monitor.setAgentType(AgentType.TELEGRAF);
@@ -245,7 +245,7 @@ public class MonitorApiControllerTest {
     when(monitorManagement.getMonitorTemplate(any()))
         .thenReturn(Optional.of(monitor));
 
-    String url = String.format("/api/admin/policy-monitors/%s", monitor.getId());
+    String url = String.format("/api/admin/monitor-templates/%s", monitor.getId());
 
     mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
@@ -258,12 +258,12 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testGetPolicyMonitor_doesntExist() throws Exception {
+  public void testGetMonitorTemplate_doesntExist() throws Exception {
     when(monitorManagement.getMonitorTemplate(any()))
         .thenReturn(Optional.empty());
 
     UUID id = UUID.randomUUID();
-    String url = String.format("/api/admin/policy-monitors/%s", id);
+    String url = String.format("/api/admin/monitor-templates/%s", id);
 
     mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
@@ -632,7 +632,7 @@ public class MonitorApiControllerTest {
   }
 
   @Test
-  public void testPatchPolicyMonitor() throws Exception {
+  public void testPatchMonitorTemplate() throws Exception {
     Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
     monitor.setId(UUID.randomUUID());
     monitor.setTenantId(POLICY_TENANT);
@@ -650,7 +650,7 @@ public class MonitorApiControllerTest {
         .thenReturn(monitor);
 
     UUID id = monitor.getId();
-    String url = String.format("/api/admin/policy-monitors/%s", id);
+    String url = String.format("/api/admin/monitor-templates/%s", id);
 
     // send an update with a null name and a new interval
     String update = "[{\"op\":\"replace\",\"path\": \"/name\",\"value\":null},"

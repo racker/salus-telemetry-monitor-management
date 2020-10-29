@@ -269,7 +269,7 @@ public class MonitorManagementPolicyTest {
     // There is already one monitor created as default
     assertThat(result.getTotalElements(), equalTo(1L));
 
-    // Create a bunch of policy monitors (one less to account for the default one)
+    // Create a bunch of monitors using templates (one less to account for the default one)
     createMonitorsForTenant(totalMonitors - 1, POLICY_TENANT);
     // and a few more account level monitors
     createMonitors(10);
@@ -325,7 +325,7 @@ public class MonitorManagementPolicyTest {
     );
 
     monitorRepository.saveAll(monitors);
-    Page<Monitor> results = monitorManagement.getAllMonitorTemplatesForTenant(tenantId,
+    Page<Monitor> results = monitorManagement.getAllMonitorsUsingTemplatesForTenant(tenantId,
         PageRequest.of(0, 10));
 
     assertThat(results, notNullValue());
@@ -443,7 +443,7 @@ public class MonitorManagementPolicyTest {
   }
 
   @Test
-  public void testUpdatePolicyMonitor_setResourceId() {
+  public void testUpdateMonitorTemplate_setResourceId() {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
@@ -460,12 +460,12 @@ public class MonitorManagementPolicyTest {
         .setResourceId(RandomStringUtils.randomAlphabetic(10));
 
     exceptionRule.expect(IllegalArgumentException.class);
-    exceptionRule.expectMessage("Policy Monitors must use label selectors and not a resourceId");
+    exceptionRule.expectMessage("Monitor Templates must use label selectors and not a resourceId");
     monitorManagement.updateMonitorTemplate(monitor.getId(), update);
   }
 
   @Test
-  public void testPatchPolicyMonitor_withMetadata() {
+  public void testPatchMonitorTemplate_withMetadata() {
     // make sure the zone we're setting is allowed to be used by this tenant
     List<Zone> zones = Collections.singletonList(new Zone().setName("public/z-1"));
     when(zoneManagement.getAvailableZonesForTenant(anyString(), any()))
@@ -496,14 +496,14 @@ public class MonitorManagementPolicyTest {
         .setResourceId(monitor.getResourceId())
         .setPluginMetadataFields(monitor.getPluginMetadataFields());
 
-    // Policy Monitors do not use policy metadata so this should fail validation
+    // Monitor Templates do not use policy metadata so this should fail validation
     exceptionRule.expect(ConstraintViolationException.class);
     monitorManagement.updateMonitorTemplate(monitor.getId(), update, true);
     entityManager.flush(); // must flush for entity constraint violations to trigger
   }
 
   @Test
-  public void testPatchPolicyMonitor_success() {
+  public void testPatchMonitorTemplate_success() {
     // make sure the zone we're setting is allowed to be used by this tenant
     List<Zone> zones = List.of(new Zone().setName("public/z-1"),
                                new Zone().setName("public/z-2"));
@@ -551,7 +551,7 @@ public class MonitorManagementPolicyTest {
   }
 
   @Test
-  public void testRemovePolicyMonitor() {
+  public void testRemoveMonitorTemplate() {
     final Monitor monitor =
         monitorRepository.save(new Monitor()
             .setAgentType(AgentType.TELEGRAF)
@@ -584,10 +584,10 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshPolicyMonitorsForTenant_noExistingMonitors() {
+  public void testRefreshMonitorUsingTemplatesForTenant_noExistingMonitors() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    // create 2 policy monitors and configure the policy api/db to use them when queried
+    // create 2 monitor templates s and configure the policy api/db to use them when queried
     List<UUID> policyMonitorIds = createMonitorsForTenant(2, POLICY_TENANT);
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
@@ -596,12 +596,12 @@ public class MonitorManagementPolicyTest {
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(1))));
 
-    // no policy monitor exists on tenant
+    // no monitor using templates exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(0));
 
-    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
+    monitorManagement.refreshMonitorUsingTemplatesForTenant(tenantId);
 
-    // policy monitor now exists on tenant
+    // monitor using templates now exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(2));
 
     // cloning methods were called
@@ -615,7 +615,7 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshPolicyMonitorsForTenant_policyAlreadyConfigured() {
+  public void testRefreshMonitorUsingTemplatesForTenant_policyAlreadyConfigured() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
     UUID policyId = UUID.randomUUID();
     UUID monitorId = currentMonitor.getId();
@@ -628,7 +628,7 @@ public class MonitorManagementPolicyTest {
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(monitorId)));
 
-    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
+    monitorManagement.refreshMonitorUsingTemplatesForTenant(tenantId);
 
     // no cloning operations performed
     verifyNoInteractions(boundMonitorRepository, metadataUtils, monitorConversionService);
@@ -640,7 +640,7 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshPolicyMonitorsForTenant_partiallyExistingMonitors() {
+  public void testRefreshMonitorUsingTemplatesForTenant_partiallyExistingMonitors() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
     // create 2 policies and configure one of them on the customer tenant
@@ -653,12 +653,12 @@ public class MonitorManagementPolicyTest {
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorId)));
 
-    // no policy monitor exists on tenant
+    // no monitor using templates exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(1));
 
-    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
+    monitorManagement.refreshMonitorUsingTemplatesForTenant(tenantId);
 
-    // policy monitor now exists on tenant
+    // monitor using templates now exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(2));
 
     // cloning methods were called for one monitor
@@ -674,7 +674,7 @@ public class MonitorManagementPolicyTest {
    * For this test, the tenant has two resources relevant to both of those policies.
    */
   @Test
-  public void testRefreshPolicyMonitorsForTenant_removePolicy() {
+  public void testRefreshMonitorUsingTemplatesForTenant_removePolicy() {
     String tenantId = RandomStringUtils.randomAlphanumeric(10);
     UUID policyId = UUID.randomUUID();
 
@@ -686,9 +686,9 @@ public class MonitorManagementPolicyTest {
     when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(tenantId, List.of(clonedMonitor.getId()), pageRequest))
         .thenReturn(Page.empty());
 
-    monitorManagement.refreshPolicyMonitorsForTenant(tenantId);
+    monitorManagement.refreshMonitorUsingTemplatesForTenant(tenantId);
 
-    // policy monitor no longer exists on tenant
+    //monitor using templates no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
   }
 
@@ -715,7 +715,7 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
 
-    // no policy monitor exists on tenant
+    // no monitor using templates exists on tenant
     assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
@@ -724,7 +724,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor now exists on tenant
+    // monitor using templates now exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
 
     // policy was looked up to see if it exists
@@ -811,7 +811,7 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
 
-    // no policy monitor exists on tenant
+    // no monitor using templates exists on tenant
     assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
 
     MonitorPolicyEvent event = (MonitorPolicyEvent) new MonitorPolicyEvent()
@@ -820,7 +820,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor now exists on tenant
+    // monitor using templates now exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isPresent());
     // no monitors is tied to the old policy
     assertFalse(monitorRepository.findByTenantIdAndPolicyId(tenantId, oldPolicyId).isPresent());
@@ -869,7 +869,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant for original policyId
+    // monitor using templates no longer exists on tenant for original policyId
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
     // but does exist for the other policyId and the monitorId is the same as before
     Optional<Monitor> monitor = monitorRepository.findByTenantIdAndPolicyId(tenantId, preExistingPolicyId);
@@ -930,7 +930,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant
+    // monitor using templates no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
   }
 
@@ -963,7 +963,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(policyId);
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant
+    // monitor using templates no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, policyId).isEmpty());
   }
 
@@ -1075,7 +1075,7 @@ public class MonitorManagementPolicyTest {
    * Receive an opt-out monitor policy event (i.e. monitorId is `null`)  and process it for a tenant
    * that was previously using the policy.
    *
-   * Basically the same as a refreshPolicyMonitorsForTenant test.
+   * Basically the same as a refreshMonitorUsingTemplatesForTenant test.
    */
   @Test
   public void testHandleMonitorPolicyEvent_optOut() {
@@ -1099,7 +1099,7 @@ public class MonitorManagementPolicyTest {
         .setPolicyId(UUID.randomUUID());
     monitorManagement.handleMonitorPolicyEvent(event);
 
-    // policy monitor no longer exists on tenant
+    // monitor using templates no longer exists on tenant
     assertTrue(monitorRepository.findByTenantIdAndPolicyId(tenantId, originalPolicyId).isEmpty());
 
     verify(policyApi).getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
