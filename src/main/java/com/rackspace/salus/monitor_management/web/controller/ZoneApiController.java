@@ -27,6 +27,7 @@ import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
 import com.rackspace.salus.monitor_management.web.model.ZoneUpdate;
 import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.PrivateZoneName;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -36,6 +37,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.servlet.http.HttpServletRequest;
@@ -71,10 +73,13 @@ public class ZoneApiController {
 
   private ZoneManagement zoneManagement;
   private final MonitorManagement monitorManagement;
+  private ZoneStorage zoneStorage;
 
-  public ZoneApiController(ZoneManagement zoneManagement, MonitorManagement monitorManagement) {
+  public ZoneApiController(ZoneManagement zoneManagement, MonitorManagement monitorManagement,
+      ZoneStorage zoneStorage) {
     this.zoneManagement = zoneManagement;
     this.monitorManagement = monitorManagement;
+    this.zoneStorage = zoneStorage;
   }
 
   @GetMapping("/tenant/{tenantId}/zones/**")
@@ -146,6 +151,14 @@ public class ZoneApiController {
     return monitorManagement.getZoneAssignmentCounts(tenantId, name);
   }
 
+  @GetMapping("/tenant/{tenantId}/zone-assignment-counts")
+  @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in all the private zones of a tenant")
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPrivateZoneAssignmentCountsPerTenant(
+      @PathVariable String tenantId) {
+
+    return monitorManagement.getZoneAssignmentCountForTenant(tenantId);
+  }
+
   @GetMapping("/admin/zone-assignment-counts/**")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the public zone")
   public CompletableFuture<List<ZoneAssignmentCount>> getPublicZoneAssignmentCounts(
@@ -158,6 +171,12 @@ public class ZoneApiController {
     }
 
     return monitorManagement.getZoneAssignmentCounts(null, name);
+  }
+
+  @GetMapping("/admin/zone-assignment-counts")
+  @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys for all the public zones")
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPublicZoneAssignmentCountsPerTenant() {
+    return monitorManagement.getZoneAssignmentCountForTenant(ResolvedZone.PUBLIC);
   }
 
   @PostMapping("/tenant/{tenantId}/zones")

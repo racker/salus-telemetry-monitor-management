@@ -72,6 +72,7 @@ import com.rackspace.salus.telemetry.repositories.JobRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorPolicyRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
@@ -149,6 +150,8 @@ public class MonitorManagement {
 
   JobRepository jobRepository;
 
+  ZoneRepository zoneRepository;
+
   // metrics counters
   private final Counter.Builder orphanedBoundMonitorRemoved;
   private final Counter.Builder policyIntegrityErrors;
@@ -173,7 +176,8 @@ public class MonitorManagement {
       MonitorConversionService monitorConversionService,
       MetadataUtils metadataUtils, MeterRegistry meterRegistry,
       JdbcTemplate jdbcTemplate,
-      JobRepository jobRepository)
+      JobRepository jobRepository,
+      ZoneRepository zoneRepository)
       throws IOException {
     this.resourceRepository = resourceRepository;
     this.monitorPolicyRepository = monitorPolicyRepository;
@@ -195,6 +199,7 @@ public class MonitorManagement {
     this.labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/monitor_label_matching_OR_query.sql");
     this.jobRepository = jobRepository;
     this.meterRegistry = meterRegistry;
+    this.zoneRepository = zoneRepository;
     createMonitorSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag(
         MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
     orphanedBoundMonitorRemoved = Counter.builder("orphaned").tag(MetricTags.SERVICE_METRIC_TAG,"MonitorManagement");
@@ -2101,22 +2106,49 @@ public class MonitorManagement {
     handleNewEnvoyInZone(zoneTenantId, zoneName);
   }
 
+  /**
+   * Returns the list of ZoneAssignmentCount for a particular zone of a tenant.
+   *
+   * @param zoneTenantId
+   * @param zoneName
+   * @return
+   */
   public CompletableFuture<List<ZoneAssignmentCount>> getZoneAssignmentCounts(
       @Nullable String zoneTenantId, String zoneName) {
 
     final ResolvedZone zone = resolveZone(zoneTenantId, zoneName);
+    ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
 
-    return zoneAllocationResolverFactory.create()
-        .getZoneBindingCounts(zone)
-        .thenApply(bindingCounts ->
-            bindingCounts.entrySet().stream()
-                .map(entry ->
-                    new ZoneAssignmentCount()
-                        .setResourceId(entry.getKey().getResourceId())
-                        .setEnvoyId(entry.getKey().getEnvoyId())
-                        .setAssignments(entry.getValue()))
-                .collect(Collectors.toList()));
+    return zoneAllocationResolver.getActiveZoneBindingCounts(zone)
+        .thenApply(activePollerMap -> mapToZoneAssignmentCount(activePollerMap, true))
+        .thenCompose(assignmentCounts -> zoneAllocationResolver.getExpiringZoneBindingCounts(zone)
+            .thenApply(envoyResourcePairIntegerMap -> {
+              assignmentCounts
+                  .addAll(mapToZoneAssignmentCount(envoyResourcePairIntegerMap, false));
+              return assignmentCounts;
+            }));
   }
+
+  /**
+   * This method is used to convert the map of EnvoyResourcePair count to list of
+   * ZoneAssignmentCount.
+   *
+   * @param bindingCounts
+   * @param isConnected
+   * @return
+   */
+  List<ZoneAssignmentCount> mapToZoneAssignmentCount(
+      Map<EnvoyResourcePair, Integer> bindingCounts, boolean isConnected) {
+    return bindingCounts.entrySet().stream()
+        .map(entry ->
+            new ZoneAssignmentCount()
+                .setResourceId(entry.getKey().getResourceId())
+                .setEnvoyId(entry.getKey().getEnvoyId())
+                .setAssignments(entry.getValue())
+                .setConnected(isConnected))
+        .collect(Collectors.toList());
+  }
+
 
   /**
    * Rebalances a zone by re-assigning bound monitors from envoys that are over-assigned
@@ -2131,7 +2163,7 @@ public class MonitorManagement {
     log.info("Rebalancing zone={}", zone);
 
     return zoneAllocationResolverFactory.create()
-        .getZoneBindingCounts(zone)
+        .getActiveZoneBindingCounts(zone)
         .thenApply(bindingCounts ->
             rebalanceWithZoneBindingCounts(zone, bindingCounts)
         );
@@ -2360,5 +2392,25 @@ public class MonitorManagement {
     job.setStatus(jobStatus);
     job.setDescription(description);
     jobRepository.save(job);
+  }
+
+  /**
+   * Gets the zone assignment count for all zones of a tenant.
+   *
+   * @param tenantId
+   * @return
+   */
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getZoneAssignmentCountForTenant(
+      String tenantId) {
+    Page<String> page = zoneRepository.findAllZoneNameForTenant(tenantId, Pageable.unpaged());
+    if (page.isEmpty()) {
+      throw new NotFoundException(String.format("No zones present for tenant %s" , tenantId));
+    }
+    Map<String, List<ZoneAssignmentCount>> zoneAssignmentCountMap = new HashMap<>();
+    page.stream().forEach(zone -> {
+      List<ZoneAssignmentCount> assignmentCounts = getZoneAssignmentCounts(tenantId, zone).join();
+        zoneAssignmentCountMap.put(zone, assignmentCounts);
+    });
+    return CompletableFuture.completedFuture(zoneAssignmentCountMap);
   }
 }
