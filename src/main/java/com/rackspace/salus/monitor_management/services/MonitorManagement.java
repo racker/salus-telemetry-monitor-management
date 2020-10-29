@@ -2257,6 +2257,10 @@ public class MonitorManagement {
     return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
   }
 
+  public Optional<Monitor> getMonitorUsingTemplatesForTenant(UUID uuid, String tenantId) {
+    return monitorRepository.findByIdAndTenantId(uuid, tenantId);
+  }
+
   private String getRenderedContent(String template, ResourceDTO resourceDTO)
       throws InvalidTemplateException {
     return monitorContentRenderer.render(template, resourceDTO);
