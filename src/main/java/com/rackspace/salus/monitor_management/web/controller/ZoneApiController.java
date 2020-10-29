@@ -142,11 +142,13 @@ public class ZoneApiController {
   @GetMapping("/tenant/{tenantId}/zone-assignment-counts/{name}")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys in the private zone")
   public CompletableFuture<List<ZoneAssignmentCount>> getPrivateZoneAssignmentCounts(
-      @PathVariable String tenantId, @PathVariable @PrivateZoneName Optional<String> name) {
+      @PathVariable String tenantId, @PathVariable @PrivateZoneName String name) {
 
-    String zoneName = name.orElse("");
+    if (!zoneManagement.exists(tenantId, name)) {
+      throw new NotFoundException(String.format("No private zone found named %s", name));
+    }
 
-    return monitorManagement.getZoneAssignmentCounts(tenantId, zoneName);
+    return monitorManagement.getZoneAssignmentCounts(tenantId, name);
   }
 
   @GetMapping("/tenant/{tenantId}/zone-assignment-counts")
@@ -154,7 +156,7 @@ public class ZoneApiController {
   public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPrivateZoneAssignmentCountsPerTenant(
       @PathVariable String tenantId) {
 
-    return monitorManagement.getAssignmentCountForTenant(tenantId);
+    return monitorManagement.getZoneAssignmentCountForTenant(tenantId);
   }
 
   @GetMapping("/admin/zone-assignment-counts/**")
@@ -174,7 +176,7 @@ public class ZoneApiController {
   @GetMapping("/admin/zone-assignment-counts")
   @ApiOperation(value = "Gets assignment counts of monitors to poller-envoys for all the public zones")
   public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getPublicZoneAssignmentCountsPerTenant() {
-    return monitorManagement.getAssignmentCountForTenant(ResolvedZone.PUBLIC);
+    return monitorManagement.getZoneAssignmentCountForTenant(ResolvedZone.PUBLIC);
   }
 
   @PostMapping("/tenant/{tenantId}/zones")

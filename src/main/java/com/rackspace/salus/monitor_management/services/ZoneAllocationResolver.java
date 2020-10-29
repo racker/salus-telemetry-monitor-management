@@ -109,7 +109,7 @@ public class ZoneAllocationResolver {
     );
   }
 
-  private CompletableFuture<Map<String, Integer>> getExpiredPollerResourceCounts(ResolvedZone zone) {
+  private CompletableFuture<Map<String, Integer>> getExpiringPollerResourceCounts(ResolvedZone zone) {
     return expiredPollerCountSnapshot.computeIfAbsent(
         zone,
         this::retrieveExpiredPollerResourceCounts
@@ -147,9 +147,9 @@ public class ZoneAllocationResolver {
    * @param zone the zone to retrieve
    * @return mapping of envoy-pollers to bound monitor counts
    */
-  public CompletableFuture<Map<EnvoyResourcePair, Integer>> getExpiredZoneBindingCounts(ResolvedZone zone) {
+  public CompletableFuture<Map<EnvoyResourcePair, Integer>> getExpiringZoneBindingCounts(ResolvedZone zone) {
     // Combine the poller counts by resourceId
-    return getExpiredPollerResourceCounts(zone)
+    return getExpiringPollerResourceCounts(zone)
         .thenCompose(pollerResourceCounts ->
             // ...with the resourceId to envoyId mappings
             getResourceIdToEnvoyIdMap(zone)
@@ -192,7 +192,7 @@ public class ZoneAllocationResolver {
 
   private CompletableFuture<Map<String, Integer>> retrieveExpiredPollerResourceCounts(
       ResolvedZone zone) {
-    return zoneStorage.getExpiredPollerResourceIdsInZone(zone)
+    return zoneStorage.getExpiringPollerResourceIdsInZone(zone)
         .thenApply(expiredPollerResources -> {
           if (!expiredPollerResources.isEmpty()) {
             return getPollerResourcesCounts(zone, expiredPollerResources);

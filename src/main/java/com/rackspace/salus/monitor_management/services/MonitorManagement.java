@@ -91,7 +91,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -2114,12 +2113,13 @@ public class MonitorManagement {
     ZoneAllocationResolver zoneAllocationResolver = zoneAllocationResolverFactory.create();
 
     return zoneAllocationResolver.getActiveZoneBindingCounts(zone)
-        .thenApply(bindingCounts -> getZoneAssingmentPollerCount(bindingCounts, true))
-        .thenApply(pollerCounts -> {
-          pollerCounts.addAll(getZoneAssingmentPollerCount(
-              zoneAllocationResolver.getExpiredZoneBindingCounts(zone).join(), false));
-          return pollerCounts;
-        });
+        .thenApply(activePollerMap -> getZoneAssignmentPollerCount(activePollerMap, true))
+        .thenCompose(assignmentCounts -> zoneAllocationResolver.getExpiringZoneBindingCounts(zone)
+            .thenApply(envoyResourcePairIntegerMap -> {
+              assignmentCounts
+                  .addAll(getZoneAssignmentPollerCount(envoyResourcePairIntegerMap, false));
+              return assignmentCounts;
+            }));
   }
 
   /**
@@ -2129,7 +2129,7 @@ public class MonitorManagement {
    * @param isConnected
    * @return
    */
-  public List<ZoneAssignmentCount> getZoneAssingmentPollerCount(
+  public List<ZoneAssignmentCount> getZoneAssignmentPollerCount(
       Map<EnvoyResourcePair, Integer> bindingCounts, boolean isConnected) {
     return bindingCounts.entrySet().stream()
         .map(entry ->
@@ -2392,18 +2392,16 @@ public class MonitorManagement {
    * @param tenantId
    * @return
    */
-  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getAssignmentCountForTenant(
+  public CompletableFuture<Map<String, List<ZoneAssignmentCount>>> getZoneAssignmentCountForTenant(
       String tenantId) {
     Page<String> page = zoneRepository.findAllZoneNameForTenant(tenantId, Pageable.unpaged());
     if (page.isEmpty()) {
-      throw new NotFoundException("No zones present for tenant %s" + tenantId);
+      throw new NotFoundException(String.format("No zones present for tenant %s" , tenantId));
     }
     Map<String, List<ZoneAssignmentCount>> zoneAssignmentCountMap = new HashMap<>();
     page.stream().forEach(zone -> {
       List<ZoneAssignmentCount> assignmentCounts = getZoneAssignmentCounts(tenantId, zone).join();
-      if (!assignmentCounts.isEmpty()) {
         zoneAssignmentCountMap.put(zone, assignmentCounts);
-      }
     });
     return CompletableFuture.completedFuture(zoneAssignmentCountMap);
   }

@@ -1,0 +1,19 @@
+{
+  "z-1": [
+    {
+      "resourceId": "r-1",
+      "envoyId": "e-1",
+      "assignments": 3,
+      "connected": true
+    }
+  ],
+  "z-2": [
+    {
+      "resourceId": "r-2",
+      "envoyId": "e-2",
+      "assignments": 1,
+      "connected": false
+    }
+  ],
+  "z-3": []
+}

@@ -59,10 +59,12 @@ import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.MonitorType;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.BoundMonitorRepository;
 import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import com.rackspace.salus.telemetry.repositories.ZoneRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -89,6 +91,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -158,6 +161,8 @@ public class MonitorManagement_ZoneBindingsTest {
   MetadataUtils metadataUtils;
   @Autowired
   ZonesProperties zonesProperties;
+  @MockBean
+  ZoneRepository zoneRepository;
 
   @Autowired
   private MonitorManagement monitorManagement;
@@ -567,12 +572,19 @@ public class MonitorManagement_ZoneBindingsTest {
 
   @Test
   public void testGetZoneAssignmentCounts() {
-    Map<EnvoyResourcePair, Integer> rawCounts = new HashMap<>();
-    rawCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
-    rawCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
+    Map<EnvoyResourcePair, Integer> activeZoneCounts = new HashMap<>();
+    activeZoneCounts.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
+    activeZoneCounts.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
 
     when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
-        .thenReturn(CompletableFuture.completedFuture(rawCounts));
+        .thenReturn(CompletableFuture.completedFuture(activeZoneCounts));
+
+    Map<EnvoyResourcePair, Integer> expiredZoneCounts = new HashMap<>();
+    expiredZoneCounts.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 5);
+    expiredZoneCounts.put(new EnvoyResourcePair().setResourceId("r-4").setEnvoyId("e-4"), 6);
+
+    when(zoneAllocationResolver.getExpiringZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(expiredZoneCounts));
 
     // EXECUTE
 
@@ -582,12 +594,17 @@ public class MonitorManagement_ZoneBindingsTest {
     // VERIFY
 
     assertThat(counts, containsInAnyOrder(
-        new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5),
-        new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6)
-
+        new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-3").setEnvoyId("e-3").setAssignments(5).setConnected(false),
+        new ZoneAssignmentCount().setResourceId("r-4").setEnvoyId("e-4").setAssignments(6).setConnected(false)
     ));
 
     verify(zoneAllocationResolver).getActiveZoneBindingCounts(
+        ResolvedZone.createPrivateZone("t-1", "z-1")
+    );
+
+    verify(zoneAllocationResolver).getExpiringZoneBindingCounts(
         ResolvedZone.createPrivateZone("t-1", "z-1")
     );
 
@@ -1256,4 +1273,77 @@ public class MonitorManagement_ZoneBindingsTest {
     assertThat(results, containsInAnyOrder(matchers));
   }
 
+  @Test
+  public void testGetZoneAssignmentCounts_PerTenant() {
+
+    ResolvedZone resolvedZone1 = ResolvedZone.createPrivateZone("t-1", "z-1");
+    ResolvedZone resolvedZone2 = ResolvedZone.createPrivateZone("t-1", "z-2");
+
+    Map<EnvoyResourcePair, Integer> activeZoneCountsForZone1 = new HashMap<>();
+    activeZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-1").setEnvoyId("e-1"), 5);
+    activeZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-2").setEnvoyId("e-2"), 6);
+
+    Map<EnvoyResourcePair, Integer> activeZoneCountsForZone2 = new HashMap<>();
+    activeZoneCountsForZone2.put(new EnvoyResourcePair().setResourceId("r-3").setEnvoyId("e-3"), 0);
+    activeZoneCountsForZone2.put(new EnvoyResourcePair().setResourceId("r-4").setEnvoyId("e-4"), 1);
+
+    when(zoneRepository.findAllZoneNameForTenant("t-1", Pageable.unpaged()))
+        .thenReturn(new PageImpl<>(List.of("z-1", "z-2")));
+
+    when(zoneAllocationResolver.getActiveZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(activeZoneCountsForZone1))
+        .thenReturn(CompletableFuture.completedFuture(activeZoneCountsForZone2));
+
+    Map<EnvoyResourcePair, Integer> expiredZoneCountsForZone1 = new HashMap<>();
+    expiredZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-5").setEnvoyId("e-5"), 2);
+    expiredZoneCountsForZone1.put(new EnvoyResourcePair().setResourceId("r-6").setEnvoyId("e-6"), 3);
+
+    Map<EnvoyResourcePair, Integer> expiredZoneCountsForZone2 = new HashMap<>();
+    expiredZoneCountsForZone2.put(new EnvoyResourcePair().setResourceId("r-7").setEnvoyId("e-7"), 4);
+    expiredZoneCountsForZone2.put(new EnvoyResourcePair().setResourceId("r-8").setEnvoyId("e-8"), 5);
+
+    when(zoneAllocationResolver.getExpiringZoneBindingCounts(any()))
+        .thenReturn(CompletableFuture.completedFuture(expiredZoneCountsForZone1))
+        .thenReturn(CompletableFuture.completedFuture(expiredZoneCountsForZone2));
+
+    // EXECUTE
+
+    final Map<String, List<ZoneAssignmentCount>> counts =
+        monitorManagement.getZoneAssignmentCountForTenant("t-1").join();
+
+    // VERIFY
+
+    assertThat(counts.get("z-1"), containsInAnyOrder(
+        new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(5).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(6).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-5").setEnvoyId("e-5").setAssignments(2).setConnected(false),
+        new ZoneAssignmentCount().setResourceId("r-6").setEnvoyId("e-6").setAssignments(3).setConnected(false)
+    ));
+
+    assertThat(counts.get("z-2"), containsInAnyOrder(
+        new ZoneAssignmentCount().setResourceId("r-3").setEnvoyId("e-3").setAssignments(0).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-4").setEnvoyId("e-4").setAssignments(1).setConnected(true),
+        new ZoneAssignmentCount().setResourceId("r-7").setEnvoyId("e-7").setAssignments(4).setConnected(false),
+        new ZoneAssignmentCount().setResourceId("r-8").setEnvoyId("e-8").setAssignments(5).setConnected(false)
+    ));
+
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(resolvedZone1);
+    verify(zoneAllocationResolver).getActiveZoneBindingCounts(resolvedZone2);
+
+    verify(zoneAllocationResolver).getExpiringZoneBindingCounts(resolvedZone1);
+    verify(zoneAllocationResolver).getExpiringZoneBindingCounts(resolvedZone2);
+
+    verifyNoMoreInteractions(envoyResourceManagement,
+        zoneStorage, monitorEventProducer, resourceApi, zoneAllocationResolver
+    );
+  }
+
+  @Test
+  public void testGetZoneAssignmentCounts_PerTenant_NotFound() {
+    when(zoneRepository.findAllZoneNameForTenant("t-1", Pageable.unpaged()))
+        .thenReturn(Page.empty());
+    Assertions.assertThatThrownBy(() -> monitorManagement.getZoneAssignmentCountForTenant("t-1").join())
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage("No zones present for tenant t-1");
+  }
 }
