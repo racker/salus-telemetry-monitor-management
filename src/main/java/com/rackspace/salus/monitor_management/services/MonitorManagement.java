@@ -2137,7 +2137,7 @@ public class MonitorManagement {
    * @param isConnected
    * @return
    */
-  public List<ZoneAssignmentCount> mapToZoneAssignmentCount(
+  List<ZoneAssignmentCount> mapToZoneAssignmentCount(
       Map<EnvoyResourcePair, Integer> bindingCounts, boolean isConnected) {
     return bindingCounts.entrySet().stream()
         .map(entry ->
