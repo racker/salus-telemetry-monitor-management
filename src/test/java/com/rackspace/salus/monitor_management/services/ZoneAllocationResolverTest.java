@@ -355,7 +355,7 @@ public class ZoneAllocationResolverTest {
     // EXECUTE
 
     final Map<EnvoyResourcePair, Integer> result = zoneAllocationResolver
-        .getZoneBindingCounts(zone)
+        .getActiveZoneBindingCounts(zone)
         .join();
 
     // VERIFY
@@ -409,4 +409,44 @@ public class ZoneAllocationResolverTest {
     );
   }
 
+
+  @Test
+  public void testGetExpiringZoneBindingCounts() {
+    final String tenantId = randomAlphanumeric(10);
+    final ResolvedZone zone = ResolvedZone.resolveZone(tenantId, randomAlphanumeric(5));
+
+    when(zoneStorage.getExpiringPollerResourceIdsInZone(any()))
+        .thenReturn(CompletableFuture.completedFuture(List.of("poller-1", "poller-2", "poller-3")));
+
+    when(zoneStorage.getResourceIdToEnvoyIdMap(any()))
+        .thenReturn(CompletableFuture.completedFuture(Map.of(
+            "poller-1", "e-1",
+            "poller-2", "e-2",
+            "poller-3", "e-3"
+        )));
+
+    final Monitor monitor = persistNewMonitor(tenantId, Map.of(), List.of(zone.getName()));
+    persistBoundMonitors(2, zone.getName(), "e-1", "poller-1", monitor);
+    // poller-2 is empty one
+    persistBoundMonitors(1, zone.getName(), "e-3", "poller-3", monitor);
+
+    // EXECUTE
+
+    final Map<EnvoyResourcePair, Integer> result = zoneAllocationResolver
+        .getExpiringZoneBindingCounts(zone)
+        .join();
+
+    // VERIFY
+
+    assertThat(result).isEqualTo(Map.of(
+        new EnvoyResourcePair().setEnvoyId("e-1").setResourceId("poller-1"), 2,
+        new EnvoyResourcePair().setEnvoyId("e-2").setResourceId("poller-2"), 0,
+        new EnvoyResourcePair().setEnvoyId("e-3").setResourceId("poller-3"), 1
+    ));
+
+    verify(zoneStorage).getExpiringPollerResourceIdsInZone(zone);
+    verify(zoneStorage).getResourceIdToEnvoyIdMap(zone);
+
+    verifyNoMoreInteractions(zoneStorage);
+  }
 }

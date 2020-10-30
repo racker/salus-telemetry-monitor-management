@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.monitor_management.web.controller;
 
+import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -33,10 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static com.rackspace.salus.common.util.SpringResourceUtils.readContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.monitor_management.errors.DeletionNotAllowedException;
 import com.rackspace.salus.monitor_management.services.MonitorManagement;
 import com.rackspace.salus.monitor_management.services.ZoneManagement;
@@ -44,9 +43,11 @@ import com.rackspace.salus.monitor_management.web.model.ZoneAssignmentCount;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePrivate;
 import com.rackspace.salus.monitor_management.web.model.ZoneCreatePublic;
 import com.rackspace.salus.monitor_management.web.model.ZoneDTO;
-import com.rackspace.salus.telemetry.model.ZoneState;
+import com.rackspace.salus.telemetry.entities.Zone;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
+import com.rackspace.salus.telemetry.model.ZoneState;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
@@ -55,6 +56,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -99,6 +101,9 @@ public class ZoneApiControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    ZoneStorage zoneStorage;
 
     private PodamFactory podamFactory = new PodamFactoryImpl();
 
@@ -512,8 +517,9 @@ public class ZoneApiControllerTest {
         when(zoneManagement.exists(any(), any()))
             .thenReturn(true);
 
-        List<ZoneAssignmentCount> expected = Collections.singletonList(
-            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+        List<ZoneAssignmentCount> expected = List.of(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3).setConnected(true),
+            new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(1).setConnected(false)
         );
 
         when(monitorManagement.getZoneAssignmentCounts(any(), any()))
@@ -608,8 +614,9 @@ public class ZoneApiControllerTest {
         when(zoneManagement.publicZoneExists(any()))
             .thenReturn(true);
 
-        List<ZoneAssignmentCount> expected = Collections.singletonList(
-            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+        List<ZoneAssignmentCount> expected = List.of(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3).setConnected(true),
+            new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(1).setConnected(false)
         );
 
         when(monitorManagement.getZoneAssignmentCounts(any(), any()))
@@ -740,5 +747,72 @@ public class ZoneApiControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message",
                 equalTo("One or more field validations failed: name")));
+    }
+
+    @Test
+    public void getPrivateZoneAssignmentCountsPerTenant() throws Exception {
+
+        Map<String, List<ZoneAssignmentCount>> expected = Map.of("z-1", Collections.singletonList(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+                .setConnected(true)),
+            "z-2", Collections.singletonList(
+                new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(1)
+                    .setConnected(false)),
+            "z-3", Collections.emptyList());
+
+        when(monitorManagement.getZoneAssignmentCountForTenant(any()))
+            .thenReturn(CompletableFuture.completedFuture(expected));
+
+        final String zoneName = RandomStringUtils.randomAlphanumeric(10);
+        final MvcResult result = mvc.perform(
+            get("/api/tenant/{tenantId}/zone-assignment-counts", "t-1"))
+            // CompletableFuture return value, so the request is asynchronous
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/privateZoneAssignmentCountPerTenant_valid.json"),
+                true));
+
+        verify(monitorManagement).getZoneAssignmentCountForTenant("t-1");
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
+    }
+
+    @Test
+    public void getPublicZoneAssignmentCountsPerTenant() throws Exception {
+
+        Map<String, List<ZoneAssignmentCount>> expected = Map.of("public/west", Collections.singletonList(
+            new ZoneAssignmentCount().setResourceId("r-1").setEnvoyId("e-1").setAssignments(3)
+                .setConnected(true)),
+            "public/east", Collections.singletonList(
+                new ZoneAssignmentCount().setResourceId("r-2").setEnvoyId("e-2").setAssignments(1)
+                    .setConnected(false)),
+            "public/north", Collections.emptyList());
+
+        when(monitorManagement.getZoneAssignmentCountForTenant(any()))
+            .thenReturn(CompletableFuture.completedFuture(expected));
+
+        final MvcResult result = mvc.perform(
+            get("/api/admin/zone-assignment-counts"))
+            // CompletableFuture return value, so the request is asynchronous
+            .andExpect(request().asyncStarted())
+            .andReturn();
+
+        mvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content()
+                .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(
+                readContent("ZoneApiControllerTest/publicZoneAssignmentCountPerTenant_valid.json"),
+                true));
+
+        verify(monitorManagement).getZoneAssignmentCountForTenant(ResolvedZone.PUBLIC);
+
+        verifyNoMoreInteractions(zoneManagement, monitorManagement);
     }
 }
