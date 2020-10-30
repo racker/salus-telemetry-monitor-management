@@ -365,7 +365,7 @@ public class MonitorManagement {
 
     // bind monitor
     Set<String> affectedEnvoys = bindMonitor(newTenant, clonedMonitor, clonedMonitor.getZones());
-    log.info("Binding monitor templates={} to {} envoys on tenant={}",
+    log.info("Binding cloned monitor={} to {} envoys on tenant={}",
         clonedMonitor, affectedEnvoys.size(), newTenant);
 
     sendMonitorBoundEvents(affectedEnvoys);
@@ -2255,10 +2255,6 @@ public class MonitorManagement {
    */
   public Page<Monitor> getAllMonitorsUsingTemplatesForTenant(String tenantId, Pageable page) {
     return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
-  }
-
-  public Optional<Monitor> getMonitorUsingTemplatesForTenant(UUID uuid, String tenantId) {
-    return monitorRepository.findByIdAndTenantId(uuid, tenantId);
   }
 
   private String getRenderedContent(String template, ResourceDTO resourceDTO)

@@ -168,7 +168,7 @@ public class MonitorApiController {
       @PathVariable String tenantId, @PathVariable UUID uuid)
       throws NotFoundException {
 
-    Monitor monitor = monitorManagement.getMonitorUsingTemplatesForTenant(uuid, tenantId).orElseThrow(() ->
+    Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(() ->
         new NotFoundException(String.format("No monitor found with id %s", uuid)));
     return monitorConversionService.convertToOutput(monitor);
   }
@@ -185,7 +185,7 @@ public class MonitorApiController {
   public DetailedMonitorOutput getMonitorTemplateById(@PathVariable UUID uuid)
       throws NotFoundException {
     Monitor monitor = monitorManagement.getMonitorTemplate(uuid).orElseThrow(() ->
-        new NotFoundException(String.format("No monitor Template found with id %s", uuid)));
+        new NotFoundException(String.format("No Monitor Template found with id %s", uuid)));
 
     return monitorConversionService.convertToOutput(monitor);
   }

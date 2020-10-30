@@ -1290,47 +1290,4 @@ public class MonitorApiControllerTest {
     verifyNoMoreInteractions(monitorManagement);
   }
 
-  @Test
-  public void testGetMonitorUsingTemplatesForTenant() throws Exception {
-//    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-//    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-//    monitor.setAgentType(AgentType.TELEGRAF);
-//    monitor.setContent("{\"type\":\"mem\"}");
-//    monitor.setTenantId("t-1");
-//
-//    when(monitorManagement.getMonitorUsingTemplatesForTenant(any(), anyString()))
-//        .thenReturn(Optional.of(monitor));
-//
-//    mockMvc.perform(get("/api/tenant/{tenantId}/monitor-templates/{uuid}", "t-1", monitor.getId())
-//        .contentType(MediaType.APPLICATION_JSON))
-//        .andExpect(status().isOk())
-//        .andExpect(content()
-//            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-//        .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
-//
-//    verify(monitorManagement).getMonitorUsingTemplatesForTenant(monitor.getId(), "t-1");
-//    verifyNoMoreInteractions(monitorManagement);
-
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    monitor.setTenantId("t-1");
-
-    when(monitorManagement.getMonitorUsingTemplatesForTenant(any(), anyString()))
-        .thenReturn(Optional.of(monitor));
-
-    String url = String.format("/api/tenant/%s/monitor-templates/%s", "t-1", monitor.getId());
-    System.out.println("url "+url);
-
-    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id", is(monitor.getId().toString())));
-
-    verify(monitorManagement).getMonitorUsingTemplatesForTenant(monitor.getId(), "t-1");
-    verifyNoMoreInteractions(monitorManagement);
-  }
-
 }
