@@ -5,7 +5,7 @@
   "monitorSummary": {},
   "tenantId": "t-1",
   "resourceId": "r-1",
-  "selectorScope": "LOCAL",
+  "selectorScope": "local",
   "agentType": "TELEGRAF",
   "renderedContent": "{}",
   "envoyId": "e-1",
