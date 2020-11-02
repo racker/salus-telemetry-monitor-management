@@ -55,6 +55,7 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorChangeEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -786,8 +787,12 @@ public class MonitorManagement_ZoneBindingsTest {
 
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent()
-            .setEnvoyId("e-goner")
-    );
+            .setEnvoyId("e-goner"));
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
@@ -816,6 +821,11 @@ public class MonitorManagement_ZoneBindingsTest {
         new MonitorBoundEvent()
             .setEnvoyId("e-goner")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(zoneStorage, monitorEventProducer, zoneAllocationResolver);
   }
@@ -911,6 +921,11 @@ public class MonitorManagement_ZoneBindingsTest {
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
@@ -947,6 +962,11 @@ public class MonitorManagement_ZoneBindingsTest {
     );
 
     verify(zoneManagement).getAvailableZonesForTenant(tenantId, Pageable.unpaged());
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer, zoneManagement, zoneAllocationResolver
