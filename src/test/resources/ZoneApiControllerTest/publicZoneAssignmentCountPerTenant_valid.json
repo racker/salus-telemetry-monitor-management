@@ -1,0 +1,19 @@
+{
+  "public/west": [
+    {
+      "resourceId": "r-1",
+      "envoyId": "e-1",
+      "assignments": 3,
+      "connected": true
+    }
+  ],
+  "public/east": [
+    {
+      "resourceId": "r-2",
+      "envoyId": "e-2",
+      "assignments": 1,
+      "connected": false
+    }
+  ],
+  "public/north": []
+}
