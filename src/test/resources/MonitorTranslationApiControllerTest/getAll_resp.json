@@ -7,7 +7,7 @@
       "agentType": "TELEGRAF",
       "agentVersions": ">= 1.12.0",
       "monitorType": "cpu",
-      "selectorScope": "LOCAL",
+      "selectorScope": "local",
       "translatorSpec": {
         "type": "renameFieldKey",
         "from": "from-field",
@@ -21,7 +21,7 @@
       "agentType": "TELEGRAF",
       "agentVersions": "< 1.12.0",
       "monitorType": "http",
-      "selectorScope": "REMOTE",
+      "selectorScope": "remote",
       "translatorSpec": {
         "type": "renameFieldKey",
         "from": "from-field",
