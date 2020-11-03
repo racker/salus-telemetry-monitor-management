@@ -282,58 +282,6 @@ public class MonitorManagementPolicyTest {
   }
 
   @Test
-  public void testGetAllMonitorTemplatesForTenant() {
-    String tenantId = RandomStringUtils.randomAlphabetic(10);
-
-    // save one monitor that isn't tied to a policy
-    monitorRepository.save(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setMonitorType(MonitorType.ping)
-            .setContent("content0")
-            .setTenantId(tenantId)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-            .setInterval(Duration.ofSeconds(60)));
-
-    // save two monitors that are tied to a policy
-    List<Monitor> monitors = Arrays.asList(
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setMonitorType(MonitorType.ping)
-            .setContent("content0")
-            .setTenantId(tenantId)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.singletonMap("os", "linux"))
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-            .setInterval(Duration.ofSeconds(60))
-            .setPolicyId(UUID.randomUUID()),
-        new Monitor()
-            .setAgentType(AgentType.TELEGRAF)
-            .setMonitorType(MonitorType.ping)
-            .setContent("content1")
-            .setTenantId(tenantId)
-            .setSelectorScope(ConfigSelectorScope.REMOTE)
-            .setZones(Collections.singletonList("public/z-1"))
-            .setLabelSelector(Collections.emptyMap())
-            .setLabelSelectorMethod(LabelSelectorMethod.AND)
-            .setInterval(Duration.ofSeconds(60))
-            .setPolicyId(UUID.randomUUID())
-    );
-
-    monitorRepository.saveAll(monitors);
-    Page<Monitor> results = monitorManagement.getAllMonitorsUsingTemplatesForTenant(tenantId,
-        PageRequest.of(0, 10));
-
-    assertThat(results, notNullValue());
-    assertThat(results.getTotalElements(), equalTo(2L));
-    assertThat(results.getContent(), containsInAnyOrder(monitors.toArray()));
-  }
-
-  @Test
   public void testCreateMonitorTemplate() {
     MonitorCU create = podamFactory.manufacturePojo(MonitorCU.class);
     create.setSelectorScope(ConfigSelectorScope.LOCAL);

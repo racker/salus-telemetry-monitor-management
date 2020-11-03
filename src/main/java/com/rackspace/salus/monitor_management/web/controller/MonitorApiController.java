@@ -152,27 +152,6 @@ public class MonitorApiController {
     return monitorConversionService.convertToOutput(monitor);
   }
 
-  @GetMapping("/tenant/{tenantId}/monitor-templates")
-  @ApiOperation(value = "Gets all Monitors using templates for Tenant")
-  public PagedContent<DetailedMonitorOutput> getAllMonitorsUsingTemplatesForTenant(
-      @PathVariable String tenantId, Pageable pageable)
-      throws NotFoundException {
-
-    return PagedContent.fromPage(monitorManagement.getAllMonitorsUsingTemplatesForTenant(tenantId, pageable)
-        .map(monitorConversionService::convertToOutput));
-  }
-
-  @GetMapping("/tenant/{tenantId}/monitor-templates/{uuid}")
-  @ApiOperation(value = "Gets Monitor using template for Tenant")
-  public DetailedMonitorOutput getMonitorUsingTemplatesForTenant(
-      @PathVariable String tenantId, @PathVariable UUID uuid)
-      throws NotFoundException {
-
-    Monitor monitor = monitorManagement.getMonitor(tenantId, uuid).orElseThrow(() ->
-        new NotFoundException(String.format("No monitor found with id %s", uuid)));
-    return monitorConversionService.convertToOutput(monitor);
-  }
-
   @GetMapping("/admin/monitor-templates")
   @ApiOperation(value = "Gets all Monitor Templates")
   public PagedContent<DetailedMonitorOutput> getAllMonitorTemplates(Pageable pageable) {

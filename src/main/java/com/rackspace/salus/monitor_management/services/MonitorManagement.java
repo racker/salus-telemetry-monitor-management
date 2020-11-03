@@ -2248,15 +2248,6 @@ public class MonitorManagement {
         resourceId, monitorId, tenantId, page);
   }
 
-  /**
-   * Retrieves a list of monitors using templates that are relevant to the provided tenant.
-   * @param tenantId The tenant to get the monitors using templates for.
-   * @return A list of monitors.
-   */
-  public Page<Monitor> getAllMonitorsUsingTemplatesForTenant(String tenantId, Pageable page) {
-    return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
-  }
-
   private String getRenderedContent(String template, ResourceDTO resourceDTO)
       throws InvalidTemplateException {
     return monitorContentRenderer.render(template, resourceDTO);

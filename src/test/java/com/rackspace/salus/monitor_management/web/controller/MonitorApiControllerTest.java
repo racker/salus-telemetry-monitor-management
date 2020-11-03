@@ -110,7 +110,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -1254,40 +1253,4 @@ public class MonitorApiControllerTest {
 
     verify(monitorManagement).removeAllTenantMonitors("t-1", true);
   }
-
-  @Test
-  public void testGetAllMonitorsUsingTemplatesForTenant() throws Exception {
-    int numberOfMonitors = 1;
-    // Use the APIs default Pageable settings
-    int page = 0;
-    int pageSize = 20;
-    Monitor monitor = podamFactory.manufacturePojo(Monitor.class);
-    monitor.setSelectorScope(ConfigSelectorScope.LOCAL);
-    monitor.setAgentType(AgentType.TELEGRAF);
-    monitor.setContent("{\"type\":\"mem\"}");
-    monitor.setTenantId("t-1");
-    List<Monitor> monitors = List.of(monitor);
-    Pageable pageable = PageRequest.of(0, 20, Sort.unsorted());
-
-    int start = page * pageSize;
-    Page<Monitor> pageOfMonitors = new PageImpl<>(monitors.subList(start, numberOfMonitors),
-        PageRequest.of(page, pageSize),
-        numberOfMonitors);
-
-    PagedContent<Monitor> result = PagedContent.fromPage(pageOfMonitors);
-
-    when(monitorManagement.getAllMonitorsUsingTemplatesForTenant(anyString(), any()))
-        .thenReturn(pageOfMonitors);
-
-    mockMvc.perform(get("/api/tenant/{tenantId}/monitor-templates", "t-1")
-        .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.content[0].id", is(monitor.getId().toString())));
-
-    verify(monitorManagement).getAllMonitorsUsingTemplatesForTenant( "t-1", pageable);
-    verifyNoMoreInteractions(monitorManagement);
-  }
-
 }
