@@ -1387,7 +1387,7 @@ public class MonitorManagement {
       throw new NotFoundException(String.format("No monitor template found for %s", id));
     }
 
-    if (monitorPolicyRepository.existsByMonitorId(id)) {
+    if (monitorPolicyRepository.existsByMonitorTemplateId(id)) {
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.deleteById(id);
@@ -1404,7 +1404,7 @@ public class MonitorManagement {
     if (policy != null) {
       // if policy exists do not trust the monitorId in the event is up to date
       // delays in processing can occur.
-      event.setMonitorId(policy.getMonitorId());
+      event.setMonitorId(policy.getMonitorTemplateId());
     }
     if (event.getMonitorId() == null) {
       handlePolicyOptOutEvent(event);
@@ -1462,7 +1462,7 @@ public class MonitorManagement {
           return null;
         }))
         .filter(Objects::nonNull)
-        .filter(p -> p.getMonitorId().equals(monitorId))
+        .filter(p -> p.getMonitorTemplateId().equals(monitorId))
         .map(p -> monitorRepository.findByTenantIdAndPolicyId(tenantId, p.getId()).orElse(null))
         .filter(Objects::nonNull)
         .collect(Collectors.toList());
@@ -1673,7 +1673,7 @@ public class MonitorManagement {
     for (UUID policyId : policiesToAdd) {
       Optional<MonitorPolicy> policy = monitorPolicyRepository.findById(policyId);
       policy.ifPresent(
-          monitorPolicy -> cloneMonitorTemplate(tenantId, policyId, monitorPolicy.getMonitorId()));
+          monitorPolicy -> cloneMonitorTemplate(tenantId, policyId, monitorPolicy.getMonitorTemplateId()));
     }
   }
 

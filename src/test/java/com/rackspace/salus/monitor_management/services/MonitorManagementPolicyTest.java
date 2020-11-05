@@ -521,7 +521,7 @@ public class MonitorManagementPolicyTest {
     final Optional<Monitor> retrieved = monitorManagement.getMonitorTemplate(monitor.getId());
     assertThat(retrieved.isPresent(), equalTo(false));
 
-    verify(monitorPolicyRepository).existsByMonitorId(monitor.getId());
+    verify(monitorPolicyRepository).existsByMonitorTemplateId(monitor.getId());
 
     verifyNoMoreInteractions(boundMonitorRepository, monitorPolicyRepository, monitorEventProducer);
   }
@@ -540,9 +540,9 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
     when(monitorPolicyRepository.findById(any()))
-        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(0))));
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorTemplateId(policyMonitorIds.get(0))));
     when(monitorPolicyRepository.findById(any()))
-        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorIds.get(1))));
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorTemplateId(policyMonitorIds.get(1))));
 
     // no monitor using templates exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(0));
@@ -574,7 +574,7 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(List.of(policyId));
     when(monitorPolicyRepository.findById(any()))
-        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(monitorId)));
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorTemplateId(monitorId)));
 
     monitorManagement.refreshMonitorUsingTemplatesForTenant(tenantId);
 
@@ -599,7 +599,7 @@ public class MonitorManagementPolicyTest {
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
         .thenReturn(monitorPolicyIds);
     when(monitorPolicyRepository.findById(any()))
-        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(policyMonitorId)));
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorTemplateId(policyMonitorId)));
 
     // no monitor using templates exists on tenant
     assertThat(monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId), hasSize(1));
@@ -655,7 +655,7 @@ public class MonitorManagementPolicyTest {
     // handle initial lookup to see if policy exists
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
-            .setMonitorId(policyMonitorId)
+            .setMonitorTemplateId(policyMonitorId)
             .setName(RandomStringUtils.randomAlphabetic(5))
             .setId(policyId)
             .setScope(PolicyScope.GLOBAL)));
@@ -705,7 +705,7 @@ public class MonitorManagementPolicyTest {
 
     when(monitorPolicyRepository.findById(any()))
         .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
-            .setMonitorId(UUID.randomUUID())
+            .setMonitorTemplateId(UUID.randomUUID())
             .setName(RandomStringUtils.randomAlphabetic(5))
             .setId(policyId)
             .setScope(PolicyScope.GLOBAL)));
@@ -742,7 +742,7 @@ public class MonitorManagementPolicyTest {
     // handle initial lookup to see if policy exists
     when(monitorPolicyRepository.findById(policyId))
         .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
-            .setMonitorId(policyMonitorId)
+            .setMonitorTemplateId(policyMonitorId)
             .setName(RandomStringUtils.randomAlphabetic(5))
             .setId(policyId)
             .setScope(PolicyScope.GLOBAL)));
@@ -750,7 +750,7 @@ public class MonitorManagementPolicyTest {
     // handle lookup of old policy
     when(monitorPolicyRepository.findById(oldPolicyId))
         .thenReturn(Optional.of((MonitorPolicy) new MonitorPolicy()
-            .setMonitorId(policyMonitorId)
+            .setMonitorTemplateId(policyMonitorId)
             .setName(RandomStringUtils.randomAlphabetic(5))
             .setId(oldPolicyId)
             .setScope(PolicyScope.GLOBAL)));
@@ -938,7 +938,7 @@ public class MonitorManagementPolicyTest {
 
     // return the opt-out policy from the db
     when(monitorPolicyRepository.findById(any()))
-        .thenReturn(Optional.of(new MonitorPolicy().setMonitorId(null)));
+        .thenReturn(Optional.of(new MonitorPolicy().setMonitorTemplateId(null)));
 
     // this returns empty since we exclude null policies
     when(policyApi.getEffectiveMonitorPolicyIdsForTenant(anyString(), anyBoolean(), anyBoolean()))
