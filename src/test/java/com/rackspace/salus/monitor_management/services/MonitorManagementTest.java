@@ -36,6 +36,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -71,6 +72,7 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorChangeEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -295,6 +297,8 @@ public class MonitorManagementTest {
       create.setInterval(Duration.ofSeconds(60));
       create.setResourceId(null);
       monitorManagement.createMonitor(tenantId, create);
+      // the mocked operations triggered here should not be verified by tests
+      reset(monitorEventProducer, boundMonitorRepository);
     }
   }
 
@@ -390,6 +394,11 @@ public class MonitorManagementTest {
         new MonitorBoundEvent().setEnvoyId(resource.getEnvoyId())
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
         resourceApi, resourceRepository);
   }
@@ -439,6 +448,11 @@ public class MonitorManagementTest {
         new MonitorBoundEvent().setEnvoyId("e-1")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer, envoyResourceManagement,
         resourceApi, resourceRepository);
   }
@@ -475,6 +489,16 @@ public class MonitorManagementTest {
 
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getInterval(), equalTo(interval));
+
+    verify(monitorEventProducer).sendMonitorEvent(
+        new MonitorBoundEvent().setEnvoyId("e-1"));
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
+    verifyNoMoreInteractions(monitorEventProducer);
   }
 
   @Test
@@ -503,6 +527,13 @@ public class MonitorManagementTest {
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
     assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
+    verifyNoMoreInteractions(monitorEventProducer);
   }
 
   @Test
@@ -534,6 +565,13 @@ public class MonitorManagementTest {
     assertTrue(retrieved.isPresent());
     assertThat(retrieved.get().getMonitorName(), equalTo(returned.getMonitorName()));
     assertTrue(Maps.difference(returned.getLabelSelector(), retrieved.get().getLabelSelector()).areEqual());
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
+    verifyNoMoreInteractions(monitorEventProducer);
   }
 
   @Test
@@ -545,9 +583,14 @@ public class MonitorManagementTest {
 
     exceptionRule.expect(IllegalArgumentException.class);
     exceptionRule.expectMessage("Local monitors cannot have zones");
-    monitorManagement.createMonitor(tenantId, create);
+    Monitor monitor = monitorManagement.createMonitor(tenantId, create);
 
-    verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository);
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
+    verifyNoMoreInteractions(envoyResourceManagement, resourceApi, boundMonitorRepository, monitorEventProducer);
   }
 
   @Test
@@ -569,9 +612,14 @@ public class MonitorManagementTest {
 
     verify(resourceApi).getResourcesWithLabels(tenantId, create.getLabelSelector(), create.getLabelSelectorMethod());
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
     // ...but no bindings created, verified by no interaction with boundMonitorRepository
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-        zoneManagement);
+        zoneManagement, monitorEventProducer);
   }
 
   @Test
@@ -604,9 +652,14 @@ public class MonitorManagementTest {
 
     verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(returned.getTenantId())
+            .setMonitorId(returned.getId()));
+
     // ...but no bindings created, verified by no interaction with boundMonitorRepository
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
-        zoneManagement, zoneStorage);
+        zoneManagement, zoneStorage, monitorEventProducer);
   }
 
   @Test
@@ -810,6 +863,11 @@ public class MonitorManagementTest {
         new MonitorBoundEvent().setEnvoyId("e-3")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer);
   }
@@ -897,6 +955,11 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-1")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer);
@@ -1024,6 +1087,11 @@ public class MonitorManagementTest {
         new MonitorBoundEvent().setEnvoyId("e-1")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer, resourceRepository);
   }
@@ -1083,6 +1151,11 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-1")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer, resourceRepository);
@@ -1196,7 +1269,14 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-2")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verify(envoyResourceManagement).getOne(tenantId, resourceId2);
+
     verifyNoMoreInteractions(boundMonitorRepository, envoyResourceManagement, resourceApi,
         zoneStorage, monitorEventProducer);
   }
@@ -1342,6 +1422,12 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer);
   }
 
@@ -1469,6 +1555,12 @@ public class MonitorManagementTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-3")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer);
   }
 
@@ -1554,6 +1646,11 @@ public class MonitorManagementTest {
         new MonitorBoundEvent()
             .setEnvoyId("e-goner")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(boundMonitorRepository, zoneStorage, monitorEventProducer);
   }
@@ -3252,41 +3349,74 @@ public class MonitorManagementTest {
   }
 
   @Test
-  public void deleteAllMonitorsForTenant() {
-    when(boundMonitorRepository
-        .findAllByTenantIdAndMonitor_IdIn(any(), any(), any()))
+  public void deleteAllMonitorsForTenant_withEvents() {
+    createMonitorsForTenant(20, "t-1");
+
+    BoundMonitor b = new BoundMonitor()
+        .setMonitor(new Monitor())
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
+    // only return an item for the first request, then return empty
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(b)))
         .thenReturn(Page.empty());
 
-    createMonitorsForTenant(20, "t-1");
+    Page<Monitor> monitors = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+    List<UUID> expectedMonitorIds = monitors.stream().map(Monitor::getId).collect(Collectors.toList());
+    assertThat(expectedMonitorIds).hasSize(20);
 
     monitorManagement.removeAllTenantMonitors("t-1", true);
 
     Page<Monitor> result = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 
     assertThat(result.getNumberOfElements(), equalTo(0));
-    verify(monitorEventProducer, times(20)).sendMonitorEvent(any());
+
+    // this is called once for every empty result and once more for the non-empty result
+    verify(boundMonitorRepository, times(21)).findAllByTenantIdAndMonitor_IdIn(
+        eq("t-1"),
+        argThat(expectedMonitorIds::containsAll),
+        eq(PageRequest.of(0, 1000)));
+
+    // only the first monitor returned a bound monitor
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(b));
+    // only one envoyId was found so only one bound event is sent
+    verify(monitorEventProducer, times(1)).sendMonitorEvent(any());
+    // all monitors were modified
+    verify(monitorEventProducer, times(20)).sendMonitorChangeEvent(any());
+
+    verifyNoMoreInteractions(monitorEventProducer);
   }
 
   @Test
   public void deleteAllMonitorsForTenant_noEvents() {
     createMonitorsForTenant(20, "t-1");
 
-    when(boundMonitorRepository
-        .findAllByTenantIdAndMonitor_IdIn(any(), any(), any()))
+    BoundMonitor b = new BoundMonitor()
+        .setMonitor(new Monitor())
+        .setResourceId("r-1")
+        .setEnvoyId("e-1");
+    // only return an item for the first request, then return empty
+    when(boundMonitorRepository.findAllByTenantIdAndMonitor_IdIn(anyString(), any(), any()))
+        .thenReturn(new PageImpl<>(Collections.singletonList(b)))
         .thenReturn(Page.empty());
+
     Page<Monitor> monitorsBeforeDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
+    List<UUID> expectedMonitorIds = monitorsBeforeDeletion.stream().map(Monitor::getId).collect(Collectors.toList());
+    assertThat(expectedMonitorIds).hasSize(20);
 
     monitorManagement.removeAllTenantMonitors("t-1", false);
 
-    List<UUID> monitorIds = monitorsBeforeDeletion.get()
-        .map(Monitor::getId)
-        .collect(Collectors.toList());
-
     Page<Monitor> monitorsAfterDeletion = monitorManagement.getMonitors("t-1", Pageable.unpaged());
 
-    verify(boundMonitorRepository)
-        .findAllByTenantIdAndMonitor_IdIn("t-1", monitorIds, PageRequest.of(0, 1000));
+    // the first time is when the bound monitor is returned, the second time gets the empty result
+    verify(boundMonitorRepository, times(2))
+        .findAllByTenantIdAndMonitor_IdIn("t-1", expectedMonitorIds, PageRequest.of(0, 1000));
     assertThat(monitorsAfterDeletion.getNumberOfElements(), equalTo(0));
+
+    // only one bound monitor was found
+    verify(boundMonitorRepository).deleteAll(Collections.singletonList(b));
+
+    verifyNoInteractions(monitorEventProducer);
   }
 
   @Test
@@ -3361,6 +3491,11 @@ public class MonitorManagementTest {
     verify(boundMonitorRepository).findResourceIdsBoundToMonitor(monitor.getId());
 
     verify(resourceRepository).findByTenantIdAndResourceId(tenantId, resourceId);
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verifyNoMoreInteractions(monitorEventProducer);
   }
