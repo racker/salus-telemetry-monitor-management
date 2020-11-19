@@ -75,7 +75,7 @@ public class RestExceptionHandler extends
         monitorManagementErrorCounter.tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(),
             MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName()).register(meterRegistry).increment();
         if (e instanceof DataIntegrityViolationException) {
-            return respondWith(request, HttpStatus.BAD_REQUEST, e.getMessage());
+            return respondWith(request, HttpStatus.BAD_REQUEST, ((DataIntegrityViolationException) e).getRootCause().getMessage());
         } else {
             return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
         }
