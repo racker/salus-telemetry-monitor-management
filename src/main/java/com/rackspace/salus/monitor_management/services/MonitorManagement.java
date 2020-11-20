@@ -56,6 +56,7 @@ import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.etcd.types.ResolvedZone;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorChangeEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.messaging.TenantPolicyChangeEvent;
@@ -308,6 +309,7 @@ public class MonitorManagement {
 
     final Set<String> affectedEnvoys = bindMonitor(tenantId, monitor, monitor.getZones());
     sendMonitorBoundEvents(affectedEnvoys);
+    sendMonitorChangeEvent(monitor);
     createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
     return monitor;
   }
@@ -374,6 +376,7 @@ public class MonitorManagement {
         clonedMonitor, affectedEnvoys.size(), newTenant);
 
     sendMonitorBoundEvents(affectedEnvoys);
+    sendMonitorChangeEvent(clonedMonitor);
     createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG,"clone",MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
     return clonedMonitor;
   }
@@ -622,6 +625,17 @@ public class MonitorManagement {
         .forEach(monitorEventProducer::sendMonitorEvent);
   }
 
+  /**
+   * Sends monitor change events for a particular monitor.
+   * @param monitor The monitor that has been modified.
+   */
+  void sendMonitorChangeEvent(Monitor monitor) {
+    monitorEventProducer.sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+  }
+
   BoundMonitor bindAgentMonitor(Monitor monitor, ResourceDTO resource, String envoyId)
       throws InvalidTemplateException {
     return new BoundMonitor()
@@ -815,6 +829,7 @@ public class MonitorManagement {
     monitor = monitorRepository.save(monitor);
 
     sendMonitorBoundEvents(affectedEnvoys);
+    sendMonitorChangeEvent(monitor);
     createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
     return monitor;
   }
@@ -1361,6 +1376,7 @@ public class MonitorManagement {
     }
 
     unbindAndRemoveMonitor(monitor);
+    sendMonitorChangeEvent(monitor);
     createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitor").register(meterRegistry).increment();
   }
 
@@ -2306,9 +2322,9 @@ public class MonitorManagement {
 
   @Async
   public CompletableFuture<Void> removeAllTenantMonitors(String tenantId, boolean sendEvents) {
-    if(sendEvents) {
+    if (sendEvents) {
       getMonitors(tenantId, Pageable.unpaged()).forEach(monitor -> removeMonitor(tenantId, monitor.getId()));
-    }else {
+    } else {
       unbindByTenantAndMonitorId(tenantId,
           getMonitors(tenantId, Pageable.unpaged()).get()
               .map(Monitor::getId)

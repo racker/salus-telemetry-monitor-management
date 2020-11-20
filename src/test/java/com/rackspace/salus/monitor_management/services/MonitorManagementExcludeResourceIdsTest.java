@@ -40,6 +40,7 @@ import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorChangeEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
@@ -322,6 +323,12 @@ public class MonitorManagementExcludeResourceIdsTest {
     verify(envoyResourceManagement).getOne("t-1", "r-exclude-include");
     verify(envoyResourceManagement, never()).getOne("t-1", "r-exclude-exclude");
 
+    // once for create and once for update
+    verify(monitorEventProducer, times(2)).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(original.getTenantId())
+            .setMonitorId(original.getId()));
+
     verifyNoMoreInteractions(resourceApi, envoyResourceManagement, monitorEventProducer);
   }
 
@@ -426,6 +433,12 @@ public class MonitorManagementExcludeResourceIdsTest {
 
     verify(envoyResourceManagement).getOne("t-1", "r-absent-include");
     verify(envoyResourceManagement, never()).getOne("t-1", "r-absent-exclude");
+
+    // once for create and once for update
+    verify(monitorEventProducer, times(2)).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(original.getTenantId())
+            .setMonitorId(original.getId()));
 
     verifyNoMoreInteractions(resourceApi, envoyResourceManagement, monitorEventProducer);
   }

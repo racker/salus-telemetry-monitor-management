@@ -60,6 +60,7 @@ import com.rackspace.salus.telemetry.etcd.services.ZoneStorage;
 import com.rackspace.salus.telemetry.etcd.types.EnvoyResourcePair;
 import com.rackspace.salus.telemetry.messaging.MetadataPolicyEvent;
 import com.rackspace.salus.telemetry.messaging.MonitorBoundEvent;
+import com.rackspace.salus.telemetry.messaging.MonitorChangeEvent;
 import com.rackspace.salus.telemetry.model.AgentType;
 import com.rackspace.salus.telemetry.model.ConfigSelectorScope;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
@@ -344,6 +345,11 @@ public class MonitorManagement_MetadataPolicyTest {
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer);
   }
 
@@ -421,6 +427,11 @@ public class MonitorManagement_MetadataPolicyTest {
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
 
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
+
     verifyNoMoreInteractions(monitorEventProducer);
   }
 
@@ -494,6 +505,11 @@ public class MonitorManagement_MetadataPolicyTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(monitor.getTenantId())
+            .setMonitorId(monitor.getId()));
 
     verify(zoneManagement).getAvailableZonesForTenant(eq(tenantId), any());
 
@@ -888,6 +904,12 @@ public class MonitorManagement_MetadataPolicyTest {
     verify(monitorEventProducer).sendMonitorEvent(
         new MonitorBoundEvent().setEnvoyId("e-new")
     );
+
+    verify(monitorEventProducer).sendMonitorChangeEvent(
+        new MonitorChangeEvent()
+            .setTenantId(clonedMonitor.getTenantId())
+            .setMonitorId(clonedMonitor.getId()));
+
     verifyNoMoreInteractions(boundMonitorRepository, monitorEventProducer);
   }
 
