@@ -33,7 +33,7 @@ public interface MonitorApi {
   List<BoundMonitorDTO> getBoundMonitors(String envoyId,
                                          Map<AgentType, String> installedAgentVersions);
 
-  DetailedMonitorOutput getPolicyMonitorById(String monitorId);
+  DetailedMonitorOutput getMonitorTemplateById(String monitorId);
 
   DetailedMonitorOutput createMonitor(String tenantId, DetailedMonitorInput input, MultiValueMap<String, String> headers);
 

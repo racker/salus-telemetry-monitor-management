@@ -36,8 +36,8 @@ import com.rackspace.salus.telemetry.entities.Monitor;
 import com.rackspace.salus.telemetry.entities.MonitorTranslationOperator;
 import com.rackspace.salus.telemetry.errors.MonitorContentTranslationException;
 import com.rackspace.salus.telemetry.model.AgentType;
-import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.JobStatus;
+import com.rackspace.salus.telemetry.model.JobType;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import io.swagger.annotations.Api;
@@ -57,7 +57,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -153,75 +152,65 @@ public class MonitorApiController {
     return monitorConversionService.convertToOutput(monitor);
   }
 
-  @GetMapping("/tenant/{tenantId}/policy-monitors")
-  @ApiOperation(value = "Gets all Policy Monitors for Tenant")
-  public PagedContent<DetailedMonitorOutput> getAllPolicyMonitorsForTenant(
-      @PathVariable String tenantId, Pageable pageable)
-      throws NotFoundException {
-
-    return PagedContent.fromPage(monitorManagement.getAllPolicyMonitorsForTenant(tenantId, pageable)
+  @GetMapping("/admin/monitor-templates")
+  @ApiOperation(value = "Gets all Monitor Templates")
+  public PagedContent<DetailedMonitorOutput> getAllMonitorTemplates(Pageable pageable) {
+    return PagedContent.fromPage(monitorManagement.getAllMonitorTemplates(pageable)
         .map(monitorConversionService::convertToOutput));
   }
 
-  @GetMapping("/admin/policy-monitors")
-  @ApiOperation(value = "Gets all Policy Monitors")
-  public PagedContent<DetailedMonitorOutput> getAllPolicyMonitors(Pageable pageable) {
-    return PagedContent.fromPage(monitorManagement.getAllPolicyMonitors(pageable)
-        .map(monitorConversionService::convertToOutput));
-  }
-
-  @GetMapping("/admin/policy-monitors/{uuid}")
-  @ApiOperation(value = "Get specific Policy Monitor by Id")
-  public DetailedMonitorOutput getPolicyMonitorById(@PathVariable UUID uuid)
+  @GetMapping("/admin/monitor-templates/{uuid}")
+  @ApiOperation(value = "Get specific Monitor Template by Id")
+  public DetailedMonitorOutput getMonitorTemplateById(@PathVariable UUID uuid)
       throws NotFoundException {
-    Monitor monitor = monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
-        new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
+    Monitor monitor = monitorManagement.getMonitorTemplate(uuid).orElseThrow(() ->
+        new NotFoundException(String.format("No Monitor Template found with id %s", uuid)));
 
     return monitorConversionService.convertToOutput(monitor);
   }
 
-  @PutMapping("/admin/policy-monitors/{uuid}")
-  @ApiOperation(value = "Updates specific Policy Monitor")
-  public DetailedMonitorOutput updatePolicyMonitor(@PathVariable UUID uuid,
+  @PutMapping("/admin/monitor-templates/{uuid}")
+  @ApiOperation(value = "Updates specific Monitor Template")
+  public DetailedMonitorOutput updateMonitorTemplate(@PathVariable UUID uuid,
                                                    @Validated(ValidationGroups.Update.class)
                                                    @RequestBody final DetailedMonitorInput input)
       throws IllegalArgumentException {
 
     return monitorConversionService.convertToOutput(
-        monitorManagement.updatePolicyMonitor(
+        monitorManagement.updateMonitorTemplate(
             uuid,
             monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, uuid, input)
         ));
   }
 
-  @PatchMapping(path = "/admin/policy-monitors/{uuid}",
+  @PatchMapping(path = "/admin/monitor-templates/{uuid}",
                 consumes = {MediaType.APPLICATION_JSON_VALUE, JSON_PATCH_TYPE})
-  @ApiOperation(value = "Patch specific Policy Monitor")
-  public DetailedMonitorOutput patchPolicyMonitor(@PathVariable UUID uuid,
+  @ApiOperation(value = "Patch specific Monitor Template")
+  public DetailedMonitorOutput patchMonitorTemplate(@PathVariable UUID uuid,
                                                   @RequestBody final JsonPatch input)
       throws IllegalArgumentException {
 
-    Monitor monitor = monitorManagement.getPolicyMonitor(uuid).orElseThrow(() ->
-        new NotFoundException(String.format("No policy monitor found with id %s", uuid)));
+    Monitor monitor = monitorManagement.getMonitorTemplate(uuid).orElseThrow(() ->
+        new NotFoundException(String.format("No monitor template found with id %s", uuid)));
 
     return monitorConversionService.convertToOutput(
-        monitorManagement.updatePolicyMonitor(
+        monitorManagement.updateMonitorTemplate(
             uuid,
             monitorConversionService.convertFromPatchInput(Monitor.POLICY_TENANT, uuid, monitor, input),
             true
         ));
   }
 
-  @PostMapping("/admin/policy-monitors")
+  @PostMapping("/admin/monitor-templates")
   @ResponseStatus(HttpStatus.CREATED)
-  @ApiOperation(value = "Creates new Policy Monitor")
-  @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully Created Policy Monitor")})
-  public DetailedMonitorOutput createPolicyMonitor(
+  @ApiOperation(value = "Creates new Monitor Template")
+  @ApiResponses(value = {@ApiResponse(code = 201, message = "Successfully Created Monitor Template")})
+  public DetailedMonitorOutput createMonitorTemplate(
       @Validated(ValidationGroups.Create.class)
       @RequestBody final DetailedMonitorInput input)
       throws IllegalArgumentException {
     return monitorConversionService.convertToOutput(
-        monitorManagement.createPolicyMonitor(
+        monitorManagement.createMonitorTemplate(
             monitorConversionService.convertFromInput(Monitor.POLICY_TENANT, null, input)));
   }
 
@@ -239,12 +228,12 @@ public class MonitorApiController {
         ));
   }
 
-  @DeleteMapping("/admin/policy-monitors/{uuid}")
+  @DeleteMapping("/admin/monitor-templates/{uuid}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @ApiOperation(value = "Deletes specific Policy Monitor")
-  @ApiResponses(value = {@ApiResponse(code = 204, message = "Policy Monitor Deleted")})
-  public void deletePolicyMonitor(@PathVariable UUID uuid) {
-    monitorManagement.removePolicyMonitor(uuid);
+  @ApiOperation(value = "Deletes specific Monitor Template")
+  @ApiResponses(value = {@ApiResponse(code = 204, message = "Monitor Template Deleted")})
+  public void deleteMonitorTemplate(@PathVariable UUID uuid) {
+    monitorManagement.removeMonitorTemplate(uuid);
   }
 
   @GetMapping("/tenant/{tenantId}/bound-monitors")

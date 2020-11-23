@@ -120,23 +120,23 @@ public class MonitorApiClientTest {
   }
 
   @Test
-  public void testGetPolicyMonitor() throws JsonProcessingException {
+  public void testGetMonitorTemplate() throws JsonProcessingException {
     DetailedMonitorOutput monitor = podamFactory.manufacturePojo(DetailedMonitorOutput.class);
 
-    mockServer.expect(requestTo(String.format("/api/admin/policy-monitors/%s", monitor.getId())))
+    mockServer.expect(requestTo(String.format("/api/admin/monitor-templates/%s", monitor.getId())))
         .andRespond(
             withSuccess(objectMapper.writeValueAsString(monitor), MediaType.APPLICATION_JSON));
 
-    DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById(monitor.getId());
+    DetailedMonitorOutput result = monitorApiClient.getMonitorTemplateById(monitor.getId());
     assertThat(result).isEqualTo(monitor);
   }
 
   @Test
-  public void testGetPolicyMonitor_doesntExist()  {
-    mockServer.expect(requestTo("/api/admin/policy-monitors/id"))
+  public void testGetMonitorTemplate_doesntExist()  {
+    mockServer.expect(requestTo("/api/admin/monitor-templates/id"))
         .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-    DetailedMonitorOutput result = monitorApiClient.getPolicyMonitorById("id");
+    DetailedMonitorOutput result = monitorApiClient.getMonitorTemplateById("id");
     assertThat(result).isNull();
   }
 
