@@ -311,7 +311,7 @@ public class MetadataUtilsTest {
     assertThat(monitor.getMonitorMetadataFields()).hasSize(1);
 
     // set a value different from the policy to remove it from metadata fields
-    monitor.setMonitorName("non policy monitor name");
+    monitor.setMonitorName("non monitor template name");
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
 

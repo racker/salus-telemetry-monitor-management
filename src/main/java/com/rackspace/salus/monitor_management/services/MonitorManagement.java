@@ -222,12 +222,12 @@ public class MonitorManagement {
   }
 
   /**
-   * Gets an individual policy monitor by id
-   * @param id The unique value representing the monitor.
-   * @return The monitor with the provided id.
-   * @throws NotFoundException If the monitor does not exist under the POLICY tenant.
+   * Gets an individual monitor template by id
+   * @param id The unique value representing the monitor template.
+   * @return The monitor template with the provided id.
+   * @throws NotFoundException If the monitor template does not exist under the POLICY tenant.
    */
-  public Optional<Monitor> getPolicyMonitor(UUID id) {
+  public Optional<Monitor> getMonitorTemplate(UUID id) {
     return getMonitor(POLICY_TENANT, id);
   }
 
@@ -242,12 +242,12 @@ public class MonitorManagement {
   }
 
   /**
-   * Get a selection of monitor objects associated to the policy tenant.
+   * Get a selection of monitor template objects.
    *
    * @param page The slice of results to be returned.
-   * @return The policy monitors found that match the page criteria.
+   * @return The monitor templates found that match the page criteria.
    */
-  public Page<Monitor> getAllPolicyMonitors(Pageable page) {
+  public Page<Monitor> getAllMonitorTemplates(Pageable page) {
     return getMonitors(POLICY_TENANT, page);
   }
 
@@ -322,9 +322,9 @@ public class MonitorManagement {
   }
 
   /**
-   * Helper method for cloning a policy monitor.
+   * Helper method for cloning a monitor template.
    */
-  void clonePolicyMonitor(String tenantId, UUID policyId, UUID monitorId) {
+  void cloneMonitorTemplate(String tenantId, UUID policyId, UUID monitorId) {
     cloneMonitor(POLICY_TENANT, tenantId, monitorId, policyId);
   }
 
@@ -372,7 +372,7 @@ public class MonitorManagement {
 
     // bind monitor
     Set<String> affectedEnvoys = bindMonitor(newTenant, clonedMonitor, clonedMonitor.getZones());
-    log.info("Binding policy monitor={} to {} envoys on tenant={}",
+    log.info("Binding cloned monitor={} to {} envoys on tenant={}",
         clonedMonitor, affectedEnvoys.size(), newTenant);
 
     sendMonitorBoundEvents(affectedEnvoys);
@@ -382,19 +382,19 @@ public class MonitorManagement {
   }
 
   /**
-   * Creates a new monitor under the _POLICY_ tenant.
+   * Creates a new monitor template under the _POLICY_ tenant.
    *
    * @param newMonitor The monitor parameters to store.
-   * @return The newly created monitor.
+   * @return The newly created monitor template.
    */
-  public Monitor createPolicyMonitor(@Valid MonitorCU newMonitor) {
-    log.debug("Creating policy monitor={}", newMonitor);
+  public Monitor createMonitorTemplate(@Valid MonitorCU newMonitor) {
+    log.debug("Creating monitor template={}", newMonitor);
 
     validateMonitoringZones(POLICY_TENANT, null, newMonitor);
 
     if (!StringUtils.isBlank(newMonitor.getResourceId())) {
       throw new IllegalArgumentException(
-          "Policy Monitors must use label selectors and not a resourceId");
+          "Monitor Templates must use label selectors and not a resourceId");
     }
 
     Monitor monitor = new Monitor()
@@ -417,7 +417,7 @@ public class MonitorManagement {
     metadataUtils.setMetadataFieldsForMonitor(POLICY_TENANT, monitor, false);
 
     monitor = monitorRepository.save(monitor);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTemplate").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -917,30 +917,30 @@ public class MonitorManagement {
   }
 
   /**
-   * Stores the newly provided values for an existing monitor then sends an
+   * Stores the newly provided values for an existing monitor template then sends an
    * event to be consumed by PolicyMgmt which will lead to individual update events being sent for
    * each relevant tenant.  Those tenant-scoped events will be handled by MonitorMgmt.
    *
-   * @param id The id of the monitor to update.
+   * @param id The id of the monitor template to update.
    * @param updatedValues The new values to store.
    * @return The newly updated monitor.
    */
-  public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues) {
-    return updatePolicyMonitor(id, updatedValues, false);
+  public Monitor updateMonitorTemplate(UUID id, @Valid MonitorCU updatedValues) {
+    return updateMonitorTemplate(id, updatedValues, false);
   }
 
-  public Monitor updatePolicyMonitor(UUID id, @Valid MonitorCU updatedValues, boolean patchOperation) {
+  public Monitor updateMonitorTemplate(UUID id, @Valid MonitorCU updatedValues, boolean patchOperation) {
     if (!StringUtils.isBlank(updatedValues.getResourceId())) {
       throw new IllegalArgumentException(
-          "Policy Monitors must use label selectors and not a resourceId");
+          "Monitor Templates must use label selectors and not a resourceId");
     }
 
     Monitor monitor = getMonitor(POLICY_TENANT, id).orElseThrow(() ->
-        new NotFoundException(String.format("No policy monitor found for %s", id)));
+        new NotFoundException(String.format("No monitor template found for %s", id)));
 
     validateMonitoringZones(POLICY_TENANT, monitor, updatedValues);
 
-    log.info("Updating policy monitor={} with new values={}", id, updatedValues);
+    log.info("Updating monitor template={} with new values={}", id, updatedValues);
 
     PropertyMapper map;
     if (patchOperation) {
@@ -973,7 +973,7 @@ public class MonitorManagement {
       // See above regarding:
       // JPA's EntityManager is a little strange with re-saving (aka merging) an entity
       if (updatedValues.getZones() == null) {
-        // policy monitors cannot use metadata, so this value cannot be null.
+        //monitor templates cannot use metadata, so this value cannot be null.
         // ignore the change and keep the original zones.
         monitor.setZones(new ArrayList<>(monitor.getZones()));
       } else {
@@ -984,8 +984,8 @@ public class MonitorManagement {
     }
 
     monitor = monitorRepository.save(monitor);
-    log.info("Policy monitor={} stored with new values={}", id, monitor);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    log.info("Monitor template={} stored with new values={}", id, monitor);
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTemplate").register(meterRegistry).increment();
     return monitor;
   }
 
@@ -1391,23 +1391,23 @@ public class MonitorManagement {
   }
 
   /**
-   * Delete a policy monitor.
+   * Delete a monitor template.
    * It can only be removed if it is not in use by any policy.
    *
-   * @param id The id of the monitor.
-   * @throws NotFoundException If the monitor does not exist.
-   * @throws DeletionNotAllowedException If the monitor is used by an active policy.
+   * @param id The id of the monitor template.
+   * @throws NotFoundException If the monitor template does not exist.
+   * @throws DeletionNotAllowedException If the monitor template is used by an active policy.
    */
-  public void removePolicyMonitor(UUID id) {
+  public void removeMonitorTemplate(UUID id) {
     if (!monitorRepository.existsByIdAndTenantId(id, POLICY_TENANT)) {
-      throw new NotFoundException(String.format("No policy monitor found for %s", id));
+      throw new NotFoundException(String.format("No monitor template found for %s", id));
     }
 
-    if (monitorPolicyRepository.existsByMonitorId(id)) {
+    if (monitorPolicyRepository.existsByMonitorTemplateId(id)) {
       throw new DeletionNotAllowedException("Cannot remove monitor that is in use by a policy");
     }
     monitorRepository.deleteById(id);
-    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"policyMonitor").register(meterRegistry).increment();
+    createMonitorSuccess.tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"monitorTemplate").register(meterRegistry).increment();
   }
 
   void handleMonitorPolicyEvent(MonitorPolicyEvent event) {
@@ -1420,7 +1420,7 @@ public class MonitorManagement {
     if (policy != null) {
       // if policy exists do not trust the monitorId in the event is up to date
       // delays in processing can occur.
-      event.setMonitorId(policy.getMonitorId());
+      event.setMonitorId(policy.getMonitorTemplateId());
     }
     if (event.getMonitorId() == null) {
       handlePolicyOptOutEvent(event);
@@ -1451,7 +1451,7 @@ public class MonitorManagement {
     log.debug("Handling policy addition event={}", event);
 
     if (clonedMonitor != null) {
-      log.debug("Cloned policy monitor already exists for event={}", event);
+      log.debug("Cloned monitor template already exists for event={}", event);
       return;
     }
 
@@ -1470,31 +1470,31 @@ public class MonitorManagement {
 
     // if the new policy overrides an existing one using the same monitorId, find the existing one
     // by getting all monitors on the tenant that were cloned from the same monitorId as is in the new event.
-    List<Monitor> existingPolicyMonitor = existingPolicyIds.stream()
+    List<Monitor> existingMonitorsUsingTemplates = existingPolicyIds.stream()
         .map(id -> monitorPolicyRepository.findById(id).orElseGet(() -> {
           log.warn("Monitor is tied to non-existent policy={}", id);
-          policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", MetricTags.EXCEPTION_METRIC_TAG, "orphanedPolicyMonitor")
+          policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", MetricTags.EXCEPTION_METRIC_TAG, "orphanedMonitorTemplates")
               .register(meterRegistry).increment();
           return null;
         }))
         .filter(Objects::nonNull)
-        .filter(p -> p.getMonitorId().equals(monitorId))
+        .filter(p -> p.getMonitorTemplateId().equals(monitorId))
         .map(p -> monitorRepository.findByTenantIdAndPolicyId(tenantId, p.getId()).orElse(null))
         .filter(Objects::nonNull)
         .collect(Collectors.toList());
 
-    if (existingPolicyMonitor.isEmpty()) {
-      clonePolicyMonitor(tenantId, policyId, monitorId);
+    if (existingMonitorsUsingTemplates.isEmpty()) {
+      cloneMonitorTemplate(tenantId, policyId, monitorId);
       return;
     }
 
-    if (existingPolicyMonitor.size() > 1) {
+    if (existingMonitorsUsingTemplates.size() > 1) {
       log.error("More than one cloned monitor exists for policy={} on tenant={}", event.getPolicyId(), tenantId);
       policyIntegrityErrors.tags(MetricTags.OPERATION_METRIC_TAG, "handleMonitorPolicyEvent", MetricTags.EXCEPTION_METRIC_TAG, "tooManyClones")
           .register(meterRegistry).increment();
     }
-    Monitor existing = existingPolicyMonitor.get(0);
-    log.debug("Updating cloned policy monitor={} with new policyId={}", existing, policyId);
+    Monitor existing = existingMonitorsUsingTemplates.get(0);
+    log.debug("Updating cloned monitor template={} with new policyId={}", existing, policyId);
     existing.setPolicyId(event.getPolicyId());
     monitorRepository.save(existing);
   }
@@ -1513,7 +1513,7 @@ public class MonitorManagement {
     log.debug("Handling policy removal event={}", event);
 
     if (clonedMonitor == null) {
-      log.debug("Cloned policy monitor does not exist; no removal operation necessary for event={}", event);
+      log.debug("Cloned monitor template does not exist; no removal operation necessary for event={}", event);
       return;
     }
 
@@ -1529,7 +1529,7 @@ public class MonitorManagement {
         .collect(Collectors.toList());
 
     if (newPolicyIds.isEmpty()) {
-      log.debug("Removing cloned policy monitor={} for event={}", clonedMonitor.getId(), event);
+      log.debug("Removing cloned monitor template={} for event={}", clonedMonitor.getId(), event);
       unbindAndRemoveMonitor(clonedMonitor);
       return;
     }
@@ -1544,7 +1544,7 @@ public class MonitorManagement {
           .register(meterRegistry).increment();
     }
     UUID newPolicyId = newPolicyIds.get(0);
-    log.debug("Updating cloned policy monitor={} with new policyId={}", clonedMonitor,
+    log.debug("Updating cloned monitor template={} with new policyId={}", clonedMonitor,
         newPolicyId);
     clonedMonitor.setPolicyId(newPolicyId);
     monitorRepository.save(clonedMonitor);
@@ -1564,7 +1564,7 @@ public class MonitorManagement {
     // as the event does not contain the original policyId that is being overridden,
     // the easiest way to opt out is to perform a refresh for that tenant.
     // it will detect the policy is no longer active and remove it.
-    refreshPolicyMonitorsForTenant(event.getTenantId());
+    refreshMonitorUsingTemplatesForTenant(event.getTenantId());
   }
 
   /**
@@ -1573,7 +1573,7 @@ public class MonitorManagement {
    * All existing bound monitors are removed and then rebound once the monitor
    * has been saved with the new values.
    *
-   * Policy Monitors will not be affected by this handler as they cannot contain metadata.
+   * Monitors using templates will not be affected by this handler as they cannot contain metadata.
    *
    * @param event The policy change event.
    */
@@ -1666,10 +1666,10 @@ public class MonitorManagement {
 
   void handleTenantChangeEvent(TenantPolicyChangeEvent event) {
     log.info("Handling tenant change event={}", event);
-    refreshPolicyMonitorsForTenant(event.getTenantId());
+    refreshMonitorUsingTemplatesForTenant(event.getTenantId());
   }
 
-  void refreshPolicyMonitorsForTenant(String tenantId) {
+  void refreshMonitorUsingTemplatesForTenant(String tenantId) {
     // Get effective monitors
     List<UUID> policyIds = policyApi.getEffectiveMonitorPolicyIdsForTenant(tenantId, false, false);
     List<UUID> policyIdsInUse = monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId)
@@ -1689,7 +1689,7 @@ public class MonitorManagement {
     for (UUID policyId : policiesToAdd) {
       Optional<MonitorPolicy> policy = monitorPolicyRepository.findById(policyId);
       policy.ifPresent(
-          monitorPolicy -> clonePolicyMonitor(tenantId, policyId, monitorPolicy.getMonitorId()));
+          monitorPolicy -> cloneMonitorTemplate(tenantId, policyId, monitorPolicy.getMonitorTemplateId()));
     }
   }
 
@@ -2294,15 +2294,6 @@ public class MonitorManagement {
       String resourceId, UUID monitorId, String tenantId, Pageable page) {
     return boundMonitorRepository.findAllByResourceIdAndMonitor_IdAndMonitor_TenantId(
         resourceId, monitorId, tenantId, page);
-  }
-
-  /**
-   * Retrieves a list of policy monitors that are relevant to the provided tenant.
-   * @param tenantId The tenant to get the policy monitors for.
-   * @return A list of monitors.
-   */
-  public Page<Monitor> getAllPolicyMonitorsForTenant(String tenantId, Pageable page) {
-    return monitorRepository.findByTenantIdAndPolicyIdIsNotNull(tenantId, page);
   }
 
   private String getRenderedContent(String template, ResourceDTO resourceDTO)
