@@ -279,7 +279,7 @@ public class MetadataUtilsTest {
 
   @Test
   public void testSetMetadataFieldsForMonitor() {
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of(
             "interval", (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setValueType(MetadataValueType.DURATION)
@@ -315,7 +315,7 @@ public class MetadataUtilsTest {
     metadataUtils.setMetadataFieldsForMonitor(tenantId, monitor, false);
     assertThat(monitor.getMonitorMetadataFields()).hasSize(0);
 
-    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null, true);
+    verify(policyApi, times(4)).getEffectiveMonitorMetadataMap(tenantId, TargetClassName.Monitor, null);
   }
 
   @Test

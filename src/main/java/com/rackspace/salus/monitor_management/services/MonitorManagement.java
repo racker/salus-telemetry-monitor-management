@@ -1581,6 +1581,7 @@ public class MonitorManagement {
     log.info("Handling metadata policy event={}", event);
 
     String tenantId = event.getTenantId();
+    policyApi.evictEffectiveMonitorMetadataMap(tenantId, event.getTargetClassName(), event.getMonitorType());
     List<MonitorMetadataPolicyDTO> effectivePolicies = policyApi.getEffectiveMonitorMetadataPolicies(tenantId, false);
 
     Optional<MonitorMetadataPolicyDTO> policyOptional = effectivePolicies.stream()

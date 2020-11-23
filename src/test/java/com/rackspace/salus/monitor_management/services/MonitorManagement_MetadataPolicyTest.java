@@ -240,7 +240,7 @@ public class MonitorManagement_MetadataPolicyTest {
 
   @Test
   public void createMonitor_withIntervalPolicy() {
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of("interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
@@ -270,7 +270,7 @@ public class MonitorManagement_MetadataPolicyTest {
   public void testPatchExistingMonitor_allNullValues() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of(
             "interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
@@ -357,7 +357,7 @@ public class MonitorManagement_MetadataPolicyTest {
   public void testPatchExistingMonitor_someValueSetSomeValueNull() {
     String tenantId = RandomStringUtils.randomAlphabetic(10);
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of("interval",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("interval")
@@ -443,7 +443,7 @@ public class MonitorManagement_MetadataPolicyTest {
     when(zoneManagement.getAvailableZonesForTenant(any(), any()))
         .thenReturn(new PageImpl<>(List.of(new Zone().setName("public/newZone1")), Pageable.unpaged(), 1));
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of("zones",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("zones")
@@ -823,7 +823,7 @@ public class MonitorManagement_MetadataPolicyTest {
     int originalCount = 1;
     int newCount = 123;
 
-    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any(), anyBoolean()))
+    when(policyApi.getEffectiveMonitorMetadataMap(anyString(), any(), any()))
         .thenReturn(Map.of("count",
             (MonitorMetadataPolicyDTO) new MonitorMetadataPolicyDTO()
                 .setKey("count")
