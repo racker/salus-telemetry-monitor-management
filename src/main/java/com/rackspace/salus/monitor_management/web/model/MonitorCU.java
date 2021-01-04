@@ -60,6 +60,8 @@ public class MonitorCU implements Serializable {
 
     Set<String> excludedResourceIds;
 
+    Map<String,String> metadata;
+
     String resourceId;
 
     Duration interval;

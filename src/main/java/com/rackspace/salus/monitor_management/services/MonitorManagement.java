@@ -297,6 +297,7 @@ public class MonitorManagement {
         .setAgentType(newMonitor.getAgentType())
         .setSelectorScope(newMonitor.getSelectorScope())
         .setZones(newMonitor.getZones())
+        .setMetadata(newMonitor.getMetadata())
         .setPluginMetadataFields(newMonitor.getPluginMetadataFields());
 
     if (newMonitor.getLabelSelectorMethod() != null) {
@@ -819,6 +820,13 @@ public class MonitorManagement {
       monitor.setMonitorName(updatedValues.getMonitorName());
     } else if (updatedValues.getMonitorName() != null) {
       monitor.setMonitorName(updatedValues.getMonitorName());
+    }
+
+    // Update the metadata if needed
+    if (patchOperation) {
+      monitor.setMetadata(updatedValues.getMetadata());
+    } else if (updatedValues.getMetadata() != null) {
+      monitor.setMetadata(updatedValues.getMetadata());
     }
 
     // Update any metadata fields on the monitor if required.

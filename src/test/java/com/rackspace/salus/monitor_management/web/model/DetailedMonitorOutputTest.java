@@ -53,6 +53,7 @@ public class DetailedMonitorOutputTest {
         .setId("m-1")
         .setResourceId("r-1")
         .setExcludedResourceIds(Set.of("r-excluded"))
+        .setMetadata(Map.of("metaKey", "metaValue"))
         .setName("name-1")
         .setLabelSelector(
             Map.of("key1", "val1", "key2", "val2")
@@ -81,6 +82,7 @@ public class DetailedMonitorOutputTest {
         .setId("m-1")
         .setResourceId("r-1")
         .setExcludedResourceIds(Set.of("r-excluded"))
+        .setMetadata(Map.of("metaKey", "metaValue"))
         .setName("name-1")
         .setLabelSelector(
             Map.of("key1", "val1", "key2", "val2")
