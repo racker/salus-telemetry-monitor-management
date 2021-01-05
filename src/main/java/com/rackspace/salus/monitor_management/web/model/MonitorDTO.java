@@ -54,6 +54,8 @@ public class MonitorDTO {
 
   Set<String> excludedResourceIds;
 
+  Map<String,String> metadata;
+
   String createdTimestamp;
 
   String updatedTimestamp;
@@ -79,6 +81,7 @@ public class MonitorDTO {
     this.agentType = monitor.getAgentType();
     this.selectorScope = monitor.getSelectorScope();
     this.zones = monitor.getZones();
+    this.metadata = monitor.getMetadata();
     this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(monitor.getCreatedTimestamp());
     this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(monitor.getUpdatedTimestamp());
   }

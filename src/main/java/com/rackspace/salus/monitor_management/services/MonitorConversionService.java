@@ -96,6 +96,7 @@ public class MonitorConversionService {
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
         .setExcludedResourceIds(monitor.getExcludedResourceIds())
+        .setMetadata(monitor.getMetadata())
         .setDetails(convertContentToDetails(monitor));
 
     if (StringUtils.isNotBlank(monitor.getResourceId())) {
@@ -114,6 +115,7 @@ public class MonitorConversionService {
         .setLabelSelectorMethod(monitor.getLabelSelectorMethod())
         .setResourceId(monitor.getResourceId())
         .setExcludedResourceIds(monitor.getExcludedResourceIds())
+        .setMetadata(monitor.getMetadata())
         .setInterval(monitor.getInterval())
         .setDetails(convertContentToDetails(monitor))
         .setPolicy(monitor.getPolicyId() != null)

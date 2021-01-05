@@ -54,6 +54,8 @@ public class DetailedMonitorInput {
    */
   Set<String> excludedResourceIds;
 
+  Map<String,String> metadata;
+
   Duration interval;
 
   @ApiModelProperty(value="details", required=true, example="\"details\":{ \"type\": \"local|remote\",\"plugin\":{ \"type\":\"cpu\", \"collectCpuTime\": false, \"percpu\": false,\"reportActive\": false, \"totalcpu\": true}}")

@@ -2,6 +2,7 @@
   "id": "m-1",
   "resourceId": "r-1",
   "excludedResourceIds": ["r-excluded"],
+  "metadata": {"metaKey": "metaValue"},
   "name": "name-1",
   "labelSelector": {
     "key1": "val1",
